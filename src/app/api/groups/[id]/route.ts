@@ -1,0 +1,111 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import { groupSchema } from "@/lib/validations";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const membership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: id, userId: session.userId } },
+  });
+
+  if (!membership) {
+    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
+  }
+
+  const group = await prisma.group.findUnique({
+    where: { id },
+    include: {
+      members: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              surname: true,
+              email: true,
+              bggUsername: true,
+            },
+          },
+        },
+      },
+      _count: { select: { games: true } },
+      invitations: {
+        where: { status: "pending" },
+        select: { email: true, createdAt: true },
+      },
+    },
+  });
+
+  return NextResponse.json({ ...group, currentUserRole: membership.role });
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const membership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: id, userId: session.userId } },
+  });
+
+  if (!membership || membership.role !== "admin") {
+    return NextResponse.json({ error: "Solo el admin puede editar" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const parsed = groupSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0].message },
+      { status: 400 }
+    );
+  }
+
+  const group = await prisma.group.update({
+    where: { id },
+    data: { name: parsed.data.name },
+  });
+
+  return NextResponse.json(group);
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const membership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: id, userId: session.userId } },
+  });
+
+  if (!membership || membership.role !== "admin") {
+    return NextResponse.json({ error: "Solo el admin puede eliminar" }, { status: 403 });
+  }
+
+  await prisma.group.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
+}

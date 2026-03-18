@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  surname    String?
+  location   String?
+  bggUsername String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  groupMemberships GroupMember[]
+  votes            Vote[]
+  addedGames       GroupGame[]
+  createdGroups    Group[]      @relation("GroupCreator")
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation("GroupCreator", fields: [createdById], references: [id])
+
+  members     GroupMember[]
+  invitations GroupInvitation[]
+  games       GroupGame[]
+}
+
+model GroupMember {
+  id       String   @id @default(cuid())
+  groupId  String
+  userId   String
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
+model GroupInvitation {
+  id        String   @id @default(cuid())
+  groupId   String
+  email     String
+  token     String   @unique @default(cuid())
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+model Game {
+  id            String   @id @default(cuid())
+  bggId         Int      @unique
+  name          String
+  thumbnail     String?
+  yearPublished Int?
+  minPlayers    Int?
+  maxPlayers    Int?
+  bggRating     Float?
+  bggRank       Int?
+  weight        Float?
+  updatedAt     DateTime @updatedAt
+
+  groupGames GroupGame[]
+}
+
+model GroupGame {
+  id        String   @id @default(cuid())
+  groupId   String
+  gameId    String
+  addedById String
+  addedAt   DateTime @default(now())
+
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  game    Game  @relation(fields: [gameId], references: [id])
+  addedBy User  @relation(fields: [addedById], references: [id])
+  votes   Vote[]
+
+  @@unique([groupId, gameId])
+}
+
+model Vote {
+  id          String   @id @default(cuid())
+  groupGameId String
+  userId      String
+  type        String   @default("up")
+  createdAt   DateTime @default(now())
+
+  groupGame GroupGame @relation(fields: [groupGameId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([groupGameId, userId])
+}
