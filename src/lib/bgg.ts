@@ -43,12 +43,32 @@ const collectionCache = new Map<
 >();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
+function getBggHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    Accept: "application/xml",
+  };
+  const token = process.env.BGG_API_TOKEN;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function fetchWithRetry(
   url: string,
   maxRetries = 6
 ): Promise<Response> {
+  const headers = getBggHeaders();
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers });
+
+    if (response.status === 401) {
+      throw new Error(
+        "La API de BGG requiere un token de autorización. Configura BGG_API_TOKEN en las variables de entorno."
+      );
+    }
+
     if (response.status === 202) {
       // BGG is preparing the data, wait with exponential backoff
       const delay = Math.min(3000 * Math.pow(1.5, attempt), 15000);
@@ -74,13 +94,18 @@ export async function validateBggUsername(
   try {
     const normalizedUsername = username.toLowerCase().trim();
     const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&subtype=boardgame&page=1`;
-    const response = await fetch(url);
+    const headers = getBggHeaders();
+    const response = await fetch(url, { headers });
 
     // 202 = BGG is preparing data, which means the user exists
     if (response.status === 202 || response.ok) {
       return { valid: true };
     }
-    if (response.status === 401 || response.status === 404) {
+    // 401 without token = missing API config, don't block the user
+    if (response.status === 401 && !process.env.BGG_API_TOKEN) {
+      return { valid: true };
+    }
+    if (response.status === 404) {
       return {
         valid: false,
         error: `No se encontró el usuario "${username}" en BGG. Verifica que el nombre es correcto.`,
@@ -107,9 +132,9 @@ export async function fetchBggCollection(
   const response = await fetchWithRetry(url);
 
   if (!response.ok) {
-    if (response.status === 404 || response.status === 401) {
+    if (response.status === 404) {
       throw new Error(
-        `No se puede acceder a la colección de "${username}". Verifica que el nombre de usuario es correcto y que la colección no es privada en BGG.`
+        `No se encontró el usuario "${username}" en BGG. Verifica que el nombre de usuario es correcto.`
       );
     }
     throw new Error(`Error al obtener colección de BGG: ${response.status}`);
