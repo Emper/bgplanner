@@ -188,8 +188,8 @@ async function fetchWithRetry(
     console.log(`[BGG Fetch] Response: ${response.status}`);
 
     if (response.status === 401) {
-      // Session might have expired, clear and retry once
       if (attempt === 0) {
+        // Try re-authenticating
         console.log("[BGG Fetch] Got 401, re-authenticating...");
         bggCookieString = null;
         bggSessionExpiry = 0;
@@ -197,6 +197,16 @@ async function fetchWithRetry(
         const retryResponse = await fetch(url, newOptions);
         console.log(`[BGG Fetch] Retry after re-auth: ${retryResponse.status}`);
         if (retryResponse.status !== 401) return retryResponse;
+
+        // Fallback: try without auth (some BGG endpoints are public)
+        console.log("[BGG Fetch] Auth failed, trying without auth...");
+        const publicResponse = await fetch(url, {
+          headers: { Accept: "application/xml" },
+        });
+        console.log(`[BGG Fetch] Public response: ${publicResponse.status}`);
+        if (publicResponse.ok || publicResponse.status === 202) {
+          return publicResponse;
+        }
       }
       throw new Error(
         "No se pudo autenticar con BGG. Verifica las credenciales en BGG_USERNAME y BGG_PASSWORD."
