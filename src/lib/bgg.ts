@@ -249,28 +249,26 @@ export async function validateBggUsername(
   }
 }
 
-export async function fetchBggCollection(
+/**
+ * Ensures the collection for a BGG username is cached in the DB.
+ * Returns true if it was refreshed from BGG, false if cache was fresh.
+ */
+export async function ensureBggCollection(
   username: string,
   forceRefresh = false
-): Promise<BggCollectionItem[]> {
-  // Normalize username to lowercase
+): Promise<boolean> {
   const normalizedUsername = username.toLowerCase().trim();
 
-  // Check DB cache first (unless force refresh)
+  // Check if we have fresh data
   if (!forceRefresh) {
-    try {
-      const cached = await prisma.bggCollectionCache.findUnique({
-        where: { username: normalizedUsername },
-      });
-      if (
-        cached &&
-        Date.now() - cached.fetchedAt.getTime() < COLLECTION_CACHE_TTL
-      ) {
-        console.log(`[BGG Cache] HIT for ${normalizedUsername} (age: ${Math.round((Date.now() - cached.fetchedAt.getTime()) / 60000)}min)`);
-        return cached.data as unknown as BggCollectionItem[];
-      }
-    } catch (e) {
-      console.log(`[BGG Cache] DB read error:`, e);
+    const latest = await prisma.collectionGame.findFirst({
+      where: { bggUsername: normalizedUsername },
+      orderBy: { fetchedAt: "desc" },
+      select: { fetchedAt: true },
+    });
+    if (latest && Date.now() - latest.fetchedAt.getTime() < COLLECTION_CACHE_TTL) {
+      console.log(`[BGG Cache] HIT for ${normalizedUsername}`);
+      return false;
     }
   }
 
@@ -281,9 +279,7 @@ export async function fetchBggCollection(
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error(
-        `No se encontró el usuario "${username}" en BGG. Verifica que el nombre de usuario es correcto.`
-      );
+      throw new Error(`No se encontró el usuario "${username}" en BGG.`);
     }
     throw new Error(`Error al obtener colección de BGG: ${response.status}`);
   }
@@ -292,68 +288,64 @@ export async function fetchBggCollection(
   const parsed = await parseStringPromise(xml, { explicitArray: false });
 
   if (!parsed.items?.item) {
-    return [];
+    // Empty collection — clear existing rows
+    await prisma.collectionGame.deleteMany({ where: { bggUsername: normalizedUsername } });
+    return true;
   }
 
   const items = Array.isArray(parsed.items.item)
     ? parsed.items.item
     : [parsed.items.item];
 
-  const collection: BggCollectionItem[] = items
+  const now = new Date();
+  const games: BggCollectionItem[] = items
     .filter((item: any) => item.$.subtype === "boardgame")
     .map((item: any) => {
       const stats = item.stats;
       const rating = stats?.rating;
       const ranks = rating?.ranks?.rank;
       const rankArr = Array.isArray(ranks) ? ranks : ranks ? [ranks] : [];
-      const mainRank = rankArr.find(
-        (r: any) => r.$?.name === "boardgame"
-      );
+      const mainRank = rankArr.find((r: any) => r.$?.name === "boardgame");
 
       return {
         bggId: parseInt(item.$.objectid),
         name: typeof item.name === "string" ? item.name : item.name?._,
         thumbnail: item.thumbnail || null,
-        yearPublished: item.yearpublished
-          ? parseInt(item.yearpublished)
-          : null,
+        yearPublished: item.yearpublished ? parseInt(item.yearpublished) : null,
         minPlayers: stats ? parseInt(stats.$?.minplayers) : null,
         maxPlayers: stats ? parseInt(stats.$?.maxplayers) : null,
-        bggRating: rating?.average
-          ? parseFloat(rating.average.$?.value) || null
-          : null,
-        bggRank: mainRank
-          ? parseInt(mainRank.$?.value) || null
-          : null,
-        weight: rating?.averageweight
-          ? parseFloat(rating.averageweight.$?.value) || null
-          : null,
+        bggRating: rating?.average ? parseFloat(rating.average.$?.value) || null : null,
+        bggRank: mainRank ? parseInt(mainRank.$?.value) || null : null,
+        weight: rating?.averageweight ? parseFloat(rating.averageweight.$?.value) || null : null,
         numPlays: item.numplays ? parseInt(item.numplays) : 0,
-        userRating: rating
-          ? parseFloat(rating.$?.value) || null
-          : null,
+        userRating: rating ? parseFloat(rating.$?.value) || null : null,
       };
     });
 
-  // Save to DB cache
-  try {
-    await prisma.bggCollectionCache.upsert({
-      where: { username: normalizedUsername },
-      update: {
-        data: collection as any,
-        fetchedAt: new Date(),
-      },
-      create: {
-        username: normalizedUsername,
-        data: collection as any,
-      },
-    });
-    console.log(`[BGG Cache] Saved ${collection.length} games for ${normalizedUsername}`);
-  } catch (e) {
-    console.log(`[BGG Cache] DB write error:`, e);
-  }
+  // Bulk upsert: delete old + create new in a transaction
+  await prisma.$transaction([
+    prisma.collectionGame.deleteMany({ where: { bggUsername: normalizedUsername } }),
+    prisma.collectionGame.createMany({
+      data: games.map((g) => ({
+        bggUsername: normalizedUsername,
+        bggId: g.bggId,
+        name: g.name,
+        thumbnail: g.thumbnail,
+        yearPublished: g.yearPublished,
+        minPlayers: g.minPlayers,
+        maxPlayers: g.maxPlayers,
+        bggRating: g.bggRating,
+        bggRank: g.bggRank,
+        weight: g.weight,
+        numPlays: g.numPlays,
+        userRating: g.userRating,
+        fetchedAt: now,
+      })),
+    }),
+  ]);
 
-  return collection;
+  console.log(`[BGG Cache] Saved ${games.length} games for ${normalizedUsername}`);
+  return true;
 }
 
 export async function fetchBggGameDetails(
