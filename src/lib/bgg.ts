@@ -62,18 +62,28 @@ async function loginToBgg(): Promise<string> {
     );
   }
 
+  const payload = JSON.stringify({
+    credentials: { username, password },
+  });
+
+  console.log(`[BGG Login] Attempting login for user: ${username}`);
+
   const response = await fetch("https://boardgamegeek.com/login/api/v1", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      credentials: { username, password },
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: payload,
     redirect: "manual", // Don't follow redirects, we just need the cookie
   });
+
+  console.log(`[BGG Login] Response status: ${response.status}`);
 
   // BGG returns 200 or 302 on success, 400/401 on failure
   if (response.status >= 400) {
     const body = await response.text();
+    console.log(`[BGG Login] Error body: ${body}`);
     let errorMsg = "Error al iniciar sesión en BGG.";
     try {
       const parsed = JSON.parse(body);
@@ -81,23 +91,55 @@ async function loginToBgg(): Promise<string> {
     } catch {
       // ignore parse error
     }
-    throw new Error(`Login BGG fallido: ${errorMsg}`);
+    throw new Error(`Login BGG fallido (${response.status}): ${errorMsg}`);
   }
 
-  // Extract SessionID cookie from Set-Cookie headers
-  const setCookies = response.headers.getSetCookie?.() || [];
+  // Extract ALL cookies from response headers
+  // Method 1: getSetCookie() (Node 18.14.1+)
+  // Method 2: Iterate headers entries (works in all runtimes)
+  // Method 3: Raw get("set-cookie") header
   let sessionId = "";
-  for (const cookie of setCookies) {
-    const match = cookie.match(/SessionID=([^;]+)/);
-    if (match) {
-      sessionId = match[1];
-      break;
+
+  // Try getSetCookie first
+  if (typeof response.headers.getSetCookie === "function") {
+    const setCookies = response.headers.getSetCookie();
+    console.log(`[BGG Login] getSetCookie returned ${setCookies.length} cookies`);
+    for (const cookie of setCookies) {
+      const match = cookie.match(/SessionID=([^;]+)/);
+      if (match) {
+        sessionId = match[1];
+        break;
+      }
     }
   }
 
-  // Fallback: try raw header
+  // Fallback: iterate all headers
+  if (!sessionId) {
+    const allCookies: string[] = [];
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() === "set-cookie") {
+        allCookies.push(value);
+      }
+    });
+    console.log(`[BGG Login] forEach found ${allCookies.length} set-cookie headers`);
+    for (const cookie of allCookies) {
+      // The header might contain multiple cookies joined by comma
+      const parts = cookie.split(/,(?=\s*\w+=)/);
+      for (const part of parts) {
+        const match = part.match(/SessionID=([^;]+)/);
+        if (match) {
+          sessionId = match[1];
+          break;
+        }
+      }
+      if (sessionId) break;
+    }
+  }
+
+  // Fallback: raw header string
   if (!sessionId) {
     const rawCookie = response.headers.get("set-cookie") || "";
+    console.log(`[BGG Login] Raw set-cookie header length: ${rawCookie.length}`);
     const match = rawCookie.match(/SessionID=([^;]+)/);
     if (match) {
       sessionId = match[1];
@@ -105,11 +147,18 @@ async function loginToBgg(): Promise<string> {
   }
 
   if (!sessionId) {
+    // Log all headers for debugging
+    const headerEntries: string[] = [];
+    response.headers.forEach((value, key) => {
+      headerEntries.push(`${key}: ${value.substring(0, 100)}`);
+    });
+    console.log(`[BGG Login] All response headers: ${headerEntries.join(" | ")}`);
     throw new Error(
       "No se pudo obtener la cookie de sesión de BGG. Verifica las credenciales."
     );
   }
 
+  console.log(`[BGG Login] Success! SessionID length: ${sessionId.length}`);
   return sessionId;
 }
 
@@ -161,15 +210,19 @@ async function fetchWithRetry(
   const fetchOptions = await getBggFetchOptions();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    console.log(`[BGG Fetch] Attempt ${attempt + 1}: ${url.substring(0, 80)}...`);
     const response = await fetch(url, fetchOptions);
+    console.log(`[BGG Fetch] Response: ${response.status}`);
 
     if (response.status === 401) {
       // Session might have expired, clear and retry once
       if (attempt === 0) {
+        console.log("[BGG Fetch] Got 401, re-authenticating...");
         bggSessionCookie = null;
         bggSessionExpiry = 0;
         const newOptions = await getBggFetchOptions();
         const retryResponse = await fetch(url, newOptions);
+        console.log(`[BGG Fetch] Retry after re-auth: ${retryResponse.status}`);
         if (retryResponse.status !== 401) return retryResponse;
       }
       throw new Error(
