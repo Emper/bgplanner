@@ -93,34 +93,33 @@ export default function AddGamesPage() {
   }, [groupId]);
 
   // Fetch collection when username changes
-  useEffect(() => {
+  const loadCollection = async (refresh = false) => {
     if (!selectedUsername) return;
+    setLoadingCollection(true);
+    setError("");
+    if (!refresh) setCollection([]);
 
-    const fetchCollection = async () => {
-      setLoadingCollection(true);
-      setError("");
-      setCollection([]);
+    try {
+      const url = `/api/bgg/collection/${encodeURIComponent(selectedUsername)}${refresh ? "?refresh=true" : ""}`;
+      const res = await fetch(url, { credentials: "include" });
 
-      try {
-        const res = await fetch(
-          `/api/bgg/collection/${encodeURIComponent(selectedUsername)}`,
-          { credentials: "include" }
-        );
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Error al cargar colección");
-        }
-
+      if (!res.ok) {
         const data = await res.json();
-        setCollection(data);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Error inesperado");
-      } finally {
-        setLoadingCollection(false);
+        throw new Error(data.error || "Error al cargar colección");
       }
-    };
-    fetchCollection();
+
+      const data = await res.json();
+      setCollection(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setLoadingCollection(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCollection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUsername]);
 
   const filtered = useMemo(() => {
@@ -203,17 +202,27 @@ export default function AddGamesPage() {
                     .
                   </p>
                 ) : (
-                  <select
-                    value={selectedUsername}
-                    onChange={(e) => setSelectedUsername(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
-                  >
-                    {membersWithBgg.map((m) => (
-                      <option key={m.user.id} value={m.user.bggUsername!}>
-                        {m.user.name || m.user.email} ({m.user.bggUsername})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedUsername}
+                      onChange={(e) => setSelectedUsername(e.target.value)}
+                      className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                    >
+                      {membersWithBgg.map((m) => (
+                        <option key={m.user.id} value={m.user.bggUsername!}>
+                          {m.user.name || m.user.email} ({m.user.bggUsername})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => loadCollection(true)}
+                      disabled={loadingCollection}
+                      title="Actualizar colección desde BGG"
+                      className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 hover:text-amber-400 hover:border-amber-500/50 disabled:opacity-50 transition-colors"
+                    >
+                      {loadingCollection ? "..." : "↻"}
+                    </button>
+                  </div>
                 )}
               </div>
 

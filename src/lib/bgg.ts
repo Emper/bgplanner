@@ -1,4 +1,5 @@
 import { parseStringPromise } from "xml2js";
+import { prisma } from "@/lib/prisma";
 
 export type BggCollectionItem = {
   bggId: number;
@@ -36,12 +37,8 @@ export type BggGameDetails = {
   playerCountRecommendations: PlayerCountRec[];
 };
 
-// Simple in-memory cache
-const collectionCache = new Map<
-  string,
-  { data: BggCollectionItem[]; timestamp: number }
->();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+// DB-backed collection cache — refreshes once per day or on demand
+const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // ── BGG Session Management ──────────────────────────────────────────────
 // BGG now requires authentication for API access. We log in with a BGG
@@ -253,15 +250,31 @@ export async function validateBggUsername(
 }
 
 export async function fetchBggCollection(
-  username: string
+  username: string,
+  forceRefresh = false
 ): Promise<BggCollectionItem[]> {
   // Normalize username to lowercase
   const normalizedUsername = username.toLowerCase().trim();
-  const cacheKey = normalizedUsername;
-  const cached = collectionCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+
+  // Check DB cache first (unless force refresh)
+  if (!forceRefresh) {
+    try {
+      const cached = await prisma.bggCollectionCache.findUnique({
+        where: { username: normalizedUsername },
+      });
+      if (
+        cached &&
+        Date.now() - cached.fetchedAt.getTime() < COLLECTION_CACHE_TTL
+      ) {
+        console.log(`[BGG Cache] HIT for ${normalizedUsername} (age: ${Math.round((Date.now() - cached.fetchedAt.getTime()) / 60000)}min)`);
+        return cached.data as unknown as BggCollectionItem[];
+      }
+    } catch (e) {
+      console.log(`[BGG Cache] DB read error:`, e);
+    }
   }
+
+  console.log(`[BGG Cache] ${forceRefresh ? "FORCE REFRESH" : "MISS"} for ${normalizedUsername}, fetching from BGG...`);
 
   const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1`;
   const response = await fetchWithRetry(url);
@@ -322,7 +335,24 @@ export async function fetchBggCollection(
       };
     });
 
-  collectionCache.set(cacheKey, { data: collection, timestamp: Date.now() });
+  // Save to DB cache
+  try {
+    await prisma.bggCollectionCache.upsert({
+      where: { username: normalizedUsername },
+      update: {
+        data: collection as any,
+        fetchedAt: new Date(),
+      },
+      create: {
+        username: normalizedUsername,
+        data: collection as any,
+      },
+    });
+    console.log(`[BGG Cache] Saved ${collection.length} games for ${normalizedUsername}`);
+  } catch (e) {
+    console.log(`[BGG Cache] DB write error:`, e);
+  }
+
   return collection;
 }
 

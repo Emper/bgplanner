@@ -12,9 +12,10 @@ export async function GET(
   }
 
   const { username } = await params;
+  const forceRefresh = request.nextUrl.searchParams.get("refresh") === "true";
 
   try {
-    const collection = await fetchBggCollection(username);
+    const collection = await fetchBggCollection(username, forceRefresh);
     return NextResponse.json(collection);
   } catch (error) {
     const message =

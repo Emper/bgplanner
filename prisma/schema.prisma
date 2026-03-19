@@ -104,6 +104,14 @@ model GroupGame {
   @@unique([groupId, gameId])
 }
 
+model BggCollectionCache {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  data      Json     // Array of BggCollectionItem
+  fetchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Vote {
   id          String   @id @default(cuid())
   groupGameId String
