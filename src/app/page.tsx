@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 
 function LoginForm() {
   const router = useRouter();
@@ -10,7 +10,27 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
+
+  // Check if user already has an active session
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/profile", { credentials: "include" });
+        if (res.ok) {
+          // User is logged in, redirect to groups dashboard or intended page
+          router.replace(redirect || "/groups");
+          return;
+        }
+      } catch {
+        // Not logged in, show login form
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+    checkSession();
+  }, [router, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +59,14 @@ function LoginForm() {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+        Cargando...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
@@ -94,7 +122,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center text-slate-500">
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
           Cargando...
         </div>
       }

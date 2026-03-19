@@ -45,40 +45,69 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 async function fetchWithRetry(
   url: string,
-  maxRetries = 3
+  maxRetries = 6
 ): Promise<Response> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const response = await fetch(url);
     if (response.status === 202) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2000 * (attempt + 1))
-      );
+      // BGG is preparing the data, wait with exponential backoff
+      const delay = Math.min(3000 * Math.pow(1.5, attempt), 15000);
+      await new Promise((resolve) => setTimeout(resolve, delay));
       continue;
     }
     return response;
   }
-  throw new Error("BGG API no respondió después de varios intentos");
+  throw new Error(
+    "BGG está procesando tu colección. Espera unos segundos e inténtalo de nuevo."
+  );
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/**
+ * Validates that a BGG username exists by making a lightweight API call.
+ * Returns the normalized (lowercase) username if valid.
+ */
+export async function validateBggUsername(
+  username: string
+): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const normalizedUsername = username.toLowerCase().trim();
+    const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&subtype=boardgame&page=1`;
+    const response = await fetch(url);
+
+    // 202 = BGG is preparing data, which means the user exists
+    if (response.status === 202 || response.ok) {
+      return { valid: true };
+    }
+    if (response.status === 401 || response.status === 404) {
+      return {
+        valid: false,
+        error: `No se encontró el usuario "${username}" en BGG. Verifica que el nombre es correcto.`,
+      };
+    }
+    return { valid: true }; // Assume valid for other errors (rate limit, etc.)
+  } catch {
+    return { valid: true }; // Don't block on network errors
+  }
+}
+
 export async function fetchBggCollection(
   username: string
 ): Promise<BggCollectionItem[]> {
-  const cacheKey = username.toLowerCase();
+  // Normalize username to lowercase — BGG redirects but API2 can return 401 for wrong case
+  const normalizedUsername = username.toLowerCase().trim();
+  const cacheKey = normalizedUsername;
   const cached = collectionCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
 
-  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}&own=1&stats=1`;
+  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1`;
   const response = await fetchWithRetry(url);
 
   if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error(`Usuario BGG "${username}" no encontrado`);
-    }
-    if (response.status === 401) {
+    if (response.status === 404 || response.status === 401) {
       throw new Error(
         `No se puede acceder a la colección de "${username}". Verifica que el nombre de usuario es correcto y que la colección no es privada en BGG.`
       );
