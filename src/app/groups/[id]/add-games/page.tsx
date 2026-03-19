@@ -17,6 +17,7 @@ interface CollectionItem {
   weight: number | null;
   numPlays: number;
   userRating: number | null;
+  dateAdded: string | null;
 }
 
 interface PaginatedResponse {
@@ -43,6 +44,7 @@ interface GroupData {
 }
 
 const SORT_OPTIONS = [
+  { value: "added", label: "Recientes", icon: "🆕" },
   { value: "rank", label: "Rank BGG", icon: "🏆" },
   { value: "rating", label: "Valoración", icon: "⭐" },
   { value: "weight", label: "Peso", icon: "⚖️" },
@@ -69,7 +71,8 @@ export default function AddGamesPage() {
 
   // Pagination & sort
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState("rank");
+  const [sort, setSort] = useState("added");
+  const [sortDir, setSortDir] = useState<"" | "asc" | "desc">("");
   const [search, setSearch] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -146,6 +149,7 @@ export default function AddGamesPage() {
           pageSize: String(PAGE_SIZE),
           sort,
         });
+        if (sortDir) params.set("order", sortDir);
         if (refresh) params.set("refresh", "true");
         if (searchDebounced) params.set("search", searchDebounced);
         if (minPlayers) params.set("minPlayers", minPlayers);
@@ -174,7 +178,7 @@ export default function AddGamesPage() {
         setLoadingCollection(false);
       }
     },
-    [selectedUsername, page, sort, searchDebounced, minPlayers, maxPlayers, minWeight, maxWeight, maxRank, minPlays, unplayed]
+    [selectedUsername, page, sort, sortDir, searchDebounced, minPlayers, maxPlayers, minWeight, maxWeight, maxRank, minPlays, unplayed]
   );
 
   // Re-fetch when params change
@@ -206,7 +210,19 @@ export default function AddGamesPage() {
   };
 
   const handleSort = (newSort: string) => {
-    setSort(newSort);
+    if (newSort === sort) {
+      // Toggle direction: "" (default) → opposite → "" (default)
+      const defaults: Record<string, "asc" | "desc"> = {
+        added: "desc", rank: "asc", rating: "desc", weight: "asc",
+        name: "asc", plays: "desc", year: "desc",
+      };
+      const def = defaults[sort] ?? "asc";
+      const opposite = def === "asc" ? "desc" : "asc";
+      setSortDir(sortDir === "" ? opposite : "");
+    } else {
+      setSort(newSort);
+      setSortDir("");
+    }
     setPage(1);
   };
 
@@ -350,6 +366,18 @@ export default function AddGamesPage() {
                       >
                         <span className="mr-1">{opt.icon}</span>
                         {opt.label}
+                        {sort === opt.value && (
+                          <span className="ml-1 opacity-70">
+                            {(() => {
+                              const defaults: Record<string, string> = {
+                                added: "desc", rank: "asc", rating: "desc", weight: "asc",
+                                name: "asc", plays: "desc", year: "desc",
+                              };
+                              const effective = sortDir || defaults[sort] || "asc";
+                              return effective === "asc" ? "↑" : "↓";
+                            })()}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

@@ -18,8 +18,8 @@ export async function GET(
   const forceRefresh = sp.get("refresh") === "true";
   const page = Math.max(1, parseInt(sp.get("page") || "1"));
   const pageSize = Math.min(100, Math.max(1, parseInt(sp.get("pageSize") || "24")));
-  const sort = sp.get("sort") || "rank";
-  const order = sp.get("order") || "asc";
+  const sort = sp.get("sort") || "added";
+  const order = sp.get("order") || "";
   const search = sp.get("search") || "";
 
   // Filters
@@ -66,14 +66,27 @@ export async function GET(
       where.numPlays = { gte: minPlays };
     }
 
-    // Build orderBy — nulls go last
-    const dir = order === "desc" ? "desc" : "asc";
+    // Each sort has a natural default direction; explicit order overrides it
+    const sortDefaults: Record<string, "asc" | "desc"> = {
+      added: "desc",   // newest first
+      rank: "asc",     // #1 first
+      rating: "desc",  // highest first
+      weight: "asc",   // lightest first
+      name: "asc",     // A-Z
+      plays: "desc",   // most played first
+      year: "desc",    // newest first
+    };
+
+    const dir: "asc" | "desc" = order === "asc" || order === "desc" ? order : (sortDefaults[sort] ?? "asc");
     const nullsPos = dir === "asc" ? "last" : "first";
     let orderBy: Prisma.CollectionGameOrderByWithRelationInput;
 
     switch (sort) {
+      case "added":
+        orderBy = { dateAdded: { sort: dir, nulls: "last" } };
+        break;
       case "rating":
-        orderBy = { bggRating: { sort: "desc", nulls: "last" } };
+        orderBy = { bggRating: { sort: dir, nulls: "last" } };
         break;
       case "weight":
         orderBy = { weight: { sort: dir, nulls: nullsPos } };
@@ -82,14 +95,14 @@ export async function GET(
         orderBy = { name: dir };
         break;
       case "plays":
-        orderBy = { numPlays: "desc" };
+        orderBy = { numPlays: dir };
         break;
       case "year":
-        orderBy = { yearPublished: { sort: "desc", nulls: "last" } };
+        orderBy = { yearPublished: { sort: dir, nulls: "last" } };
         break;
       case "rank":
       default:
-        orderBy = { bggRank: { sort: "asc", nulls: "last" } };
+        orderBy = { bggRank: { sort: dir, nulls: "last" } };
         break;
     }
 

@@ -116,16 +116,18 @@ model CollectionGame {
   bggRating     Float?
   bggRank       Int?
   weight        Float?
-  numPlays      Int      @default(0)
+  numPlays      Int       @default(0)
   userRating    Float?
-  fetchedAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  dateAdded     DateTime?
+  fetchedAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([bggUsername, bggId])
   @@index([bggUsername])
   @@index([bggRank])
   @@index([bggRating])
   @@index([numPlays])
+  @@index([dateAdded])
 }
 
 model Vote {

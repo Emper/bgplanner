@@ -13,6 +13,7 @@ export type BggCollectionItem = {
   weight: number | null;
   numPlays: number;
   userRating: number | null;
+  dateAdded: Date | null;
 };
 
 export type PlayerCountRec = {
@@ -319,6 +320,7 @@ export async function ensureBggCollection(
         weight: rating?.averageweight ? parseFloat(rating.averageweight.$?.value) || null : null,
         numPlays: item.numplays ? parseInt(item.numplays) : 0,
         userRating: rating ? parseFloat(rating.$?.value) || null : null,
+        dateAdded: item.$.dateadded ? new Date(item.$.dateadded) : null,
       };
     });
 
@@ -339,6 +341,7 @@ export async function ensureBggCollection(
         weight: g.weight,
         numPlays: g.numPlays,
         userRating: g.userRating,
+        dateAdded: g.dateAdded,
         fetchedAt: now,
       })),
     }),
