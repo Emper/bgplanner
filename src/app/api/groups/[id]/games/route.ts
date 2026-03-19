@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { addGameSchema } from "@/lib/validations";
-import { fetchBggGameDetails, type BggCollectionItem } from "@/lib/bgg";
+import { fetchBggGameDetails } from "@/lib/bgg";
 
 export async function GET(
   request: NextRequest,
@@ -97,21 +97,10 @@ export async function POST(
   let game = await prisma.game.findUnique({ where: { bggId } });
 
   if (!game) {
-    // Try to find the game in the BGG collection cache first (fast, no API call)
-    let cachedItem: BggCollectionItem | null = null;
-    try {
-      const caches = await prisma.bggCollectionCache.findMany();
-      for (const cache of caches) {
-        const items = cache.data as unknown as BggCollectionItem[];
-        const found = items.find((item) => item.bggId === bggId);
-        if (found) {
-          cachedItem = found;
-          break;
-        }
-      }
-    } catch {
-      // ignore cache errors
-    }
+    // Try to find the game in the structured CollectionGame cache (fast, no API call)
+    const cachedItem = await prisma.collectionGame.findFirst({
+      where: { bggId },
+    });
 
     if (cachedItem) {
       // Use cached collection data — no BGG API call needed
