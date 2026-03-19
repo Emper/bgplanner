@@ -82,6 +82,7 @@ export default function AddGamesPage() {
   const [maxWeight, setMaxWeight] = useState("");
   const [maxRank, setMaxRank] = useState("");
   const [minPlays, setMinPlays] = useState("");
+  const [unplayed, setUnplayed] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -152,7 +153,8 @@ export default function AddGamesPage() {
         if (minWeight) params.set("minWeight", minWeight);
         if (maxWeight) params.set("maxWeight", maxWeight);
         if (maxRank) params.set("maxRank", maxRank);
-        if (minPlays) params.set("minPlays", minPlays);
+        if (unplayed) params.set("unplayed", "true");
+        else if (minPlays) params.set("minPlays", minPlays);
 
         const url = `/api/bgg/collection/${encodeURIComponent(selectedUsername)}?${params}`;
         const res = await fetch(url, { credentials: "include" });
@@ -172,7 +174,7 @@ export default function AddGamesPage() {
         setLoadingCollection(false);
       }
     },
-    [selectedUsername, page, sort, searchDebounced, minPlayers, maxPlayers, minWeight, maxWeight, maxRank, minPlays]
+    [selectedUsername, page, sort, searchDebounced, minPlayers, maxPlayers, minWeight, maxWeight, maxRank, minPlays, unplayed]
   );
 
   // Re-fetch when params change
@@ -219,11 +221,12 @@ export default function AddGamesPage() {
     setMaxWeight("");
     setMaxRank("");
     setMinPlays("");
+    setUnplayed(false);
     setPage(1);
   };
 
   const hasActiveFilters =
-    minPlayers || maxPlayers || minWeight || maxWeight || maxRank || minPlays;
+    minPlayers || maxPlayers || minWeight || maxWeight || maxRank || minPlays || unplayed;
 
   const membersWithBgg =
     group?.members.filter((m) => m.user.bggUsername) || [];
@@ -352,7 +355,22 @@ export default function AddGamesPage() {
                   </div>
                 </div>
 
-                {/* Filter toggle */}
+                {/* Antiludoteca toggle + Filter toggle */}
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    onClick={() => {
+                      setUnplayed(!unplayed);
+                      setPage(1);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      unplayed
+                        ? "bg-red-500/20 text-red-300 border border-red-500/50"
+                        : "bg-slate-700 text-slate-400 border border-slate-600 hover:text-slate-200 hover:border-slate-500"
+                    }`}
+                  >
+                    📦 Antiludoteca
+                  </button>
+
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className="mt-3 flex items-center gap-2 text-sm text-slate-400 hover:text-amber-400 transition-colors"
@@ -377,6 +395,7 @@ export default function AddGamesPage() {
                     </span>
                   )}
                 </button>
+                </div>
 
                 {/* Collapsible filters */}
                 {showFilters && (
@@ -605,9 +624,13 @@ export default function AddGamesPage() {
                                   ⚖️ {game.weight.toFixed(1)}
                                 </span>
                               )}
-                              {game.numPlays > 0 && (
+                              {game.numPlays > 0 ? (
                                 <span className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-300 px-2 py-0.5 rounded-full">
                                   🎲 {game.numPlays} partida{game.numPlays !== 1 && "s"}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs bg-red-500/15 text-red-300 px-2 py-0.5 rounded-full">
+                                  📦 Sin estrenar
                                 </span>
                               )}
                               {game.userRating && (

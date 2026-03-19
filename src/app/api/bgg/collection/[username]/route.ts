@@ -29,6 +29,7 @@ export async function GET(
   const maxWeight = sp.get("maxWeight") ? parseFloat(sp.get("maxWeight")!) : undefined;
   const maxRank = sp.get("maxRank") ? parseInt(sp.get("maxRank")!) : undefined;
   const minPlays = sp.get("minPlays") ? parseInt(sp.get("minPlays")!) : undefined;
+  const unplayed = sp.get("unplayed") === "true";
 
   const normalizedUsername = username.toLowerCase().trim();
 
@@ -59,7 +60,9 @@ export async function GET(
     if (maxRank !== undefined) {
       where.bggRank = { lte: maxRank };
     }
-    if (minPlays !== undefined) {
+    if (unplayed) {
+      where.numPlays = 0;
+    } else if (minPlays !== undefined) {
       where.numPlays = { gte: minPlays };
     }
 
