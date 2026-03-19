@@ -118,6 +118,7 @@ model CollectionGame {
   weight        Float?
   numPlays      Int       @default(0)
   userRating    Float?
+  bestWith      String?
   dateAdded     DateTime?
   fetchedAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

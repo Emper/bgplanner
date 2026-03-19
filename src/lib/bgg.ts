@@ -324,6 +324,13 @@ export async function ensureBggCollection(
       };
     });
 
+  // Preserve bestWith from previous sync
+  const existingBestWith = await prisma.collectionGame.findMany({
+    where: { bggUsername: normalizedUsername, bestWith: { not: null } },
+    select: { bggId: true, bestWith: true },
+  });
+  const bestWithMap = new Map(existingBestWith.map((g) => [g.bggId, g.bestWith]));
+
   // Bulk upsert: delete old + create new in a transaction
   await prisma.$transaction([
     prisma.collectionGame.deleteMany({ where: { bggUsername: normalizedUsername } }),
@@ -341,6 +348,7 @@ export async function ensureBggCollection(
         weight: g.weight,
         numPlays: g.numPlays,
         userRating: g.userRating,
+        bestWith: bestWithMap.get(g.bggId) || null,
         dateAdded: g.dateAdded,
         fetchedAt: now,
       })),
@@ -349,6 +357,75 @@ export async function ensureBggCollection(
 
   console.log(`[BGG Cache] Saved ${games.length} games for ${normalizedUsername}`);
   return true;
+}
+
+/**
+ * Enrich collection games that are missing bestWith data.
+ * Fetches thing details from BGG in a single batch and updates DB.
+ * Returns the enriched bggId→bestWith map.
+ */
+export async function enrichCollectionGames(
+  bggIds: number[]
+): Promise<Map<number, string>> {
+  const result = new Map<number, string>();
+  if (bggIds.length === 0) return result;
+
+  try {
+    const details = await fetchBggGameDetails(bggIds);
+
+    for (const detail of details) {
+      const recs = detail.playerCountRecommendations;
+      if (!recs || recs.length === 0) continue;
+
+      // Find "Best" player counts
+      const bestCounts = recs
+        .filter((r) => r.verdict === "Best")
+        .map((r) => r.numPlayers)
+        .filter((n) => !n.includes("+"))
+        .map((n) => parseInt(n))
+        .filter((n) => !isNaN(n))
+        .sort((a, b) => a - b);
+
+      if (bestCounts.length === 0) {
+        // Fallback: find "Recommended" counts
+        const recCounts = recs
+          .filter((r) => r.verdict === "Recommended")
+          .map((r) => r.numPlayers)
+          .filter((n) => !n.includes("+"))
+          .map((n) => parseInt(n))
+          .filter((n) => !isNaN(n))
+          .sort((a, b) => a - b);
+        if (recCounts.length > 0) {
+          const bestWith = recCounts.length === 1
+            ? String(recCounts[0])
+            : `${recCounts[0]}-${recCounts[recCounts.length - 1]}`;
+          result.set(detail.bggId, bestWith);
+        }
+      } else {
+        const bestWith = bestCounts.length === 1
+          ? String(bestCounts[0])
+          : `${bestCounts[0]}-${bestCounts[bestCounts.length - 1]}`;
+        result.set(detail.bggId, bestWith);
+      }
+    }
+
+    // Bulk update DB
+    if (result.size > 0) {
+      await Promise.all(
+        Array.from(result.entries()).map(([bggId, bestWith]) =>
+          prisma.collectionGame.updateMany({
+            where: { bggId },
+            data: { bestWith },
+          })
+        )
+      );
+      console.log(`[BGG Enrich] Updated bestWith for ${result.size} games`);
+    }
+  } catch (err) {
+    console.error("[BGG Enrich] Error:", err);
+  }
+
+  return result;
 }
 
 export async function fetchBggGameDetails(

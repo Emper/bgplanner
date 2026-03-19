@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { ensureBggCollection } from "@/lib/bgg";
+import { ensureBggCollection, enrichCollectionGames } from "@/lib/bgg";
 import { Prisma } from "@prisma/client";
 
 export async function GET(
