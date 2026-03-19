@@ -298,14 +298,6 @@ export async function ensureBggCollection(
     ? parsed.items.item
     : [parsed.items.item];
 
-  // Debug: log first item's attributes to discover dateadded field
-  if (items.length > 0) {
-    console.log("[BGG Debug] First item $ attrs:", JSON.stringify(items[0].$));
-    console.log("[BGG Debug] First item top-level keys:", Object.keys(items[0]));
-    // Check if dateadded might be a child element instead of attribute
-    if (items[0].status) console.log("[BGG Debug] First item status:", JSON.stringify(items[0].status));
-  }
-
   const now = new Date();
   const games: BggCollectionItem[] = items
     .filter((item: any) => item.$.subtype === "boardgame")
@@ -328,7 +320,7 @@ export async function ensureBggCollection(
         weight: rating?.averageweight ? parseFloat(rating.averageweight.$?.value) || null : null,
         numPlays: item.numplays ? parseInt(item.numplays) : 0,
         userRating: rating ? parseFloat(rating.$?.value) || null : null,
-        dateAdded: item.$.dateadded ? new Date(item.$.dateadded) : null,
+        dateAdded: item.status?.$?.lastmodified ? new Date(item.status.$.lastmodified) : null,
       };
     });
 
