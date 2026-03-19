@@ -104,12 +104,28 @@ model GroupGame {
   @@unique([groupId, gameId])
 }
 
-model BggCollectionCache {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  data      Json     // Array of BggCollectionItem
-  fetchedAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model CollectionGame {
+  id            String   @id @default(cuid())
+  bggUsername   String
+  bggId         Int
+  name          String
+  thumbnail     String?
+  yearPublished Int?
+  minPlayers    Int?
+  maxPlayers    Int?
+  bggRating     Float?
+  bggRank       Int?
+  weight        Float?
+  numPlays      Int      @default(0)
+  userRating    Float?
+  fetchedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([bggUsername, bggId])
+  @@index([bggUsername])
+  @@index([bggRank])
+  @@index([bggRating])
+  @@index([numPlays])
 }
 
 model Vote {
