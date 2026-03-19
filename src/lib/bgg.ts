@@ -48,7 +48,7 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 // account and use the session cookie for all subsequent requests.
 // This avoids needing a registered application + Bearer token.
 
-let bggSessionCookie: string | null = null;
+let bggCookieString: string | null = null;
 let bggSessionExpiry = 0;
 const BGG_SESSION_TTL = 50 * 60 * 1000; // Refresh session every 50 min (BGG sets 1h expiry)
 
@@ -94,109 +94,84 @@ async function loginToBgg(): Promise<string> {
     throw new Error(`Login BGG fallido (${response.status}): ${errorMsg}`);
   }
 
-  // Extract ALL cookies from response headers
-  // Method 1: getSetCookie() (Node 18.14.1+)
-  // Method 2: Iterate headers entries (works in all runtimes)
-  // Method 3: Raw get("set-cookie") header
-  let sessionId = "";
+  // Extract ALL cookies from response — BGG needs all of them, not just SessionID
+  const cookiePairs: string[] = [];
 
-  // Try getSetCookie first
   if (typeof response.headers.getSetCookie === "function") {
     const setCookies = response.headers.getSetCookie();
     console.log(`[BGG Login] getSetCookie returned ${setCookies.length} cookies`);
     for (const cookie of setCookies) {
-      const match = cookie.match(/SessionID=([^;]+)/);
-      if (match) {
-        sessionId = match[1];
-        break;
+      // Extract "name=value" from "name=value; path=/; ..."
+      const nameValue = cookie.split(";")[0].trim();
+      if (nameValue && nameValue.includes("=")) {
+        cookiePairs.push(nameValue);
       }
     }
-  }
-
-  // Fallback: iterate all headers
-  if (!sessionId) {
-    const allCookies: string[] = [];
-    response.headers.forEach((value, key) => {
-      if (key.toLowerCase() === "set-cookie") {
-        allCookies.push(value);
-      }
-    });
-    console.log(`[BGG Login] forEach found ${allCookies.length} set-cookie headers`);
-    for (const cookie of allCookies) {
-      // The header might contain multiple cookies joined by comma
-      const parts = cookie.split(/,(?=\s*\w+=)/);
-      for (const part of parts) {
-        const match = part.match(/SessionID=([^;]+)/);
-        if (match) {
-          sessionId = match[1];
-          break;
-        }
-      }
-      if (sessionId) break;
-    }
-  }
-
-  // Fallback: raw header string
-  if (!sessionId) {
+  } else {
+    // Fallback: raw header
     const rawCookie = response.headers.get("set-cookie") || "";
-    console.log(`[BGG Login] Raw set-cookie header length: ${rawCookie.length}`);
-    const match = rawCookie.match(/SessionID=([^;]+)/);
-    if (match) {
-      sessionId = match[1];
+    console.log(`[BGG Login] Raw set-cookie length: ${rawCookie.length}`);
+    // Split by comma but not within expires dates
+    const parts = rawCookie.split(/,(?=\s*(?:\w+=))/);
+    for (const part of parts) {
+      const nameValue = part.split(";")[0].trim();
+      if (nameValue && nameValue.includes("=")) {
+        cookiePairs.push(nameValue);
+      }
     }
   }
 
-  if (!sessionId) {
-    // Log all headers for debugging
+  if (cookiePairs.length === 0) {
     const headerEntries: string[] = [];
     response.headers.forEach((value, key) => {
       headerEntries.push(`${key}: ${value.substring(0, 100)}`);
     });
     console.log(`[BGG Login] All response headers: ${headerEntries.join(" | ")}`);
     throw new Error(
-      "No se pudo obtener la cookie de sesión de BGG. Verifica las credenciales."
+      "No se pudo obtener cookies de sesión de BGG. Verifica las credenciales."
     );
   }
 
-  console.log(`[BGG Login] Success! SessionID length: ${sessionId.length}`);
-  return sessionId;
+  const cookieString = cookiePairs.join("; ");
+  console.log(`[BGG Login] Success! ${cookiePairs.length} cookies captured. Names: ${cookiePairs.map(c => c.split("=")[0]).join(", ")}`);
+  return cookieString;
 }
 
-async function getBggSessionCookie(): Promise<string> {
+async function getBggCookies(): Promise<string> {
   // Also support Bearer token as alternative
   const token = process.env.BGG_API_TOKEN;
   if (token) {
     return `__bearer__${token}`;
   }
 
-  if (bggSessionCookie && Date.now() < bggSessionExpiry) {
-    return bggSessionCookie;
+  if (bggCookieString && Date.now() < bggSessionExpiry) {
+    return bggCookieString;
   }
 
-  const sessionId = await loginToBgg();
-  bggSessionCookie = sessionId;
+  const cookies = await loginToBgg();
+  bggCookieString = cookies;
   bggSessionExpiry = Date.now() + BGG_SESSION_TTL;
-  return sessionId;
+  return cookies;
 }
 
 async function getBggFetchOptions(): Promise<RequestInit> {
-  const session = await getBggSessionCookie();
+  const cookies = await getBggCookies();
 
   // If using Bearer token
-  if (session.startsWith("__bearer__")) {
+  if (cookies.startsWith("__bearer__")) {
     return {
       headers: {
         Accept: "application/xml",
-        Authorization: `Bearer ${session.slice("__bearer__".length)}`,
+        Authorization: `Bearer ${cookies.slice("__bearer__".length)}`,
       },
     };
   }
 
-  // Using session cookie
+  // Using all session cookies
   return {
     headers: {
       Accept: "application/xml",
-      Cookie: `SessionID=${session}`,
+      Cookie: cookies,
     },
   };
 }
@@ -218,7 +193,7 @@ async function fetchWithRetry(
       // Session might have expired, clear and retry once
       if (attempt === 0) {
         console.log("[BGG Fetch] Got 401, re-authenticating...");
-        bggSessionCookie = null;
+        bggCookieString = null;
         bggSessionExpiry = 0;
         const newOptions = await getBggFetchOptions();
         const retryResponse = await fetch(url, newOptions);
