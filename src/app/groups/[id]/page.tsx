@@ -256,7 +256,7 @@ export default function GroupDashboardPage() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center text-gray-400">
+        <div className="min-h-screen flex items-center justify-center text-slate-500">
           Cargando...
         </div>
       </>
@@ -268,7 +268,7 @@ export default function GroupDashboardPage() {
       <>
         <Navbar />
         <div className="min-h-screen flex items-center justify-center">
-          <p className="text-red-500">{error || "Grupo no encontrado"}</p>
+          <p className="text-red-400">{error || "Grupo no encontrado"}</p>
         </div>
       </>
     );
@@ -277,25 +277,25 @@ export default function GroupDashboardPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 py-6 px-4">
+      <div className="min-h-screen bg-slate-900 py-6 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">{group.name}</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-slate-100">{group.name}</h1>
+            <p className="text-sm text-slate-400">
               {group.members.length} miembros &middot; {group._count.games}{" "}
               juegos
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mb-6 border-b border-gray-200">
+          <div className="flex gap-1 mb-6 border-b border-slate-700">
             <button
               onClick={() => setActiveTab("ranking")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "ranking"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-amber-400 text-amber-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
               }`}
             >
               Ranking
@@ -304,8 +304,8 @@ export default function GroupDashboardPage() {
               onClick={() => setActiveTab("members")}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "members"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-amber-400 text-amber-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
               }`}
             >
               Miembros
@@ -318,14 +318,14 @@ export default function GroupDashboardPage() {
               <div className="flex justify-end mb-4">
                 <Link
                   href={`/groups/${groupId}/add-games`}
-                  className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm font-medium"
+                  className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium"
                 >
                   Añadir juegos
                 </Link>
               </div>
 
               {ranking.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center text-gray-500">
+                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
                   No hay juegos en este grupo todavía. ¡Añade algunos!
                 </div>
               ) : (
@@ -335,15 +335,15 @@ export default function GroupDashboardPage() {
                     return (
                       <div
                         key={item.groupGameId}
-                        className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center gap-4"
+                        className="bg-slate-800 rounded-xl border border-slate-700 p-4 flex items-center gap-4"
                       >
                         {/* Rank */}
-                        <div className="text-lg font-bold text-gray-400 w-8 text-center shrink-0">
+                        <div className="text-lg font-bold text-slate-500 w-8 text-center shrink-0">
                           #{index + 1}
                         </div>
 
                         {/* Thumbnail */}
-                        <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                        <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-700">
                           {item.game.thumbnail ? (
                             <img
                               src={item.game.thumbnail}
@@ -351,7 +351,7 @@ export default function GroupDashboardPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                            <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
                               Sin img
                             </div>
                           )}
@@ -359,10 +359,10 @@ export default function GroupDashboardPage() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-gray-800 truncate">
+                          <div className="font-semibold text-slate-100 truncate">
                             {item.game.name}
                             {item.game.yearPublished && (
-                              <span className="text-gray-400 font-normal ml-1">
+                              <span className="text-slate-500 font-normal ml-1">
                                 ({item.game.yearPublished})
                               </span>
                             )}
@@ -370,17 +370,17 @@ export default function GroupDashboardPage() {
 
                           <div className="flex flex-wrap gap-2 mt-1">
                             {item.game.bggRating && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
                                 BGG {item.game.bggRating.toFixed(1)}
                               </span>
                             )}
                             {item.game.weight && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
                                 Peso: {item.game.weight.toFixed(1)}
                               </span>
                             )}
                             {(item.game.minPlayers || item.game.maxPlayers) && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300">
                                 {item.game.minPlayers === item.game.maxPlayers
                                   ? `${item.game.minPlayers} jugadores`
                                   : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"} jugadores`}
@@ -390,10 +390,10 @@ export default function GroupDashboardPage() {
                               <span
                                 className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                                   rec.verdict === "Best"
-                                    ? "bg-green-100 text-green-700"
+                                    ? "bg-green-500/20 text-green-300"
                                     : rec.verdict === "Recommended"
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : "bg-red-100 text-red-700"
+                                      ? "bg-yellow-500/20 text-yellow-300"
+                                      : "bg-red-500/20 text-red-300"
                                 }`}
                               >
                                 {rec.verdict === "Best"
@@ -409,10 +409,10 @@ export default function GroupDashboardPage() {
 
                         {/* Score */}
                         <div className="text-center shrink-0">
-                          <div className="text-xl font-bold text-gray-800">
+                          <div className="text-xl font-bold text-slate-100">
                             {item.score}
                           </div>
-                          <div className="text-xs text-gray-400">puntos</div>
+                          <div className="text-xs text-slate-500">puntos</div>
                         </div>
 
                         {/* Vote buttons */}
@@ -429,8 +429,8 @@ export default function GroupDashboardPage() {
                             disabled={votingGame === item.groupGameId}
                             className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors disabled:opacity-50 ${
                               item.userVote === "up"
-                                ? "bg-indigo-100 border-indigo-300 text-indigo-600"
-                                : "border-gray-200 text-gray-400 hover:bg-gray-50"
+                                ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                : "border-slate-700 text-slate-500 hover:bg-slate-700"
                             }`}
                             title="+1"
                           >
@@ -448,8 +448,8 @@ export default function GroupDashboardPage() {
                             disabled={votingGame === item.groupGameId}
                             className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors disabled:opacity-50 ${
                               item.userVote === "super"
-                                ? "bg-orange-100 border-orange-300 text-orange-600"
-                                : "border-gray-200 text-gray-400 hover:bg-gray-50"
+                                ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                : "border-slate-700 text-slate-500 hover:bg-slate-700"
                             }`}
                             title="+3 (Super voto)"
                           >
@@ -467,8 +467,8 @@ export default function GroupDashboardPage() {
                             disabled={votingGame === item.groupGameId}
                             className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors disabled:opacity-50 ${
                               item.userVote === "down"
-                                ? "bg-red-100 border-red-300 text-red-600"
-                                : "border-gray-200 text-gray-400 hover:bg-gray-50"
+                                ? "bg-red-500/20 border-red-500 text-red-400"
+                                : "border-slate-700 text-slate-500 hover:bg-slate-700"
                             }`}
                             title="-1"
                           >
@@ -487,31 +487,31 @@ export default function GroupDashboardPage() {
           {activeTab === "members" && (
             <div className="space-y-6">
               {/* Members list */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4">
                   Miembros
                 </h2>
                 <div className="space-y-3">
                   {group.members.map((member) => (
                     <div
                       key={member.user.id}
-                      className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                      className="flex items-center justify-between py-2 border-b border-slate-700/50 last:border-0"
                     >
                       <div>
-                        <span className="font-medium text-gray-800">
+                        <span className="font-medium text-slate-100">
                           {member.user.name
                             ? `${member.user.name} ${member.user.surname || ""}`
                             : member.user.email}
                         </span>
-                        <span className="text-sm text-gray-400 ml-2">
+                        <span className="text-sm text-slate-500 ml-2">
                           {member.user.email}
                         </span>
                       </div>
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-medium ${
                           member.role === "admin"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-gray-100 text-gray-600"
+                            ? "bg-amber-500/20 text-amber-300"
+                            : "bg-slate-700 text-slate-300"
                         }`}
                       >
                         {member.role === "admin" ? "Admin" : "Miembro"}
@@ -522,8 +522,8 @@ export default function GroupDashboardPage() {
               </div>
 
               {/* Invite form */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4">
                   Invitar miembro
                 </h2>
                 <form onSubmit={handleInvite} className="flex gap-3">
@@ -533,40 +533,40 @@ export default function GroupDashboardPage() {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={inviting}
-                    className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50 font-medium text-sm"
+                    className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
                   >
                     {inviting ? "Enviando..." : "Invitar"}
                   </button>
                 </form>
                 {inviteMsg && (
-                  <p className="text-sm text-green-600 mt-2">{inviteMsg}</p>
+                  <p className="text-sm text-green-400 mt-2">{inviteMsg}</p>
                 )}
                 {inviteError && (
-                  <p className="text-sm text-red-500 mt-2">{inviteError}</p>
+                  <p className="text-sm text-red-400 mt-2">{inviteError}</p>
                 )}
               </div>
 
               {/* Pending invitations */}
               {group.invitations.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                  <h2 className="text-lg font-semibold text-slate-100 mb-4">
                     Invitaciones pendientes
                   </h2>
                   <div className="space-y-2">
                     {group.invitations.map((inv) => (
                       <div
                         key={inv.email}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                        className="flex items-center justify-between py-2 border-b border-slate-700/50 last:border-0"
                       >
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-slate-300">
                           {inv.email}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-slate-500">
                           {new Date(inv.createdAt).toLocaleDateString("es-ES")}
                         </span>
                       </div>

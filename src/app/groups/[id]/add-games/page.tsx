@@ -169,35 +169,35 @@ export default function AddGamesPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 py-6 px-4">
+      <div className="min-h-screen bg-slate-900 py-6 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-4 mb-6">
             <Link
               href={`/groups/${groupId}`}
-              className="text-sm text-indigo-500 hover:text-indigo-600"
+              className="text-sm text-amber-400 hover:text-amber-400"
             >
               &larr; Volver al grupo
             </Link>
-            <h1 className="text-2xl font-bold text-gray-800">
+            <h1 className="text-2xl font-bold text-slate-100">
               Añadir juegos
             </h1>
           </div>
 
           {loadingGroup ? (
-            <p className="text-gray-400">Cargando...</p>
+            <p className="text-slate-500">Cargando...</p>
           ) : (
             <>
               {/* Username selector */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-4">
+                <label className="block text-sm font-medium text-slate-200 mb-2">
                   Colección de BGG
                 </label>
                 {membersWithBgg.length === 0 ? (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-400">
                     Ningún miembro tiene un nombre de usuario de BGG configurado.
                     Configúralo en tu{" "}
-                    <Link href="/profile" className="text-indigo-500 underline">
+                    <Link href="/profile" className="text-amber-400 underline">
                       perfil
                     </Link>
                     .
@@ -206,7 +206,7 @@ export default function AddGamesPage() {
                   <select
                     value={selectedUsername}
                     onChange={(e) => setSelectedUsername(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                   >
                     {membersWithBgg.map((m) => (
                       <option key={m.user.id} value={m.user.bggUsername!}>
@@ -218,13 +218,13 @@ export default function AddGamesPage() {
               </div>
 
               {/* Filters */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-4">
+                <h3 className="text-sm font-medium text-slate-200 mb-3">
                   Filtros
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-slate-400 mb-1">
                       Min jugadores
                     </label>
                     <input
@@ -232,11 +232,11 @@ export default function AddGamesPage() {
                       min="1"
                       value={minPlayers}
                       onChange={(e) => setMinPlayers(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-slate-400 mb-1">
                       Max jugadores
                     </label>
                     <input
@@ -244,11 +244,11 @@ export default function AddGamesPage() {
                       min="1"
                       value={maxPlayers}
                       onChange={(e) => setMaxPlayers(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-slate-400 mb-1">
                       Peso min
                     </label>
                     <input
@@ -258,11 +258,11 @@ export default function AddGamesPage() {
                       step="0.1"
                       value={minWeight}
                       onChange={(e) => setMinWeight(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-slate-400 mb-1">
                       Peso max
                     </label>
                     <input
@@ -272,11 +272,11 @@ export default function AddGamesPage() {
                       step="0.1"
                       value={maxWeight}
                       onChange={(e) => setMaxWeight(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-slate-400 mb-1">
                       Rank max
                     </label>
                     <input
@@ -284,11 +284,11 @@ export default function AddGamesPage() {
                       min="1"
                       value={maxRank}
                       onChange={(e) => setMaxRank(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-slate-400 mb-1">
                       Min partidas
                     </label>
                     <input
@@ -296,21 +296,21 @@ export default function AddGamesPage() {
                       min="0"
                       value={minPlays}
                       onChange={(e) => setMinPlays(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Error */}
-              {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+              {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
 
               {/* Collection */}
               {loadingCollection ? (
-                <p className="text-gray-400">Cargando colección...</p>
+                <p className="text-slate-500">Cargando colección...</p>
               ) : (
                 <>
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm text-slate-400 mb-3">
                     {filtered.length} juegos
                     {filtered.length !== collection.length &&
                       ` (de ${collection.length} en colección)`}
@@ -324,10 +324,10 @@ export default function AddGamesPage() {
                       return (
                         <div
                           key={game.bggId}
-                          className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex items-center gap-3"
+                          className="bg-slate-800 rounded-xl border border-slate-700 p-3 flex items-center gap-3"
                         >
                           {/* Thumbnail */}
-                          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-slate-700">
                             {game.thumbnail ? (
                               <img
                                 src={game.thumbnail}
@@ -335,7 +335,7 @@ export default function AddGamesPage() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                              <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
                                 ?
                               </div>
                             )}
@@ -343,32 +343,32 @@ export default function AddGamesPage() {
 
                           {/* Info */}
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-800 text-sm truncate">
+                            <div className="font-medium text-slate-100 text-sm truncate">
                               {game.name}
                               {game.yearPublished && (
-                                <span className="text-gray-400 font-normal ml-1">
+                                <span className="text-slate-500 font-normal ml-1">
                                   ({game.yearPublished})
                                 </span>
                               )}
                             </div>
                             <div className="flex flex-wrap gap-1.5 mt-1">
                               {(game.minPlayers || game.maxPlayers) && (
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-slate-400">
                                   {game.minPlayers}-{game.maxPlayers} jug.
                                 </span>
                               )}
                               {game.bggRating && (
-                                <span className="text-xs text-blue-600">
+                                <span className="text-xs text-blue-400">
                                   ★ {game.bggRating.toFixed(1)}
                                 </span>
                               )}
                               {game.weight && (
-                                <span className="text-xs text-purple-600">
+                                <span className="text-xs text-purple-400">
                                   Peso: {game.weight.toFixed(1)}
                                 </span>
                               )}
                               {game.bggRank && (
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-slate-500">
                                   #{game.bggRank}
                                 </span>
                               )}
@@ -381,8 +381,8 @@ export default function AddGamesPage() {
                             disabled={isAdded || isAdding}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium shrink-0 ${
                               isAdded
-                                ? "bg-green-100 text-green-600 cursor-default"
-                                : "bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50"
+                                ? "bg-green-500/20 text-green-400 cursor-default"
+                                : "bg-amber-500 text-slate-900 hover:bg-amber-600 disabled:opacity-50"
                             }`}
                           >
                             {isAdded

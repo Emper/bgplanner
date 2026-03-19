@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GameOn - Organiza tus juegos de mesa",
+  title: "WeBoard - Organiza tus juegos de mesa",
   description:
     "Decide qué jugar con tu grupo de amigos votando vuestros juegos de mesa favoritos",
 };
@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-slate-900 text-slate-100`}
       >
         {children}
       </body>

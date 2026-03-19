@@ -22,31 +22,31 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-6 py-3">
+    <nav className="bg-slate-800 border-b border-slate-700 px-6 py-3">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         <Link
           href="/groups"
-          className="text-xl font-bold text-indigo-600 tracking-tight"
+          className="text-xl font-bold text-amber-400 tracking-tight"
         >
-          GameOn
+          WeBoard
         </Link>
         <div className="flex items-center gap-4">
           <Link
             href="/groups"
-            className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
+            className="text-sm text-slate-300 hover:text-amber-400 transition-colors"
           >
             Mis Grupos
           </Link>
           <Link
             href="/profile"
-            className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
+            className="text-sm text-slate-300 hover:text-amber-400 transition-colors"
           >
             Mi Perfil
           </Link>
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="text-sm text-gray-500 hover:text-red-500 transition-colors disabled:opacity-50"
+            className="text-sm text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
           >
             {loggingOut ? "Saliendo..." : "Cerrar sesión"}
           </button>

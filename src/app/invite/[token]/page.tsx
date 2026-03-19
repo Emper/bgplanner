@@ -40,8 +40,6 @@ export default function InvitePage() {
     try {
       // We need to find the group for this token.
       // The join endpoint expects groupId and token in body.
-      // Let's try to decode the invitation by calling join with a discover approach.
-      // Actually, the invite flow: POST /api/groups/[groupId]/join with {token}
       // But we don't know groupId from the token alone.
       // Let's try a simple approach: call a dedicated endpoint or iterate.
       // Looking at the API, we need a way to resolve token -> groupId.
@@ -111,7 +109,7 @@ export default function InvitePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
         Cargando...
       </div>
     );
@@ -119,33 +117,33 @@ export default function InvitePage() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
         Redirigiendo al inicio de sesión...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-indigo-600 mb-2">GameOn</h1>
+          <h1 className="text-4xl font-bold text-amber-400 mb-2">WeBoard</h1>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center">
+          <h2 className="text-lg font-semibold text-slate-100 mb-2">
             Invitación de grupo
           </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            Has sido invitado a unirte a un grupo en GameOn.
+          <p className="text-sm text-slate-400 mb-6">
+            Has sido invitado a unirte a un grupo en WeBoard.
           </p>
 
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+          {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
 
           <button
             onClick={handleJoin}
             disabled={joining}
-            className="w-full px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50 font-medium"
+            className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
           >
             {joining ? "Uniéndose..." : "Unirme al grupo"}
           </button>

@@ -78,14 +78,14 @@ export async function POST(
   const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invitation.token}`;
 
   await resend.emails.send({
-    from: "GameOn <onboarding@resend.dev>",
+    from: "WeBoard <onboarding@resend.dev>",
     to: email,
-    subject: `${inviter?.name || inviter?.email} te invita a "${group?.name}" en GameOn`,
+    subject: `${inviter?.name || inviter?.email} te invita a "${group?.name}" en WeBoard`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #6366f1;">GameOn</h2>
-        <p><strong>${inviter?.name || inviter?.email}</strong> te ha invitado a unirte al grupo <strong>"${group?.name}"</strong> en GameOn.</p>
-        <p>GameOn es una herramienta para organizar y votar qué juegos de mesa jugar con tu grupo.</p>
+        <h2 style="color: #6366f1;">WeBoard</h2>
+        <p><strong>${inviter?.name || inviter?.email}</strong> te ha invitado a unirte al grupo <strong>"${group?.name}"</strong> en WeBoard.</p>
+        <p>WeBoard es una herramienta para organizar y votar qué juegos de mesa jugar con tu grupo.</p>
         <a href="${inviteUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
           Unirme al grupo
         </a>

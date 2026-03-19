@@ -42,12 +42,12 @@ export async function POST(request: NextRequest) {
   });
 
   await resend.emails.send({
-    from: "GameOn <onboarding@resend.dev>",
+    from: "WeBoard <onboarding@resend.dev>",
     to: email,
-    subject: "Tu código de acceso a GameOn",
+    subject: "Tu código de acceso a WeBoard",
     html: `
       <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #6366f1;">GameOn</h2>
+        <h2 style="color: #6366f1;">WeBoard</h2>
         <p>Tu código de acceso es:</p>
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #f3f4f6; border-radius: 8px; margin: 20px 0;">
           ${code}
