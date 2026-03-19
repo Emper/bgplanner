@@ -78,6 +78,11 @@ export async function fetchBggCollection(
     if (response.status === 404) {
       throw new Error(`Usuario BGG "${username}" no encontrado`);
     }
+    if (response.status === 401) {
+      throw new Error(
+        `No se puede acceder a la colección de "${username}". Verifica que el nombre de usuario es correcto y que la colección no es privada en BGG.`
+      );
+    }
     throw new Error(`Error al obtener colección de BGG: ${response.status}`);
   }
 

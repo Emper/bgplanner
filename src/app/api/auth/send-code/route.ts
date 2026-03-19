@@ -46,13 +46,13 @@ export async function POST(request: NextRequest) {
     to: email,
     subject: "Tu código de acceso a WeBoard",
     html: `
-      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #6366f1;">WeBoard</h2>
+      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
+        <h2 style="color: #f59e0b; margin-bottom: 16px;">WeBoard</h2>
         <p>Tu código de acceso es:</p>
-        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #f3f4f6; border-radius: 8px; margin: 20px 0;">
+        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #1e293b; border-radius: 8px; margin: 20px 0; color: #f59e0b;">
           ${code}
         </div>
-        <p style="color: #6b7280; font-size: 14px;">Este código expira en 10 minutos.</p>
+        <p style="color: #94a3b8; font-size: 14px;">Este código expira en 10 minutos.</p>
       </div>
     `,
   });

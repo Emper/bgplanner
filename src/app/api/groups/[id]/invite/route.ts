@@ -82,14 +82,14 @@ export async function POST(
     to: email,
     subject: `${inviter?.name || inviter?.email} te invita a "${group?.name}" en WeBoard`,
     html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #6366f1;">WeBoard</h2>
-        <p><strong>${inviter?.name || inviter?.email}</strong> te ha invitado a unirte al grupo <strong>"${group?.name}"</strong> en WeBoard.</p>
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
+        <h2 style="color: #f59e0b; margin-bottom: 16px;">WeBoard</h2>
+        <p><strong>${inviter?.name || inviter?.email}</strong> te ha invitado a unirte al grupo <strong style="color: #f59e0b;">"${group?.name}"</strong> en WeBoard.</p>
         <p>WeBoard es una herramienta para organizar y votar qué juegos de mesa jugar con tu grupo.</p>
-        <a href="${inviteUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+        <a href="${inviteUrl}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
           Unirme al grupo
         </a>
-        <p style="color: #6b7280; font-size: 14px;">Si no esperabas esta invitación, puedes ignorar este email.</p>
+        <p style="color: #94a3b8; font-size: 14px;">Si no esperabas esta invitación, puedes ignorar este email.</p>
       </div>
     `,
   });
