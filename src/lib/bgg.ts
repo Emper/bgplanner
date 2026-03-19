@@ -43,29 +43,137 @@ const collectionCache = new Map<
 >();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
-function getBggHeaders(): HeadersInit {
-  const headers: HeadersInit = {
-    Accept: "application/xml",
-  };
+// ── BGG Session Management ──────────────────────────────────────────────
+// BGG now requires authentication for API access. We log in with a BGG
+// account and use the session cookie for all subsequent requests.
+// This avoids needing a registered application + Bearer token.
+
+let bggSessionCookie: string | null = null;
+let bggSessionExpiry = 0;
+const BGG_SESSION_TTL = 50 * 60 * 1000; // Refresh session every 50 min (BGG sets 1h expiry)
+
+async function loginToBgg(): Promise<string> {
+  const username = process.env.BGG_USERNAME;
+  const password = process.env.BGG_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error(
+      "Configura BGG_USERNAME y BGG_PASSWORD en las variables de entorno para acceder a la API de BGG."
+    );
+  }
+
+  const response = await fetch("https://boardgamegeek.com/login/api/v1", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      credentials: { username, password },
+    }),
+    redirect: "manual", // Don't follow redirects, we just need the cookie
+  });
+
+  // BGG returns 200 or 302 on success, 400/401 on failure
+  if (response.status >= 400) {
+    const body = await response.text();
+    let errorMsg = "Error al iniciar sesión en BGG.";
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed.errors?.message) errorMsg = parsed.errors.message;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(`Login BGG fallido: ${errorMsg}`);
+  }
+
+  // Extract SessionID cookie from Set-Cookie headers
+  const setCookies = response.headers.getSetCookie?.() || [];
+  let sessionId = "";
+  for (const cookie of setCookies) {
+    const match = cookie.match(/SessionID=([^;]+)/);
+    if (match) {
+      sessionId = match[1];
+      break;
+    }
+  }
+
+  // Fallback: try raw header
+  if (!sessionId) {
+    const rawCookie = response.headers.get("set-cookie") || "";
+    const match = rawCookie.match(/SessionID=([^;]+)/);
+    if (match) {
+      sessionId = match[1];
+    }
+  }
+
+  if (!sessionId) {
+    throw new Error(
+      "No se pudo obtener la cookie de sesión de BGG. Verifica las credenciales."
+    );
+  }
+
+  return sessionId;
+}
+
+async function getBggSessionCookie(): Promise<string> {
+  // Also support Bearer token as alternative
   const token = process.env.BGG_API_TOKEN;
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    return `__bearer__${token}`;
   }
-  return headers;
+
+  if (bggSessionCookie && Date.now() < bggSessionExpiry) {
+    return bggSessionCookie;
+  }
+
+  const sessionId = await loginToBgg();
+  bggSessionCookie = sessionId;
+  bggSessionExpiry = Date.now() + BGG_SESSION_TTL;
+  return sessionId;
 }
+
+async function getBggFetchOptions(): Promise<RequestInit> {
+  const session = await getBggSessionCookie();
+
+  // If using Bearer token
+  if (session.startsWith("__bearer__")) {
+    return {
+      headers: {
+        Accept: "application/xml",
+        Authorization: `Bearer ${session.slice("__bearer__".length)}`,
+      },
+    };
+  }
+
+  // Using session cookie
+  return {
+    headers: {
+      Accept: "application/xml",
+      Cookie: `SessionID=${session}`,
+    },
+  };
+}
+
+// ── Fetch with retry (handles BGG 202 "processing" responses) ───────────
 
 async function fetchWithRetry(
   url: string,
   maxRetries = 6
 ): Promise<Response> {
-  const headers = getBggHeaders();
+  const fetchOptions = await getBggFetchOptions();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, fetchOptions);
 
     if (response.status === 401) {
+      // Session might have expired, clear and retry once
+      if (attempt === 0) {
+        bggSessionCookie = null;
+        bggSessionExpiry = 0;
+        const newOptions = await getBggFetchOptions();
+        const retryResponse = await fetch(url, newOptions);
+        if (retryResponse.status !== 401) return retryResponse;
+      }
       throw new Error(
-        "La API de BGG requiere un token de autorización. Configura BGG_API_TOKEN en las variables de entorno."
+        "No se pudo autenticar con BGG. Verifica las credenciales en BGG_USERNAME y BGG_PASSWORD."
       );
     }
 
@@ -86,7 +194,6 @@ async function fetchWithRetry(
 
 /**
  * Validates that a BGG username exists by making a lightweight API call.
- * Returns the normalized (lowercase) username if valid.
  */
 export async function validateBggUsername(
   username: string
@@ -94,15 +201,15 @@ export async function validateBggUsername(
   try {
     const normalizedUsername = username.toLowerCase().trim();
     const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&subtype=boardgame&page=1`;
-    const headers = getBggHeaders();
-    const response = await fetch(url, { headers });
+    const fetchOptions = await getBggFetchOptions();
+    const response = await fetch(url, fetchOptions);
 
     // 202 = BGG is preparing data, which means the user exists
     if (response.status === 202 || response.ok) {
       return { valid: true };
     }
-    // 401 without token = missing API config, don't block the user
-    if (response.status === 401 && !process.env.BGG_API_TOKEN) {
+    // If we can't authenticate to BGG, don't block the user
+    if (response.status === 401) {
       return { valid: true };
     }
     if (response.status === 404) {
@@ -120,7 +227,7 @@ export async function validateBggUsername(
 export async function fetchBggCollection(
   username: string
 ): Promise<BggCollectionItem[]> {
-  // Normalize username to lowercase — BGG redirects but API2 can return 401 for wrong case
+  // Normalize username to lowercase
   const normalizedUsername = username.toLowerCase().trim();
   const cacheKey = normalizedUsername;
   const cached = collectionCache.get(cacheKey);
