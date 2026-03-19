@@ -97,10 +97,26 @@ export async function POST(
   let game = await prisma.game.findUnique({ where: { bggId } });
 
   if (!game) {
-    // Try to find the game in the structured CollectionGame cache (fast, no API call)
-    const cachedItem = await prisma.collectionGame.findFirst({
-      where: { bggId },
-    });
+    // Try to find the game in the CollectionGame cache via raw query
+    // (avoids Prisma client type cache issues on Vercel)
+    type CachedRow = {
+      name: string;
+      thumbnail: string | null;
+      yearPublished: number | null;
+      minPlayers: number | null;
+      maxPlayers: number | null;
+      bggRating: number | null;
+      bggRank: number | null;
+      weight: number | null;
+    };
+    const cachedRows = await prisma.$queryRaw<CachedRow[]>`
+      SELECT name, thumbnail, "yearPublished", "minPlayers", "maxPlayers",
+             "bggRating", "bggRank", weight
+      FROM "CollectionGame"
+      WHERE "bggId" = ${bggId}
+      LIMIT 1
+    `;
+    const cachedItem = cachedRows[0] ?? null;
 
     if (cachedItem) {
       // Use cached collection data — no BGG API call needed
