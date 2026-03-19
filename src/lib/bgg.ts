@@ -298,6 +298,14 @@ export async function ensureBggCollection(
     ? parsed.items.item
     : [parsed.items.item];
 
+  // Debug: log first item's attributes to discover dateadded field
+  if (items.length > 0) {
+    console.log("[BGG Debug] First item $ attrs:", JSON.stringify(items[0].$));
+    console.log("[BGG Debug] First item top-level keys:", Object.keys(items[0]));
+    // Check if dateadded might be a child element instead of attribute
+    if (items[0].status) console.log("[BGG Debug] First item status:", JSON.stringify(items[0].status));
+  }
+
   const now = new Date();
   const games: BggCollectionItem[] = items
     .filter((item: any) => item.$.subtype === "boardgame")
