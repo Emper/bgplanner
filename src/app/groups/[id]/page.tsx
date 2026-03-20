@@ -119,7 +119,6 @@ export default function GroupDashboardPage() {
   const [activeTab, setActiveTab] = useState<Tab>("ranking");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [votingGame, setVotingGame] = useState<string | null>(null);
   const [removingGame, setRemovingGame] = useState<string | null>(null);
 
   // Sessions state
@@ -217,16 +216,69 @@ export default function GroupDashboardPage() {
   const canRemoveGame = (item: RankedGame) =>
     group?.currentUserRole === "admin" || item.addedById === group?.currentUserId;
 
+  // Helper: recompute ranking scores & sort after a local vote change
+  const applyVoteLocally = useCallback(
+    (
+      prev: RankedGame[],
+      targetGameDbId: string,
+      newVote: "up" | "super" | "down" | null,
+      oldVote: "up" | "super" | "down" | null
+    ): RankedGame[] => {
+      const voteScore = (t: string) => (t === "super" ? 3 : t === "down" ? -1 : 1);
+      return prev
+        .map((item) => {
+          if (item.game.id !== targetGameDbId) return item;
+          let { score, upVotes, superVotes, downVotes } = item;
+          // Remove old vote contribution
+          if (oldVote) {
+            score -= voteScore(oldVote);
+            if (oldVote === "up") upVotes--;
+            else if (oldVote === "super") superVotes--;
+            else if (oldVote === "down") downVotes--;
+          }
+          // Add new vote contribution
+          if (newVote) {
+            score += voteScore(newVote);
+            if (newVote === "up") upVotes++;
+            else if (newVote === "super") superVotes++;
+            else if (newVote === "down") downVotes++;
+          }
+          return { ...item, score, upVotes, superVotes, downVotes, userVote: newVote };
+        })
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (b.game.bggRating || 0) - (a.game.bggRating || 0);
+        });
+    },
+    []
+  );
+
   const handleVote = async (
     gameId: string,
     gameDbId: string,
     type: "up" | "super" | "down",
     currentVote: string | null
   ) => {
-    setVotingGame(gameDbId);
+    const isRemove = currentVote === type;
+    const newVote = isRemove ? null : type;
 
+    // ── Optimistic update: apply immediately ──
+    const snapshot = ranking; // save for rollback
+    setRanking((prev) => applyVoteLocally(prev, gameDbId, newVote, currentVote as RankedGame["userVote"]));
+
+    // If moving a super vote, also remove the old one optimistically
+    let oldSuperGameDbId: string | null = null;
+    if (type === "super" && !isRemove) {
+      const oldSuper = ranking.find((r) => r.userVote === "super" && r.game.id !== gameDbId);
+      if (oldSuper) {
+        oldSuperGameDbId = oldSuper.game.id;
+        setRanking((prev) => applyVoteLocally(prev, oldSuperGameDbId!, null, "super"));
+      }
+    }
+
+    // ── Fire-and-forget API call ──
     try {
-      if (currentVote === type) {
+      if (isRemove) {
         const res = await fetch(
           `/api/groups/${groupId}/games/${gameId}/vote`,
           { method: "DELETE", credentials: "include" }
@@ -264,25 +316,18 @@ export default function GroupDashboardPage() {
               }
             );
           } else {
-            setVotingGame(null);
+            // User cancelled — rollback optimistic update
+            setRanking(snapshot);
             return;
           }
         } else if (!res.ok) {
           throw new Error("Error al votar");
         }
       }
-
-      const rankingRes = await fetch(`/api/groups/${groupId}/ranking`, {
-        credentials: "include",
-      });
-      if (rankingRes.ok) {
-        const data = await rankingRes.json();
-        setRanking(data.ranking);
-      }
     } catch {
+      // Rollback on error
+      setRanking(snapshot);
       alert("Error al procesar el voto");
-    } finally {
-      setVotingGame(null);
     }
   };
 
@@ -444,9 +489,31 @@ export default function GroupDashboardPage() {
   };
 
   const handleGameStatus = async (sessionId: string, gameSessionGameId: string, newStatus: string) => {
-    await handleUpdateSession(sessionId, {
-      gameStatuses: { [gameSessionGameId]: newStatus },
-    });
+    // ── Optimistic update ──
+    const snapshot = sessions;
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId
+          ? { ...s, games: s.games.map((g) => (g.id === gameSessionGameId ? { ...g, status: newStatus } : g)) }
+          : s
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/groups/${groupId}/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ gameStatuses: { [gameSessionGameId]: newStatus } }),
+      });
+      if (!res.ok) throw new Error();
+      // Reconcile with server response
+      const updated = await res.json();
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? updated : s)));
+    } catch {
+      setSessions(snapshot); // rollback
+      alert("Error al actualizar estado");
+    }
   };
 
   const handleRemoveGameFromSession = async (sessionId: string, gameIdToRemove: string) => {
@@ -688,7 +755,7 @@ export default function GroupDashboardPage() {
                                 <button
                                   key={type}
                                   onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                  disabled={votingGame === item.groupGameId}
+
                                   className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors disabled:opacity-50 ${
                                     item.userVote === type
                                       ? type === "up"
@@ -776,7 +843,7 @@ export default function GroupDashboardPage() {
                                 <button
                                   key={type}
                                   onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                  disabled={votingGame === item.groupGameId}
+
                                   className={`w-8 h-8 flex items-center justify-center rounded-lg border text-base transition-colors disabled:opacity-50 ${
                                     item.userVote === type
                                       ? type === "up"
