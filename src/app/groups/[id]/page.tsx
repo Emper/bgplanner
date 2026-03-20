@@ -261,29 +261,60 @@ export default function GroupDashboardPage() {
   ) => {
     const isRemove = currentVote === type;
     const newVote = isRemove ? null : type;
-
-    // ── Optimistic update: apply immediately ──
     const snapshot = ranking; // save for rollback
-    setRanking((prev) => applyVoteLocally(prev, gameDbId, newVote, currentVote as RankedGame["userVote"]));
 
-    // If moving a super vote, also remove the old one optimistically
-    let oldSuperGameDbId: string | null = null;
-    if (type === "super" && !isRemove) {
-      const oldSuper = ranking.find((r) => r.userVote === "super" && r.groupGameId !== gameDbId);
-      if (oldSuper) {
-        oldSuperGameDbId = oldSuper.groupGameId;
-        setRanking((prev) => applyVoteLocally(prev, oldSuperGameDbId!, null, "super"));
+    // ── Super vote with existing super → ask FIRST, then update ──
+    const existingSuper = type === "super" && !isRemove
+      ? ranking.find((r) => r.userVote === "super" && r.groupGameId !== gameDbId)
+      : null;
+
+    if (existingSuper) {
+      // Don't touch UI yet — wait for user decision
+      const move = confirm(
+        "Ya tienes un super voto en otro juego de este grupo. ¿Quieres moverlo a este juego?"
+      );
+      if (!move) return;
+
+      // User confirmed — apply both changes optimistically
+      setRanking((prev) => {
+        let next = applyVoteLocally(prev, existingSuper.groupGameId, null, "super");
+        next = applyVoteLocally(next, gameDbId, "super", currentVote as RankedGame["userVote"]);
+        return next;
+      });
+
+      // Fire API calls
+      try {
+        await fetch(
+          `/api/groups/${groupId}/games/${existingSuper.game.id}/vote`,
+          { method: "DELETE", credentials: "include" }
+        );
+        const res = await fetch(
+          `/api/groups/${groupId}/games/${gameId}/vote`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ type: "super" }),
+          }
+        );
+        if (!res.ok) throw new Error();
+      } catch {
+        setRanking(snapshot);
+        alert("Error al mover el super voto");
       }
+      return;
     }
 
-    // ── Fire-and-forget API call ──
+    // ── Normal vote: optimistic update immediately ──
+    setRanking((prev) => applyVoteLocally(prev, gameDbId, newVote, currentVote as RankedGame["userVote"]));
+
     try {
       if (isRemove) {
         const res = await fetch(
           `/api/groups/${groupId}/games/${gameId}/vote`,
           { method: "DELETE", credentials: "include" }
         );
-        if (!res.ok) throw new Error("Error al eliminar voto");
+        if (!res.ok) throw new Error();
       } else {
         const res = await fetch(
           `/api/groups/${groupId}/games/${gameId}/vote`,
@@ -294,38 +325,9 @@ export default function GroupDashboardPage() {
             body: JSON.stringify({ type }),
           }
         );
-
-        if (res.status === 409) {
-          const data = await res.json();
-          const move = confirm(
-            "Ya tienes un super voto en otro juego de este grupo. ¿Quieres moverlo a este juego?"
-          );
-          if (move) {
-            const oldGameId = data.existingSuperGameId;
-            await fetch(
-              `/api/groups/${groupId}/games/${oldGameId}/vote`,
-              { method: "DELETE", credentials: "include" }
-            );
-            await fetch(
-              `/api/groups/${groupId}/games/${gameId}/vote`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ type: "super" }),
-              }
-            );
-          } else {
-            // User cancelled — rollback optimistic update
-            setRanking(snapshot);
-            return;
-          }
-        } else if (!res.ok) {
-          throw new Error("Error al votar");
-        }
+        if (!res.ok) throw new Error();
       }
     } catch {
-      // Rollback on error
       setRanking(snapshot);
       alert("Error al procesar el voto");
     }
