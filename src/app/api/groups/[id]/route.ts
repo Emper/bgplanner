@@ -48,7 +48,7 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
-  const response = NextResponse.json({ ...group, currentUserRole: membership.role });
+  const response = NextResponse.json({ ...group, currentUserRole: membership.role, currentUserId: session.userId });
   response.headers.set(
     "Cache-Control",
     "public, s-maxage=10, stale-while-revalidate=60"

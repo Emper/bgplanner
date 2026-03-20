@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 
 interface Profile {
@@ -11,8 +11,10 @@ interface Profile {
   bggUsername: string;
 }
 
-export default function ProfilePage() {
+function ProfileForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "";
   const [form, setForm] = useState<Profile>({
     name: "",
     surname: "",
@@ -63,7 +65,7 @@ export default function ProfilePage() {
         throw new Error(data.error || "Error al guardar el perfil");
       }
 
-      router.push("/groups");
+      router.push(redirect || "/groups");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -172,5 +174,19 @@ export default function ProfilePage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+          Cargando...
+        </div>
+      }
+    >
+      <ProfileForm />
+    </Suspense>
   );
 }

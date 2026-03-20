@@ -56,6 +56,8 @@ interface GroupData {
   invitations: Invitation[];
   currentUserRole: string;
   currentUserId: string;
+  inviteCode: string | null;
+  inviteEnabled: boolean;
 }
 
 interface SuggestedGame {
@@ -147,6 +149,12 @@ export default function GroupDashboardPage() {
   const [inviteMsg, setInviteMsg] = useState("");
   const [inviteError, setInviteError] = useState("");
 
+  // Invite link state
+  const [inviteLinkCode, setInviteLinkCode] = useState<string | null>(null);
+  const [inviteLinkEnabled, setInviteLinkEnabled] = useState(true);
+  const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       // Single API call loads everything: group, ranking, sessions
@@ -165,6 +173,10 @@ export default function GroupDashboardPage() {
       setRanking(data.ranking);
       setMemberCount(data.memberCount);
       setSessions(data.sessions);
+      if (data.group) {
+        setInviteLinkCode(data.group.inviteCode);
+        setInviteLinkEnabled(data.group.inviteEnabled ?? true);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -1353,8 +1365,133 @@ export default function GroupDashboardPage() {
                 </div>
               </div>
 
+              {/* Enlace de invitación */}
               <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 className="text-lg font-semibold text-slate-100 mb-4">Invitar miembro</h2>
+                <h2 className="text-lg font-semibold text-slate-100 mb-4">Enlace de invitación</h2>
+                <p className="text-sm text-slate-400 mb-4">
+                  Comparte este enlace para que cualquiera pueda unirse al grupo.
+                </p>
+
+                {inviteLinkCode ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${inviteLinkCode}`}
+                        className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-mono truncate"
+                      />
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/join/${inviteLinkCode}`);
+                          setInviteLinkCopied(true);
+                          setTimeout(() => setInviteLinkCopied(false), 2000);
+                        }}
+                        className="px-3 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm whitespace-nowrap"
+                      >
+                        {inviteLinkCopied ? "¡Copiado!" : "Copiar"}
+                      </button>
+                    </div>
+
+                    {group.currentUserRole === "admin" && (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              setInviteLinkLoading(true);
+                              try {
+                                const res = await fetch(`/api/groups/${groupId}/invite-link`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  credentials: "include",
+                                  body: JSON.stringify({ enabled: !inviteLinkEnabled }),
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setInviteLinkEnabled(data.inviteEnabled);
+                                }
+                              } finally {
+                                setInviteLinkLoading(false);
+                              }
+                            }}
+                            disabled={inviteLinkLoading}
+                            className={`relative w-10 h-5 rounded-full transition-colors ${
+                              inviteLinkEnabled ? "bg-amber-500" : "bg-slate-600"
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                                inviteLinkEnabled ? "translate-x-5" : ""
+                              }`}
+                            />
+                          </button>
+                          <span className="text-sm text-slate-400">
+                            {inviteLinkEnabled ? "Activo" : "Desactivado"}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            if (!confirm("¿Regenerar el enlace? El anterior dejará de funcionar.")) return;
+                            setInviteLinkLoading(true);
+                            try {
+                              const res = await fetch(`/api/groups/${groupId}/invite-link`, {
+                                method: "POST",
+                                credentials: "include",
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setInviteLinkCode(data.inviteCode);
+                                setInviteLinkEnabled(data.inviteEnabled);
+                              }
+                            } finally {
+                              setInviteLinkLoading(false);
+                            }
+                          }}
+                          disabled={inviteLinkLoading}
+                          className="text-xs text-slate-500 hover:text-slate-300 disabled:opacity-50"
+                        >
+                          Regenerar enlace
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    {group.currentUserRole === "admin" ? (
+                      <button
+                        onClick={async () => {
+                          setInviteLinkLoading(true);
+                          try {
+                            const res = await fetch(`/api/groups/${groupId}/invite-link`, {
+                              method: "POST",
+                              credentials: "include",
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setInviteLinkCode(data.inviteCode);
+                              setInviteLinkEnabled(data.inviteEnabled);
+                            }
+                          } finally {
+                            setInviteLinkLoading(false);
+                          }
+                        }}
+                        disabled={inviteLinkLoading}
+                        className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                      >
+                        {inviteLinkLoading ? "Generando..." : "Generar enlace de invitación"}
+                      </button>
+                    ) : (
+                      <p className="text-sm text-slate-500">
+                        No hay enlace de invitación activo. Solo un admin puede generarlo.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4">Invitar por email</h2>
                 <form onSubmit={handleInvite} className="flex gap-3">
                   <input
                     type="email"

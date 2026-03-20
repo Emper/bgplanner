@@ -79,7 +79,8 @@ function VerifyForm() {
       const data = await res.json();
 
       if (data.isNewUser) {
-        router.push("/profile");
+        const profileUrl = redirect ? `/profile?redirect=${encodeURIComponent(redirect)}` : "/profile";
+        router.push(profileUrl);
       } else if (redirect) {
         router.push(redirect);
       } else {
