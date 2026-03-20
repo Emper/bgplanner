@@ -13,6 +13,7 @@ export default function JoinPage() {
   const [error, setError] = useState("");
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [alreadyMember, setAlreadyMember] = useState(false);
   const [groupId, setGroupId] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
@@ -35,6 +36,7 @@ export default function JoinPage() {
         setGroupName(data.groupName);
         setMemberCount(data.memberCount);
         setGroupId(data.groupId);
+        if (data.alreadyMember) setAlreadyMember(true);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Error inesperado");
@@ -95,6 +97,31 @@ export default function JoinPage() {
               className="px-4 py-2 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 text-sm"
             >
               Ir al inicio
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyMember) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+        <div className="w-full max-w-md text-center">
+          <h1 className="text-4xl font-bold text-amber-400 mb-4">WeBoard</h1>
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <div className="text-4xl mb-3">👋</div>
+            <h2 className="text-lg font-semibold text-slate-100 mb-2">
+              ¡Ya formas parte de &ldquo;{groupName}&rdquo;!
+            </h2>
+            <p className="text-slate-400 text-sm mb-6">
+              No hace falta que te unas de nuevo, tu grupo te espera.
+            </p>
+            <button
+              onClick={() => router.push(`/groups/${groupId}`)}
+              className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium"
+            >
+              Ir a &ldquo;{groupName}&rdquo;
             </button>
           </div>
         </div>

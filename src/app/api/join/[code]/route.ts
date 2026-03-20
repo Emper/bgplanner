@@ -2,22 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-// GET — public: resolve invite code to group info
+// GET — resolve invite code to group info (+ membership check if logged in)
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
 
-  const group = await prisma.group.findUnique({
-    where: { inviteCode: code },
-    select: {
-      id: true,
-      name: true,
-      inviteEnabled: true,
-      _count: { select: { members: true } },
-    },
-  });
+  const [session, group] = await Promise.all([
+    getSession(request),
+    prisma.group.findUnique({
+      where: { inviteCode: code },
+      select: {
+        id: true,
+        name: true,
+        inviteEnabled: true,
+        _count: { select: { members: true } },
+      },
+    }),
+  ]);
 
   if (!group || !group.inviteEnabled) {
     return NextResponse.json(
@@ -26,10 +29,20 @@ export async function GET(
     );
   }
 
+  // If logged in, check membership
+  let alreadyMember = false;
+  if (session) {
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: group.id, userId: session.userId } },
+    });
+    alreadyMember = !!membership;
+  }
+
   return NextResponse.json({
     groupId: group.id,
     groupName: group.name,
     memberCount: group._count.members,
+    alreadyMember,
   });
 }
 
