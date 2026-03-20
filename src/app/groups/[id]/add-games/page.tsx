@@ -209,6 +209,8 @@ export default function AddGamesPage() {
       }
 
       setAddedGameIds((prev) => new Set(prev).add(bggId));
+      // Remove from visible items immediately
+      setItems((prev) => prev.filter((g) => g.bggId !== bggId));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -253,6 +255,9 @@ export default function AddGamesPage() {
 
   const membersWithBgg =
     group?.members.filter((m) => m.user.bggUsername) || [];
+
+  // Filter out games already added to the group
+  const availableItems = items.filter((g) => !addedGameIds.has(g.bggId));
 
   const weightLabel = (w: number) => {
     if (w < 1.5) return "Ligero";
@@ -570,7 +575,9 @@ export default function AddGamesPage() {
               {!loadingCollection && (
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm text-slate-400">
-                    {total} juego{total !== 1 && "s"}
+                    {availableItems.length < total
+                      ? `${availableItems.length} disponible${availableItems.length !== 1 ? "s" : ""} de ${total}`
+                      : `${total} juego${total !== 1 ? "s" : ""}`}
                     {searchDebounced && (
                       <span>
                         {" "}
@@ -591,7 +598,7 @@ export default function AddGamesPage() {
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
                 </div>
-              ) : items.length === 0 ? (
+              ) : availableItems.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-slate-500 text-lg">
                     No se encontraron juegos
@@ -605,8 +612,7 @@ export default function AddGamesPage() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    {items.map((game) => {
-                      const isAdded = addedGameIds.has(game.bggId);
+                    {availableItems.map((game) => {
                       const isAdding = addingGame === game.bggId;
 
                       return (
@@ -687,14 +693,10 @@ export default function AddGamesPage() {
                             {/* Add button */}
                             <button
                               onClick={() => handleAdd(game.bggId)}
-                              disabled={isAdded || isAdding}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors ${
-                                isAdded
-                                  ? "bg-green-500/20 text-green-400 cursor-default"
-                                  : "bg-amber-500 text-slate-900 hover:bg-amber-600 disabled:opacity-50"
-                              }`}
+                              disabled={isAdding}
+                              className="px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 disabled:opacity-50"
                             >
-                              {isAdded ? "✓ Añadido" : isAdding ? "..." : "Añadir"}
+                              {isAdding ? "..." : "Añadir"}
                             </button>
                           </div>
 
