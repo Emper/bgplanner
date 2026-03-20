@@ -1228,22 +1228,22 @@ export default function GroupDashboardPage() {
                         {/* Session header — clickable to expand */}
                         <button
                           onClick={() => setExpandedSessionId(isExpanded ? null : s.id)}
-                          className="w-full p-4 flex items-center gap-3 text-left"
+                          className="w-full p-3 sm:p-4 flex items-center gap-2 sm:gap-3 text-left"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-slate-100 truncate">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-semibold text-slate-100 text-sm sm:text-base truncate">
                                 {s.name || sDate.toLocaleDateString("es-ES", {
                                   weekday: "long",
                                   day: "numeric",
                                   month: "long",
                                 })}
                               </h4>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[s.status] || statusColors.planned}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium shrink-0 ${statusColors[s.status] || statusColors.planned}`}>
                                 {statusLabels[s.status] || s.status}
                               </span>
                             </div>
-                            <div className="flex gap-3 text-xs text-slate-400 mt-1">
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-slate-400 mt-1">
                               <span>📅 {sDate.toLocaleDateString("es-ES")}</span>
                               <span>👥 {s.playerCount}</span>
                               <span>⏱ {formatDuration(s.totalMinutes)}</span>
@@ -1435,7 +1435,7 @@ export default function GroupDashboardPage() {
                         type="text"
                         readOnly
                         value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${inviteLinkCode}`}
-                        className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-mono truncate"
+                        className="flex-1 min-w-0 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs sm:text-sm font-mono truncate"
                       />
                       <button
                         onClick={() => {
