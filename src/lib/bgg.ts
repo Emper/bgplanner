@@ -333,8 +333,17 @@ export async function ensureBggCollection(
     ...expItems.map((item: any) => ({ ...item, _subtype: "boardgameexpansion" })),
   ];
 
+  // Deduplicate by bggId — prefer "boardgame" over "boardgameexpansion"
+  const seenIds = new Set<number>();
+  const uniqueRawItems = allRawItems.filter((item: any) => {
+    const id = parseInt(item.$.objectid);
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  });
+
   const now = new Date();
-  const games: BggCollectionItem[] = allRawItems
+  const games: BggCollectionItem[] = uniqueRawItems
     .map((item: any) => {
       const stats = item.stats;
       const rating = stats?.rating;
