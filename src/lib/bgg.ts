@@ -15,6 +15,7 @@ export type BggCollectionItem = {
   numPlays: number;
   userRating: number | null;
   dateAdded: Date | null;
+  subtype: string; // "boardgame" | "boardgameexpansion"
 };
 
 export type PlayerCountRec = {
@@ -311,7 +312,6 @@ export async function ensureBggCollection(
 
   const now = new Date();
   const games: BggCollectionItem[] = items
-    .filter((item: any) => item.$.subtype === "boardgame")
     .map((item: any) => {
       const stats = item.stats;
       const rating = stats?.rating;
@@ -333,6 +333,7 @@ export async function ensureBggCollection(
         numPlays: item.numplays ? parseInt(item.numplays) : 0,
         userRating: rating ? parseFloat(rating.$?.value) || null : null,
         dateAdded: item.status?.$?.lastmodified ? new Date(item.status.$.lastmodified) : null,
+        subtype: item.$.subtype || "boardgame",
       };
     });
 
@@ -362,6 +363,7 @@ export async function ensureBggCollection(
         numPlays: g.numPlays,
         userRating: g.userRating,
         bestWith: bestWithMap.get(g.bggId) || null,
+        subtype: g.subtype,
         dateAdded: g.dateAdded,
         fetchedAt: now,
       })),

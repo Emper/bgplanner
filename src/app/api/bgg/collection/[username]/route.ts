@@ -35,11 +35,25 @@ export async function GET(
 
   try {
     // Ensure collection is cached
-    await ensureBggCollection(normalizedUsername, forceRefresh);
+    // If no expansions exist yet, force a refresh to populate subtypes (post-migration)
+    let needsRefresh = forceRefresh;
+    if (!needsRefresh) {
+      const expCount = await prisma.collectionGame.count({
+        where: { bggUsername: normalizedUsername, subtype: "boardgameexpansion" },
+      });
+      const totalCount = await prisma.collectionGame.count({
+        where: { bggUsername: normalizedUsername },
+      });
+      if (totalCount > 0 && expCount === 0) {
+        needsRefresh = true; // Pre-migration data, force refresh
+      }
+    }
+    await ensureBggCollection(normalizedUsername, needsRefresh);
 
-    // Build where clause
+    // Build where clause — only base games (exclude expansions)
     const where: Prisma.CollectionGameWhereInput = {
       bggUsername: normalizedUsername,
+      subtype: "boardgame",
     };
 
     if (search) {
@@ -106,7 +120,7 @@ export async function GET(
         break;
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, expansions] = await Promise.all([
       prisma.collectionGame.findMany({
         where,
         orderBy,
@@ -114,10 +128,66 @@ export async function GET(
         take: pageSize,
       }),
       prisma.collectionGame.count({ where }),
+      // Fetch all expansions for this user to match with base games
+      prisma.collectionGame.findMany({
+        where: {
+          bggUsername: normalizedUsername,
+          subtype: "boardgameexpansion",
+        },
+        select: { bggId: true, name: true, thumbnail: true },
+      }),
     ]);
 
+    // Match expansions to base games by name prefix
+    // Many expansions are named like "Base Game: Expansion" or "Base Game – Expansion"
+    const expansionsByBaseGame = new Map<number, { bggId: number; name: string; thumbnail: string | null }[]>();
+
+    for (const exp of expansions) {
+      // Try to find the best matching base game from current page items
+      let bestMatch: number | null = null;
+      let bestMatchLen = 0;
+
+      for (const item of items) {
+        const baseName = item.name.toLowerCase();
+        const expName = exp.name.toLowerCase();
+
+        // Check if expansion name starts with base game name (most common pattern)
+        if (expName.startsWith(baseName) && baseName.length > bestMatchLen) {
+          bestMatch = item.bggId;
+          bestMatchLen = baseName.length;
+        }
+        // Also check "Base Game: " or "Base Game – " pattern
+        if (
+          (expName.startsWith(baseName + ":") ||
+            expName.startsWith(baseName + " –") ||
+            expName.startsWith(baseName + " -")) &&
+          baseName.length > bestMatchLen
+        ) {
+          bestMatch = item.bggId;
+          bestMatchLen = baseName.length;
+        }
+      }
+
+      if (bestMatch !== null) {
+        if (!expansionsByBaseGame.has(bestMatch)) {
+          expansionsByBaseGame.set(bestMatch, []);
+        }
+        expansionsByBaseGame.get(bestMatch)!.push({
+          bggId: exp.bggId,
+          name: exp.name,
+          thumbnail: exp.thumbnail,
+        });
+      }
+    }
+
+    // Add expansion info to items
+    const itemsWithExpansions = items.map((item) => ({
+      ...item,
+      expansions: expansionsByBaseGame.get(item.bggId) || [],
+    }));
+
     return NextResponse.json({
-      items,
+      items: itemsWithExpansions,
       total,
       page,
       pageSize,

@@ -5,6 +5,12 @@ import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "@/components/Navbar";
 
+interface ExpansionItem {
+  bggId: number;
+  name: string;
+  thumbnail: string | null;
+}
+
 interface CollectionItem {
   bggId: number;
   name: string;
@@ -18,6 +24,7 @@ interface CollectionItem {
   numPlays: number;
   userRating: number | null;
   dateAdded: string | null;
+  expansions: ExpansionItem[];
 }
 
 interface PaginatedResponse {
@@ -603,94 +610,130 @@ export default function AddGamesPage() {
                       const isAdding = addingGame === game.bggId;
 
                       return (
-                        <div
-                          key={game.bggId}
-                          className="bg-slate-800 rounded-xl border border-slate-700 p-3 flex items-center gap-3 hover:border-slate-600 transition-colors"
-                        >
-                          {/* Thumbnail */}
-                          <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-700">
-                            {game.thumbnail ? (
-                              <img
-                                src={game.thumbnail}
-                                alt={game.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
-                                ?
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-slate-100 text-sm truncate">
-                              <a
-                                href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-amber-300 transition-colors"
-                                title="Ver en BGG"
-                              >
-                                {game.name}
-                                <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
-                              </a>
-                              {game.yearPublished && (
-                                <span className="text-slate-500 font-normal ml-1">
-                                  ({game.yearPublished})
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {game.bggRank && (
-                                <span className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full">
-                                  #{game.bggRank}
-                                </span>
-                              )}
-                              {game.bggRating && (
-                                <span className="inline-flex items-center gap-1 text-xs bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded-full">
-                                  ★ {game.bggRating.toFixed(1)}
-                                </span>
-                              )}
-                              {(game.minPlayers || game.maxPlayers) && (
-                                <span className="inline-flex items-center gap-1 text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                                  👥 {game.minPlayers}-{game.maxPlayers}
-                                </span>
-                              )}
-                              {game.weight && (
-                                <span className="inline-flex items-center gap-1 text-xs bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded-full" title={weightLabel(game.weight)}>
-                                  ⚖️ {game.weight.toFixed(1)}
-                                </span>
-                              )}
-                              {game.numPlays > 0 ? (
-                                <span className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-300 px-2 py-0.5 rounded-full">
-                                  🎲 {game.numPlays} partida{game.numPlays !== 1 && "s"}
-                                </span>
+                        <div key={game.bggId} className="bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-600 transition-colors overflow-hidden">
+                          <div className="p-3 flex items-center gap-3">
+                            {/* Thumbnail */}
+                            <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                              {game.thumbnail ? (
+                                <img
+                                  src={game.thumbnail}
+                                  alt={game.name}
+                                  className="w-full h-full object-cover"
+                                />
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-xs bg-red-500/15 text-red-300 px-2 py-0.5 rounded-full">
-                                  📦 Sin estrenar
-                                </span>
-                              )}
-                              {game.userRating && (
-                                <span className="inline-flex items-center gap-1 text-xs bg-pink-500/15 text-pink-300 px-2 py-0.5 rounded-full">
-                                  ♥ {game.userRating.toFixed(1)}
-                                </span>
+                                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
+                                  ?
+                                </div>
                               )}
                             </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-slate-100 text-sm truncate">
+                                <a
+                                  href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-amber-300 transition-colors"
+                                  title="Ver en BGG"
+                                >
+                                  {game.name}
+                                  <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
+                                </a>
+                                {game.yearPublished && (
+                                  <span className="text-slate-500 font-normal ml-1">
+                                    ({game.yearPublished})
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {game.bggRank && (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full">
+                                    #{game.bggRank}
+                                  </span>
+                                )}
+                                {game.bggRating && (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded-full">
+                                    ★ {game.bggRating.toFixed(1)}
+                                  </span>
+                                )}
+                                {(game.minPlayers || game.maxPlayers) && (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                                    👥 {game.minPlayers}-{game.maxPlayers}
+                                  </span>
+                                )}
+                                {game.weight && (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded-full" title={weightLabel(game.weight)}>
+                                    ⚖️ {game.weight.toFixed(1)}
+                                  </span>
+                                )}
+                                {game.numPlays > 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-300 px-2 py-0.5 rounded-full">
+                                    🎲 {game.numPlays} partida{game.numPlays !== 1 && "s"}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-red-500/15 text-red-300 px-2 py-0.5 rounded-full">
+                                    📦 Sin estrenar
+                                  </span>
+                                )}
+                                {game.userRating && (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-pink-500/15 text-pink-300 px-2 py-0.5 rounded-full">
+                                    ♥ {game.userRating.toFixed(1)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Add button */}
+                            <button
+                              onClick={() => handleAdd(game.bggId)}
+                              disabled={isAdded || isAdding}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors ${
+                                isAdded
+                                  ? "bg-green-500/20 text-green-400 cursor-default"
+                                  : "bg-amber-500 text-slate-900 hover:bg-amber-600 disabled:opacity-50"
+                              }`}
+                            >
+                              {isAdded ? "✓ Añadido" : isAdding ? "..." : "Añadir"}
+                            </button>
                           </div>
 
-                          {/* Add button */}
-                          <button
-                            onClick={() => handleAdd(game.bggId)}
-                            disabled={isAdded || isAdding}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors ${
-                              isAdded
-                                ? "bg-green-500/20 text-green-400 cursor-default"
-                                : "bg-amber-500 text-slate-900 hover:bg-amber-600 disabled:opacity-50"
-                            }`}
-                          >
-                            {isAdded ? "✓ Añadido" : isAdding ? "..." : "Añadir"}
-                          </button>
+                          {/* Expansions sub-elements */}
+                          {game.expansions.length > 0 && (
+                            <div className="px-3 pb-2 pt-0 ml-17">
+                              <div className="flex flex-wrap gap-1.5 items-center">
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                  Expansiones:
+                                </span>
+                                {game.expansions.slice(0, 5).map((exp) => (
+                                  <a
+                                    key={exp.bggId}
+                                    href={`https://boardgamegeek.com/boardgameexpansion/${exp.bggId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full hover:text-amber-300 hover:bg-slate-700 transition-colors"
+                                    title={exp.name}
+                                  >
+                                    {exp.thumbnail && (
+                                      <img
+                                        src={exp.thumbnail}
+                                        alt=""
+                                        className="w-3.5 h-3.5 rounded-sm object-cover"
+                                      />
+                                    )}
+                                    <span className="max-w-[150px] truncate">
+                                      {exp.name.replace(game.name, "").replace(/^[\s:–\-]+/, "").trim() || exp.name}
+                                    </span>
+                                  </a>
+                                ))}
+                                {game.expansions.length > 5 && (
+                                  <span className="text-[11px] text-slate-500">
+                                    +{game.expansions.length - 5} más
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

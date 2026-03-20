@@ -159,6 +159,7 @@ model CollectionGame {
   numPlays      Int       @default(0)
   userRating    Float?
   bestWith      String?
+  subtype       String    @default("boardgame") // boardgame | boardgameexpansion
   dateAdded     DateTime?
   fetchedAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -169,6 +170,7 @@ model CollectionGame {
   @@index([bggRating])
   @@index([numPlays])
   @@index([dateAdded])
+  @@index([subtype])
 }
 
 model Vote {
