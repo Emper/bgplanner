@@ -608,11 +608,11 @@ export default function GroupDashboardPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-slate-900 py-6 px-4">
+      <div className="min-h-screen bg-slate-900 py-4 sm:py-6 px-3 sm:px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-100">{group.name}</h1>
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-100">{group.name}</h1>
             <p className="text-sm text-slate-400">
               {group.members.length} miembros &middot; {group._count.games}{" "}
               juegos
@@ -712,92 +712,127 @@ export default function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="bg-slate-800 rounded-xl border border-slate-700 p-4 flex items-center gap-4"
+                            className="bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4"
                           >
-                            <div className="text-lg font-bold text-slate-500 w-8 text-center shrink-0">
-                              #{index + 1}
-                            </div>
-                            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-700">
-                              {item.game.thumbnail ? (
-                                <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-slate-100 truncate">
-                                <a
-                                  href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-amber-300 transition-colors"
-                                >
-                                  {item.game.name}
-                                  <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
-                                </a>
-                                {item.game.yearPublished && (
-                                  <span className="text-slate-500 font-normal ml-1">({item.game.yearPublished})</span>
+                            {/* Row 1: Position + Thumbnail + Name + Score */}
+                            <div className="flex items-center gap-2 sm:gap-4">
+                              <div className="text-sm sm:text-lg font-bold text-slate-500 w-6 sm:w-8 text-center shrink-0">
+                                #{index + 1}
+                              </div>
+                              <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                                {item.game.thumbnail ? (
+                                  <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
                                 )}
                               </div>
-                              <div className="flex flex-wrap gap-2 mt-1">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-slate-100 text-sm sm:text-base leading-tight">
+                                  <a
+                                    href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-amber-300 transition-colors"
+                                  >
+                                    {item.game.name}
+                                  </a>
+                                  {item.game.yearPublished && (
+                                    <span className="text-slate-500 font-normal ml-1 text-xs">({item.game.yearPublished})</span>
+                                  )}
+                                </div>
+                                {/* Badges inline on desktop */}
+                                <div className="hidden sm:flex flex-wrap gap-1.5 mt-1">
+                                  {item.game.bggRating && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
+                                      ★ {item.game.bggRating.toFixed(1)}
+                                    </span>
+                                  )}
+                                  {item.game.playingTime && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
+                                      ⏱ {formatDuration(item.game.playingTime)}
+                                    </span>
+                                  )}
+                                  {item.game.weight && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
+                                      ⚖️ {item.game.weight.toFixed(1)}
+                                    </span>
+                                  )}
+                                  {(item.game.minPlayers || item.game.maxPlayers) && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300">
+                                      {item.game.minPlayers === item.game.maxPlayers
+                                        ? `${item.game.minPlayers}p`
+                                        : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-center shrink-0">
+                                <div className="text-lg sm:text-xl font-bold text-slate-100">{item.score}</div>
+                                <div className="text-[10px] sm:text-xs text-slate-500">pts</div>
+                              </div>
+                            </div>
+
+                            {/* Row 2: Badges (mobile) + Vote buttons */}
+                            <div className="flex items-center justify-between mt-2 gap-2 pl-8 sm:pl-12">
+                              {/* Badges on mobile only */}
+                              <div className="flex sm:hidden flex-wrap gap-1 flex-1 min-w-0">
                                 {item.game.bggRating && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
                                     ★ {item.game.bggRating.toFixed(1)}
                                   </span>
                                 )}
                                 {item.game.playingTime && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300">
                                     ⏱ {formatDuration(item.game.playingTime)}
                                   </span>
                                 )}
                                 {item.game.weight && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
                                     ⚖️ {item.game.weight.toFixed(1)}
                                   </span>
                                 )}
                                 {(item.game.minPlayers || item.game.maxPlayers) && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700 text-slate-300">
                                     {item.game.minPlayers === item.game.maxPlayers
                                       ? `${item.game.minPlayers}p`
                                       : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
                                   </span>
                                 )}
                               </div>
-                            </div>
-                            <div className="text-center shrink-0">
-                              <div className="text-xl font-bold text-slate-100">{item.score}</div>
-                              <div className="text-xs text-slate-500">pts</div>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                              {(["up", "super", "down"] as const).map((type) => (
-                                <button
-                                  key={type}
-                                  onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                              {/* Spacer on desktop to push votes right */}
+                              <div className="hidden sm:block flex-1" />
 
-                                  className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors disabled:opacity-50 ${
-                                    item.userVote === type
-                                      ? type === "up"
-                                        ? "bg-amber-500/20 border-amber-500 text-amber-400"
-                                        : type === "super"
-                                          ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                          : "bg-red-500/20 border-red-500 text-red-400"
-                                      : "border-slate-700 text-slate-500 hover:bg-slate-700"
-                                  }`}
-                                  title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                >
-                                  {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                </button>
-                              ))}
-                              {canRemoveGame(item) && (
-                                <button
-                                  onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                  disabled={removingGame === item.game.id}
-                                  className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
-                                  title="Eliminar del grupo"
-                                >
-                                  🗑
-                                </button>
-                              )}
+                              {/* Vote buttons */}
+                              <div className="flex gap-1 shrink-0">
+                                {(["up", "super", "down"] as const).map((type) => (
+                                  <button
+                                    key={type}
+                                    onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                                    className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border text-base sm:text-lg transition-colors ${
+                                      item.userVote === type
+                                        ? type === "up"
+                                          ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                          : type === "super"
+                                            ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                            : "bg-red-500/20 border-red-500 text-red-400"
+                                        : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                    }`}
+                                    title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
+                                  >
+                                    {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
+                                  </button>
+                                ))}
+                                {canRemoveGame(item) && (
+                                  <button
+                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                    disabled={removingGame === item.game.id}
+                                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
+                                    title="Eliminar del grupo"
+                                  >
+                                    🗑
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -815,77 +850,98 @@ export default function GroupDashboardPage() {
                         {playedGames.map((item) => (
                           <div
                             key={item.groupGameId}
-                            className="bg-slate-800/60 rounded-xl border border-slate-700/50 p-3 flex items-center gap-3"
+                            className="bg-slate-800/60 rounded-xl border border-slate-700/50 p-3"
                           >
-                            <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-slate-700">
-                              {item.game.thumbnail ? (
-                                <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-slate-300 text-sm truncate">
-                                <a
-                                  href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-amber-300 transition-colors"
-                                >
-                                  {item.game.name}
-                                  <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
-                                </a>
+                            {/* Row 1: Thumbnail + Name + Score */}
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                                {item.game.thumbnail ? (
+                                  <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
+                                )}
                               </div>
-                              <div className="flex flex-wrap gap-2 mt-0.5">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-slate-300 text-sm leading-tight">
+                                  <a
+                                    href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-amber-300 transition-colors"
+                                  >
+                                    {item.game.name}
+                                  </a>
+                                </div>
+                                <div className="hidden sm:flex flex-wrap gap-1.5 mt-0.5">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
+                                    {item.playCount} partida{item.playCount !== 1 && "s"}
+                                  </span>
+                                  {item.game.bggRating && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400/70">
+                                      ★ {item.game.bggRating.toFixed(1)}
+                                    </span>
+                                  )}
+                                  {item.game.playingTime && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700/50 text-slate-400">
+                                      ⏱ {formatDuration(item.game.playingTime)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-center shrink-0">
+                                <div className="text-base sm:text-lg font-bold text-slate-400">{item.score}</div>
+                                <div className="text-[10px] sm:text-xs text-slate-600">pts</div>
+                              </div>
+                            </div>
+
+                            {/* Row 2: Badges (mobile) + Vote buttons */}
+                            <div className="flex items-center justify-between mt-1.5 gap-2 pl-12 sm:pl-15">
+                              <div className="flex sm:hidden flex-wrap gap-1 flex-1 min-w-0">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
                                   {item.playCount} partida{item.playCount !== 1 && "s"}
                                 </span>
                                 {item.game.bggRating && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400/70">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400/70">
                                     ★ {item.game.bggRating.toFixed(1)}
                                   </span>
                                 )}
                                 {item.game.playingTime && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700/50 text-slate-400">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/50 text-slate-400">
                                     ⏱ {formatDuration(item.game.playingTime)}
                                   </span>
                                 )}
                               </div>
-                            </div>
-                            <div className="text-center shrink-0">
-                              <div className="text-lg font-bold text-slate-400">{item.score}</div>
-                              <div className="text-xs text-slate-600">pts</div>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                              {(["up", "super", "down"] as const).map((type) => (
-                                <button
-                                  key={type}
-                                  onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-
-                                  className={`w-8 h-8 flex items-center justify-center rounded-lg border text-base transition-colors disabled:opacity-50 ${
-                                    item.userVote === type
-                                      ? type === "up"
-                                        ? "bg-amber-500/20 border-amber-500 text-amber-400"
-                                        : type === "super"
-                                          ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                          : "bg-red-500/20 border-red-500 text-red-400"
-                                      : "border-slate-700 text-slate-600 hover:bg-slate-700"
-                                  }`}
-                                  title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                >
-                                  {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                </button>
-                              ))}
-                              {canRemoveGame(item) && (
-                                <button
-                                  onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                  disabled={removingGame === item.game.id}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
-                                  title="Eliminar del grupo"
-                                >
-                                  🗑
-                                </button>
-                              )}
+                              <div className="hidden sm:block flex-1" />
+                              <div className="flex gap-1 shrink-0">
+                                {(["up", "super", "down"] as const).map((type) => (
+                                  <button
+                                    key={type}
+                                    onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border text-sm sm:text-base transition-colors ${
+                                      item.userVote === type
+                                        ? type === "up"
+                                          ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                          : type === "super"
+                                            ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                            : "bg-red-500/20 border-red-500 text-red-400"
+                                        : "border-slate-700 text-slate-600 hover:bg-slate-700"
+                                    }`}
+                                    title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
+                                  >
+                                    {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
+                                  </button>
+                                ))}
+                                {canRemoveGame(item) && (
+                                  <button
+                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                    disabled={removingGame === item.game.id}
+                                    className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
+                                    title="Eliminar del grupo"
+                                  >
+                                    🗑
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1238,7 +1294,7 @@ export default function GroupDashboardPage() {
                                   return (
                                     <div
                                       key={sg.id}
-                                      className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors ${
+                                      className={`py-2 px-2 sm:px-3 rounded-lg transition-colors ${
                                         sg.status === "completed"
                                           ? "bg-emerald-500/10"
                                           : sg.status === "playing"
@@ -1248,33 +1304,35 @@ export default function GroupDashboardPage() {
                                               : "bg-slate-700/50"
                                       }`}
                                     >
-                                      <span className="text-xs text-slate-500 w-5 text-center">{idx + 1}.</span>
-                                      <div className="w-8 h-8 shrink-0 rounded overflow-hidden bg-slate-700">
-                                        {sg.game.thumbnail ? (
-                                          <img src={sg.game.thumbnail} alt={sg.game.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                          <div className="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">?</div>
-                                        )}
+                                      {/* Row 1: Index + Thumbnail + Name + Time */}
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-slate-500 w-4 sm:w-5 text-center shrink-0">{idx + 1}.</span>
+                                        <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded overflow-hidden bg-slate-700">
+                                          {sg.game.thumbnail ? (
+                                            <img src={sg.game.thumbnail} alt={sg.game.name} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">?</div>
+                                          )}
+                                        </div>
+                                        <a
+                                          href={`https://boardgamegeek.com/boardgame/${sg.game.bggId}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs sm:text-sm text-slate-200 flex-1 min-w-0 truncate hover:text-amber-300 transition-colors"
+                                        >
+                                          {sg.game.name}
+                                        </a>
+                                        <span className="text-[10px] sm:text-xs text-slate-400 shrink-0">
+                                          ⏱ {sg.game.playingTime ? formatDuration(sg.game.playingTime) : "~90min"}
+                                        </span>
                                       </div>
-                                      <a
-                                        href={`https://boardgamegeek.com/boardgame/${sg.game.bggId}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm text-slate-200 flex-1 truncate hover:text-amber-300 transition-colors"
-                                      >
-                                        {sg.game.name}
-                                      </a>
-                                      <span className="text-xs text-slate-400 shrink-0">
-                                        ⏱ {sg.game.playingTime ? formatDuration(sg.game.playingTime) : "~90min"}
-                                      </span>
-
-                                      {/* Game status buttons */}
-                                      <div className="flex gap-1 shrink-0">
+                                      {/* Row 2: Status buttons + Remove */}
+                                      <div className="flex items-center justify-end gap-1 mt-1 pl-6 sm:pl-8">
                                         {(["pending", "playing", "completed", "skipped"] as const).map((gs) => (
                                           <button
                                             key={gs}
                                             onClick={() => handleGameStatus(s.id, sg.id, gs)}
-                                            className={`w-7 h-7 flex items-center justify-center rounded text-sm transition-colors ${
+                                            className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded text-xs sm:text-sm transition-colors ${
                                               sg.status === gs
                                                 ? "bg-slate-600 ring-1 ring-amber-500/50"
                                                 : "hover:bg-slate-600"
@@ -1284,16 +1342,14 @@ export default function GroupDashboardPage() {
                                             {gameStatusIcon[gs]}
                                           </button>
                                         ))}
+                                        <button
+                                          onClick={() => handleRemoveGameFromSession(s.id, sg.game.id)}
+                                          className="text-slate-600 hover:text-red-400 text-xs transition-colors shrink-0 ml-1"
+                                          title="Quitar de la sesión"
+                                        >
+                                          ✕
+                                        </button>
                                       </div>
-
-                                      {/* Remove from session */}
-                                      <button
-                                        onClick={() => handleRemoveGameFromSession(s.id, sg.game.id)}
-                                        className="text-slate-600 hover:text-red-400 text-xs transition-colors shrink-0"
-                                        title="Quitar de la sesión"
-                                      >
-                                        ✕
-                                      </button>
                                     </div>
                                   );
                                 })}

@@ -278,15 +278,15 @@ export default function AddGamesPage() {
       <div className="min-h-screen bg-slate-900 py-6 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3 mb-6">
             <Link
               href={`/groups/${groupId}`}
               prefetch={false}
-              className="text-sm text-amber-400 hover:text-amber-300 transition-colors"
+              className="text-xs sm:text-sm text-amber-400 hover:text-amber-300 transition-colors shrink-0"
             >
-              &larr; Volver al grupo
+              &larr; Volver
             </Link>
-            <h1 className="text-2xl font-bold text-slate-100">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-100">
               Añadir juegos
             </h1>
           </div>
@@ -376,14 +376,14 @@ export default function AddGamesPage() {
                       <button
                         key={opt.value}
                         onClick={() => handleSort(opt.value)}
-                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-colors whitespace-nowrap ${
                           sort === opt.value
                             ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
                             : "bg-slate-700 text-slate-400 border border-slate-600 hover:text-slate-200 hover:border-slate-500"
                         }`}
                       >
-                        <span className="mr-1">{opt.icon}</span>
-                        {opt.label}
+                        <span className="sm:mr-1">{opt.icon}</span>
+                        <span className="hidden sm:inline">{opt.label}</span>
                         {sort === opt.value && (
                           <span className="ml-1 opacity-70">
                             {(() => {
@@ -728,7 +728,7 @@ export default function AddGamesPage() {
                                         className="w-3.5 h-3.5 rounded-sm object-cover"
                                       />
                                     )}
-                                    <span className="max-w-[150px] truncate">
+                                    <span className="max-w-[80px] sm:max-w-[150px] truncate">
                                       {exp.name.replace(game.name, "").replace(/^[\s:–\-]+/, "").trim() || exp.name}
                                     </span>
                                   </a>
