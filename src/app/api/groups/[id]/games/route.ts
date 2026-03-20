@@ -15,23 +15,25 @@ export async function GET(
 
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
+  // Run membership check and data fetch in parallel
+  const [membership, groupGames] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: session.userId } },
+    }),
+    prisma.groupGame.findMany({
+      where: { groupId },
+      include: {
+        game: true,
+        addedBy: { select: { name: true } },
+        votes: { select: { userId: true, type: true } },
+        _count: { select: { votes: true } },
+      },
+    }),
+  ]);
 
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
-
-  const groupGames = await prisma.groupGame.findMany({
-    where: { groupId },
-    include: {
-      game: true,
-      addedBy: { select: { name: true } },
-      votes: { select: { userId: true, type: true } },
-      _count: { select: { votes: true } },
-    },
-  });
 
   const gamesWithScores = groupGames.map((gg) => {
     const score = gg.votes.reduce((acc, v) => {

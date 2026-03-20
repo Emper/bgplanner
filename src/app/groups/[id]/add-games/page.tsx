@@ -264,6 +264,7 @@ export default function AddGamesPage() {
           <div className="flex items-center gap-4 mb-6">
             <Link
               href={`/groups/${groupId}`}
+              prefetch={false}
               className="text-sm text-amber-400 hover:text-amber-300 transition-colors"
             >
               &larr; Volver al grupo
@@ -288,7 +289,7 @@ export default function AddGamesPage() {
                   <p className="text-sm text-slate-400">
                     Ningún miembro tiene un nombre de usuario de BGG configurado.
                     Configúralo en tu{" "}
-                    <Link href="/profile" className="text-amber-400 underline">
+                    <Link href="/profile" prefetch={false} className="text-amber-400 underline">
                       perfil
                     </Link>
                     .

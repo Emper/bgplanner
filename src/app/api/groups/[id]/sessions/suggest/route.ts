@@ -16,21 +16,23 @@ export async function GET(
   const playerCount = parseInt(sp.get("players") || "4");
   const totalMinutes = parseInt(sp.get("minutes") || "180");
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
+  // Run membership check and data fetch in parallel
+  const [membership, groupGames] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: session.userId } },
+    }),
+    prisma.groupGame.findMany({
+      where: { groupId },
+      include: {
+        game: true,
+        votes: { select: { type: true } },
+      },
+    }),
+  ]);
+
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
-
-  // Get all group games with votes (ranked)
-  const groupGames = await prisma.groupGame.findMany({
-    where: { groupId },
-    include: {
-      game: true,
-      votes: { select: { type: true } },
-    },
-  });
 
   // Score and filter by player count
   const scored = groupGames

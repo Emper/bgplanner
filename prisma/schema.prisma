@@ -60,6 +60,7 @@ model GroupMember {
   user  User  @relation(fields: [userId], references: [id])
 
   @@unique([groupId, userId])
+  @@index([userId])
 }
 
 model GroupInvitation {
@@ -139,6 +140,7 @@ model GroupGame {
   votes   Vote[]
 
   @@unique([groupId, gameId])
+  @@index([groupId])
 }
 
 model CollectionGame {
@@ -180,4 +182,6 @@ model Vote {
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([groupGameId, userId])
+  @@index([groupGameId])
+  @@index([userId])
 }

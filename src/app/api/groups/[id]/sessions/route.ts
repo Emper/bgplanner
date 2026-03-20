@@ -13,37 +13,40 @@ export async function GET(
 
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
-  const sessions = await prisma.gameSession.findMany({
-    where: { groupId },
-    orderBy: { date: "desc" },
-    include: {
-      createdBy: { select: { name: true } },
-      games: {
-        orderBy: { order: "asc" },
-        include: {
-          game: {
-            select: {
-              id: true,
-              bggId: true,
-              name: true,
-              thumbnail: true,
-              playingTime: true,
-              minPlayers: true,
-              maxPlayers: true,
-              weight: true,
+  // Run membership check and data fetch in parallel
+  const [membership, sessions] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: session.userId } },
+    }),
+    prisma.gameSession.findMany({
+      where: { groupId },
+      orderBy: { date: "desc" },
+      include: {
+        createdBy: { select: { name: true } },
+        games: {
+          orderBy: { order: "asc" },
+          include: {
+            game: {
+              select: {
+                id: true,
+                bggId: true,
+                name: true,
+                thumbnail: true,
+                playingTime: true,
+                minPlayers: true,
+                maxPlayers: true,
+                weight: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
+
+  if (!membership) {
+    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
+  }
 
   return NextResponse.json(sessions);
 }

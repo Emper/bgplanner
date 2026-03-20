@@ -146,21 +146,21 @@ export default function GroupDashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [groupRes, rankingRes] = await Promise.all([
-        fetch(`/api/groups/${groupId}`, { credentials: "include" }),
-        fetch(`/api/groups/${groupId}/ranking`, { credentials: "include" }),
-      ]);
+      // Single API call loads everything: group, ranking, sessions
+      const res = await fetch(`/api/groups/${groupId}/dashboard`, {
+        credentials: "include",
+      });
 
-      if (!groupRes.ok || !rankingRes.ok) {
+      if (!res.ok) {
         throw new Error("Error al cargar el grupo");
       }
 
-      const groupData = await groupRes.json();
-      const rankingData = await rankingRes.json();
+      const data = await res.json();
 
-      setGroup(groupData);
-      setRanking(rankingData.ranking);
-      setMemberCount(rankingData.memberCount);
+      setGroup(data.group);
+      setRanking(data.ranking);
+      setMemberCount(data.memberCount);
+      setSessions(data.sessions);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -172,7 +172,7 @@ export default function GroupDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  // Load sessions when tab changes
+  // Refresh sessions independently (after creating/editing a session)
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
     try {
@@ -188,12 +188,6 @@ export default function GroupDashboardPage() {
       setLoadingSessions(false);
     }
   }, [groupId]);
-
-  useEffect(() => {
-    if (activeTab === "sessions") {
-      fetchSessions();
-    }
-  }, [activeTab, fetchSessions]);
 
   // Filter ranking for "tonight" mode
   const filteredRanking = ranking.filter((item) => {
@@ -569,6 +563,7 @@ export default function GroupDashboardPage() {
                   </div>
                   <Link
                     href={`/groups/${groupId}/add-games`}
+                    prefetch={false}
                     className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
                   >
                     Añadir juegos

@@ -13,24 +13,25 @@ export async function GET(
 
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
+  // Run all queries in parallel for better performance
+  const [membership, memberCount, groupGames] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: session.userId } },
+    }),
+    prisma.groupMember.count({ where: { groupId } }),
+    prisma.groupGame.findMany({
+      where: { groupId },
+      include: {
+        game: true,
+        addedBy: { select: { name: true } },
+        votes: { select: { userId: true, type: true } },
+      },
+    }),
+  ]);
 
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
-
-  const memberCount = await prisma.groupMember.count({ where: { groupId } });
-
-  const groupGames = await prisma.groupGame.findMany({
-    where: { groupId },
-    include: {
-      game: true,
-      addedBy: { select: { name: true } },
-      votes: { select: { userId: true, type: true } },
-    },
-  });
 
   const ranking = groupGames
     .map((gg) => {
@@ -61,5 +62,10 @@ export async function GET(
       return (b.game.bggRating || 0) - (a.game.bggRating || 0);
     });
 
-  return NextResponse.json({ ranking, memberCount });
+  const response = NextResponse.json({ ranking, memberCount });
+  response.headers.set(
+    "Cache-Control",
+    "public, s-maxage=10, stale-while-revalidate=60"
+  );
+  return response;
 }

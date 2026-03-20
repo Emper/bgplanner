@@ -83,6 +83,7 @@ export default function GroupsPage() {
             <h2 className="text-xl font-bold text-slate-100">Mis Grupos</h2>
             <Link
               href="/groups/new"
+              prefetch={false}
               className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm"
             >
               Crear grupo
@@ -104,6 +105,7 @@ export default function GroupsPage() {
                 <Link
                   key={group.id}
                   href={`/groups/${group.id}`}
+                  prefetch={false}
                   className="bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-amber-500/50 transition-colors block"
                 >
                   <h3 className="text-lg font-semibold text-slate-100 mb-2">
@@ -127,6 +129,7 @@ export default function GroupsPage() {
                   <Link
                     key={`${item.groupId}-${item.gameId}-${i}`}
                     href={`/groups/${item.groupId}`}
+                    prefetch={false}
                     className="bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-3 hover:border-amber-500/50 transition-colors block"
                   >
                     {item.thumbnail ? (

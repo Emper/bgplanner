@@ -14,39 +14,46 @@ export async function GET(
 
   const { id } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId: id, userId: session.userId } },
-  });
+  // Run membership check and group data fetch in parallel
+  const [membership, group] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: id, userId: session.userId } },
+    }),
+    prisma.group.findUnique({
+      where: { id },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+                bggUsername: true,
+              },
+            },
+          },
+        },
+        _count: { select: { games: true } },
+        invitations: {
+          where: { status: "pending" },
+          select: { email: true, createdAt: true },
+        },
+      },
+    }),
+  ]);
 
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
-  const group = await prisma.group.findUnique({
-    where: { id },
-    include: {
-      members: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              surname: true,
-              email: true,
-              bggUsername: true,
-            },
-          },
-        },
-      },
-      _count: { select: { games: true } },
-      invitations: {
-        where: { status: "pending" },
-        select: { email: true, createdAt: true },
-      },
-    },
-  });
-
-  return NextResponse.json({ ...group, currentUserRole: membership.role });
+  const response = NextResponse.json({ ...group, currentUserRole: membership.role });
+  response.headers.set(
+    "Cache-Control",
+    "public, s-maxage=10, stale-while-revalidate=60"
+  );
+  return response;
 }
 
 export async function PUT(

@@ -26,6 +26,7 @@ export default function Navbar() {
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         <Link
           href="/groups"
+          prefetch={false}
           className="text-xl font-bold text-amber-400 tracking-tight"
         >
           WeBoard
@@ -33,12 +34,14 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           <Link
             href="/groups"
+            prefetch={false}
             className="text-sm text-slate-300 hover:text-amber-400 transition-colors"
           >
             Mis Grupos
           </Link>
           <Link
             href="/profile"
+            prefetch={false}
             className="text-sm text-slate-300 hover:text-amber-400 transition-colors"
           >
             Mi Perfil
