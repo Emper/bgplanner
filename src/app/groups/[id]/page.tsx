@@ -122,6 +122,8 @@ export default function GroupDashboardPage() {
   const [sessions, setSessions] = useState<GameSessionData[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [showNewSession, setShowNewSession] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [sessionDate, setSessionDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -398,6 +400,80 @@ export default function GroupDashboardPage() {
     } catch {
       alert("Error al eliminar sesión");
     }
+  };
+
+  const handleUpdateSession = async (sessionId: string, data: Record<string, unknown>) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? updated : s)));
+    } catch {
+      alert("Error al actualizar sesión");
+    }
+  };
+
+  const handleGameStatus = async (sessionId: string, gameSessionGameId: string, newStatus: string) => {
+    await handleUpdateSession(sessionId, {
+      gameStatuses: { [gameSessionGameId]: newStatus },
+    });
+  };
+
+  const handleRemoveGameFromSession = async (sessionId: string, gameIdToRemove: string) => {
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    const remainingIds = session.games
+      .filter((g) => g.game.id !== gameIdToRemove)
+      .map((g) => g.game.id);
+    await handleUpdateSession(sessionId, { gameIds: remainingIds });
+  };
+
+  const handleAddGameToSession = async (sessionId: string) => {
+    // Get suggestions for this session's parameters
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    try {
+      const res = await fetch(
+        `/api/groups/${groupId}/sessions/suggest?players=${session.playerCount}&minutes=${session.totalMinutes}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      // Filter out games already in session
+      const existingIds = new Set(session.games.map((g) => g.game.id));
+      const available = data.all.filter((g: SuggestedGame) => !existingIds.has(g.gameId));
+      if (available.length === 0) {
+        alert("No hay más juegos compatibles disponibles");
+        return;
+      }
+      setAllCandidates(available);
+      setSuggestedGames([]);
+      setSelectedGameIds(new Set());
+      setEditingSessionId(sessionId);
+    } catch {
+      alert("Error al cargar juegos disponibles");
+    }
+  };
+
+  const handleConfirmAddGames = async () => {
+    if (!editingSessionId) return;
+    const session = sessions.find((s) => s.id === editingSessionId);
+    if (!session) return;
+    const existingIds = session.games.map((g) => g.game.id);
+    const newIds = allCandidates
+      .filter((g) => selectedGameIds.has(g.gameId))
+      .map((g) => g.gameId);
+    await handleUpdateSession(editingSessionId, {
+      gameIds: [...existingIds, ...newIds],
+    });
+    setEditingSessionId(null);
+    setAllCandidates([]);
+    setSelectedGameIds(new Set());
   };
 
   if (loading) {
@@ -784,6 +860,55 @@ export default function GroupDashboardPage() {
                 </div>
               )}
 
+              {/* Add games to existing session modal */}
+              {editingSessionId && (
+                <div className="bg-slate-800 rounded-xl border border-amber-500/30 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-100">Añadir juegos a la sesión</h3>
+                    <button
+                      onClick={() => { setEditingSessionId(null); setAllCandidates([]); }}
+                      className="text-slate-400 hover:text-slate-200 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {allCandidates.map((game) => {
+                      const isSelected = selectedGameIds.has(game.gameId);
+                      return (
+                        <button
+                          key={game.gameId}
+                          onClick={() => toggleGameSelection(game.gameId)}
+                          className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
+                            isSelected
+                              ? "bg-amber-500/10 border-amber-500/40"
+                              : "bg-slate-800 border-slate-700 hover:border-slate-600"
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                            isSelected ? "bg-amber-500 border-amber-500 text-slate-900" : "border-slate-600"
+                          }`}>
+                            {isSelected && <span className="text-xs font-bold">✓</span>}
+                          </div>
+                          <span className="text-sm text-slate-200 flex-1 truncate">{game.name}</span>
+                          <span className="text-xs text-slate-400">
+                            ⏱ {game.playingTime ? formatDuration(game.playingTime) : "~90min"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedGameIds.size > 0 && (
+                    <button
+                      onClick={handleConfirmAddGames}
+                      className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
+                    >
+                      Añadir {selectedGameIds.size} juego{selectedGameIds.size !== 1 ? "s" : ""}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Existing sessions */}
               {loadingSessions ? (
                 <div className="flex items-center justify-center py-12">
@@ -796,80 +921,187 @@ export default function GroupDashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {sessions.map((s) => {
-                    const sessionDate = new Date(s.date);
-                    const isPast = sessionDate < new Date();
+                    const sDate = new Date(s.date);
+                    const isPast = sDate < new Date();
+                    const isExpanded = expandedSessionId === s.id;
                     const totalTime = s.games.reduce(
-                      (acc, g) => acc + (g.game.playingTime || 90),
-                      0
+                      (acc, g) => acc + (g.game.playingTime || 90), 0
                     );
+                    const completedGames = s.games.filter((g) => g.status === "completed").length;
+                    const statusColors: Record<string, string> = {
+                      planned: "bg-blue-500/20 text-blue-300",
+                      playing: "bg-emerald-500/20 text-emerald-300",
+                      completed: "bg-slate-600/50 text-slate-400",
+                    };
+                    const statusLabels: Record<string, string> = {
+                      planned: "Planificada",
+                      playing: "En curso",
+                      completed: "Completada",
+                    };
 
                     return (
                       <div
                         key={s.id}
-                        className={`bg-slate-800 rounded-xl border p-4 ${
-                          isPast
-                            ? "border-slate-700/50 opacity-70"
-                            : "border-slate-700"
+                        className={`bg-slate-800 rounded-xl border transition-colors ${
+                          s.status === "playing"
+                            ? "border-emerald-500/40"
+                            : isPast && s.status !== "completed"
+                              ? "border-amber-500/30"
+                              : "border-slate-700"
                         }`}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-semibold text-slate-100">
-                              {s.name || sessionDate.toLocaleDateString("es-ES", {
-                                weekday: "long",
-                                day: "numeric",
-                                month: "long",
-                              })}
-                            </h4>
+                        {/* Session header — clickable to expand */}
+                        <button
+                          onClick={() => setExpandedSessionId(isExpanded ? null : s.id)}
+                          className="w-full p-4 flex items-center gap-3 text-left"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-slate-100 truncate">
+                                {s.name || sDate.toLocaleDateString("es-ES", {
+                                  weekday: "long",
+                                  day: "numeric",
+                                  month: "long",
+                                })}
+                              </h4>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[s.status] || statusColors.planned}`}>
+                                {statusLabels[s.status] || s.status}
+                              </span>
+                            </div>
                             <div className="flex gap-3 text-xs text-slate-400 mt-1">
-                              <span>📅 {sessionDate.toLocaleDateString("es-ES")}</span>
+                              <span>📅 {sDate.toLocaleDateString("es-ES")}</span>
                               <span>👥 {s.playerCount}</span>
                               <span>⏱ {formatDuration(s.totalMinutes)}</span>
-                              {s.createdBy.name && <span>Por {s.createdBy.name}</span>}
+                              <span>🎲 {s.games.length} juego{s.games.length !== 1 ? "s" : ""}</span>
+                              {completedGames > 0 && (
+                                <span className="text-emerald-400">✓ {completedGames}/{s.games.length}</span>
+                              )}
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteSession(s.id)}
-                            className="text-slate-500 hover:text-red-400 text-sm transition-colors"
-                            title="Eliminar sesión"
+                          <svg
+                            className={`w-5 h-5 text-slate-500 transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
                           >
-                            🗑
-                          </button>
-                        </div>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
 
-                        {s.games.length > 0 && (
-                          <div className="space-y-1.5">
-                            {s.games.map((sg, idx) => (
-                              <div
-                                key={sg.id}
-                                className="flex items-center gap-2 py-1.5 px-2 bg-slate-700/50 rounded-lg"
-                              >
-                                <span className="text-xs text-slate-500 w-5 text-center">
-                                  {idx + 1}.
-                                </span>
-                                <div className="w-8 h-8 shrink-0 rounded overflow-hidden bg-slate-700">
-                                  {sg.game.thumbnail ? (
-                                    <img
-                                      src={sg.game.thumbnail}
-                                      alt={sg.game.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">
-                                      ?
+                        {/* Expanded content */}
+                        {isExpanded && (
+                          <div className="px-4 pb-4 space-y-3">
+                            {/* Status controls */}
+                            <div className="flex flex-wrap gap-2">
+                              {(["planned", "playing", "completed"] as const).map((st) => (
+                                <button
+                                  key={st}
+                                  onClick={() => handleUpdateSession(s.id, { status: st })}
+                                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                    s.status === st
+                                      ? statusColors[st] + " border-current"
+                                      : "bg-slate-700 text-slate-400 border-slate-600 hover:border-slate-500"
+                                  }`}
+                                >
+                                  {statusLabels[st]}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Games list with actions */}
+                            {s.games.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {s.games.map((sg, idx) => {
+                                  const gameStatusIcon: Record<string, string> = {
+                                    pending: "⬜",
+                                    playing: "🎮",
+                                    completed: "✅",
+                                    skipped: "⏭",
+                                  };
+                                  return (
+                                    <div
+                                      key={sg.id}
+                                      className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors ${
+                                        sg.status === "completed"
+                                          ? "bg-emerald-500/10"
+                                          : sg.status === "playing"
+                                            ? "bg-amber-500/10"
+                                            : sg.status === "skipped"
+                                              ? "bg-slate-700/30 opacity-60"
+                                              : "bg-slate-700/50"
+                                      }`}
+                                    >
+                                      <span className="text-xs text-slate-500 w-5 text-center">{idx + 1}.</span>
+                                      <div className="w-8 h-8 shrink-0 rounded overflow-hidden bg-slate-700">
+                                        {sg.game.thumbnail ? (
+                                          <img src={sg.game.thumbnail} alt={sg.game.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">?</div>
+                                        )}
+                                      </div>
+                                      <a
+                                        href={`https://boardgamegeek.com/boardgame/${sg.game.bggId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-slate-200 flex-1 truncate hover:text-amber-300 transition-colors"
+                                      >
+                                        {sg.game.name}
+                                      </a>
+                                      <span className="text-xs text-slate-400 shrink-0">
+                                        ⏱ {sg.game.playingTime ? formatDuration(sg.game.playingTime) : "~90min"}
+                                      </span>
+
+                                      {/* Game status buttons */}
+                                      <div className="flex gap-1 shrink-0">
+                                        {(["pending", "playing", "completed", "skipped"] as const).map((gs) => (
+                                          <button
+                                            key={gs}
+                                            onClick={() => handleGameStatus(s.id, sg.id, gs)}
+                                            className={`w-7 h-7 flex items-center justify-center rounded text-sm transition-colors ${
+                                              sg.status === gs
+                                                ? "bg-slate-600 ring-1 ring-amber-500/50"
+                                                : "hover:bg-slate-600"
+                                            }`}
+                                            title={gs === "pending" ? "Pendiente" : gs === "playing" ? "Jugando" : gs === "completed" ? "Jugado" : "Saltado"}
+                                          >
+                                            {gameStatusIcon[gs]}
+                                          </button>
+                                        ))}
+                                      </div>
+
+                                      {/* Remove from session */}
+                                      <button
+                                        onClick={() => handleRemoveGameFromSession(s.id, sg.game.id)}
+                                        className="text-slate-600 hover:text-red-400 text-xs transition-colors shrink-0"
+                                        title="Quitar de la sesión"
+                                      >
+                                        ✕
+                                      </button>
                                     </div>
-                                  )}
+                                  );
+                                })}
+                                <div className="flex items-center justify-between pt-1">
+                                  <span className="text-xs text-slate-500">
+                                    Total estimado: {formatDuration(totalTime)}
+                                  </span>
                                 </div>
-                                <span className="text-sm text-slate-200 flex-1 truncate">
-                                  {sg.game.name}
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                  ⏱ {sg.game.playingTime ? formatDuration(sg.game.playingTime) : "~90min"}
-                                </span>
                               </div>
-                            ))}
-                            <div className="text-xs text-slate-500 text-right pt-1">
-                              Total estimado: {formatDuration(totalTime)}
+                            ) : (
+                              <p className="text-sm text-slate-500">Sin juegos asignados</p>
+                            )}
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                onClick={() => handleAddGameToSession(s.id)}
+                                className="px-3 py-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/50 rounded-lg text-xs font-medium hover:bg-amber-500/30 transition-colors"
+                              >
+                                + Añadir juego
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSession(s.id)}
+                                className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors"
+                              >
+                                Eliminar sesión
+                              </button>
                             </div>
                           </div>
                         )}
