@@ -663,7 +663,10 @@ export default function GroupDashboardPage() {
                     )}
                   </div>
                   <Link
-                    href={`/groups/${groupId}/add-games`}
+                    href={`/groups/${groupId}/add-games${(() => {
+                      const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
+                      return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
+                    })()}`}
                     prefetch={false}
                     className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
                   >

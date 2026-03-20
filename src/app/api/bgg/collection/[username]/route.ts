@@ -107,7 +107,8 @@ export async function GET(
         break;
     }
 
-    const [items, total, expansions] = await Promise.all([
+    // First fetch items and total count
+    const [items, total] = await Promise.all([
       prisma.collectionGame.findMany({
         where,
         orderBy,
@@ -115,22 +116,29 @@ export async function GET(
         take: pageSize,
       }),
       prisma.collectionGame.count({ where }),
-      // Fetch all expansions for this user to match with base games
-      prisma.collectionGame.findMany({
-        where: {
-          bggUsername: normalizedUsername,
-          subtype: "boardgameexpansion",
-        },
-        select: { bggId: true, name: true, thumbnail: true },
-      }),
     ]);
 
+    // Then fetch only expansions that could match current page items (by name prefix)
+    // This is much faster than fetching ALL expansions for the user
+    const nameFilters = items.map((item) => ({
+      name: { startsWith: item.name, mode: "insensitive" as const },
+    }));
+
+    const expansions = nameFilters.length > 0
+      ? await prisma.collectionGame.findMany({
+          where: {
+            bggUsername: normalizedUsername,
+            subtype: "boardgameexpansion",
+            OR: nameFilters,
+          },
+          select: { bggId: true, name: true, thumbnail: true },
+        })
+      : [];
+
     // Match expansions to base games by name prefix
-    // Many expansions are named like "Base Game: Expansion" or "Base Game – Expansion"
     const expansionsByBaseGame = new Map<number, { bggId: number; name: string; thumbnail: string | null }[]>();
 
     for (const exp of expansions) {
-      // Try to find the best matching base game from current page items
       let bestMatch: number | null = null;
       let bestMatchLen = 0;
 
@@ -138,16 +146,11 @@ export async function GET(
         const baseName = item.name.toLowerCase();
         const expName = exp.name.toLowerCase();
 
-        // Check if expansion name starts with base game name (most common pattern)
-        if (expName.startsWith(baseName) && baseName.length > bestMatchLen) {
-          bestMatch = item.bggId;
-          bestMatchLen = baseName.length;
-        }
-        // Also check "Base Game: " or "Base Game – " pattern
         if (
           (expName.startsWith(baseName + ":") ||
             expName.startsWith(baseName + " –") ||
-            expName.startsWith(baseName + " -")) &&
+            expName.startsWith(baseName + " -") ||
+            (expName.startsWith(baseName) && expName.length > baseName.length)) &&
           baseName.length > bestMatchLen
         ) {
           bestMatch = item.bggId;

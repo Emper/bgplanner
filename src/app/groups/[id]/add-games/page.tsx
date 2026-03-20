@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "@/components/Navbar";
 
@@ -64,13 +64,15 @@ const PAGE_SIZE = 24;
 
 export default function AddGamesPage() {
   const { id: groupId } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const initialUsername = searchParams.get("user") || "";
 
   const [group, setGroup] = useState<GroupData | null>(null);
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [addedGameIds, setAddedGameIds] = useState<Set<number>>(new Set());
-  const [selectedUsername, setSelectedUsername] = useState("");
+  const [selectedUsername, setSelectedUsername] = useState(initialUsername);
   const [loadingGroup, setLoadingGroup] = useState(true);
   const [loadingCollection, setLoadingCollection] = useState(false);
   const [addingGame, setAddingGame] = useState<number | null>(null);
@@ -119,11 +121,14 @@ export default function AddGamesPage() {
           const data = await groupRes.json();
           setGroup(data);
 
-          const membersWithBgg = data.members.filter(
-            (m: Member) => m.user.bggUsername
-          );
-          if (membersWithBgg.length > 0) {
-            setSelectedUsername(membersWithBgg[0].user.bggUsername!);
+          // Only set username from group data if we don't already have one from URL param
+          if (!initialUsername) {
+            const membersWithBgg = data.members.filter(
+              (m: Member) => m.user.bggUsername
+            );
+            if (membersWithBgg.length > 0) {
+              setSelectedUsername(membersWithBgg[0].user.bggUsername!);
+            }
           }
         }
 
