@@ -227,7 +227,7 @@ export default function GroupDashboardPage() {
       const voteScore = (t: string) => (t === "super" ? 3 : t === "down" ? -1 : 1);
       return prev
         .map((item) => {
-          if (item.game.id !== targetGameDbId) return item;
+          if (item.groupGameId !== targetGameDbId) return item;
           let { score, upVotes, superVotes, downVotes } = item;
           // Remove old vote contribution
           if (oldVote) {
@@ -269,9 +269,9 @@ export default function GroupDashboardPage() {
     // If moving a super vote, also remove the old one optimistically
     let oldSuperGameDbId: string | null = null;
     if (type === "super" && !isRemove) {
-      const oldSuper = ranking.find((r) => r.userVote === "super" && r.game.id !== gameDbId);
+      const oldSuper = ranking.find((r) => r.userVote === "super" && r.groupGameId !== gameDbId);
       if (oldSuper) {
-        oldSuperGameDbId = oldSuper.game.id;
+        oldSuperGameDbId = oldSuper.groupGameId;
         setRanking((prev) => applyVoteLocally(prev, oldSuperGameDbId!, null, "super"));
       }
     }
