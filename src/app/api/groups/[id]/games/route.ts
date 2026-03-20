@@ -183,6 +183,7 @@ export async function POST(
     );
   }
 
+  // Create the group game and an automatic upvote from the user who added it
   const groupGame = await prisma.groupGame.create({
     data: {
       groupId,
@@ -190,6 +191,14 @@ export async function POST(
       addedById: session.userId,
     },
     include: { game: true },
+  });
+
+  await prisma.vote.create({
+    data: {
+      groupGameId: groupGame.id,
+      userId: session.userId,
+      type: "up",
+    },
   });
 
   return NextResponse.json(groupGame, { status: 201 });
