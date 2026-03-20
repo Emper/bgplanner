@@ -54,14 +54,6 @@ interface GroupData {
   currentUserRole: string;
 }
 
-interface PlayerCountRec {
-  numPlayers: string;
-  best: number;
-  recommended: number;
-  notRecommended: number;
-  verdict: "Best" | "Recommended" | "Not Recommended";
-}
-
 type Tab = "ranking" | "members";
 
 export default function GroupDashboardPage() {
@@ -69,7 +61,10 @@ export default function GroupDashboardPage() {
   const [group, setGroup] = useState<GroupData | null>(null);
   const [ranking, setRanking] = useState<RankedGame[]>([]);
   const [memberCount, setMemberCount] = useState(0);
-  const [playerRecs, setPlayerRecs] = useState<Record<number, PlayerCountRec | null>>({});
+
+  // "Esta noche" filters
+  const [tonightPlayers, setTonightPlayers] = useState("");
+  const [tonightMaxWeight, setTonightMaxWeight] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("ranking");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -109,33 +104,22 @@ export default function GroupDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  // Fetch player count recommendations for each game
-  useEffect(() => {
-    if (ranking.length === 0 || memberCount === 0) return;
+  // Filter ranking for "tonight" mode
+  const filteredRanking = ranking.filter((item) => {
+    if (tonightPlayers) {
+      const n = parseInt(tonightPlayers);
+      const min = item.game.minPlayers ?? 0;
+      const max = item.game.maxPlayers ?? 99;
+      if (n < min || n > max) return false;
+    }
+    if (tonightMaxWeight) {
+      const maxW = parseFloat(tonightMaxWeight);
+      if (item.game.weight && item.game.weight > maxW) return false;
+    }
+    return true;
+  });
 
-    ranking.forEach(async (item) => {
-      const bggId = item.game.bggId;
-      if (playerRecs[bggId] !== undefined) return;
-
-      // Mark as loading
-      setPlayerRecs((prev) => ({ ...prev, [bggId]: null }));
-
-      try {
-        const res = await fetch(`/api/bgg/game/${bggId}`, {
-          credentials: "include",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-
-        const rec = data.playerCountRecommendations?.find(
-          (r: PlayerCountRec) => r.numPlayers === String(memberCount)
-        );
-        setPlayerRecs((prev) => ({ ...prev, [bggId]: rec || null }));
-      } catch {
-        // Silently fail for player count recs
-      }
-    });
-  }, [ranking, memberCount, playerRecs]);
+  const tonightActive = !!(tonightPlayers || tonightMaxWeight);
 
   const handleVote = async (
     gameId: string,
@@ -315,23 +299,74 @@ export default function GroupDashboardPage() {
           {/* Ranking Tab */}
           {activeTab === "ranking" && (
             <div>
-              <div className="flex justify-end mb-4">
-                <Link
-                  href={`/groups/${groupId}/add-games`}
-                  className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium"
-                >
-                  Añadir juegos
-                </Link>
+              {/* Toolbar: Tonight filter + Add games */}
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-3 mb-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  {/* Tonight filter */}
+                  <div className="flex items-center gap-2 flex-1 flex-wrap">
+                    <span className="text-sm font-medium text-slate-300">🌙 Esta noche:</span>
+                    <select
+                      value={tonightPlayers}
+                      onChange={(e) => setTonightPlayers(e.target.value)}
+                      className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="">Jugadores...</option>
+                      {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                        <option key={n} value={n}>
+                          Somos {n}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={tonightMaxWeight}
+                      onChange={(e) => setTonightMaxWeight(e.target.value)}
+                      className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="">Peso...</option>
+                      <option value="2">Ligero (≤2)</option>
+                      <option value="3">Medio (≤3)</option>
+                      <option value="4">Pesado (≤4)</option>
+                      <option value="5">Cualquier peso</option>
+                    </select>
+                    {tonightActive && (
+                      <button
+                        onClick={() => {
+                          setTonightPlayers("");
+                          setTonightMaxWeight("");
+                        }}
+                        className="text-xs text-slate-400 hover:text-amber-400 transition-colors"
+                      >
+                        ✕ Limpiar
+                      </button>
+                    )}
+                  </div>
+
+                  <Link
+                    href={`/groups/${groupId}/add-games`}
+                    className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                  >
+                    Añadir juegos
+                  </Link>
+                </div>
+
+                {tonightActive && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    Mostrando {filteredRanking.length} de {ranking.length} juegos
+                  </p>
+                )}
               </div>
 
               {ranking.length === 0 ? (
                 <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
                   No hay juegos en este grupo todavía. ¡Añade algunos!
                 </div>
+              ) : filteredRanking.length === 0 ? (
+                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
+                  Ningún juego encaja con los filtros de esta noche. Prueba a cambiarlos.
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {ranking.map((item, index) => {
-                    const rec = playerRecs[item.game.bggId];
+                  {filteredRanking.map((item, index) => {
                     return (
                       <div
                         key={item.groupGameId}
@@ -360,7 +395,15 @@ export default function GroupDashboardPage() {
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-slate-100 truncate">
-                            {item.game.name}
+                            <a
+                              href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-amber-300 transition-colors"
+                            >
+                              {item.game.name}
+                              <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
+                            </a>
                             {item.game.yearPublished && (
                               <span className="text-slate-500 font-normal ml-1">
                                 ({item.game.yearPublished})
@@ -386,22 +429,9 @@ export default function GroupDashboardPage() {
                                   : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"} jugadores`}
                               </span>
                             )}
-                            {rec && (
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                  rec.verdict === "Best"
-                                    ? "bg-green-500/20 text-green-300"
-                                    : rec.verdict === "Recommended"
-                                      ? "bg-yellow-500/20 text-yellow-300"
-                                      : "bg-red-500/20 text-red-300"
-                                }`}
-                              >
-                                {rec.verdict === "Best"
-                                  ? "Best"
-                                  : rec.verdict === "Recommended"
-                                    ? "Recomendado"
-                                    : "No recomendado"}{" "}
-                                con {memberCount}
+                            {item.addedBy.name && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-400">
+                                Añadido por {item.addedBy.name}
                               </span>
                             )}
                           </div>
