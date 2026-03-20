@@ -105,13 +105,14 @@ export async function POST(
       yearPublished: number | null;
       minPlayers: number | null;
       maxPlayers: number | null;
+      playingTime: number | null;
       bggRating: number | null;
       bggRank: number | null;
       weight: number | null;
     };
     const cachedRows = await prisma.$queryRaw<CachedRow[]>`
       SELECT name, thumbnail, "yearPublished", "minPlayers", "maxPlayers",
-             "bggRating", "bggRank", weight
+             "playingTime", "bggRating", "bggRank", weight
       FROM "CollectionGame"
       WHERE "bggId" = ${bggId}
       LIMIT 1
@@ -128,6 +129,7 @@ export async function POST(
           yearPublished: cachedItem.yearPublished,
           minPlayers: cachedItem.minPlayers,
           maxPlayers: cachedItem.maxPlayers,
+          playingTime: cachedItem.playingTime,
           bggRating: cachedItem.bggRating,
           bggRank: cachedItem.bggRank,
           weight: cachedItem.weight,

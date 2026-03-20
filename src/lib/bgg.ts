@@ -8,6 +8,7 @@ export type BggCollectionItem = {
   yearPublished: number | null;
   minPlayers: number | null;
   maxPlayers: number | null;
+  playingTime: number | null;
   bggRating: number | null;
   bggRank: number | null;
   weight: number | null;
@@ -325,6 +326,7 @@ export async function ensureBggCollection(
         yearPublished: item.yearpublished ? parseInt(item.yearpublished) : null,
         minPlayers: stats ? parseInt(stats.$?.minplayers) : null,
         maxPlayers: stats ? parseInt(stats.$?.maxplayers) : null,
+        playingTime: stats?.$?.playingtime ? parseInt(stats.$.playingtime) || null : null,
         bggRating: rating?.average ? parseFloat(rating.average.$?.value) || null : null,
         bggRank: mainRank ? parseInt(mainRank.$?.value) || null : null,
         weight: rating?.averageweight ? parseFloat(rating.averageweight.$?.value) || null : null,
@@ -356,6 +358,7 @@ export async function ensureBggCollection(
         bggRating: g.bggRating,
         bggRank: g.bggRank,
         weight: g.weight,
+        playingTime: g.playingTime,
         numPlays: g.numPlays,
         userRating: g.userRating,
         bestWith: bestWithMap.get(g.bggId) || null,

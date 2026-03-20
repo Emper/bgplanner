@@ -21,7 +21,8 @@ model User {
   groupMemberships GroupMember[]
   votes            Vote[]
   addedGames       GroupGame[]
-  createdGroups    Group[]      @relation("GroupCreator")
+  createdGroups    Group[]        @relation("GroupCreator")
+  createdSessions  GameSession[]  @relation("SessionCreator")
 }
 
 model OtpCode {
@@ -45,6 +46,7 @@ model Group {
   members     GroupMember[]
   invitations GroupInvitation[]
   games       GroupGame[]
+  sessions    GameSession[]
 }
 
 model GroupMember {
@@ -81,12 +83,47 @@ model Game {
   yearPublished Int?
   minPlayers    Int?
   maxPlayers    Int?
+  playingTime   Int?
   bggRating     Float?
   bggRank       Int?
   weight        Float?
   updatedAt     DateTime @updatedAt
 
-  groupGames GroupGame[]
+  groupGames   GroupGame[]
+  sessionGames GameSessionGame[]
+}
+
+model GameSession {
+  id           String   @id @default(cuid())
+  groupId      String
+  name         String?
+  date         DateTime
+  playerCount  Int
+  totalMinutes Int
+  status       String   @default("planned") // planned, playing, completed
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  group     Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User              @relation("SessionCreator", fields: [createdById], references: [id])
+  games     GameSessionGame[]
+
+  @@index([groupId])
+  @@index([date])
+}
+
+model GameSessionGame {
+  id        String @id @default(cuid())
+  sessionId String
+  gameId    String
+  order     Int
+  status    String @default("pending") // pending, playing, completed, skipped
+
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  game    Game        @relation(fields: [gameId], references: [id])
+
+  @@unique([sessionId, gameId])
 }
 
 model GroupGame {
@@ -116,6 +153,7 @@ model CollectionGame {
   bggRating     Float?
   bggRank       Int?
   weight        Float?
+  playingTime   Int?
   numPlays      Int       @default(0)
   userRating    Float?
   bestWith      String?
