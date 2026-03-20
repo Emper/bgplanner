@@ -23,3 +23,17 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Ensure all interactive elements show pointer cursor */
+button:not(:disabled),
+select:not(:disabled),
+a[href],
+[role="button"],
+[onclick] {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
