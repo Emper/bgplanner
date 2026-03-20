@@ -287,31 +287,54 @@ export async function ensureBggCollection(
 
   console.log(`[BGG Cache] ${forceRefresh ? "FORCE REFRESH" : "MISS"} for ${normalizedUsername}, fetching from BGG...`);
 
-  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1`;
-  const response = await fetchWithRetry(url);
+  // Fetch boardgames AND expansions in parallel (BGG defaults to boardgame only)
+  const [bgResponse, expResponse] = await Promise.all([
+    fetchWithRetry(
+      `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgame`
+    ),
+    fetchWithRetry(
+      `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgameexpansion`
+    ),
+  ]);
 
-  if (!response.ok) {
-    if (response.status === 404) {
+  if (!bgResponse.ok) {
+    if (bgResponse.status === 404) {
       throw new Error(`No se encontró el usuario "${username}" en BGG.`);
     }
-    throw new Error(`Error al obtener colección de BGG: ${response.status}`);
+    throw new Error(`Error al obtener colección de BGG: ${bgResponse.status}`);
   }
 
-  const xml = await response.text();
-  const parsed = await parseStringPromise(xml, { explicitArray: false });
+  const [bgXml, expXml] = await Promise.all([
+    bgResponse.text(),
+    expResponse.ok ? expResponse.text() : Promise.resolve(null),
+  ]);
 
-  if (!parsed.items?.item) {
+  const bgParsed = await parseStringPromise(bgXml, { explicitArray: false });
+  const expParsed = expXml
+    ? await parseStringPromise(expXml, { explicitArray: false })
+    : null;
+
+  const bgItems = bgParsed.items?.item
+    ? Array.isArray(bgParsed.items.item) ? bgParsed.items.item : [bgParsed.items.item]
+    : [];
+  const expItems = expParsed?.items?.item
+    ? Array.isArray(expParsed.items.item) ? expParsed.items.item : [expParsed.items.item]
+    : [];
+
+  if (bgItems.length === 0 && expItems.length === 0) {
     // Empty collection — clear existing rows
     await prisma.collectionGame.deleteMany({ where: { bggUsername: normalizedUsername } });
     return true;
   }
 
-  const items = Array.isArray(parsed.items.item)
-    ? parsed.items.item
-    : [parsed.items.item];
+  // Tag each item with its subtype before merging
+  const allRawItems = [
+    ...bgItems.map((item: any) => ({ ...item, _subtype: "boardgame" })),
+    ...expItems.map((item: any) => ({ ...item, _subtype: "boardgameexpansion" })),
+  ];
 
   const now = new Date();
-  const games: BggCollectionItem[] = items
+  const games: BggCollectionItem[] = allRawItems
     .map((item: any) => {
       const stats = item.stats;
       const rating = stats?.rating;
@@ -333,7 +356,7 @@ export async function ensureBggCollection(
         numPlays: item.numplays ? parseInt(item.numplays) : 0,
         userRating: rating ? parseFloat(rating.$?.value) || null : null,
         dateAdded: item.status?.$?.lastmodified ? new Date(item.status.$.lastmodified) : null,
-        subtype: item.$.subtype || "boardgame",
+        subtype: item._subtype || item.$.subtype || "boardgame",
       };
     });
 

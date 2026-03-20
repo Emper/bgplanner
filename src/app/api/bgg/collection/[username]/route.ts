@@ -34,21 +34,8 @@ export async function GET(
   const normalizedUsername = username.toLowerCase().trim();
 
   try {
-    // Ensure collection is cached
-    // If no expansions exist yet, force a refresh to populate subtypes (post-migration)
-    let needsRefresh = forceRefresh;
-    if (!needsRefresh) {
-      const expCount = await prisma.collectionGame.count({
-        where: { bggUsername: normalizedUsername, subtype: "boardgameexpansion" },
-      });
-      const totalCount = await prisma.collectionGame.count({
-        where: { bggUsername: normalizedUsername },
-      });
-      if (totalCount > 0 && expCount === 0) {
-        needsRefresh = true; // Pre-migration data, force refresh
-      }
-    }
-    await ensureBggCollection(normalizedUsername, needsRefresh);
+    // Ensure collection is cached (fetches both boardgames + expansions)
+    await ensureBggCollection(normalizedUsername, forceRefresh);
 
     // Build where clause — only base games (exclude expansions)
     const where: Prisma.CollectionGameWhereInput = {
