@@ -1,7 +1,7 @@
 {
   "regions": ["cdg1"],
   "functions": {
-    "src/app/api/**/*.ts": {
+    "api/**": {
       "maxDuration": 10
     }
   }
