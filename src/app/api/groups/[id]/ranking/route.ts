@@ -77,9 +77,7 @@ export async function GET(
     });
 
   const response = NextResponse.json({ ranking, memberCount });
-  response.headers.set(
-    "Cache-Control",
-    "public, s-maxage=10, stale-while-revalidate=60"
-  );
+  // No CDN cache — response includes per-user vote data
+  response.headers.set("Cache-Control", "private, no-store");
   return response;
 }

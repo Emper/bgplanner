@@ -130,11 +130,8 @@ export async function GET(
     sessions,
   });
 
-  // Cache on Vercel edge for 10s, serve stale up to 60s while revalidating
-  response.headers.set(
-    "Cache-Control",
-    "public, s-maxage=10, stale-while-revalidate=60"
-  );
+  // No CDN cache — response is personalized per user (userVote, currentUserId)
+  response.headers.set("Cache-Control", "private, no-store");
 
   return response;
 }

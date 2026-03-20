@@ -152,6 +152,7 @@ export default function GroupDashboardPage() {
       // Single API call loads everything: group, ranking, sessions
       const res = await fetch(`/api/groups/${groupId}/dashboard`, {
         credentials: "include",
+        cache: "no-store",
       });
 
       if (!res.ok) {
