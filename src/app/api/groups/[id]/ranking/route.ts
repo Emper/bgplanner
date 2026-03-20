@@ -14,7 +14,7 @@ export async function GET(
   const { id: groupId } = await params;
 
   // Run all queries in parallel for better performance
-  const [membership, memberCount, groupGames] = await Promise.all([
+  const [membership, memberCount, groupGames, completedPlays] = await Promise.all([
     prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: session.userId } },
     }),
@@ -27,11 +27,23 @@ export async function GET(
         votes: { select: { userId: true, type: true } },
       },
     }),
+    prisma.gameSessionGame.groupBy({
+      by: ["gameId"],
+      where: {
+        status: "completed",
+        session: { groupId },
+      },
+      _count: { id: true },
+    }),
   ]);
 
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
+
+  const playCountByGameId = new Map(
+    completedPlays.map((p) => [p.gameId, p._count.id])
+  );
 
   const ranking = groupGames
     .map((gg) => {
@@ -50,11 +62,13 @@ export async function GET(
         groupGameId: gg.id,
         game: gg.game,
         addedBy: gg.addedBy,
+        addedById: gg.addedById,
         score,
         upVotes,
         superVotes,
         downVotes,
         userVote: userVote?.type || null,
+        playCount: playCountByGameId.get(gg.game.id) || 0,
       };
     })
     .sort((a, b) => {

@@ -81,6 +81,16 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
+  // Count completed plays per game from sessions (computed in memory)
+  const playCountByGameId = new Map<string, number>();
+  for (const s of sessions) {
+    for (const sg of s.games) {
+      if (sg.status === "completed") {
+        playCountByGameId.set(sg.game.id, (playCountByGameId.get(sg.game.id) || 0) + 1);
+      }
+    }
+  }
+
   // Compute ranking in memory
   const ranking = groupGames
     .map((gg) => {
@@ -99,11 +109,13 @@ export async function GET(
         groupGameId: gg.id,
         game: gg.game,
         addedBy: gg.addedBy,
+        addedById: gg.addedById,
         score,
         upVotes,
         superVotes,
         downVotes,
         userVote: userVote?.type || null,
+        playCount: playCountByGameId.get(gg.game.id) || 0,
       };
     })
     .sort((a, b) => {
@@ -112,7 +124,7 @@ export async function GET(
     });
 
   const response = NextResponse.json({
-    group: { ...group, currentUserRole: membership.role },
+    group: { ...group, currentUserRole: membership.role, currentUserId: session.userId },
     ranking,
     memberCount,
     sessions,
