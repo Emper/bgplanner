@@ -624,7 +624,16 @@ export default function AddGamesPage() {
                           {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-slate-100 text-sm truncate">
-                              {game.name}
+                              <a
+                                href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-amber-300 transition-colors"
+                                title="Ver en BGG"
+                              >
+                                {game.name}
+                                <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
+                              </a>
                               {game.yearPublished && (
                                 <span className="text-slate-500 font-normal ml-1">
                                   ({game.yearPublished})
