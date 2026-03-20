@@ -290,7 +290,7 @@ export async function ensureBggCollection(
   // Fetch boardgames AND expansions in parallel (BGG defaults to boardgame only)
   const [bgResponse, expResponse] = await Promise.all([
     fetchWithRetry(
-      `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgame`
+      `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgame&excludesubtype=boardgameexpansion`
     ),
     fetchWithRetry(
       `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgameexpansion`
