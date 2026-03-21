@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -89,7 +90,7 @@ export default function JoinPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-4xl font-bold text-amber-400 mb-4">WeBoard</h1>
+          <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <p className="text-red-400 mb-4">{error}</p>
             <button
@@ -108,7 +109,7 @@ export default function JoinPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-4xl font-bold text-amber-400 mb-4">WeBoard</h1>
+          <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <div className="text-4xl mb-3">👋</div>
             <h2 className="text-lg font-semibold text-slate-100 mb-2">
@@ -133,7 +134,7 @@ export default function JoinPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-4xl font-bold text-amber-400 mb-4">WeBoard</h1>
+          <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <div className="text-4xl mb-3">🎉</div>
             <h2 className="text-lg font-semibold text-slate-100 mb-2">
@@ -157,7 +158,7 @@ export default function JoinPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
       <div className="w-full max-w-md text-center">
-        <h1 className="text-4xl font-bold text-amber-400 mb-4">WeBoard</h1>
+        <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
         <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
           <div className="text-4xl mb-3">🎲</div>
           <h2 className="text-lg font-semibold text-slate-100 mb-2">

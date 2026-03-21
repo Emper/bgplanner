@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 
@@ -119,7 +120,7 @@ function VerifyForm() {
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-amber-400 mb-2">WeBoard</h1>
+          <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto" />
         </div>
 
         <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
