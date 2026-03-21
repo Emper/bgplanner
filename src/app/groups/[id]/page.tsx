@@ -714,12 +714,12 @@ export default function GroupDashboardPage() {
                             key={item.groupGameId}
                             className="bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4"
                           >
-                            {/* Row 1: Position + Thumbnail + Name + Score */}
+                            {/* Row 1: Position + Thumbnail + Name (+ Score on mobile) */}
                             <div className="flex items-center gap-2 sm:gap-4">
                               <div className="text-sm sm:text-lg font-bold text-slate-500 w-6 sm:w-8 text-center shrink-0">
                                 #{index + 1}
                               </div>
-                              <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                              <div className="w-11 h-11 sm:w-20 sm:h-20 shrink-0 rounded-lg overflow-hidden bg-slate-700">
                                 {item.game.thumbnail ? (
                                   <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -741,7 +741,7 @@ export default function GroupDashboardPage() {
                                   )}
                                 </div>
                                 {/* Badges inline on desktop */}
-                                <div className="hidden sm:flex flex-wrap gap-1.5 mt-1">
+                                <div className="hidden sm:flex flex-wrap gap-1.5 mt-2">
                                   {item.game.bggRating && (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
                                       ★ {item.game.bggRating.toFixed(1)}
@@ -766,16 +766,16 @@ export default function GroupDashboardPage() {
                                   )}
                                 </div>
                               </div>
-                              <div className="text-center shrink-0">
-                                <div className="text-lg sm:text-xl font-bold text-slate-100">{item.score}</div>
-                                <div className="text-[10px] sm:text-xs text-slate-500">pts</div>
+                              {/* Score: only visible on mobile in Row 1 */}
+                              <div className="text-center shrink-0 sm:hidden">
+                                <div className="text-lg font-bold text-slate-100">{item.score}</div>
+                                <div className="text-[10px] text-slate-500">pts</div>
                               </div>
                             </div>
 
-                            {/* Row 2: Badges (mobile) + Vote buttons */}
-                            <div className="flex items-center justify-between mt-2 gap-2 pl-8 sm:pl-12">
-                              {/* Badges on mobile only */}
-                              <div className="flex sm:hidden flex-wrap gap-1 flex-1 min-w-0">
+                            {/* Row 2 mobile: Badges + Vote buttons */}
+                            <div className="flex sm:hidden items-center justify-between mt-2 gap-2 pl-8">
+                              <div className="flex flex-wrap gap-1 flex-1 min-w-0">
                                 {item.game.bggRating && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
                                     ★ {item.game.bggRating.toFixed(1)}
@@ -799,16 +799,12 @@ export default function GroupDashboardPage() {
                                   </span>
                                 )}
                               </div>
-                              {/* Spacer on desktop to push votes right */}
-                              <div className="hidden sm:block flex-1" />
-
-                              {/* Vote buttons */}
                               <div className="flex gap-1 shrink-0">
                                 {(["up", "super", "down"] as const).map((type) => (
                                   <button
                                     key={type}
                                     onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                    className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border text-base sm:text-lg transition-colors ${
+                                    className={`w-8 h-8 flex items-center justify-center rounded-lg border text-base transition-colors ${
                                       item.userVote === type
                                         ? type === "up"
                                           ? "bg-amber-500/20 border-amber-500 text-amber-400"
@@ -826,12 +822,50 @@ export default function GroupDashboardPage() {
                                   <button
                                     onClick={() => handleRemoveGame(item.game.id, item.game.name)}
                                     disabled={removingGame === item.game.id}
-                                    className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
                                     title="Eliminar del grupo"
                                   >
                                     🗑
                                   </button>
                                 )}
+                              </div>
+                            </div>
+
+                            {/* Row 2 desktop: Vote buttons + Score centered */}
+                            <div className="hidden sm:flex items-center justify-center mt-3 gap-3 pl-12">
+                              <div className="flex gap-1.5">
+                                {(["up", "super", "down"] as const).map((type) => (
+                                  <button
+                                    key={type}
+                                    onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
+                                      item.userVote === type
+                                        ? type === "up"
+                                          ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                          : type === "super"
+                                            ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                            : "bg-red-500/20 border-red-500 text-red-400"
+                                        : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                    }`}
+                                    title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
+                                  >
+                                    {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
+                                  </button>
+                                ))}
+                                {canRemoveGame(item) && (
+                                  <button
+                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                    disabled={removingGame === item.game.id}
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
+                                    title="Eliminar del grupo"
+                                  >
+                                    🗑
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-xl font-bold text-slate-100">{item.score}</span>
+                                <span className="text-xs text-slate-500">pts</span>
                               </div>
                             </div>
                           </div>
