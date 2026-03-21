@@ -66,10 +66,10 @@ export default function AnimatedLogo() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 200 48"
+      viewBox="-4 2 208 44"
       fill="none"
-      width={120}
-      height={28}
+      width={140}
+      height={33}
       role="img"
       aria-label="WeBoard"
     >
