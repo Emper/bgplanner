@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   });
 
   await resend.emails.send({
-    from: "WeBoard <onboarding@resend.dev>",
+    from: "WeBoard <cesar@tiradacritica.es>",
     to: email,
     subject: "Tu código de acceso a WeBoard",
     html: `

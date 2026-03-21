@@ -78,7 +78,7 @@ export async function POST(
   const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invitation.token}`;
 
   await resend.emails.send({
-    from: "WeBoard <onboarding@resend.dev>",
+    from: "WeBoard <cesar@tiradacritica.es>",
     to: email,
     subject: `${inviter?.name || inviter?.email} te invita a "${group?.name}" en WeBoard`,
     html: `
