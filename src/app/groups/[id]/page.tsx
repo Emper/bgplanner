@@ -716,12 +716,52 @@ export default function GroupDashboardPage() {
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
-                              <div className="text-sm sm:text-lg font-bold text-slate-500 w-6 sm:w-8 text-center shrink-0">
-                                #{index + 1}
+                              {/* Position badge — medals for top 3 on desktop */}
+                              <div className="w-6 sm:w-10 shrink-0 flex justify-center">
+                                {index < 3 ? (
+                                  <>
+                                    {/* Mobile: simple text */}
+                                    <span className="sm:hidden text-sm font-bold text-slate-500">#{index + 1}</span>
+                                    {/* Desktop: medal SVG */}
+                                    <svg className="hidden sm:block" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <defs>
+                                        {index === 0 && (
+                                          <linearGradient id="medal-gold" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stopColor="#fbbf24" />
+                                            <stop offset="50%" stopColor="#f59e0b" />
+                                            <stop offset="100%" stopColor="#d97706" />
+                                          </linearGradient>
+                                        )}
+                                        {index === 1 && (
+                                          <linearGradient id="medal-silver" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stopColor="#e2e8f0" />
+                                            <stop offset="50%" stopColor="#94a3b8" />
+                                            <stop offset="100%" stopColor="#64748b" />
+                                          </linearGradient>
+                                        )}
+                                        {index === 2 && (
+                                          <linearGradient id="medal-bronze" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stopColor="#d97756" />
+                                            <stop offset="50%" stopColor="#b45930" />
+                                            <stop offset="100%" stopColor="#92400e" />
+                                          </linearGradient>
+                                        )}
+                                      </defs>
+                                      <circle cx="18" cy="18" r="16" fill={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} opacity="0.15" />
+                                      <circle cx="18" cy="18" r="16" stroke={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} strokeWidth="2" fill="none" />
+                                      <text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="800" fill={index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : '#d97756'}>
+                                        {index + 1}
+                                      </text>
+                                    </svg>
+                                  </>
+                                ) : (
+                                  <span className="text-sm sm:text-base font-bold text-slate-500">#{index + 1}</span>
+                                )}
                               </div>
-                              <div className="w-11 h-11 sm:w-[130px] sm:h-[130px] shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                              {/* Thumbnail: 130px for top 3, 100px for rest on desktop */}
+                              <div className={`w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-slate-700 ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
                                 {item.game.thumbnail ? (
-                                  <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
+                                  <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-contain" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
                                 )}
