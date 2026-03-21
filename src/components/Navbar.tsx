@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -27,9 +28,9 @@ export default function Navbar() {
         <Link
           href="/groups"
           prefetch={false}
-          className="text-xl font-bold text-amber-400 tracking-tight"
+          className="flex items-center"
         >
-          WeBoard
+          <Image src="/logo.svg" alt="WeBoard" width={120} height={28} priority />
         </Link>
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
