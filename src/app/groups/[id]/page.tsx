@@ -714,12 +714,12 @@ export default function GroupDashboardPage() {
                             key={item.groupGameId}
                             className="bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4"
                           >
-                            {/* Row 1: Position + Thumbnail + Name (+ Score on mobile) */}
+                            {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
                               <div className="text-sm sm:text-lg font-bold text-slate-500 w-6 sm:w-8 text-center shrink-0">
                                 #{index + 1}
                               </div>
-                              <div className="w-11 h-11 sm:w-20 sm:h-20 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                              <div className="w-11 h-11 sm:w-[130px] sm:h-[130px] shrink-0 rounded-lg overflow-hidden bg-slate-700">
                                 {item.game.thumbnail ? (
                                   <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -766,14 +766,51 @@ export default function GroupDashboardPage() {
                                   )}
                                 </div>
                               </div>
-                              {/* Score: only visible on mobile in Row 1 */}
+                              {/* Desktop: Vote buttons + Score, vertically centered */}
+                              <div className="hidden sm:flex items-center gap-3 shrink-0">
+                                <div className="flex gap-1.5">
+                                  {(["up", "super", "down"] as const).map((type) => (
+                                    <button
+                                      key={type}
+                                      onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                                      className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
+                                        item.userVote === type
+                                          ? type === "up"
+                                            ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                            : type === "super"
+                                              ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                              : "bg-red-500/20 border-red-500 text-red-400"
+                                          : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                      }`}
+                                      title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
+                                    >
+                                      {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
+                                    </button>
+                                  ))}
+                                  {canRemoveGame(item) && (
+                                    <button
+                                      onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                      disabled={removingGame === item.game.id}
+                                      className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
+                                      title="Eliminar del grupo"
+                                    >
+                                      🗑
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="text-center w-12">
+                                  <div className="text-xl font-bold text-slate-100">{item.score}</div>
+                                  <div className="text-xs text-slate-500">pts</div>
+                                </div>
+                              </div>
+                              {/* Mobile: Score only */}
                               <div className="text-center shrink-0 sm:hidden">
                                 <div className="text-lg font-bold text-slate-100">{item.score}</div>
                                 <div className="text-[10px] text-slate-500">pts</div>
                               </div>
                             </div>
 
-                            {/* Row 2 mobile: Badges + Vote buttons */}
+                            {/* Row 2 mobile only: Badges + Vote buttons */}
                             <div className="flex sm:hidden items-center justify-between mt-2 gap-2 pl-8">
                               <div className="flex flex-wrap gap-1 flex-1 min-w-0">
                                 {item.game.bggRating && (
@@ -828,44 +865,6 @@ export default function GroupDashboardPage() {
                                     🗑
                                   </button>
                                 )}
-                              </div>
-                            </div>
-
-                            {/* Row 2 desktop: Vote buttons + Score centered */}
-                            <div className="hidden sm:flex items-center justify-center mt-3 gap-3 pl-12">
-                              <div className="flex gap-1.5">
-                                {(["up", "super", "down"] as const).map((type) => (
-                                  <button
-                                    key={type}
-                                    onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
-                                      item.userVote === type
-                                        ? type === "up"
-                                          ? "bg-amber-500/20 border-amber-500 text-amber-400"
-                                          : type === "super"
-                                            ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                            : "bg-red-500/20 border-red-500 text-red-400"
-                                        : "border-slate-700 text-slate-500 hover:bg-slate-700"
-                                    }`}
-                                    title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                  >
-                                    {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                  </button>
-                                ))}
-                                {canRemoveGame(item) && (
-                                  <button
-                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                    disabled={removingGame === item.game.id}
-                                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
-                                    title="Eliminar del grupo"
-                                  >
-                                    🗑
-                                  </button>
-                                )}
-                              </div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-bold text-slate-100">{item.score}</span>
-                                <span className="text-xs text-slate-500">pts</span>
                               </div>
                             </div>
                           </div>
