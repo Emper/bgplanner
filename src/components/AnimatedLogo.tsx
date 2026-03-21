@@ -42,8 +42,8 @@ export default function AnimatedLogo() {
   const [shaking, setShaking] = useState(false);
 
   const rollDice = useCallback(() => {
+    if (shaking) return; // Don't stack animations
     setShaking(true);
-    // After shake animation ends (600ms), change the face
     setTimeout(() => {
       setFace((prev) => {
         let next = prev;
@@ -54,7 +54,7 @@ export default function AnimatedLogo() {
       });
       setShaking(false);
     }, 600);
-  }, []);
+  }, [shaking]);
 
   useEffect(() => {
     const interval = setInterval(rollDice, 30000);
@@ -102,7 +102,11 @@ export default function AnimatedLogo() {
         <tspan fill="#f59e0b">We</tspan>
         <tspan fill="#e2e8f0">Board</tspan>
       </text>
-      <g className={shaking ? "dice-shaking" : ""}>
+      <g
+        className={shaking ? "dice-shaking" : ""}
+        onMouseEnter={() => rollDice()}
+        style={{ cursor: "pointer" }}
+      >
         <rect x="164" y="8" width="28" height="28" rx="5" fill="#f59e0b" opacity="0.15" />
         {dots.map((dot, i) => (
           <circle key={`${face}-${i}`} cx={dot.cx} cy={dot.cy} r="2" fill="#f59e0b" />
