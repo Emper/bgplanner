@@ -732,14 +732,10 @@ export default function GroupDashboardPage() {
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
-                              {/* Position badge — medals for top 3 on desktop */}
-                              <div className="w-6 sm:w-10 shrink-0 flex justify-center">
+                              {/* Position badge — medals for top 3 */}
+                              <div className="w-7 sm:w-10 shrink-0 flex justify-center">
                                 {index < 3 ? (
-                                  <>
-                                    {/* Mobile: simple text */}
-                                    <span className="sm:hidden text-sm font-bold text-slate-500">#{index + 1}</span>
-                                    {/* Desktop: medal SVG */}
-                                    <svg className="hidden sm:block" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <svg className="w-6 h-6 sm:w-9 sm:h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                                       <defs>
                                         {index === 0 && (
                                           <linearGradient id="medal-gold" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
@@ -769,7 +765,6 @@ export default function GroupDashboardPage() {
                                         {index + 1}
                                       </text>
                                     </svg>
-                                  </>
                                 ) : (
                                   <span className="text-sm sm:text-base font-bold text-slate-500">#{index + 1}</span>
                                 )}
