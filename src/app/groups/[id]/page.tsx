@@ -129,6 +129,7 @@ export default function GroupDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
+  const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
 
   // Sessions state
   const [sessions, setSessions] = useState<GameSessionData[]>([]);
@@ -161,6 +162,14 @@ export default function GroupDashboardPage() {
   const [inviteLinkEnabled, setInviteLinkEnabled] = useState(true);
   const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+
+  // Close mobile vote tooltip when tapping outside
+  useEffect(() => {
+    if (!openVoteTooltip) return;
+    const handleClick = () => setOpenVoteTooltip(null);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [openVoteTooltip]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -872,12 +881,20 @@ export default function GroupDashboardPage() {
                                   )}
                                 </div>
                               </div>
-                              {/* Mobile: Score only (tap for tooltip) */}
-                              <div className="relative group/mscore text-center shrink-0 sm:hidden cursor-default">
-                                <div className="text-lg font-bold text-slate-100">{item.score}</div>
-                                <div className="text-[10px] text-slate-500">pts</div>
-                                {item.voters.length > 0 && (
-                                  <div className="absolute bottom-full right-0 mb-2 hidden group-hover/mscore:block z-50">
+                              {/* Mobile: Score with tap-to-toggle tooltip */}
+                              <div className="relative text-center shrink-0 sm:hidden">
+                                <div
+                                  className="cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenVoteTooltip(openVoteTooltip === item.groupGameId ? null : item.groupGameId);
+                                  }}
+                                >
+                                  <div className="text-lg font-bold text-slate-100">{item.score}</div>
+                                  <div className="text-[10px] text-slate-500">pts</div>
+                                </div>
+                                {item.voters.length > 0 && openVoteTooltip === item.groupGameId && (
+                                  <div className="absolute bottom-full right-0 mb-2 z-50">
                                     <div className="bg-slate-900 border border-slate-600 rounded-lg shadow-xl p-3 min-w-[160px] text-left">
                                       <div className="text-xs font-semibold text-slate-300 mb-2">Votos</div>
                                       <div className="space-y-1.5">
