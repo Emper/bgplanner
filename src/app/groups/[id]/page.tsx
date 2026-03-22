@@ -19,6 +19,12 @@ interface Game {
   weight: number | null;
 }
 
+interface Voter {
+  name: string;
+  type: "up" | "super" | "down";
+  points: number;
+}
+
 interface RankedGame {
   groupGameId: string;
   game: Game;
@@ -28,6 +34,7 @@ interface RankedGame {
   upVotes: number;
   superVotes: number;
   downVotes: number;
+  voters: Voter[];
   userVote: "up" | "super" | "down" | null;
   playCount: number;
 }
@@ -838,15 +845,58 @@ export default function GroupDashboardPage() {
                                     </button>
                                   )}
                                 </div>
-                                <div className="text-center w-12">
+                                <div className="relative group/score text-center w-12 cursor-default">
                                   <div className="text-xl font-bold text-slate-100">{item.score}</div>
                                   <div className="text-xs text-slate-500">pts</div>
+                                  {/* Tooltip with voter breakdown */}
+                                  {item.voters.length > 0 && (
+                                    <div className="absolute bottom-full right-0 mb-2 hidden group-hover/score:block z-50">
+                                      <div className="bg-slate-900 border border-slate-600 rounded-lg shadow-xl p-3 min-w-[180px] text-left">
+                                        <div className="text-xs font-semibold text-slate-300 mb-2">Votos</div>
+                                        <div className="space-y-1.5">
+                                          {item.voters.map((voter, vi) => (
+                                            <div key={vi} className="flex items-center justify-between gap-3 text-xs">
+                                              <span className="text-slate-300 truncate max-w-[120px]">{voter.name}</span>
+                                              <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-amber-400'}`}>
+                                                {voter.points > 0 ? '+' : ''}{voter.points}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        <div className="border-t border-slate-700 mt-2 pt-1.5 flex justify-between text-xs font-bold">
+                                          <span className="text-slate-400">Total</span>
+                                          <span className="text-slate-100">{item.score}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              {/* Mobile: Score only */}
-                              <div className="text-center shrink-0 sm:hidden">
+                              {/* Mobile: Score only (tap for tooltip) */}
+                              <div className="relative group/mscore text-center shrink-0 sm:hidden cursor-default">
                                 <div className="text-lg font-bold text-slate-100">{item.score}</div>
                                 <div className="text-[10px] text-slate-500">pts</div>
+                                {item.voters.length > 0 && (
+                                  <div className="absolute bottom-full right-0 mb-2 hidden group-hover/mscore:block z-50">
+                                    <div className="bg-slate-900 border border-slate-600 rounded-lg shadow-xl p-3 min-w-[160px] text-left">
+                                      <div className="text-xs font-semibold text-slate-300 mb-2">Votos</div>
+                                      <div className="space-y-1.5">
+                                        {item.voters.map((voter, vi) => (
+                                          <div key={vi} className="flex items-center justify-between gap-3 text-xs">
+                                            <span className="text-slate-300 truncate max-w-[100px]">{voter.name}</span>
+                                            <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-amber-400'}`}>
+                                              {voter.points > 0 ? '+' : ''}{voter.points}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <div className="border-t border-slate-700 mt-2 pt-1.5 flex justify-between text-xs font-bold">
+                                        <span className="text-slate-400">Total</span>
+                                        <span className="text-slate-100">{item.score}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 

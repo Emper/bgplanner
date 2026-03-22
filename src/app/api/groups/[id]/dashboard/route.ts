@@ -48,7 +48,7 @@ export async function GET(
         include: {
           game: true,
           addedBy: { select: { name: true } },
-          votes: { select: { userId: true, type: true } },
+          votes: { select: { userId: true, type: true, user: { select: { name: true, email: true } } } },
         },
       }),
       prisma.gameSession.findMany({
@@ -104,6 +104,11 @@ export async function GET(
       const superVotes = gg.votes.filter((v) => v.type === "super").length;
       const downVotes = gg.votes.filter((v) => v.type === "down").length;
       const userVote = gg.votes.find((v) => v.userId === session.userId);
+      const voters = gg.votes.map((v) => ({
+        name: v.user.name || v.user.email,
+        type: v.type,
+        points: v.type === "super" ? 3 : v.type === "down" ? -1 : 1,
+      }));
 
       return {
         groupGameId: gg.id,
@@ -114,6 +119,7 @@ export async function GET(
         upVotes,
         superVotes,
         downVotes,
+        voters,
         userVote: userVote?.type || null,
         playCount: playCountByGameId.get(gg.game.id) || 0,
       };
