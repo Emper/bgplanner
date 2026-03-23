@@ -15,27 +15,21 @@ export default function Navbar() {
           <AnimatedLogo />
         </Link>
         <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            href="/groups"
-            prefetch={false}
-            className="text-xs sm:text-sm text-slate-300 hover:text-amber-400 transition-colors whitespace-nowrap"
-          >
-            Grupos
-          </Link>
-          <Link
-            href="/events"
-            prefetch={false}
-            className="text-xs sm:text-sm text-slate-300 hover:text-amber-400 transition-colors whitespace-nowrap"
-          >
-            Eventos
-          </Link>
-          <Link
-            href="/profile"
-            prefetch={false}
-            className="text-xs sm:text-sm text-slate-300 hover:text-amber-400 transition-colors whitespace-nowrap"
-          >
-            Perfil
-          </Link>
+          {[
+            { href: "/groups", label: "Grupos" },
+            { href: "/events", label: "Eventos" },
+            { href: "/profile", label: "Perfil" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={false}
+              className="relative text-xs sm:text-sm text-slate-300 hover:text-amber-400 transition-colors whitespace-nowrap group"
+            >
+              {item.label}
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-amber-400 transition-all duration-300 group-hover:w-full rounded-full" />
+            </Link>
+          ))}
         </div>
       </div>
     </nav>
