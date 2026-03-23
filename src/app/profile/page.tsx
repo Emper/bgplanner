@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
+import Avatar from "@/components/Avatar";
 
 interface Profile {
   name: string;
@@ -11,16 +12,52 @@ interface Profile {
   bggUsername: string;
 }
 
+function resizeImage(file: File, maxSize: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function ProfileForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "";
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<Profile>({
     name: "",
     surname: "",
     location: "",
     bggUsername: "",
   });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +74,7 @@ function ProfileForm() {
             location: data.location || "",
             bggUsername: data.bggUsername || "",
           });
+          setAvatarUrl(data.avatarUrl || null);
         }
       } catch {
         // New user, empty form is fine
@@ -46,6 +84,37 @@ function ProfileForm() {
     };
     fetchProfile();
   }, []);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    try {
+      const resized = await resizeImage(file, 200);
+      setAvatarUrl(resized); // Optimistic
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ avatarUrl: resized }),
+      });
+    } catch {
+      setError("Error al subir la imagen");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setAvatarUrl(null);
+    await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ avatarUrl: null }),
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +161,47 @@ function ProfileForm() {
           <h1 className="text-2xl font-bold text-slate-100 mb-6">Mi Perfil</h1>
 
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            {/* Avatar section */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative">
+                <Avatar
+                  name={form.name || form.bggUsername || "?"}
+                  avatarUrl={avatarUrl}
+                  size="lg"
+                />
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 rounded-full bg-slate-900/60 flex items-center justify-center">
+                    <span className="text-xs text-amber-400 animate-pulse">...</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  {avatarUrl ? "Cambiar foto" : "Subir foto"}
+                </button>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                  >
+                    Eliminar foto
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-1">

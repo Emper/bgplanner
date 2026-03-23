@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import BggGameSearch from "@/components/BggGameSearch";
+import Avatar from "@/components/Avatar";
 
 interface Game {
   id: string;
@@ -41,7 +42,7 @@ interface Attendee {
   eventId: string;
   userId: string;
   status: string;
-  user: { id: string; name: string | null; surname: string | null; email: string };
+  user: { id: string; name: string | null; surname: string | null; email: string; avatarUrl: string | null };
 }
 
 interface EventData {
@@ -695,9 +696,11 @@ function AttendeesTab({ event }: { event: EventData }) {
                 className="bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                    {(att.user.name || att.user.email)[0].toUpperCase()}
-                  </div>
+                  <Avatar
+                    name={att.user.name || att.user.email}
+                    avatarUrl={att.user.avatarUrl}
+                    size="sm"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-slate-100 text-sm">
                       {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}

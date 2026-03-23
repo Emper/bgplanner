@@ -15,14 +15,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
-      createdBy: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
       games: {
         include: {
           game: true,
           interests: {
             include: {
               attendee: {
-                include: { user: { select: { id: true, name: true, email: true } } },
+                include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
               },
             },
           },
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       attendees: {
         include: {
-          user: { select: { id: true, name: true, surname: true, email: true } },
+          user: { select: { id: true, name: true, surname: true, email: true, avatarUrl: true } },
         },
       },
     },

@@ -31,6 +31,7 @@ export async function GET(
                   surname: true,
                   email: true,
                   bggUsername: true,
+                  avatarUrl: true,
                 },
               },
             },

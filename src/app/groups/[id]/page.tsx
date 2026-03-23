@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
+import Avatar from "@/components/Avatar";
 
 interface Game {
   id: string;
@@ -47,6 +48,7 @@ interface Member {
     surname: string | null;
     email: string;
     bggUsername: string | null;
+    avatarUrl: string | null;
   };
 }
 
@@ -1534,13 +1536,20 @@ export default function GroupDashboardPage() {
                       key={member.user.id}
                       className="flex items-center justify-between py-2 border-b border-slate-700/50 last:border-0"
                     >
-                      <div>
-                        <span className="font-medium text-slate-100">
-                          {member.user.name
-                            ? `${member.user.name} ${member.user.surname || ""}`
-                            : member.user.email}
-                        </span>
-                        <span className="text-sm text-slate-500 ml-2">{member.user.email}</span>
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          name={member.user.name || member.user.email}
+                          avatarUrl={member.user.avatarUrl}
+                          size="sm"
+                        />
+                        <div>
+                          <span className="font-medium text-slate-100">
+                            {member.user.name
+                              ? `${member.user.name} ${member.user.surname || ""}`
+                              : member.user.email}
+                          </span>
+                          <span className="text-sm text-slate-500 ml-2">{member.user.email}</span>
+                        </div>
                       </div>
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-medium ${

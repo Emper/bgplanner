@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
       surname: true,
       location: true,
       bggUsername: true,
+      avatarUrl: true,
     },
   });
 
@@ -64,7 +65,36 @@ export async function PUT(request: NextRequest) {
       surname: true,
       location: true,
       bggUsername: true,
+      avatarUrl: true,
     },
+  });
+
+  return NextResponse.json(user);
+}
+
+// PATCH — update avatar only
+export async function PATCH(request: NextRequest) {
+  const session = await getSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { avatarUrl } = body;
+
+  if (typeof avatarUrl !== "string" && avatarUrl !== null) {
+    return NextResponse.json({ error: "avatarUrl inválido" }, { status: 400 });
+  }
+
+  // Limit base64 size (~150KB max for a resized avatar)
+  if (avatarUrl && avatarUrl.length > 200000) {
+    return NextResponse.json({ error: "Imagen demasiado grande" }, { status: 400 });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: session.userId },
+    data: { avatarUrl },
+    select: { avatarUrl: true },
   });
 
   return NextResponse.json(user);
