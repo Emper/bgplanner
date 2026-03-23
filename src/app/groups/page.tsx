@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import Avatar from "@/components/Avatar";
+
+interface GroupMemberPreview {
+  user: { name: string | null; avatarUrl: string | null };
+}
 
 interface Group {
   id: string;
   name: string;
   _count: { members: number; games: number };
+  members: GroupMemberPreview[];
 }
 
 interface RecentGame {
@@ -19,11 +25,16 @@ interface RecentGame {
   date: string;
 }
 
+interface EventAttendeePreview {
+  user: { name: string | null; avatarUrl: string | null };
+}
+
 interface UpcomingEvent {
   id: string;
   name: string;
   date: string;
   location: string | null;
+  attendees: EventAttendeePreview[];
   _count: { attendees: number; games: number };
 }
 
@@ -125,9 +136,29 @@ export default function GroupsPage() {
                   <h3 className="text-lg font-semibold text-slate-100 mb-2">
                     {group.name}
                   </h3>
-                  <div className="flex gap-4 text-sm text-slate-400">
-                    <span>{group._count?.members || 0} miembros</span>
-                    <span>{group._count?.games || 0} juegos</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-4 text-sm text-slate-400">
+                      <span>{group._count?.members || 0} miembros</span>
+                      <span>{group._count?.games || 0} juegos</span>
+                    </div>
+                    {group.members?.length > 0 && (
+                      <div className="flex -space-x-2">
+                        {group.members.slice(0, 4).map((m, i) => (
+                          <Avatar
+                            key={i}
+                            name={m.user.name || "?"}
+                            avatarUrl={m.user.avatarUrl}
+                            size="xs"
+                            className="ring-2 ring-slate-800"
+                          />
+                        ))}
+                        {group._count.members > 4 && (
+                          <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[9px] text-slate-400 ring-2 ring-slate-800 shrink-0">
+                            +{group._count.members - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </Link>
               ))}
@@ -155,7 +186,27 @@ export default function GroupsPage() {
                     prefetch={false}
                     className="bg-slate-800 border border-slate-700 rounded-xl p-4 hover:border-amber-500/50 transition-colors block"
                   >
-                    <h3 className="font-semibold text-slate-100">{event.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-slate-100">{event.name}</h3>
+                      {event.attendees?.length > 0 && (
+                        <div className="flex -space-x-2">
+                          {event.attendees.slice(0, 4).map((a, i) => (
+                            <Avatar
+                              key={i}
+                              name={a.user.name || "?"}
+                              avatarUrl={a.user.avatarUrl}
+                              size="xs"
+                              className="ring-2 ring-slate-800"
+                            />
+                          ))}
+                          {event._count.attendees > 4 && (
+                            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[9px] text-slate-400 ring-2 ring-slate-800 shrink-0">
+                              +{event._count.attendees - 4}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2 mt-1.5">
                       <span className="text-xs text-amber-300">
                         {new Date(event.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}

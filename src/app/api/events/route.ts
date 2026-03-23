@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
     },
     include: {
       createdBy: { select: { name: true, email: true } },
+      attendees: {
+        include: { user: { select: { name: true, avatarUrl: true } } },
+        take: 5,
+      },
       _count: { select: { attendees: true, games: true } },
     },
     orderBy: { date: "asc" },
