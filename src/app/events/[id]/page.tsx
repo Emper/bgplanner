@@ -137,7 +137,12 @@ export default function EventDetailPage() {
         body: JSON.stringify({ bggId: game.bggId, name: game.name }),
       });
       if (res.ok) {
-        fetchEvent();
+        const newEventGame = await res.json();
+        // Optimistic: add game to local state immediately
+        setEvent((prev) => prev ? {
+          ...prev,
+          games: [...prev.games, { ...newEventGame, interests: [] }],
+        } : prev);
       }
     } finally {
       setAddingGame(false);
@@ -146,19 +151,26 @@ export default function EventDetailPage() {
 
   const handleRemoveGame = async (gameId: string) => {
     if (!confirm("¿Eliminar este juego del evento?")) return;
+    // Optimistic: remove from UI immediately
+    setEvent((prev) => prev ? {
+      ...prev,
+      games: prev.games.filter((eg) => eg.game.id !== gameId),
+    } : prev);
     await fetch(`/api/events/${eventId}/games/${gameId}`, { method: "DELETE" });
-    fetchEvent();
   };
 
   const handleJoin = async () => {
     setJoiningEvent(true);
     try {
-      await fetch(`/api/events/${eventId}/attend`, {
+      const res = await fetch(`/api/events/${eventId}/attend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "attending" }),
       });
-      fetchEvent();
+      if (res.ok) {
+        // Need full refresh to get attendeeId
+        fetchEvent();
+      }
     } finally {
       setJoiningEvent(false);
     }
@@ -166,42 +178,82 @@ export default function EventDetailPage() {
 
   const handleLeave = async () => {
     if (!confirm("¿Desapuntarte del evento?")) return;
+    // Optimistic: remove from UI
+    setEvent((prev) => prev ? {
+      ...prev,
+      attendees: prev.attendees.filter((a) => a.userId !== prev.currentUserId),
+      currentAttendeeId: null,
+    } : prev);
     await fetch(`/api/events/${eventId}/attend`, { method: "DELETE" });
-    fetchEvent();
   };
 
   const handleSetInterest = async (eventGameId: string, intensity: number) => {
+    if (!event) return;
+    // Optimistic update
+    setEvent((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        games: prev.games.map((eg) => {
+          if (eg.id !== eventGameId) return eg;
+          const existing = eg.interests.find((i) => i.attendeeId === prev.currentAttendeeId);
+          if (existing) {
+            return { ...eg, interests: eg.interests.map((i) => i.attendeeId === prev.currentAttendeeId ? { ...i, intensity } : i) };
+          }
+          return { ...eg, interests: [...eg.interests, { id: "temp", eventGameId, attendeeId: prev.currentAttendeeId!, intensity, notes: null, userName: "", userId: prev.currentUserId }] };
+        }),
+      };
+    });
     await fetch(`/api/events/${eventId}/interests`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventGameId, intensity }),
     });
-    fetchEvent();
   };
 
   const handleRemoveInterest = async (eventGameId: string) => {
+    // Optimistic: remove interest from UI
+    setEvent((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        games: prev.games.map((eg) => {
+          if (eg.id !== eventGameId) return eg;
+          return { ...eg, interests: eg.interests.filter((i) => i.attendeeId !== prev.currentAttendeeId) };
+        }),
+      };
+    });
     await fetch(`/api/events/${eventId}/interests`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventGameId }),
     });
-    fetchEvent();
   };
 
   const handleUpdateNotes = async (eventGameId: string, intensity: number, notes: string) => {
+    // Optimistic: update notes locally
+    setEvent((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        games: prev.games.map((eg) => {
+          if (eg.id !== eventGameId) return eg;
+          return { ...eg, interests: eg.interests.map((i) => i.attendeeId === prev.currentAttendeeId ? { ...i, notes } : i) };
+        }),
+      };
+    });
     await fetch(`/api/events/${eventId}/interests`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventGameId, intensity, notes }),
     });
-    fetchEvent();
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100">
         <Navbar />
-        <p className="text-slate-400 text-center py-12">Cargando...</p>
+        <p className="text-slate-400 text-center py-12 animate-pulse">Cargando evento...</p>
       </div>
     );
   }
