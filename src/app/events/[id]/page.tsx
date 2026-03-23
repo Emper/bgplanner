@@ -53,6 +53,7 @@ interface EventData {
   location: string | null;
   maxAttendees: number | null;
   visibility: string;
+  inviteCode: string | null;
   createdById: string;
   createdBy: { id: string; name: string | null; email: string };
   games: EventGame[];
@@ -107,6 +108,9 @@ export default function EventDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>("games");
   const [addingGame, setAddingGame] = useState(false);
   const [joiningEvent, setJoiningEvent] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
 
   const fetchEvent = useCallback(async () => {
     try {
@@ -117,6 +121,7 @@ export default function EventDetailPage() {
       }
       const data = await res.json();
       setEvent(data);
+      if (data.inviteCode) setInviteCode(data.inviteCode);
     } catch {
       router.push("/events");
     } finally {
@@ -322,6 +327,52 @@ export default function EventDetailPage() {
               </button>
             )}
           </div>
+
+          {/* Invite link (creator only) */}
+          {event.isCreator && (
+            <div className="mt-4 bg-slate-800/50 rounded-lg border border-slate-700 p-3">
+              <div className="text-xs font-medium text-slate-400 mb-2">Enlace de invitación</div>
+              {inviteCode ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/join-event/${inviteCode}`}
+                    className="flex-1 min-w-0 px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-xs sm:text-sm text-slate-300 truncate"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/join-event/${inviteCode}`);
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2000);
+                    }}
+                    className="shrink-0 px-3 py-1.5 bg-amber-500 text-slate-900 rounded text-xs font-medium hover:bg-amber-600 transition-colors"
+                  >
+                    {inviteCopied ? "Copiado" : "Copiar"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setGeneratingLink(true);
+                    try {
+                      const res = await fetch(`/api/events/${eventId}/invite-link`, { method: "POST" });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setInviteCode(data.inviteCode);
+                      }
+                    } finally {
+                      setGeneratingLink(false);
+                    }
+                  }}
+                  disabled={generatingLink}
+                  className="px-3 py-1.5 bg-slate-700 text-slate-300 rounded text-xs font-medium hover:bg-slate-600 transition-colors disabled:opacity-50"
+                >
+                  {generatingLink ? "Generando..." : "Generar enlace"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
