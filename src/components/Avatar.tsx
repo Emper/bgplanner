@@ -2,14 +2,14 @@
 
 // Deterministic color from string — same name always gets same color
 const COLORS = [
-  "bg-red-500/20 text-red-300",
-  "bg-amber-500/20 text-amber-300",
-  "bg-emerald-500/20 text-emerald-300",
-  "bg-blue-500/20 text-blue-300",
-  "bg-purple-500/20 text-purple-300",
-  "bg-pink-500/20 text-pink-300",
-  "bg-cyan-500/20 text-cyan-300",
-  "bg-orange-500/20 text-orange-300",
+  "bg-red-800 text-red-200",
+  "bg-amber-800 text-amber-200",
+  "bg-emerald-800 text-emerald-200",
+  "bg-blue-800 text-blue-200",
+  "bg-purple-800 text-purple-200",
+  "bg-pink-800 text-pink-200",
+  "bg-cyan-800 text-cyan-200",
+  "bg-orange-800 text-orange-200",
 ];
 
 function getColor(name: string) {
