@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import BggGameSearch from "@/components/BggGameSearch";
 import Avatar from "@/components/Avatar";
+import { formatDateFull, formatDuration } from "@/lib/format";
 
 interface Game {
   id: string;
@@ -82,24 +83,7 @@ const INTENSITY_COLORS: Record<number, string> = {
   1: "bg-slate-700 text-slate-300 border-slate-600",
 };
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDuration(minutes: number) {
-  if (minutes < 60) return `${minutes}min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
-}
+const formatDate = formatDateFull;
 
 export default function EventDetailPage() {
   const { id: eventId } = useParams<{ id: string }>();
@@ -276,6 +260,7 @@ export default function EventDetailPage() {
     })
     .filter(Boolean) as (EventGame & { myInterest: Interest })[];
   myInterests.sort((a, b) => b.myInterest.intensity - a.myInterest.intensity);
+  const attendingCount = event.attendees.filter((a) => a.status === "attending").length;
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -297,7 +282,7 @@ export default function EventDetailPage() {
               </span>
             )}
             <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
-              {event.attendees.filter((a) => a.status === "attending").length} asistente{event.attendees.filter((a) => a.status === "attending").length !== 1 ? "s" : ""}
+              {attendingCount} asistente{attendingCount !== 1 ? "s" : ""}
             </span>
             <span className="text-xs text-slate-500">
               Organiza: {event.createdBy.name || event.createdBy.email}
@@ -338,7 +323,7 @@ export default function EventDetailPage() {
                   <input
                     type="text"
                     readOnly
-                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/join-event/${inviteCode}`}
+                    value={`${window.location.origin}/join-event/${inviteCode}`}
                     className="flex-1 min-w-0 px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-xs sm:text-sm text-slate-300 truncate"
                   />
                   <button

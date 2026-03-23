@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addGameSchema } from "@/lib/validations";
-import { fetchBggGameDetails } from "@/lib/bgg";
+import { findOrCreateGame } from "@/lib/games";
 
 // Add game to event (creator only)
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,81 +27,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { bggId } = parsed.data;
-  // Optional name from search results (used as fallback if BGG API fails)
-  const fallbackName: string | undefined = body.name;
-
-  // Upsert game (same pattern as group games)
-  let game = await prisma.game.findUnique({ where: { bggId } });
-
+  const game = await findOrCreateGame(parsed.data.bggId, body.name);
   if (!game) {
-    // Try CollectionGame cache first
-    type CachedRow = {
-      name: string;
-      thumbnail: string | null;
-      yearPublished: number | null;
-      minPlayers: number | null;
-      maxPlayers: number | null;
-      playingTime: number | null;
-      bggRating: number | null;
-      bggRank: number | null;
-      weight: number | null;
-    };
-    const cachedRows = await prisma.$queryRaw<CachedRow[]>`
-      SELECT name, thumbnail, "yearPublished", "minPlayers", "maxPlayers",
-             "playingTime", "bggRating", "bggRank", weight
-      FROM "CollectionGame"
-      WHERE "bggId" = ${bggId}
-      LIMIT 1
-    `;
-    const cachedItem = cachedRows[0] ?? null;
-
-    if (cachedItem) {
-      game = await prisma.game.create({
-        data: {
-          bggId,
-          name: cachedItem.name,
-          thumbnail: cachedItem.thumbnail,
-          yearPublished: cachedItem.yearPublished,
-          minPlayers: cachedItem.minPlayers,
-          maxPlayers: cachedItem.maxPlayers,
-          playingTime: cachedItem.playingTime,
-          bggRating: cachedItem.bggRating,
-          bggRank: cachedItem.bggRank,
-          weight: cachedItem.weight,
-        },
-      });
-    } else {
-      try {
-        const [details] = await fetchBggGameDetails([bggId]);
-        if (details) {
-          game = await prisma.game.create({
-            data: {
-              bggId,
-              name: details.name,
-              thumbnail: details.thumbnail,
-              yearPublished: details.yearPublished,
-              minPlayers: details.minPlayers,
-              maxPlayers: details.maxPlayers,
-              bggRating: details.bggRating,
-              bggRank: details.bggRank,
-              weight: details.weight,
-            },
-          });
-        }
-      } catch (err) {
-        console.log("[Event Add Game] BGG API unavailable, using basic data:", err);
-      }
-      // Fallback: create with basic search data
-      if (!game && fallbackName) {
-        game = await prisma.game.create({
-          data: { bggId, name: fallbackName },
-        });
-      }
-      if (!game) {
-        return NextResponse.json({ error: "No se pudo obtener datos del juego" }, { status: 502 });
-      }
-    }
+    return NextResponse.json({ error: "No se pudo obtener datos del juego" }, { status: 502 });
   }
 
   // Check duplicate

@@ -43,18 +43,21 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    const abortController = new AbortController();
 
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/bgg/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/bgg/search?q=${encodeURIComponent(query)}`, {
+          signal: abortController.signal,
+        });
         if (res.ok) {
           const data = await res.json();
           setResults(data.slice(0, 20));
           setIsOpen(true);
         }
       } catch {
-        // ignore
+        // ignore (includes AbortError)
       } finally {
         setLoading(false);
       }
@@ -62,6 +65,7 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortController.abort();
     };
   }, [query]);
 

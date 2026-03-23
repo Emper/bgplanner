@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import { formatDateShort } from "@/lib/format";
 
 interface EventData {
   id: string;
@@ -18,10 +19,7 @@ interface EventData {
   _count: { attendees: number; games: number };
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
-}
+const formatDate = formatDateShort;
 
 export default function EventsPage() {
   const [events, setEvents] = useState<EventData[]>([]);
@@ -29,8 +27,12 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetch("/api/events")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Error al cargar eventos");
+        return r.json();
+      })
       .then((data) => setEvents(data))
+      .catch(() => { /* silently fallback to empty */ })
       .finally(() => setLoading(false));
   }, []);
 

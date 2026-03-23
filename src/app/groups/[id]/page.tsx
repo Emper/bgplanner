@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
+import { formatDuration } from "@/lib/format";
 
 interface Game {
   id: string;
@@ -110,13 +111,6 @@ interface GameSessionData {
 
 type Tab = "ranking" | "sessions" | "members";
 
-function formatDuration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}min`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}min`;
-}
 
 export default function GroupDashboardPage() {
   const { id: groupId } = useParams<{ id: string }>();

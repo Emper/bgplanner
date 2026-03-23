@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { addGameSchema } from "@/lib/validations";
-import { fetchBggGameDetails } from "@/lib/bgg";
+import { findOrCreateGame } from "@/lib/games";
 
 export async function GET(
   request: NextRequest,
@@ -95,85 +95,14 @@ export async function POST(
 
   const { bggId } = parsed.data;
 
-  // Check if game already in group
-  let game = await prisma.game.findUnique({ where: { bggId } });
-
+  const game = await findOrCreateGame(bggId);
   if (!game) {
-    // Try to find the game in the CollectionGame cache via raw query
-    // (avoids Prisma client type cache issues on Vercel)
-    type CachedRow = {
-      name: string;
-      thumbnail: string | null;
-      yearPublished: number | null;
-      minPlayers: number | null;
-      maxPlayers: number | null;
-      playingTime: number | null;
-      bggRating: number | null;
-      bggRank: number | null;
-      weight: number | null;
-    };
-    const cachedRows = await prisma.$queryRaw<CachedRow[]>`
-      SELECT name, thumbnail, "yearPublished", "minPlayers", "maxPlayers",
-             "playingTime", "bggRating", "bggRank", weight
-      FROM "CollectionGame"
-      WHERE "bggId" = ${bggId}
-      LIMIT 1
-    `;
-    const cachedItem = cachedRows[0] ?? null;
-
-    if (cachedItem) {
-      // Use cached collection data — no BGG API call needed
-      game = await prisma.game.create({
-        data: {
-          bggId,
-          name: cachedItem.name,
-          thumbnail: cachedItem.thumbnail,
-          yearPublished: cachedItem.yearPublished,
-          minPlayers: cachedItem.minPlayers,
-          maxPlayers: cachedItem.maxPlayers,
-          playingTime: cachedItem.playingTime,
-          bggRating: cachedItem.bggRating,
-          bggRank: cachedItem.bggRank,
-          weight: cachedItem.weight,
-        },
-      });
-    } else {
-      // Fallback: fetch from BGG API
-      try {
-        const [details] = await fetchBggGameDetails([bggId]);
-        if (!details) {
-          return NextResponse.json(
-            { error: "Juego no encontrado en BGG" },
-            { status: 404 }
-          );
-        }
-
-        game = await prisma.game.create({
-          data: {
-            bggId,
-            name: details.name,
-            thumbnail: details.thumbnail,
-            yearPublished: details.yearPublished,
-            minPlayers: details.minPlayers,
-            maxPlayers: details.maxPlayers,
-            bggRating: details.bggRating,
-            bggRank: details.bggRank,
-            weight: details.weight,
-          },
-        });
-      } catch (err) {
-        console.error("[Add Game] BGG API error:", err);
-        return NextResponse.json(
-          { error: "Error al obtener datos del juego desde BGG. Inténtalo de nuevo." },
-          { status: 502 }
-        );
-      }
-    }
+    return NextResponse.json({ error: "No se pudo obtener datos del juego" }, { status: 502 });
   }
 
   // Check duplicate
   const existing = await prisma.groupGame.findUnique({
-    where: { groupId_gameId: { groupId, gameId: game!.id } },
+    where: { groupId_gameId: { groupId, gameId: game.id } },
   });
 
   if (existing) {

@@ -46,9 +46,19 @@ export type BggSearchResult = {
   yearPublished: number | null;
 };
 
-// ── BGG Search cache ────────────────────────────────────────────────────
+// ── BGG Search cache (bounded to 200 entries) ──────────────────────────
 const searchCache = new Map<string, { results: BggSearchResult[]; fetchedAt: number }>();
 const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const SEARCH_CACHE_MAX = 200;
+
+function searchCacheSet(key: string, results: BggSearchResult[]) {
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    // Evict oldest entry
+    const firstKey = searchCache.keys().next().value;
+    if (firstKey) searchCache.delete(firstKey);
+  }
+  searchCache.set(key, { results, fetchedAt: Date.now() });
+}
 
 // DB-backed collection cache — refreshes once per day or on demand
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
@@ -708,7 +718,7 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
   }
 
   if (results.length > 0) {
-    searchCache.set(normalizedQuery, { results, fetchedAt: Date.now() });
+    searchCacheSet(normalizedQuery, results);
   }
 
   return results;

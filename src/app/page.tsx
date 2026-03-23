@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
@@ -71,12 +72,12 @@ function LandingPage() {
       <nav className="px-4 sm:px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <AnimatedLogo />
-          <a
+          <Link
             href="/login"
             className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
           >
             Entrar
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -90,12 +91,12 @@ function LandingPage() {
           <p className="text-lg sm:text-xl text-slate-400 mb-8 max-w-2xl mx-auto">
             Vota qué jugar, planifica sesiones, organiza eventos y descubre los favoritos de tu grupo. Todo conectado con BoardGameGeek.
           </p>
-          <a
+          <Link
             href="/login"
             className="inline-block px-8 py-3 bg-amber-500 text-slate-900 rounded-xl hover:bg-amber-600 font-semibold text-lg transition-colors"
           >
             Empieza gratis
-          </a>
+          </Link>
         </div>
       </section>
 
