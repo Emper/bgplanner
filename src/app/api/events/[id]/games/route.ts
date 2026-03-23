@@ -28,6 +28,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const { bggId } = parsed.data;
+  // Optional name from search results (used as fallback if BGG API fails)
+  const fallbackName: string | undefined = body.name;
 
   // Upsert game (same pattern as group games)
   let game = await prisma.game.findUnique({ where: { bggId } });
@@ -72,25 +74,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } else {
       try {
         const [details] = await fetchBggGameDetails([bggId]);
-        if (!details) {
-          return NextResponse.json({ error: "Juego no encontrado en BGG" }, { status: 404 });
+        if (details) {
+          game = await prisma.game.create({
+            data: {
+              bggId,
+              name: details.name,
+              thumbnail: details.thumbnail,
+              yearPublished: details.yearPublished,
+              minPlayers: details.minPlayers,
+              maxPlayers: details.maxPlayers,
+              bggRating: details.bggRating,
+              bggRank: details.bggRank,
+              weight: details.weight,
+            },
+          });
         }
-        game = await prisma.game.create({
-          data: {
-            bggId,
-            name: details.name,
-            thumbnail: details.thumbnail,
-            yearPublished: details.yearPublished,
-            minPlayers: details.minPlayers,
-            maxPlayers: details.maxPlayers,
-            bggRating: details.bggRating,
-            bggRank: details.bggRank,
-            weight: details.weight,
-          },
-        });
       } catch (err) {
-        console.error("[Event Add Game] BGG API error:", err);
-        return NextResponse.json({ error: "Error al obtener datos del juego desde BGG" }, { status: 502 });
+        console.log("[Event Add Game] BGG API unavailable, using basic data:", err);
+      }
+      // Fallback: create with basic search data
+      if (!game && fallbackName) {
+        game = await prisma.game.create({
+          data: { bggId, name: fallbackName },
+        });
+      }
+      if (!game) {
+        return NextResponse.json({ error: "No se pudo obtener datos del juego" }, { status: 502 });
       }
     }
   }

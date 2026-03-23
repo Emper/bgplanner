@@ -83,10 +83,23 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
       if (res.ok) {
         const game = await res.json();
         onSelect(game);
-        setQuery("");
-        setResults([]);
-        setIsOpen(false);
+      } else {
+        // BGG detail fetch failed — use basic search data
+        onSelect({
+          bggId: result.bggId,
+          name: result.name,
+          thumbnail: null,
+          yearPublished: result.yearPublished,
+          minPlayers: null,
+          maxPlayers: null,
+          playingTime: null,
+          bggRating: null,
+          weight: null,
+        });
       }
+      setQuery("");
+      setResults([]);
+      setIsOpen(false);
     } catch {
       // ignore
     } finally {

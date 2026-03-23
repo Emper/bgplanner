@@ -128,13 +128,13 @@ export default function EventDetailPage() {
     fetchEvent();
   }, [fetchEvent]);
 
-  const handleAddGame = async (game: { bggId: number }) => {
+  const handleAddGame = async (game: { bggId: number; name?: string }) => {
     setAddingGame(true);
     try {
       const res = await fetch(`/api/events/${eventId}/games`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bggId: game.bggId }),
+        body: JSON.stringify({ bggId: game.bggId, name: game.name }),
       });
       if (res.ok) {
         fetchEvent();
