@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const FEATURES = [
   {
@@ -70,7 +70,7 @@ function LandingPage() {
       {/* Navbar mínimo */}
       <nav className="px-4 sm:px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Image src="/logo.svg" alt="WeBoard" width={160} height={40} priority />
+          <AnimatedLogo />
           <a
             href="/login"
             className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
@@ -84,8 +84,8 @@ function LandingPage() {
       <section className="px-4 pt-12 sm:pt-20 pb-16 sm:pb-24">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-bold leading-tight mb-4">
-            Organiza tus juegos de mesa{" "}
-            <span className="text-amber-400">en grupo</span>
+            Organiza tus juegos de mesa<br />
+            <span className="text-amber-400">con tus amigos</span>
           </h1>
           <p className="text-lg sm:text-xl text-slate-400 mb-8 max-w-2xl mx-auto">
             Vota qué jugar, planifica sesiones, organiza eventos y descubre los favoritos de tu grupo. Todo conectado con BoardGameGeek.
