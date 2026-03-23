@@ -617,7 +617,12 @@ export function getRecommendationForPlayerCount(
   );
 }
 
-// ── BGG Search (public endpoint, no auth needed) ────────────────────────
+// ── BGG Search ──────────────────────────────────────────────────────────
+// BGG's XML API2 search requires auth that doesn't work reliably from
+// server-side. We use multiple strategies in order:
+// 1. Geekdo JSON API (internal, no auth)
+// 2. XML API v2 with auth cookies
+// 3. Fallback to our local Game + CollectionGame tables
 
 export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
   const normalizedQuery = query.trim().toLowerCase();
@@ -629,30 +634,82 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
     return cached.results;
   }
 
-  const url = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(normalizedQuery)}&type=boardgame`;
-  const response = await fetchWithRetry(url);
+  let results: BggSearchResult[] = [];
 
-  if (!response.ok) {
-    console.error(`[BGG Search] Failed: ${response.status}`);
-    return [];
+  // Strategy 1: Geekdo JSON search API (no auth needed)
+  try {
+    const geekdoUrl = `https://api.geekdo.com/api/geeksearch?objecttype=thing&subtype=boardgame&q=${encodeURIComponent(normalizedQuery)}`;
+    const geekdoRes = await fetch(geekdoUrl, {
+      headers: { "User-Agent": "WeBoard/1.0" },
+    });
+    if (geekdoRes.ok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await geekdoRes.json();
+      if (data.items && Array.isArray(data.items)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        results = data.items.slice(0, 30).map((item: any) => ({
+          bggId: item.objectid || item.id,
+          name: item.name || item.primaryname || "Unknown",
+          yearPublished: item.yearpublished ? parseInt(item.yearpublished, 10) : null,
+        }));
+      }
+    }
+  } catch (err) {
+    console.log("[BGG Search] Geekdo API failed, trying XML API...", err);
   }
 
-  const xml = await response.text();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parsed: any = await parseStringPromise(xml);
+  // Strategy 2: XML API v2 with auth
+  if (results.length === 0) {
+    try {
+      const url = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(normalizedQuery)}&type=boardgame`;
+      const response = await fetchWithRetry(url);
+      if (response.ok) {
+        const xml = await response.text();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const parsed: any = await parseStringPromise(xml);
+        if (parsed.items?.item) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          results = parsed.items.item.map((item: any) => ({
+            bggId: parseInt(item.$.id, 10),
+            name: item.name?.[0]?.$.value || "Unknown",
+            yearPublished: item.yearpublished?.[0]?.$.value
+              ? parseInt(item.yearpublished[0].$.value, 10)
+              : null,
+          }));
+        }
+      }
+    } catch (err) {
+      console.log("[BGG Search] XML API failed, using local DB...", err);
+    }
+  }
 
-  if (!parsed.items?.item) return [];
+  // Strategy 3: Search our local Game + CollectionGame tables
+  if (results.length === 0) {
+    const localGames = await prisma.game.findMany({
+      where: { name: { contains: normalizedQuery, mode: "insensitive" } },
+      select: { bggId: true, name: true, yearPublished: true },
+      take: 20,
+      orderBy: { bggRating: "desc" },
+    });
+    const collectionGames = await prisma.collectionGame.findMany({
+      where: {
+        name: { contains: normalizedQuery, mode: "insensitive" },
+        bggId: { notIn: localGames.map((g) => g.bggId) },
+      },
+      select: { bggId: true, name: true, yearPublished: true },
+      take: 20,
+      orderBy: { bggRating: "desc" },
+    });
+    results = [...localGames, ...collectionGames].map((g) => ({
+      bggId: g.bggId,
+      name: g.name,
+      yearPublished: g.yearPublished,
+    }));
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: BggSearchResult[] = parsed.items.item.map((item: any) => ({
-    bggId: parseInt(item.$.id, 10),
-    name: item.name?.[0]?.$.value || "Unknown",
-    yearPublished: item.yearpublished?.[0]?.$.value
-      ? parseInt(item.yearpublished[0].$.value, 10)
-      : null,
-  }));
-
-  searchCache.set(normalizedQuery, { results, fetchedAt: Date.now() });
+  if (results.length > 0) {
+    searchCache.set(normalizedQuery, { results, fetchedAt: Date.now() });
+  }
 
   return results;
 }
