@@ -31,3 +31,29 @@ export const addGameSchema = z.object({
 export const voteSchema = z.object({
   type: z.enum(["up", "super", "down"]),
 });
+
+export const createEventSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio").max(200),
+  description: z.string().max(2000).optional(),
+  date: z.string().min(1, "La fecha es obligatoria"),
+  endDate: z.string().optional(),
+  location: z.string().max(300).optional(),
+  maxAttendees: z.number().int().positive().optional(),
+  visibility: z.enum(["public", "private"]).default("public"),
+});
+
+export const updateEventSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional(),
+  date: z.string().optional(),
+  endDate: z.string().nullable().optional(),
+  location: z.string().max(300).nullable().optional(),
+  maxAttendees: z.number().int().positive().nullable().optional(),
+  visibility: z.enum(["public", "private"]).optional(),
+});
+
+export const eventInterestSchema = z.object({
+  eventGameId: z.string().min(1),
+  intensity: z.number().int().min(1).max(5),
+  notes: z.string().max(500).optional(),
+});

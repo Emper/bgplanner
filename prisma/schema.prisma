@@ -23,6 +23,9 @@ model User {
   addedGames       GroupGame[]
   createdGroups    Group[]        @relation("GroupCreator")
   createdSessions  GameSession[]  @relation("SessionCreator")
+  createdEvents    Event[]        @relation("EventCreator")
+  eventAttendances EventAttendee[]
+  addedEventGames  EventGame[]    @relation("EventGameAdder")
 }
 
 model OtpCode {
@@ -94,6 +97,7 @@ model Game {
 
   groupGames   GroupGame[]
   sessionGames GameSessionGame[]
+  eventGames   EventGame[]
 }
 
 model GameSession {
@@ -188,4 +192,74 @@ model Vote {
   @@unique([groupGameId, userId])
   @@index([groupGameId])
   @@index([userId])
+}
+
+model Event {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  date         DateTime
+  endDate      DateTime?
+  location     String?
+  maxAttendees Int?
+  visibility   String    @default("public") // public | private
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdBy User            @relation("EventCreator", fields: [createdById], references: [id])
+  games     EventGame[]
+  attendees EventAttendee[]
+
+  @@index([date])
+  @@index([visibility])
+}
+
+model EventGame {
+  id        String   @id @default(cuid())
+  eventId   String
+  gameId    String
+  addedById String
+  addedAt   DateTime @default(now())
+
+  event     Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  game      Game                @relation(fields: [gameId], references: [id])
+  addedBy   User                @relation("EventGameAdder", fields: [addedById], references: [id])
+  interests EventGameInterest[]
+
+  @@unique([eventId, gameId])
+  @@index([eventId])
+}
+
+model EventAttendee {
+  id       String   @id @default(cuid())
+  eventId  String
+  userId   String
+  status   String   @default("attending") // attending | maybe | cancelled
+  joinedAt DateTime @default(now())
+
+  event     Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id])
+  interests EventGameInterest[]
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model EventGameInterest {
+  id          String   @id @default(cuid())
+  eventGameId String
+  attendeeId  String
+  intensity   Int      // 1-5
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  eventGame EventGame     @relation(fields: [eventGameId], references: [id], onDelete: Cascade)
+  attendee  EventAttendee @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventGameId, attendeeId])
+  @@index([eventGameId])
+  @@index([attendeeId])
 }

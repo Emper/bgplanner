@@ -40,6 +40,16 @@ export type BggGameDetails = {
   playerCountRecommendations: PlayerCountRec[];
 };
 
+export type BggSearchResult = {
+  bggId: number;
+  name: string;
+  yearPublished: number | null;
+};
+
+// ── BGG Search cache ────────────────────────────────────────────────────
+const searchCache = new Map<string, { results: BggSearchResult[]; fetchedAt: number }>();
+const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // DB-backed collection cache — refreshes once per day or on demand
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -605,4 +615,44 @@ export function getRecommendationForPlayerCount(
   return (
     recommendations.find((r) => r.numPlayers === String(numPlayers)) ?? null
   );
+}
+
+// ── BGG Search (public endpoint, no auth needed) ────────────────────────
+
+export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (normalizedQuery.length < 2) return [];
+
+  // Check cache
+  const cached = searchCache.get(normalizedQuery);
+  if (cached && Date.now() - cached.fetchedAt < SEARCH_CACHE_TTL) {
+    return cached.results;
+  }
+
+  const url = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(normalizedQuery)}&type=boardgame`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    console.error(`[BGG Search] Failed: ${response.status}`);
+    return [];
+  }
+
+  const xml = await response.text();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsed: any = await parseStringPromise(xml);
+
+  if (!parsed.items?.item) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const results: BggSearchResult[] = parsed.items.item.map((item: any) => ({
+    bggId: parseInt(item.$.id, 10),
+    name: item.name?.[0]?.$.value || "Unknown",
+    yearPublished: item.yearpublished?.[0]?.$.value
+      ? parseInt(item.yearpublished[0].$.value, 10)
+      : null,
+  }));
+
+  searchCache.set(normalizedQuery, { results, fetchedAt: Date.now() });
+
+  return results;
 }

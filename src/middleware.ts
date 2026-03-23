@@ -30,8 +30,10 @@ export const config = {
   matcher: [
     "/profile/:path*",
     "/groups/:path*",
+    "/events/:path*",
     "/api/profile/:path*",
     "/api/groups/:path*",
+    "/api/events/:path*",
     "/api/bgg/:path*",
   ],
 };

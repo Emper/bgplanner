@@ -41,6 +41,13 @@ export default function Navbar() {
             Grupos
           </Link>
           <Link
+            href="/events"
+            prefetch={false}
+            className="text-xs sm:text-sm text-slate-300 hover:text-amber-400 transition-colors whitespace-nowrap"
+          >
+            Eventos
+          </Link>
+          <Link
             href="/profile"
             prefetch={false}
             className="text-xs sm:text-sm text-slate-300 hover:text-amber-400 transition-colors whitespace-nowrap"
