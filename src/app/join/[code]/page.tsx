@@ -75,7 +75,7 @@ export default function JoinPage() {
   };
 
   const handleLogin = () => {
-    router.push(`/?redirect=/join/${code}`);
+    router.push(`/login?redirect=/join/${code}`);
   };
 
   if (loading) {

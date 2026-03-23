@@ -21,7 +21,7 @@ function handleUnauthorized(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const loginUrl = new URL("/", request.url);
+  const loginUrl = new URL("/login", request.url);
   loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
   return NextResponse.redirect(loginUrl);
 }

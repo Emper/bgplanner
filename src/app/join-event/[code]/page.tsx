@@ -77,7 +77,7 @@ export default function JoinEventPage() {
   };
 
   const handleLogin = () => {
-    router.push(`/?redirect=/join-event/${code}`);
+    router.push(`/login?redirect=/join-event/${code}`);
   };
 
   const formatDate = (dateStr: string) => {

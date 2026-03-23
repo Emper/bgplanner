@@ -21,11 +21,11 @@ export default function InvitePage() {
           setIsLoggedIn(true);
         } else if (res.status === 401) {
           // Not logged in, redirect to login with return URL
-          router.push(`/?redirect=/invite/${token}`);
+          router.push(`/login?redirect=/invite/${token}`);
           return;
         }
       } catch {
-        router.push(`/?redirect=/invite/${token}`);
+        router.push(`/login?redirect=/invite/${token}`);
         return;
       } finally {
         setLoading(false);
