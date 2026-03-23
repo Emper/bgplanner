@@ -630,7 +630,7 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
   }
 
   const url = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(normalizedQuery)}&type=boardgame`;
-  const response = await fetch(url);
+  const response = await fetchWithRetry(url);
 
   if (!response.ok) {
     console.error(`[BGG Search] Failed: ${response.status}`);
