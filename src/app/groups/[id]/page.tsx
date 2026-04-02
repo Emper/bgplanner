@@ -261,7 +261,8 @@ function GroupDashboardPage() {
       const max = item.game.maxPlayers ?? 99;
       if (n < min || n > max) return false;
     }
-    if (tonightWeight && item.game.weight) {
+    if (tonightWeight) {
+      if (!item.game.weight) return false;
       const w = item.game.weight;
       if (tonightWeight === "light" && w > 2.0) return false;
       if (tonightWeight === "medium" && (w < 2.0 || w > 3.5)) return false;
