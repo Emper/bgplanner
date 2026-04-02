@@ -128,9 +128,6 @@ function GroupDashboardPage() {
   const [ranking, setRanking] = useState<RankedGame[]>([]);
   const [memberCount, setMemberCount] = useState(0);
 
-  // "Esta noche" filters
-  const [tonightPlayers, setTonightPlayers] = useState("");
-  const [tonightWeight, setTonightWeight] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
     return tab === "sessions" || tab === "members" ? tab : "ranking";
@@ -254,27 +251,9 @@ function GroupDashboardPage() {
   }, [groupId]);
 
   // Filter ranking for "tonight" mode
-  const filteredRanking = ranking.filter((item) => {
-    if (tonightPlayers) {
-      const n = parseInt(tonightPlayers);
-      const min = item.game.minPlayers ?? 0;
-      const max = item.game.maxPlayers ?? 99;
-      if (n < min || n > max) return false;
-    }
-    if (tonightWeight && item.game.weight) {
-      const w = item.game.weight;
-      if (tonightWeight === "light" && w > 2.0) return false;
-      if (tonightWeight === "medium" && (w < 2.0 || w > 3.5)) return false;
-      if (tonightWeight === "heavy" && w < 3.5) return false;
-    }
-    return true;
-  });
-
   // Split into pending (not yet played) and played
-  const pendingGames = filteredRanking.filter((item) => item.playCount === 0);
-  const playedGames = filteredRanking.filter((item) => item.playCount > 0);
-
-  const tonightActive = !!(tonightPlayers || tonightWeight);
+  const pendingGames = ranking.filter((item) => item.playCount === 0);
+  const playedGames = ranking.filter((item) => item.playCount > 0);
 
   const canRemoveGame = (item: RankedGame) =>
     group?.currentUserRole === "admin" || item.addedById === group?.currentUserId;
@@ -700,62 +679,24 @@ function GroupDashboardPage() {
           {activeTab === "ranking" && (
             <div>
               {/* Toolbar */}
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-3 mb-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <div className="flex items-center gap-2 flex-1 flex-wrap">
-                    <span className="text-sm font-medium text-slate-300">🌙 Esta noche:</span>
-                    <select
-                      value={tonightPlayers}
-                      onChange={(e) => setTonightPlayers(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    >
-                      <option value="">Jugadores...</option>
-                      {[2, 3, 4, 5, 6, 7, 8].map((n) => (
-                        <option key={n} value={n}>Somos {n}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={tonightWeight}
-                      onChange={(e) => setTonightWeight(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    >
-                      <option value="">Peso...</option>
-                      <option value="light">Ligero (≤2.0)</option>
-                      <option value="medium">Medio (2.0–3.5)</option>
-                      <option value="heavy">Pesado (≥3.5)</option>
-                    </select>
-                    {tonightActive && (
-                      <button
-                        onClick={() => { setTonightPlayers(""); setTonightWeight(""); }}
-                        className="text-xs text-slate-400 hover:text-amber-400 transition-colors"
-                      >
-                        ✕ Limpiar
-                      </button>
-                    )}
-                  </div>
-                  <Link
-                    href={`/groups/${groupId}/add-games${(() => {
-                      const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
-                      return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
-                    })()}`}
-                    prefetch={false}
-                    className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
-                  >
-                    Añadir juegos
-                  </Link>
-                </div>
-                {tonightActive && (
-                  <p className="text-xs text-slate-500 mt-2">
-                    Mostrando {filteredRanking.length} de {ranking.length} juegos
-                  </p>
-                )}
+              <div className="flex justify-end mb-4">
+                <Link
+                  href={`/groups/${groupId}/add-games${(() => {
+                    const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
+                    return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
+                  })()}`}
+                  prefetch={false}
+                  className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                >
+                  Añadir juegos
+                </Link>
               </div>
 
               {ranking.length === 0 ? (
                 <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
                   No hay juegos en este grupo todavía. ¡Añade algunos!
                 </div>
-              ) : filteredRanking.length === 0 ? (
+              ) : ranking.length === 0 ? (
                 <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
                   Ningún juego encaja con los filtros de esta noche.
                 </div>
