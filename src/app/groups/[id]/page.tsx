@@ -552,6 +552,16 @@ export default function GroupDashboardPage() {
     await handleUpdateSession(sessionId, { gameIds: remainingIds });
   };
 
+  const handleReorderGame = async (sessionId: string, currentIndex: number, direction: "up" | "down") => {
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    const gameIds = session.games.map((g) => g.game.id);
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= gameIds.length) return;
+    [gameIds[currentIndex], gameIds[targetIndex]] = [gameIds[targetIndex], gameIds[currentIndex]];
+    await handleUpdateSession(sessionId, { gameIds });
+  };
+
   const handleAddGameToSession = async (sessionId: string) => {
     // Get suggestions for this session's parameters
     const session = sessions.find((s) => s.id === sessionId);
@@ -1435,9 +1445,23 @@ export default function GroupDashboardPage() {
                                               : "bg-slate-700/50"
                                       }`}
                                     >
-                                      {/* Row 1: Index + Thumbnail + Name + Time */}
+                                      {/* Row 1: Reorder + Index + Thumbnail + Name + Time */}
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-500 w-4 sm:w-5 text-center shrink-0">{idx + 1}.</span>
+                                        <div className="flex flex-col gap-0.5 shrink-0">
+                                          <button
+                                            disabled={idx === 0}
+                                            onClick={() => handleReorderGame(s.id, idx, "up")}
+                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-[10px] leading-none transition-colors"
+                                            title="Mover arriba"
+                                          >▲</button>
+                                          <button
+                                            disabled={idx === s.games.length - 1}
+                                            onClick={() => handleReorderGame(s.id, idx, "down")}
+                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-[10px] leading-none transition-colors"
+                                            title="Mover abajo"
+                                          >▼</button>
+                                        </div>
+                                        <span className="text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}.</span>
                                         <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded overflow-hidden bg-slate-700">
                                           {sg.game.thumbnail ? (
                                             <img src={sg.game.thumbnail} alt={sg.game.name} className="w-full h-full object-cover" />
