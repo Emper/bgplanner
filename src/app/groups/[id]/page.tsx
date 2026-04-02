@@ -678,36 +678,44 @@ function GroupDashboardPage() {
           {/* ═══════════ Ranking Tab ═══════════ */}
           {activeTab === "ranking" && (
             <div>
-              {/* Toolbar */}
-              <div className="flex justify-end mb-4">
-                <Link
-                  href={`/groups/${groupId}/add-games${(() => {
-                    const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
-                    return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
-                  })()}`}
-                  prefetch={false}
-                  className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
-                >
-                  Añadir juegos
-                </Link>
-              </div>
-
               {ranking.length === 0 ? (
-                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
-                  No hay juegos en este grupo todavía. ¡Añade algunos!
-                </div>
-              ) : ranking.length === 0 ? (
-                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
-                  Ningún juego encaja con los filtros de esta noche.
+                <div className="text-center">
+                  <div className="flex items-center justify-end mb-4">
+                    <Link
+                      href={`/groups/${groupId}/add-games${(() => {
+                        const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
+                        return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
+                      })()}`}
+                      prefetch={false}
+                      className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                    >
+                      Añadir juegos
+                    </Link>
+                  </div>
+                  <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-slate-400">
+                    No hay juegos en este grupo todavía. ¡Añade algunos!
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {/* ── Pending games (not yet played) ── */}
                   {pendingGames.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                        Pendientes de jugar ({pendingGames.length})
-                      </h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                          Pendientes de jugar ({pendingGames.length})
+                        </h3>
+                        <Link
+                          href={`/groups/${groupId}/add-games${(() => {
+                            const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
+                            return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
+                          })()}`}
+                          prefetch={false}
+                          className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                        >
+                          Añadir juegos
+                        </Link>
+                      </div>
                       <div className="space-y-3">
                         {pendingGames.map((item, index) => (
                           <div
