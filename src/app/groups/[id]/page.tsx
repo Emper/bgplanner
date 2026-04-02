@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
 import { formatDuration } from "@/lib/format";
@@ -112,8 +112,18 @@ interface GameSessionData {
 type Tab = "ranking" | "sessions" | "members";
 
 
-export default function GroupDashboardPage() {
+export default function GroupDashboardWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-500">Cargando...</div>}>
+      <GroupDashboardPage />
+    </Suspense>
+  );
+}
+
+function GroupDashboardPage() {
   const { id: groupId } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [group, setGroup] = useState<GroupData | null>(null);
   const [ranking, setRanking] = useState<RankedGame[]>([]);
   const [memberCount, setMemberCount] = useState(0);
@@ -121,7 +131,10 @@ export default function GroupDashboardPage() {
   // "Esta noche" filters
   const [tonightPlayers, setTonightPlayers] = useState("");
   const [tonightMaxWeight, setTonightMaxWeight] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("ranking");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const tab = searchParams.get("tab");
+    return tab === "sessions" || tab === "members" ? tab : "ranking";
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
@@ -132,7 +145,9 @@ export default function GroupDashboardPage() {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [showNewSession, setShowNewSession] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(
+    searchParams.get("session")
+  );
   const [sessionDate, setSessionDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -158,6 +173,27 @@ export default function GroupDashboardPage() {
   const [inviteLinkEnabled, setInviteLinkEnabled] = useState(true);
   const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+
+  // Sync tab and session to URL
+  const updateUrl = useCallback((tab: Tab, sessionId: string | null) => {
+    const params = new URLSearchParams();
+    if (tab !== "ranking") params.set("tab", tab);
+    if (sessionId) params.set("session", sessionId);
+    const query = params.toString();
+    router.replace(`/groups/${groupId}${query ? `?${query}` : ""}`, { scroll: false });
+  }, [router, groupId]);
+
+  const switchTab = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    setExpandedSessionId(null);
+    updateUrl(tab, null);
+  }, [updateUrl]);
+
+  const toggleSession = useCallback((sessionId: string) => {
+    const newId = expandedSessionId === sessionId ? null : sessionId;
+    setExpandedSessionId(newId);
+    updateUrl(activeTab, newId);
+  }, [expandedSessionId, activeTab, updateUrl]);
 
   // Close mobile vote tooltip when tapping outside
   useEffect(() => {
@@ -646,7 +682,7 @@ export default function GroupDashboardPage() {
             {(["ranking", "sessions", "members"] as Tab[]).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => switchTab(tab)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab
                     ? "border-amber-400 text-amber-400"
@@ -1368,7 +1404,7 @@ export default function GroupDashboardPage() {
                       >
                         {/* Session header — clickable to expand */}
                         <button
-                          onClick={() => setExpandedSessionId(isExpanded ? null : s.id)}
+                          onClick={() => toggleSession(s.id)}
                           className="w-full p-3 sm:p-4 flex items-center gap-2 sm:gap-3 text-left"
                         >
                           <div className="flex-1 min-w-0">
