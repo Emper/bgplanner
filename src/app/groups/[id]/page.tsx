@@ -130,7 +130,7 @@ function GroupDashboardPage() {
 
   // "Esta noche" filters
   const [tonightPlayers, setTonightPlayers] = useState("");
-  const [tonightMaxWeight, setTonightMaxWeight] = useState("");
+  const [tonightWeight, setTonightWeight] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
     return tab === "sessions" || tab === "members" ? tab : "ranking";
@@ -261,9 +261,11 @@ function GroupDashboardPage() {
       const max = item.game.maxPlayers ?? 99;
       if (n < min || n > max) return false;
     }
-    if (tonightMaxWeight) {
-      const maxW = parseFloat(tonightMaxWeight);
-      if (item.game.weight && item.game.weight > maxW) return false;
+    if (tonightWeight && item.game.weight) {
+      const w = item.game.weight;
+      if (tonightWeight === "light" && w > 2.0) return false;
+      if (tonightWeight === "medium" && (w < 2.0 || w > 3.5)) return false;
+      if (tonightWeight === "heavy" && w < 3.5) return false;
     }
     return true;
   });
@@ -272,7 +274,7 @@ function GroupDashboardPage() {
   const pendingGames = filteredRanking.filter((item) => item.playCount === 0);
   const playedGames = filteredRanking.filter((item) => item.playCount > 0);
 
-  const tonightActive = !!(tonightPlayers || tonightMaxWeight);
+  const tonightActive = !!(tonightPlayers || tonightWeight);
 
   const canRemoveGame = (item: RankedGame) =>
     group?.currentUserRole === "admin" || item.addedById === group?.currentUserId;
@@ -713,19 +715,18 @@ function GroupDashboardPage() {
                       ))}
                     </select>
                     <select
-                      value={tonightMaxWeight}
-                      onChange={(e) => setTonightMaxWeight(e.target.value)}
+                      value={tonightWeight}
+                      onChange={(e) => setTonightWeight(e.target.value)}
                       className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     >
                       <option value="">Peso...</option>
-                      <option value="2">Ligero (≤2)</option>
-                      <option value="3">Medio (≤3)</option>
-                      <option value="4">Pesado (≤4)</option>
-                      <option value="5">Cualquier peso</option>
+                      <option value="light">Ligero (≤2.0)</option>
+                      <option value="medium">Medio (2.0–3.5)</option>
+                      <option value="heavy">Pesado (≥3.5)</option>
                     </select>
                     {tonightActive && (
                       <button
-                        onClick={() => { setTonightPlayers(""); setTonightMaxWeight(""); }}
+                        onClick={() => { setTonightPlayers(""); setTonightWeight(""); }}
                         className="text-xs text-slate-400 hover:text-amber-400 transition-colors"
                       >
                         ✕ Limpiar
