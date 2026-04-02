@@ -1451,13 +1451,13 @@ export default function GroupDashboardPage() {
                                           <button
                                             disabled={idx === 0}
                                             onClick={() => handleReorderGame(s.id, idx, "up")}
-                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-[10px] leading-none transition-colors"
+                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
                                             title="Mover arriba"
                                           >▲</button>
                                           <button
                                             disabled={idx === s.games.length - 1}
                                             onClick={() => handleReorderGame(s.id, idx, "down")}
-                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-[10px] leading-none transition-colors"
+                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
                                             title="Mover abajo"
                                           >▼</button>
                                         </div>
