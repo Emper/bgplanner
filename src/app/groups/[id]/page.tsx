@@ -133,7 +133,7 @@ function GroupDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    return tab === "sessions" || tab === "members" || tab === "activity" ? tab : "ranking";
+    return tab === "ranking" || tab === "sessions" || tab === "members" ? tab : "activity";
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -790,7 +790,7 @@ function GroupDashboardPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 mb-6 border-b border-slate-700">
-            {(["ranking", "sessions", "members", "activity"] as Tab[]).map((tab) => (
+            {(["activity", "ranking", "sessions", "members"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => switchTab(tab)}

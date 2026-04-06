@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import BggGameSearch from "@/components/BggGameSearch";
 import Avatar from "@/components/Avatar";
+import ActivityFeed from "@/components/ActivityFeed";
 import { formatDateFull, formatDuration } from "@/lib/format";
 
 interface Game {
@@ -65,7 +66,7 @@ interface EventData {
   currentAttendeeId: string | null;
 }
 
-type Tab = "games" | "mylist" | "attendees";
+type Tab = "activity" | "games" | "mylist" | "attendees";
 
 const INTENSITY_LABELS: Record<number, string> = {
   5: "Máxima prioridad",
@@ -90,12 +91,20 @@ export default function EventDetailPage() {
   const router = useRouter();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("games");
+  const [activeTab, setActiveTab] = useState<Tab>("activity");
   const [addingGame, setAddingGame] = useState(false);
   const [joiningEvent, setJoiningEvent] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
+
+  // Activity feed state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [feedItems, setFeedItems] = useState<any[]>([]);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedLoaded, setFeedLoaded] = useState(false);
 
   // Edit event state
   const [showEdit, setShowEdit] = useState(false);
@@ -107,6 +116,27 @@ export default function EventDetailPage() {
   const [editMaxAttendees, setEditMaxAttendees] = useState("");
   const [editVisibility, setEditVisibility] = useState<"public" | "private">("public");
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const fetchEventFeed = useCallback(async (cursor?: string) => {
+    setFeedLoading(true);
+    try {
+      const url = `/api/events/${eventId}/feed?limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (cursor) {
+          setFeedItems((prev) => [...prev, ...data.items]);
+        } else {
+          setFeedItems(data.items);
+        }
+        setFeedCursor(data.nextCursor);
+        setFeedHasMore(!!data.nextCursor);
+        setFeedLoaded(true);
+      }
+    } finally {
+      setFeedLoading(false);
+    }
+  }, [eventId]);
 
   const fetchEvent = useCallback(async () => {
     try {
@@ -128,6 +158,10 @@ export default function EventDetailPage() {
   useEffect(() => {
     fetchEvent();
   }, [fetchEvent]);
+
+  useEffect(() => {
+    if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
+  }, [activeTab, feedLoaded, fetchEventFeed]);
 
   const openEditModal = () => {
     if (!event) return;
@@ -425,22 +459,35 @@ export default function EventDetailPage() {
 
         {/* Tabs */}
         <div className="flex gap-6 border-b border-slate-700 mb-4">
-          {(["games", "mylist", "attendees"] as Tab[]).map((tab) => (
+          {(["activity", "games", "mylist", "attendees"] as Tab[]).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                if (tab === "activity" && !feedLoaded) fetchEventFeed();
+              }}
               className={`pb-2 text-sm font-medium transition-colors ${
                 activeTab === tab
                   ? "text-amber-400 border-b-2 border-amber-400"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              {tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : `Asistentes (${event.attendees.length})`}
+              {tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : `Asistentes (${event.attendees.length})`}
             </button>
           ))}
         </div>
 
         {/* Tab content */}
+        {activeTab === "activity" && (
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+            <ActivityFeed
+              items={feedItems}
+              onLoadMore={() => feedCursor && fetchEventFeed(feedCursor)}
+              hasMore={feedHasMore}
+              loading={feedLoading}
+            />
+          </div>
+        )}
         {activeTab === "games" && (
           <GamesTab
             event={event}
