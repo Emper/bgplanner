@@ -139,6 +139,10 @@ function GroupDashboardPage() {
   const [removingGame, setRemovingGame] = useState<string | null>(null);
   const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
 
+  // Quick session from ranking
+  const [quickSelectIds, setQuickSelectIds] = useState<Set<string>>(new Set());
+  const [showQuickSession, setShowQuickSession] = useState(false);
+
   // Sessions state
   const [sessions, setSessions] = useState<GameSessionData[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -274,6 +278,43 @@ function GroupDashboardPage() {
       if (res.ok) fetchData();
     } catch {
       alert("Error al archivar");
+    }
+  };
+
+  const toggleQuickSelect = (gameId: string) => {
+    setQuickSelectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(gameId)) next.delete(gameId);
+      else next.add(gameId);
+      return next;
+    });
+  };
+
+  const handleQuickSession = async () => {
+    setSavingSession(true);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: sessionName || null,
+          date: sessionDate,
+          playerCount: parseInt(sessionPlayers),
+          totalMinutes: parseFloat(sessionHours) * 60,
+          gameIds: Array.from(quickSelectIds),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setQuickSelectIds(new Set());
+        setShowQuickSession(false);
+        setSessionName("");
+        fetchData();
+        switchTab("sessions");
+        setTimeout(() => toggleSession(data.id), 300);
+      }
+    } finally {
+      setSavingSession(false);
     }
   };
 
@@ -754,20 +795,42 @@ function GroupDashboardPage() {
                   {/* ── Pending games (not yet played) ── */}
                   {pendingGames.length > 0 && (
                     <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-                          Pendientes de jugar ({pendingGames.length})
-                        </h3>
-                        <Link
-                          href={`/groups/${groupId}/add-games${(() => {
-                            const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
-                            return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
-                          })()}`}
-                          prefetch={false}
-                          className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
-                        >
-                          Añadir juegos
-                        </Link>
+                      <div className="sticky top-0 z-10 bg-slate-900 py-2 -mx-1 px-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                            Pendientes de jugar ({pendingGames.length})
+                          </h3>
+                          {quickSelectIds.size > 0 ? (
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <span className="text-xs sm:text-sm text-slate-400">
+                                {quickSelectIds.size} seleccionado{quickSelectIds.size !== 1 && "s"}
+                              </span>
+                              <button
+                                onClick={() => setQuickSelectIds(new Set())}
+                                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                              >
+                                ✕
+                              </button>
+                              <button
+                                onClick={() => setShowQuickSession(true)}
+                                className="px-3 sm:px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-xs sm:text-sm font-medium"
+                              >
+                                🎲 Crear sesión
+                              </button>
+                            </div>
+                          ) : (
+                            <Link
+                              href={`/groups/${groupId}/add-games${(() => {
+                                const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
+                                return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
+                              })()}`}
+                              prefetch={false}
+                              className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                            >
+                              Añadir juegos
+                            </Link>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-3">
                         {pendingGames.map((item, index) => (
@@ -777,43 +840,69 @@ function GroupDashboardPage() {
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
-                              {/* Position badge — medals for top 3 */}
-                              <div className="w-7 sm:w-10 shrink-0 flex justify-center">
-                                {index < 3 ? (
-                                    <svg className="w-6 h-6 sm:w-9 sm:h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                      <defs>
-                                        {index === 0 && (
-                                          <linearGradient id="medal-gold" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                                            <stop offset="0%" stopColor="#fbbf24" />
-                                            <stop offset="50%" stopColor="#f59e0b" />
-                                            <stop offset="100%" stopColor="#d97706" />
-                                          </linearGradient>
-                                        )}
-                                        {index === 1 && (
-                                          <linearGradient id="medal-silver" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                                            <stop offset="0%" stopColor="#e2e8f0" />
-                                            <stop offset="50%" stopColor="#94a3b8" />
-                                            <stop offset="100%" stopColor="#64748b" />
-                                          </linearGradient>
-                                        )}
-                                        {index === 2 && (
-                                          <linearGradient id="medal-bronze" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                                            <stop offset="0%" stopColor="#d97756" />
-                                            <stop offset="50%" stopColor="#b45930" />
-                                            <stop offset="100%" stopColor="#92400e" />
-                                          </linearGradient>
-                                        )}
-                                      </defs>
-                                      <circle cx="18" cy="18" r="16" fill={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} opacity="0.15" />
-                                      <circle cx="18" cy="18" r="16" stroke={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} strokeWidth="2" fill="none" />
-                                      <text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="800" fill={index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : '#d97756'}>
-                                        {index + 1}
-                                      </text>
-                                    </svg>
-                                ) : (
-                                  <span className="text-sm sm:text-base font-bold text-slate-500">#{index + 1}</span>
-                                )}
-                              </div>
+                              {/* Position badge — click to select, hover shows checkbox */}
+                              {(() => {
+                                const isSelected = quickSelectIds.has(item.game.id);
+                                const hasSelection = quickSelectIds.size > 0;
+                                return (
+                                  <div
+                                    className="w-7 sm:w-10 shrink-0 flex justify-center group/check cursor-pointer"
+                                    onClick={() => toggleQuickSelect(item.game.id)}
+                                  >
+                                    {/* Checkbox */}
+                                    <div className={`items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-lg border-2 transition-all ${
+                                      isSelected
+                                        ? "flex bg-amber-500 border-amber-500"
+                                        : hasSelection
+                                          ? "flex border-slate-600 hover:border-amber-500/50"
+                                          : "hidden group-hover/check:flex border-slate-600 hover:border-amber-500/50"
+                                    }`}>
+                                      {isSelected && (
+                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                    {/* Medal/Number — hidden when checkbox visible */}
+                                    <div className={`${isSelected ? "hidden" : hasSelection ? "hidden" : "flex group-hover/check:hidden"} items-center justify-center`}>
+                                      {index < 3 ? (
+                                        <svg className="w-6 h-6 sm:w-9 sm:h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <defs>
+                                            {index === 0 && (
+                                              <linearGradient id="medal-gold" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                                <stop offset="0%" stopColor="#fbbf24" />
+                                                <stop offset="50%" stopColor="#f59e0b" />
+                                                <stop offset="100%" stopColor="#d97706" />
+                                              </linearGradient>
+                                            )}
+                                            {index === 1 && (
+                                              <linearGradient id="medal-silver" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                                <stop offset="0%" stopColor="#e2e8f0" />
+                                                <stop offset="50%" stopColor="#94a3b8" />
+                                                <stop offset="100%" stopColor="#64748b" />
+                                              </linearGradient>
+                                            )}
+                                            {index === 2 && (
+                                              <linearGradient id="medal-bronze" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                                <stop offset="0%" stopColor="#d97756" />
+                                                <stop offset="50%" stopColor="#b45930" />
+                                                <stop offset="100%" stopColor="#92400e" />
+                                              </linearGradient>
+                                            )}
+                                          </defs>
+                                          <circle cx="18" cy="18" r="16" fill={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} opacity="0.15" />
+                                          <circle cx="18" cy="18" r="16" stroke={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} strokeWidth="2" fill="none" />
+                                          <text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="800" fill={index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : '#d97756'}>
+                                            {index + 1}
+                                          </text>
+                                        </svg>
+                                      ) : (
+                                        <span className="text-sm sm:text-base font-bold text-slate-500">#{index + 1}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                               {/* Thumbnail: 130px for top 3, 100px for rest on desktop */}
                               <div className={`w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-slate-700 ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
                                 {item.game.thumbnail ? (
@@ -1094,6 +1183,79 @@ function GroupDashboardPage() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Quick session modal */}
+          {showQuickSession && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQuickSession(false)}>
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-100">
+                    🎲 Crear sesión rápida
+                  </h3>
+                  <button onClick={() => setShowQuickSession(false)} className="text-slate-400 hover:text-slate-200">✕</button>
+                </div>
+                <p className="text-sm text-slate-400 mb-4">
+                  {quickSelectIds.size} juego{quickSelectIds.size !== 1 && "s"} seleccionado{quickSelectIds.size !== 1 && "s"}
+                </p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Nombre (opcional)</label>
+                    <input
+                      type="text"
+                      value={sessionName}
+                      onChange={(e) => setSessionName(e.target.value)}
+                      placeholder="Ej: Viernes épico"
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Fecha</label>
+                    <input
+                      type="date"
+                      value={sessionDate}
+                      onChange={(e) => setSessionDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Jugadores</label>
+                    <select
+                      value={sessionPlayers}
+                      onChange={(e) => setSessionPlayers(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                        <option key={n} value={n}>{n} jugadores</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Tiempo</label>
+                    <select
+                      value={sessionHours}
+                      onChange={(e) => setSessionHours(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="1.5">1h 30min</option>
+                      <option value="2">2 horas</option>
+                      <option value="3">3 horas</option>
+                      <option value="4">4 horas</option>
+                      <option value="5">5 horas</option>
+                      <option value="6">6 horas</option>
+                      <option value="8">8 horas</option>
+                    </select>
+                  </div>
+                </div>
+                <button
+                  onClick={handleQuickSession}
+                  disabled={savingSession}
+                  className="w-full px-4 py-2.5 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                >
+                  {savingSession ? "Creando..." : `Crear sesión con ${quickSelectIds.size} juego${quickSelectIds.size !== 1 ? "s" : ""}`}
+                </button>
+              </div>
             </div>
           )}
 
