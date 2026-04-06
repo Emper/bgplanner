@@ -135,11 +135,12 @@ model GameSessionGame {
 }
 
 model GroupGame {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   groupId   String
   gameId    String
   addedById String
-  addedAt   DateTime @default(now())
+  addedAt   DateTime  @default(now())
+  playedAt  DateTime?
 
   group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   game    Game  @relation(fields: [gameId], references: [id])

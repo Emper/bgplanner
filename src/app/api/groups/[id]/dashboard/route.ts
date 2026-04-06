@@ -82,12 +82,17 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
-  // Count completed plays per game from sessions (computed in memory)
+  // Count completed plays per game and track last played date from sessions
   const playCountByGameId = new Map<string, number>();
+  const lastSessionDateByGameId = new Map<string, Date>();
   for (const s of sessions) {
     for (const sg of s.games) {
       if (sg.status === "completed") {
         playCountByGameId.set(sg.game.id, (playCountByGameId.get(sg.game.id) || 0) + 1);
+        const existing = lastSessionDateByGameId.get(sg.game.id);
+        if (!existing || s.date > existing) {
+          lastSessionDateByGameId.set(sg.game.id, s.date);
+        }
       }
     }
   }
@@ -111,6 +116,13 @@ export async function GET(
         points: v.type === "super" ? 3 : v.type === "down" ? -1 : 1,
       }));
 
+      const playCount = playCountByGameId.get(gg.game.id) || 0;
+      const lastSessionDate = lastSessionDateByGameId.get(gg.game.id) || null;
+      // Use playedAt (manual mark) or last session date, whichever is more recent
+      const lastPlayedDate = gg.playedAt && lastSessionDate
+        ? (gg.playedAt > lastSessionDate ? gg.playedAt : lastSessionDate)
+        : gg.playedAt || lastSessionDate;
+
       return {
         groupGameId: gg.id,
         game: gg.game,
@@ -122,7 +134,9 @@ export async function GET(
         downVotes,
         voters,
         userVote: userVote?.type || null,
-        playCount: playCountByGameId.get(gg.game.id) || 0,
+        playCount,
+        playedAt: gg.playedAt,
+        lastPlayedDate,
       };
     })
     .sort((a, b) => {

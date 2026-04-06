@@ -39,6 +39,8 @@ interface RankedGame {
   voters: Voter[];
   userVote: "up" | "super" | "down" | null;
   playCount: number;
+  playedAt: string | null;
+  lastPlayedDate: string | null;
 }
 
 interface Member {
@@ -252,11 +254,34 @@ function GroupDashboardPage() {
 
   // Filter ranking for "tonight" mode
   // Split into pending (not yet played) and played
-  const pendingGames = ranking.filter((item) => item.playCount === 0);
-  const playedGames = ranking.filter((item) => item.playCount > 0);
+  const isPlayed = (item: RankedGame) => item.playCount > 0 || item.playedAt !== null;
+  const pendingGames = ranking.filter((item) => !isPlayed(item));
+  const playedGames = ranking.filter(isPlayed);
 
   const canRemoveGame = (item: RankedGame) =>
     group?.currentUserRole === "admin" || item.addedById === group?.currentUserId;
+
+  const isAdmin = group?.currentUserRole === "admin";
+
+  const handleMarkPlayed = async (gameId: string, gameName: string, played: boolean) => {
+    const action = played ? "marcar como jugado" : "devolver a pendientes";
+    if (!confirm(`¿${played ? "Marcar" : "Devolver"} "${gameName}" ${played ? "como ya jugado" : "a pendientes"}?`)) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/games/${gameId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ played }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || `Error al ${action}`);
+        return;
+      }
+      fetchData();
+    } catch {
+      alert(`Error al ${action}`);
+    }
+  };
 
   // Helper: recompute ranking scores & sort after a local vote change
   const applyVoteLocally = useCallback(
@@ -830,6 +855,15 @@ function GroupDashboardPage() {
                                       {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
                                     </button>
                                   ))}
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
+                                      className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors"
+                                      title="Marcar como jugado"
+                                    >
+                                      ✅
+                                    </button>
+                                  )}
                                   {canRemoveGame(item) && (
                                     <button
                                       onClick={() => handleRemoveGame(item.game.id, item.game.name)}
@@ -949,6 +983,15 @@ function GroupDashboardPage() {
                                     {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
                                   </button>
                                 ))}
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors"
+                                    title="Marcar como jugado"
+                                  >
+                                    ✅
+                                  </button>
+                                )}
                                 {canRemoveGame(item) && (
                                   <button
                                     onClick={() => handleRemoveGame(item.game.id, item.game.name)}
@@ -999,10 +1042,17 @@ function GroupDashboardPage() {
                                     {item.game.name}
                                   </a>
                                 </div>
+                                {item.lastPlayedDate && (
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    Jugado el {new Date(item.lastPlayedDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                                  </div>
+                                )}
                                 <div className="hidden sm:flex flex-wrap gap-1.5 mt-0.5">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
-                                    {item.playCount} partida{item.playCount !== 1 && "s"}
-                                  </span>
+                                  {item.playCount > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
+                                      {item.playCount} partida{item.playCount !== 1 && "s"}
+                                    </span>
+                                  )}
                                   {item.game.bggRating && (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400/70">
                                       ★ {item.game.bggRating.toFixed(1)}
@@ -1058,6 +1108,15 @@ function GroupDashboardPage() {
                                     {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
                                   </button>
                                 ))}
+                                {isAdmin && item.playedAt && (
+                                  <button
+                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
+                                    className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-amber-400 hover:border-amber-500/50 transition-colors"
+                                    title="Devolver a pendientes"
+                                  >
+                                    ↩
+                                  </button>
+                                )}
                                 {canRemoveGame(item) && (
                                   <button
                                     onClick={() => handleRemoveGame(item.game.id, item.game.name)}
