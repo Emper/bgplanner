@@ -20,13 +20,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
   }
 
-  // Check requester is admin
+  // Check requester is admin or owner
   const requesterMembership = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId, userId: session.userId } },
   });
 
-  if (!requesterMembership || requesterMembership.role !== "admin") {
-    return NextResponse.json({ error: "Solo los admins pueden cambiar roles" }, { status: 403 });
+  const requesterIsAdminOrOwner = requesterMembership?.role === "admin" || requesterMembership?.role === "owner";
+  if (!requesterMembership || !requesterIsAdminOrOwner) {
+    return NextResponse.json({ error: "Solo admins y propietarios pueden cambiar roles" }, { status: 403 });
   }
 
   // Can't change your own role
@@ -44,6 +45,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Usuario no es miembro del grupo" }, { status: 404 });
   }
 
+  // Nobody can change the owner's role
+  if (targetMembership.role === "owner") {
+    return NextResponse.json({ error: "No se puede modificar el rol del propietario del grupo" }, { status: 403 });
+  }
+
+  // Only owner can demote admins
+  if (targetMembership.role === "admin" && role === "member" && requesterMembership.role !== "owner") {
+    return NextResponse.json({ error: "Solo el propietario puede quitar el rol de admin" }, { status: 403 });
+  }
+
   // Don't update if already the same role
   if (targetMembership.role === role) {
     return NextResponse.json({ success: true, role });
@@ -55,13 +66,13 @@ export async function PATCH(
     data: { role },
   });
 
-  // Send email notification when promoting to admin
-  if (role === "admin") {
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      select: { name: true },
-    });
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { name: true },
+  });
 
+  // Send email notification
+  if (role === "admin") {
     resend.emails.send({
       from: "WeBoard <cesar@tiradacritica.es>",
       to: targetMembership.user.email,
@@ -82,7 +93,21 @@ export async function PATCH(
           </a>
         </div>
       `,
-    }).catch(() => {}); // Don't fail if email fails
+    }).catch(() => {});
+  } else if (role === "member") {
+    resend.emails.send({
+      from: "WeBoard <cesar@tiradacritica.es>",
+      to: targetMembership.user.email,
+      subject: `Tu rol en "${group?.name}" ha cambiado`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
+          <h2 style="color: #f59e0b; margin-bottom: 16px;">WeBoard</h2>
+          <p>Hola, ${targetMembership.user.name || "jugador"}.</p>
+          <p>Tu rol en el grupo <strong style="color: #f59e0b;">"${group?.name}"</strong> ha cambiado a <strong>miembro</strong>.</p>
+          <p style="color: #94a3b8; font-size: 14px;">Sigues formando parte del grupo y puedes votar y participar en sesiones como siempre.</p>
+        </div>
+      `,
+    }).catch(() => {});
   }
 
   return NextResponse.json({ success: true, role });

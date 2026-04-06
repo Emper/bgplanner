@@ -258,10 +258,10 @@ function GroupDashboardPage() {
   const pendingGames = ranking.filter((item) => !isPlayed(item));
   const playedGames = ranking.filter(isPlayed);
 
-  const canRemoveGame = (item: RankedGame) =>
-    group?.currentUserRole === "admin" || item.addedById === group?.currentUserId;
+  const canRemoveGame = () => isAdmin;
 
-  const isAdmin = group?.currentUserRole === "admin";
+  const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
+  const isOwner = group?.currentUserRole === "owner";
 
   const handleMarkPlayed = async (gameId: string, gameName: string, played: boolean) => {
     const action = played ? "marcar como jugado" : "devolver a pendientes";
@@ -836,43 +836,45 @@ function GroupDashboardPage() {
                               </div>
                               {/* Desktop: Vote buttons + Score, vertically centered */}
                               <div className="hidden sm:flex items-center gap-3 shrink-0">
-                                <div className="flex gap-1.5">
-                                  {(["up", "super", "down"] as const).map((type) => (
-                                    <button
-                                      key={type}
-                                      onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                      className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
-                                        item.userVote === type
-                                          ? type === "up"
-                                            ? "bg-amber-500/20 border-amber-500 text-amber-400"
-                                            : type === "super"
-                                              ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                              : "bg-red-500/20 border-red-500 text-red-400"
-                                          : "border-slate-700 text-slate-500 hover:bg-slate-700"
-                                      }`}
-                                      title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                    >
-                                      {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                    </button>
-                                  ))}
+                                <div className="flex flex-col items-end gap-1.5">
+                                  {/* Vote buttons */}
+                                  <div className="flex gap-1.5">
+                                    {(["up", "super", "down"] as const).map((type) => (
+                                      <button
+                                        key={type}
+                                        onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                                        className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
+                                          item.userVote === type
+                                            ? type === "up"
+                                              ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                              : type === "super"
+                                                ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                                : "bg-red-500/20 border-red-500 text-red-400"
+                                            : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                        }`}
+                                        title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
+                                      >
+                                        {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* Admin actions — text links, subtle */}
                                   {isAdmin && (
-                                    <button
-                                      onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
-                                      className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors"
-                                      title="Marcar como jugado"
-                                    >
-                                      ✅
-                                    </button>
-                                  )}
-                                  {canRemoveGame(item) && (
-                                    <button
-                                      onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                      disabled={removingGame === item.game.id}
-                                      className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
-                                      title="Eliminar del grupo"
-                                    >
-                                      🗑
-                                    </button>
+                                    <div className="flex gap-3 text-[11px]">
+                                      <button
+                                        onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
+                                        className="text-slate-500 hover:text-emerald-400 transition-colors"
+                                      >
+                                        Marcar jugado
+                                      </button>
+                                      <button
+                                        onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                        disabled={removingGame === item.game.id}
+                                        className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                                 <div className="relative group/score text-center w-12 cursor-default">
@@ -983,26 +985,25 @@ function GroupDashboardPage() {
                                     {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
                                   </button>
                                 ))}
-                                {isAdmin && (
+                              </div>
+                              {/* Admin actions mobile */}
+                              {isAdmin && (
+                                <div className="flex gap-3 justify-end text-[11px] mt-1 pl-8">
                                   <button
                                     onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors"
-                                    title="Marcar como jugado"
+                                    className="text-slate-500 hover:text-emerald-400 transition-colors"
                                   >
-                                    ✅
+                                    Marcar jugado
                                   </button>
-                                )}
-                                {canRemoveGame(item) && (
                                   <button
                                     onClick={() => handleRemoveGame(item.game.id, item.game.name)}
                                     disabled={removingGame === item.game.id}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
-                                    title="Eliminar del grupo"
+                                    className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
                                   >
-                                    🗑
+                                    Quitar
                                   </button>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1108,24 +1109,24 @@ function GroupDashboardPage() {
                                     {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
                                   </button>
                                 ))}
-                                {isAdmin && item.playedAt && (
-                                  <button
-                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
-                                    className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-amber-400 hover:border-amber-500/50 transition-colors"
-                                    title="Devolver a pendientes"
-                                  >
-                                    ↩
-                                  </button>
-                                )}
-                                {canRemoveGame(item) && (
-                                  <button
-                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                    disabled={removingGame === item.game.id}
-                                    className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-slate-700 text-slate-600 hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50"
-                                    title="Eliminar del grupo"
-                                  >
-                                    🗑
-                                  </button>
+                                {isAdmin && (
+                                  <>
+                                    {item.playedAt && (
+                                      <button
+                                        onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
+                                        className="text-[11px] text-slate-500 hover:text-amber-400 transition-colors"
+                                      >
+                                        Devolver
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                      disabled={removingGame === item.game.id}
+                                      className="text-[11px] text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                                    >
+                                      Quitar
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -1615,7 +1616,8 @@ function GroupDashboardPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isAdmin && member.role !== "admin" && member.user.id !== group.currentUserId && (
+                        {/* Hacer admin: visible para admins/owners, en miembros que no son admin/owner */}
+                        {isAdmin && member.role === "member" && member.user.id !== group.currentUserId && (
                           <button
                             onClick={async () => {
                               const name = member.user.name || member.user.email;
@@ -1632,19 +1634,42 @@ function GroupDashboardPage() {
                               }
                             }}
                             className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
-                            title="Hacer administrador"
                           >
                             Hacer admin
                           </button>
                         )}
+                        {/* Quitar admin: solo visible para el owner, en admins */}
+                        {isOwner && member.role === "admin" && (
+                          <button
+                            onClick={async () => {
+                              const name = member.user.name || member.user.email;
+                              if (!confirm(`¿Quitar admin a ${name}? Pasará a ser miembro.`)) return;
+                              const res = await fetch(`/api/groups/${groupId}/members/${member.user.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ role: "member" }),
+                              });
+                              if (res.ok) fetchData();
+                              else {
+                                const data = await res.json();
+                                alert(data.error || "Error al cambiar rol");
+                              }
+                            }}
+                            className="px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                          >
+                            Quitar admin
+                          </button>
+                        )}
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            member.role === "admin"
-                              ? "bg-amber-500/20 text-amber-300"
-                              : "bg-slate-700 text-slate-300"
+                            member.role === "owner"
+                              ? "bg-amber-500/30 text-amber-200"
+                              : member.role === "admin"
+                                ? "bg-amber-500/20 text-amber-300"
+                                : "bg-slate-700 text-slate-300"
                           }`}
                         >
-                          {member.role === "admin" ? "Admin" : "Miembro"}
+                          {member.role === "owner" ? "Propietario" : member.role === "admin" ? "Admin" : "Miembro"}
                         </span>
                       </div>
                     </div>
