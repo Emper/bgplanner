@@ -45,7 +45,7 @@ export async function GET(
       }),
       prisma.groupMember.count({ where: { groupId } }),
       prisma.groupGame.findMany({
-        where: { groupId },
+        where: { groupId, archivedAt: null },
         include: {
           game: true,
           addedBy: { select: { name: true } },

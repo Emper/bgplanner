@@ -63,10 +63,10 @@ export async function PATCH(
 
   const { id: groupId, gameId } = await params;
   const body = await request.json();
-  const { played } = body;
+  const { played, archived } = body;
 
-  if (typeof played !== "boolean") {
-    return NextResponse.json({ error: "Campo 'played' requerido (boolean)" }, { status: 400 });
+  if (typeof played !== "boolean" && typeof archived !== "boolean") {
+    return NextResponse.json({ error: "Campo 'played' o 'archived' requerido (boolean)" }, { status: 400 });
   }
 
   const membership = await prisma.groupMember.findUnique({
@@ -84,6 +84,15 @@ export async function PATCH(
 
   if (!groupGame) {
     return NextResponse.json({ error: "Juego no encontrado" }, { status: 404 });
+  }
+
+  // Handle archive
+  if (typeof archived === "boolean") {
+    await prisma.groupGame.update({
+      where: { id: groupGame.id },
+      data: { archivedAt: archived ? new Date() : null },
+    });
+    return NextResponse.json({ success: true });
   }
 
   // Update playedAt

@@ -263,6 +263,34 @@ function GroupDashboardPage() {
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
   const isOwner = group?.currentUserRole === "owner";
 
+  const handleArchiveAllPlayed = async () => {
+    if (!confirm(`¿Ocultar todos los juegos ya jugados? Se podrán volver a añadir desde "Añadir juegos".`)) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/games`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "archivePlayed" }),
+      });
+      if (res.ok) fetchData();
+    } catch {
+      alert("Error al archivar");
+    }
+  };
+
+  const handleArchiveGame = async (gameId: string, gameName: string) => {
+    if (!confirm(`¿Ocultar "${gameName}"? Se podrá volver a añadir desde "Añadir juegos".`)) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/games/${gameId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (res.ok) fetchData();
+    } catch {
+      alert("Error al archivar");
+    }
+  };
+
   const handleMarkPlayed = async (gameId: string, gameName: string, played: boolean) => {
     const action = played ? "marcar como jugado" : "devolver a pendientes";
     if (!confirm(`¿${played ? "Marcar" : "Devolver"} "${gameName}" ${played ? "como ya jugado" : "a pendientes"}?`)) return;
@@ -745,7 +773,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4"
+                            className="relative bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4 pb-7 sm:pb-8"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -836,46 +864,25 @@ function GroupDashboardPage() {
                               </div>
                               {/* Desktop: Vote buttons + Score, vertically centered */}
                               <div className="hidden sm:flex items-center gap-3 shrink-0">
-                                <div className="flex flex-col items-end gap-1.5">
-                                  {/* Vote buttons */}
-                                  <div className="flex gap-1.5">
-                                    {(["up", "super", "down"] as const).map((type) => (
-                                      <button
-                                        key={type}
-                                        onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                        className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
-                                          item.userVote === type
-                                            ? type === "up"
-                                              ? "bg-amber-500/20 border-amber-500 text-amber-400"
-                                              : type === "super"
-                                                ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                                : "bg-red-500/20 border-red-500 text-red-400"
-                                            : "border-slate-700 text-slate-500 hover:bg-slate-700"
-                                        }`}
-                                        title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                      >
-                                        {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  {/* Admin actions — text links, subtle */}
-                                  {isAdmin && (
-                                    <div className="flex gap-3 text-[11px]">
-                                      <button
-                                        onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
-                                        className="text-slate-500 hover:text-emerald-400 transition-colors"
-                                      >
-                                        Marcar jugado
-                                      </button>
-                                      <button
-                                        onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                        disabled={removingGame === item.game.id}
-                                        className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  )}
+                                <div className="flex gap-1.5">
+                                  {(["up", "super", "down"] as const).map((type) => (
+                                    <button
+                                      key={type}
+                                      onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
+                                      className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
+                                        item.userVote === type
+                                          ? type === "up"
+                                            ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                            : type === "super"
+                                              ? "bg-orange-500/20 border-orange-500 text-orange-400"
+                                              : "bg-red-500/20 border-red-500 text-red-400"
+                                          : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                      }`}
+                                      title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
+                                    >
+                                      {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
+                                    </button>
+                                  ))}
                                 </div>
                                 <div className="relative group/score text-center w-12 cursor-default">
                                   <div className="text-xl font-bold text-slate-100">{item.score}</div>
@@ -986,25 +993,25 @@ function GroupDashboardPage() {
                                   </button>
                                 ))}
                               </div>
-                              {/* Admin actions mobile */}
-                              {isAdmin && (
-                                <div className="flex gap-3 justify-end text-[11px] mt-1 pl-8">
-                                  <button
-                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
-                                    className="text-slate-500 hover:text-emerald-400 transition-colors"
-                                  >
-                                    Marcar jugado
-                                  </button>
-                                  <button
-                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                    disabled={removingGame === item.game.id}
-                                    className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                                  >
-                                    Quitar
-                                  </button>
-                                </div>
-                              )}
                             </div>
+                            {/* Admin actions — absolute bottom-right */}
+                            {isAdmin && (
+                              <div className="absolute bottom-2 right-3 flex gap-3 text-[11px]">
+                                <button
+                                  onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
+                                  className="text-slate-500 hover:text-emerald-400 transition-colors"
+                                >
+                                  Marcar jugado
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                  disabled={removingGame === item.game.id}
+                                  className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                                >
+                                  Quitar
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1014,14 +1021,24 @@ function GroupDashboardPage() {
                   {/* ── Already played games ── */}
                   {playedGames.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                        Ya jugados ({playedGames.length})
-                      </h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                          Ya jugados ({playedGames.length})
+                        </h3>
+                        {isAdmin && (
+                          <button
+                            onClick={handleArchiveAllPlayed}
+                            className="text-xs text-slate-500 hover:text-amber-400 transition-colors"
+                          >
+                            Ocultar todo
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-2">
                         {playedGames.map((item) => (
                           <div
                             key={item.groupGameId}
-                            className="bg-slate-800/60 rounded-xl border border-slate-700/50 p-3"
+                            className="relative bg-slate-800/60 rounded-xl border border-slate-700/50 p-3 pb-7"
                           >
                             {/* Row 1: Thumbnail + Name + Score */}
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -1109,27 +1126,25 @@ function GroupDashboardPage() {
                                     {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
                                   </button>
                                 ))}
-                                {isAdmin && (
-                                  <>
-                                    {item.playedAt && (
-                                      <button
-                                        onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
-                                        className="text-[11px] text-slate-500 hover:text-amber-400 transition-colors"
-                                      >
-                                        Devolver
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                      disabled={removingGame === item.game.id}
-                                      className="text-[11px] text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                                    >
-                                      Quitar
-                                    </button>
-                                  </>
-                                )}
                               </div>
                             </div>
+                            {/* Admin actions — absolute bottom-right */}
+                            {isAdmin && (
+                              <div className="absolute bottom-2 right-3 flex gap-3 text-[11px]">
+                                <button
+                                  onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
+                                  className="text-slate-500 hover:text-amber-400 transition-colors"
+                                >
+                                  Devolver al ranking
+                                </button>
+                                <button
+                                  onClick={() => handleArchiveGame(item.game.id, item.game.name)}
+                                  className="text-slate-500 hover:text-red-400 transition-colors"
+                                >
+                                  Ocultar
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

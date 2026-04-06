@@ -100,12 +100,21 @@ export async function POST(
     return NextResponse.json({ error: "No se pudo obtener datos del juego" }, { status: 502 });
   }
 
-  // Check duplicate
+  // Check duplicate — if archived, unarchive instead of error
   const existing = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId: game.id } },
   });
 
   if (existing) {
+    if (existing.archivedAt) {
+      // Unarchive: reset to fresh state
+      const restored = await prisma.groupGame.update({
+        where: { id: existing.id },
+        data: { archivedAt: null, playedAt: null },
+        include: { game: true },
+      });
+      return NextResponse.json(restored, { status: 200 });
+    }
     return NextResponse.json(
       { error: "Este juego ya está en el grupo" },
       { status: 409 }
@@ -131,4 +140,60 @@ export async function POST(
   });
 
   return NextResponse.json(groupGame, { status: 201 });
+}
+
+// Archive all played games in the group
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id: groupId } = await params;
+  const body = await request.json();
+
+  if (body.action !== "archivePlayed") {
+    return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
+  }
+
+  const membership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId, userId: session.userId } },
+  });
+
+  if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
+    return NextResponse.json({ error: "Solo admins pueden archivar" }, { status: 403 });
+  }
+
+  // Find all played (not already archived) games - both manually marked and from sessions
+  const playedGames = await prisma.groupGame.findMany({
+    where: { groupId, archivedAt: null, playedAt: { not: null } },
+  });
+
+  // Also find games with completed sessions
+  const sessionsWithCompleted = await prisma.gameSessionGame.findMany({
+    where: { status: "completed", session: { groupId } },
+    select: { gameId: true },
+  });
+  const completedGameIds = new Set(sessionsWithCompleted.map((sg) => sg.gameId));
+
+  const allPlayedIds = await prisma.groupGame.findMany({
+    where: { groupId, archivedAt: null },
+    select: { id: true, gameId: true, playedAt: true },
+  });
+
+  const toArchive = allPlayedIds.filter(
+    (gg) => gg.playedAt !== null || completedGameIds.has(gg.gameId)
+  );
+
+  if (toArchive.length > 0) {
+    await prisma.groupGame.updateMany({
+      where: { id: { in: toArchive.map((gg) => gg.id) } },
+      data: { archivedAt: new Date() },
+    });
+  }
+
+  return NextResponse.json({ archived: toArchive.length });
 }

@@ -140,7 +140,8 @@ model GroupGame {
   gameId    String
   addedById String
   addedAt   DateTime  @default(now())
-  playedAt  DateTime?
+  playedAt   DateTime?
+  archivedAt DateTime?
 
   group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   game    Game  @relation(fields: [gameId], references: [id])
