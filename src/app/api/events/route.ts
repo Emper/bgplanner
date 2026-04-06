@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createEventSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity";
 
 // List events: public events + events user attends/created
 export async function GET(request: NextRequest) {
@@ -63,6 +64,8 @@ export async function POST(request: NextRequest) {
       },
     },
   });
+
+  logActivity("event_created", session.userId, { eventId: event.id, eventName: parsed.data.name });
 
   return NextResponse.json(event, { status: 201 });
 }

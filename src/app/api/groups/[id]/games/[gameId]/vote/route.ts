@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { voteSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity";
 
 export async function POST(
   request: NextRequest,
@@ -36,6 +37,7 @@ export async function POST(
 
   const groupGame = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId } },
+    include: { game: { select: { name: true } } },
   });
 
   if (!groupGame) {
@@ -44,6 +46,16 @@ export async function POST(
       { status: 404 }
     );
   }
+
+  // Check for existing vote before upsert
+  const existingVote = await prisma.vote.findUnique({
+    where: {
+      groupGameId_userId: {
+        groupGameId: groupGame.id,
+        userId: session.userId,
+      },
+    },
+  });
 
   // If super vote, check limit (1 per user per group)
   if (type === "super") {
@@ -83,6 +95,12 @@ export async function POST(
     },
   });
 
+  if (!existingVote) {
+    logActivity("vote_cast", session.userId, { groupId, gameName: groupGame.game.name, voteType: type });
+  } else if (existingVote.type !== type) {
+    logActivity("vote_changed", session.userId, { groupId, gameName: groupGame.game.name, from: existingVote.type, to: type });
+  }
+
   return NextResponse.json(vote);
 }
 
@@ -107,6 +125,7 @@ export async function DELETE(
 
   const groupGame = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId } },
+    include: { game: { select: { name: true } } },
   });
 
   if (!groupGame) {
@@ -122,6 +141,8 @@ export async function DELETE(
       userId: session.userId,
     },
   });
+
+  logActivity("vote_removed", session.userId, { groupId, gameName: groupGame.game.name });
 
   return NextResponse.json({ success: true });
 }

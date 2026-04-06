@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   request: NextRequest,
@@ -109,6 +110,16 @@ export async function PATCH(
         where: { id: gameSessionGameId },
         data: { status: newStatus as string },
       });
+
+      if (newStatus === "completed") {
+        const sessionGame = await prisma.gameSessionGame.findUnique({
+          where: { id: gameSessionGameId },
+          include: { game: { select: { name: true } } },
+        });
+        if (sessionGame) {
+          logActivity("session_game_completed", session.userId, { groupId, gameName: sessionGame.game.name });
+        }
+      }
     }
   }
 
@@ -137,6 +148,8 @@ export async function PATCH(
     },
   });
 
+  logActivity("session_updated", session.userId, { groupId });
+
   return NextResponse.json(updated);
 }
 
@@ -159,6 +172,8 @@ export async function DELETE(
   }
 
   await prisma.gameSession.delete({ where: { id: sessionId } });
+
+  logActivity("session_deleted", session.userId, { groupId });
 
   return NextResponse.json({ ok: true });
 }

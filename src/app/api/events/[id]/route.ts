@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateEventSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity";
 
 // Get event detail with games, attendees, and current user's interests
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -109,6 +110,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (parsed.data.visibility !== undefined) data.visibility = parsed.data.visibility;
 
   const updated = await prisma.event.update({ where: { id }, data });
+
+  logActivity("event_updated", session.userId, { eventId: id, eventName: updated.name });
 
   return NextResponse.json(updated);
 }

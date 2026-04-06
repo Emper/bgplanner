@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   request: NextRequest,
@@ -112,6 +113,8 @@ export async function POST(
       },
     },
   });
+
+  logActivity("session_created", session.userId, { groupId, sessionName: name || null, gameCount: (gameIds || []).length });
 
   return NextResponse.json(gameSession, { status: 201 });
 }

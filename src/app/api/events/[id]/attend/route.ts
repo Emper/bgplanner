@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/activity";
 
 // Attend event / update attendance status
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     create: { eventId, userId: session.userId, status },
   });
 
+  logActivity("event_joined", session.userId, { eventId, eventName: event.name });
+
   return NextResponse.json(attendee);
 }
 
@@ -60,6 +63,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   await prisma.eventAttendee.deleteMany({
     where: { eventId, userId: session.userId },
   });
+
+  logActivity("event_left", session.userId, { eventId, eventName: event?.name });
 
   return NextResponse.json({ deleted: true });
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   request: NextRequest,
@@ -113,6 +114,7 @@ export async function POST(
         data: { archivedAt: null, playedAt: null },
         include: { game: true },
       });
+      logActivity("game_added", session.userId, { groupId, gameName: restored.game.name });
       return NextResponse.json(restored, { status: 200 });
     }
     return NextResponse.json(
@@ -138,6 +140,8 @@ export async function POST(
       type: "up",
     },
   });
+
+  logActivity("game_added", session.userId, { groupId, gameName: game.name });
 
   return NextResponse.json(groupGame, { status: 201 });
 }

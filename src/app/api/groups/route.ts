@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { groupSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
@@ -57,6 +58,8 @@ export async function POST(request: NextRequest) {
       _count: { select: { members: true } },
     },
   });
+
+  logActivity("group_created", session.userId, { groupId: group.id, groupName: parsed.data.name });
 
   return NextResponse.json(group, { status: 201 });
 }

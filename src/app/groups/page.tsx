@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
+import ActivityFeed from "@/components/ActivityFeed";
 
 interface GroupMemberPreview {
   user: { name: string | null; avatarUrl: string | null };
@@ -49,6 +50,11 @@ export default function GroupsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [feedItems, setFeedItems] = useState<any[]>([]);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedLoading, setFeedLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,6 +75,15 @@ export default function GroupsPage() {
           const allEvents: UpcomingEvent[] = await eventsRes.json();
           setUpcomingEvents(allEvents.filter((e) => new Date(e.date) >= new Date()));
         }
+
+        // Fetch activity feed
+        const feedRes = await fetch("/api/feed?limit=10", { credentials: "include" });
+        if (feedRes.ok) {
+          const feedData = await feedRes.json();
+          setFeedItems(feedData.items);
+          setFeedCursor(feedData.nextCursor);
+          setFeedHasMore(!!feedData.nextCursor);
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Error inesperado");
       } finally {
@@ -77,6 +92,22 @@ export default function GroupsPage() {
     };
     fetchData();
   }, []);
+
+  const loadMoreFeed = useCallback(async () => {
+    if (!feedCursor || feedLoading) return;
+    setFeedLoading(true);
+    try {
+      const res = await fetch(`/api/feed?limit=10&cursor=${encodeURIComponent(feedCursor)}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedItems((prev) => [...prev, ...data.items]);
+        setFeedCursor(data.nextCursor);
+        setFeedHasMore(!!data.nextCursor);
+      }
+    } finally {
+      setFeedLoading(false);
+    }
+  }, [feedCursor, feedLoading]);
 
   return (
     <>
@@ -220,6 +251,22 @@ export default function GroupsPage() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actividad reciente */}
+          {!loading && feedItems.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-100 mb-4">Actividad reciente</h2>
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <ActivityFeed
+                  items={feedItems}
+                  showContext
+                  onLoadMore={loadMoreFeed}
+                  hasMore={feedHasMore}
+                  loading={feedLoading}
+                />
               </div>
             </div>
           )}

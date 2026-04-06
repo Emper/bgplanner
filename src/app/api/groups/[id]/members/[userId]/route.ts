@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { resend } from "@/lib/resend";
+import { logActivity } from "@/lib/activity";
 
 export async function PATCH(
   request: NextRequest,
@@ -109,6 +110,8 @@ export async function PATCH(
       `,
     }).catch(() => {});
   }
+
+  logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, { groupId, targetName: targetMembership.user.name || targetMembership.user.email });
 
   return NextResponse.json({ success: true, role });
 }

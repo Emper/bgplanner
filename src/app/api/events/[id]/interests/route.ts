@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { eventInterestSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity";
 
 // Set/update interest for a game
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +30,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { eventGameId, intensity, notes } = parsed.data;
 
   // Verify the game belongs to this event
-  const eventGame = await prisma.eventGame.findUnique({ where: { id: eventGameId } });
+  const eventGame = await prisma.eventGame.findUnique({
+    where: { id: eventGameId },
+    include: { game: { select: { name: true } } },
+  });
   if (!eventGame || eventGame.eventId !== eventId) {
     return NextResponse.json({ error: "Juego no encontrado en este evento" }, { status: 404 });
   }
@@ -39,6 +43,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     update: { intensity, notes },
     create: { eventGameId, attendeeId: attendee.id, intensity, notes },
   });
+
+  logActivity("event_interest_set", session.userId, { eventId, gameName: eventGame.game.name, intensity });
 
   return NextResponse.json(interest);
 }

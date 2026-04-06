@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { resend } from "@/lib/resend";
+import { logActivity } from "@/lib/activity";
 
 export async function DELETE(
   request: NextRequest,
@@ -24,6 +25,7 @@ export async function DELETE(
 
   const groupGame = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId } },
+    include: { game: { select: { name: true } } },
   });
 
   if (!groupGame) {
@@ -48,6 +50,8 @@ export async function DELETE(
   await prisma.groupGame.delete({
     where: { id: groupGame.id },
   });
+
+  logActivity("game_removed", session.userId, { groupId, gameName: groupGame.game?.name });
 
   return NextResponse.json({ success: true });
 }
@@ -92,6 +96,7 @@ export async function PATCH(
       where: { id: groupGame.id },
       data: { archivedAt: archived ? new Date() : null },
     });
+    logActivity("game_archived", session.userId, { groupId, gameName: groupGame.game.name });
     return NextResponse.json({ success: true });
   }
 
@@ -142,6 +147,8 @@ export async function PATCH(
       }
     }
   }
+
+  logActivity(played ? "game_marked_played" : "game_returned_pending", session.userId, { groupId, gameName: groupGame.game.name });
 
   return NextResponse.json({ success: true });
 }

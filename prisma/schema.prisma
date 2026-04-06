@@ -27,6 +27,7 @@ model User {
   createdEvents    Event[]        @relation("EventCreator")
   eventAttendances EventAttendee[]
   addedEventGames  EventGame[]    @relation("EventGameAdder")
+  activityLogs     ActivityLog[]
 }
 
 model OtpCode {
@@ -52,7 +53,8 @@ model Group {
   members     GroupMember[]
   invitations GroupInvitation[]
   games       GroupGame[]
-  sessions    GameSession[]
+  sessions      GameSession[]
+  activityLogs  ActivityLog[]
 }
 
 model GroupMember {
@@ -213,7 +215,8 @@ model Event {
 
   createdBy User            @relation("EventCreator", fields: [createdById], references: [id])
   games     EventGame[]
-  attendees EventAttendee[]
+  attendees    EventAttendee[]
+  activityLogs ActivityLog[]
 
   @@index([date])
   @@index([visibility])
@@ -266,4 +269,23 @@ model EventGameInterest {
   @@unique([eventGameId, attendeeId])
   @@index([eventGameId])
   @@index([attendeeId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  type      String
+  scope     String   @default("internal")
+  userId    String
+  groupId   String?
+  eventId   String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id])
+  group Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([groupId, createdAt])
+  @@index([eventId, createdAt])
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 // GET — resolve invite code to group info (+ membership check if logged in)
 export async function GET(
@@ -91,6 +92,8 @@ export async function POST(
       role: "member",
     },
   });
+
+  logActivity("group_joined", session.userId, { groupId: group.id, groupName: group.name });
 
   return NextResponse.json({
     joined: true,

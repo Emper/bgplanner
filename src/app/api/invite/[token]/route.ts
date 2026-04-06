@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 // GET — resolve token to invitation info
 export async function GET(
@@ -81,6 +82,8 @@ export async function POST(
       data: { status: "accepted" },
     }),
   ]);
+
+  logActivity("group_joined", session.userId, { groupId: invitation.groupId });
 
   return NextResponse.json({ groupId, groupName: invitation.group.name });
 }

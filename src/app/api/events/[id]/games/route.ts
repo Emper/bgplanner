@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
+import { logActivity } from "@/lib/activity";
 
 // Add game to event (creator only)
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: { eventId, gameId: game.id, addedById: session.userId },
     include: { game: true },
   });
+
+  logActivity("event_game_added", session.userId, { eventId, gameName: eventGame.game.name });
 
   return NextResponse.json(eventGame, { status: 201 });
 }

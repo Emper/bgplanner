@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
+import ActivityFeed from "@/components/ActivityFeed";
 import Avatar from "@/components/Avatar";
 import { formatDuration } from "@/lib/format";
 
@@ -111,7 +112,7 @@ interface GameSessionData {
   games: SessionGame[];
 }
 
-type Tab = "ranking" | "sessions" | "members";
+type Tab = "ranking" | "sessions" | "members" | "activity";
 
 
 export default function GroupDashboardWrapper() {
@@ -132,12 +133,20 @@ function GroupDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    return tab === "sessions" || tab === "members" ? tab : "ranking";
+    return tab === "sessions" || tab === "members" || tab === "activity" ? tab : "ranking";
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
   const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
+
+  // Group activity feed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [feedItems, setFeedItems] = useState<any[]>([]);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedLoaded, setFeedLoaded] = useState(false);
 
   // Quick session from ranking
   const [quickSelectIds, setQuickSelectIds] = useState<Set<string>>(new Set());
@@ -186,17 +195,44 @@ function GroupDashboardPage() {
     router.replace(`/groups/${groupId}${query ? `?${query}` : ""}`, { scroll: false });
   }, [router, groupId]);
 
+  const fetchGroupFeed = useCallback(async (cursor?: string) => {
+    setFeedLoading(true);
+    try {
+      const url = `/api/groups/${groupId}/feed?limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (cursor) {
+          setFeedItems((prev) => [...prev, ...data.items]);
+        } else {
+          setFeedItems(data.items);
+        }
+        setFeedCursor(data.nextCursor);
+        setFeedHasMore(!!data.nextCursor);
+        setFeedLoaded(true);
+      }
+    } finally {
+      setFeedLoading(false);
+    }
+  }, [groupId]);
+
   const switchTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
     setExpandedSessionId(null);
     updateUrl(tab, null);
-  }, [updateUrl]);
+    if (tab === "activity" && !feedLoaded) fetchGroupFeed();
+  }, [updateUrl, feedLoaded, fetchGroupFeed]);
 
   const toggleSession = useCallback((sessionId: string) => {
     const newId = expandedSessionId === sessionId ? null : sessionId;
     setExpandedSessionId(newId);
     updateUrl(activeTab, newId);
   }, [expandedSessionId, activeTab, updateUrl]);
+
+  // Load feed if tab starts as "activity"
+  useEffect(() => {
+    if (activeTab === "activity" && !feedLoaded) fetchGroupFeed();
+  }, [activeTab, feedLoaded, fetchGroupFeed]);
 
   // Close mobile vote tooltip when tapping outside
   useEffect(() => {
@@ -754,7 +790,7 @@ function GroupDashboardPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 mb-6 border-b border-slate-700">
-            {(["ranking", "sessions", "members"] as Tab[]).map((tab) => (
+            {(["ranking", "sessions", "members", "activity"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => switchTab(tab)}
@@ -764,7 +800,7 @@ function GroupDashboardPage() {
                     : "border-transparent text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {tab === "ranking" ? "Ranking" : tab === "sessions" ? "Sesiones" : "Miembros"}
+                {tab === "ranking" ? "Ranking" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : "Actividad"}
               </button>
             ))}
           </div>
@@ -1962,6 +1998,21 @@ function GroupDashboardPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ═══════════ Activity Tab ═══════════ */}
+          {activeTab === "activity" && (
+            <div>
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4">Actividad del grupo</h2>
+                <ActivityFeed
+                  items={feedItems}
+                  onLoadMore={() => feedCursor && fetchGroupFeed(feedCursor)}
+                  hasMore={feedHasMore}
+                  loading={feedLoading}
+                />
+              </div>
             </div>
           )}
         </div>
