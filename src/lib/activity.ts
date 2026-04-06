@@ -56,7 +56,10 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   game_returned_pending: (m) => `devolvió "${m.gameName || "un juego"}" a pendientes`,
   game_archived: (m) => `ocultó "${m.gameName || "un juego"}"`,
   vote_cast: (m) => `votó ${m.voteType === "super" ? "🔥" : m.voteType === "up" ? "👍" : "👎"} por "${m.gameName || "un juego"}"`,
-  vote_changed: (m) => `cambió su voto en "${m.gameName || "un juego"}" a ${m.voteType === "super" ? "🔥" : m.voteType === "up" ? "👍" : "👎"}`,
+  vote_changed: (m) => {
+    const t = m.to || m.voteType;
+    return `cambió su voto en "${m.gameName || "un juego"}" a ${t === "super" ? "🔥" : t === "up" ? "👍" : "👎"}`;
+  },
   vote_removed: (m) => `quitó su voto en "${m.gameName || "un juego"}"`,
   session_created: (m) => `creó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
   session_updated: (m) => `actualizó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
