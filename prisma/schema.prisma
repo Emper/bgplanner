@@ -62,6 +62,7 @@ model GroupMember {
   groupId  String
   userId   String
   role     String   @default("member")
+  pinned   Boolean  @default(false)
   joinedAt DateTime @default(now())
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)

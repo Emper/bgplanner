@@ -24,7 +24,18 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(groups);
+  // Get pinned status for current user
+  const memberships = await prisma.groupMember.findMany({
+    where: { userId: session.userId, groupId: { in: groups.map((g) => g.id) } },
+    select: { groupId: true, pinned: true },
+  });
+  const pinnedMap = new Map(memberships.map((m) => [m.groupId, m.pinned]));
+
+  const result = groups
+    .map((g) => ({ ...g, pinned: pinnedMap.get(g.id) || false }))
+    .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1));
+
+  return NextResponse.json(result);
 }
 
 export async function POST(request: NextRequest) {

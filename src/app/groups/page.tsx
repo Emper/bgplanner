@@ -13,6 +13,7 @@ interface GroupMemberPreview {
 interface Group {
   id: string;
   name: string;
+  pinned: boolean;
   _count: { members: number; games: number };
   members: GroupMemberPreview[];
 }
@@ -158,12 +159,15 @@ export default function GroupsPage() {
           {!loading && groups.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               {groups.map((group) => (
-                <Link
+                <div
                   key={group.id}
-                  href={`/groups/${group.id}`}
-                  prefetch={false}
-                  className="bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-amber-500/50 transition-colors block"
+                  className="relative bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-amber-500/50 transition-colors"
                 >
+                  <Link
+                    href={`/groups/${group.id}`}
+                    prefetch={false}
+                    className="block"
+                  >
                   <h3 className="text-lg font-semibold text-slate-100 mb-2">
                     {group.name}
                   </h3>
@@ -191,7 +195,33 @@ export default function GroupsPage() {
                       </div>
                     )}
                   </div>
-                </Link>
+                  </Link>
+                  <button
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const newPinned = !group.pinned;
+                      await fetch(`/api/groups/${group.id}/pin`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pinned: newPinned }),
+                      });
+                      setGroups((prev) =>
+                        prev
+                          .map((g) => g.id === group.id ? { ...g, pinned: newPinned } : g)
+                          .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
+                      );
+                    }}
+                    className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-sm ${
+                      group.pinned
+                        ? "text-amber-400 bg-amber-500/10"
+                        : "text-slate-600 hover:text-slate-400 hover:bg-slate-700/50"
+                    }`}
+                    title={group.pinned ? "Desfijar" : "Fijar arriba"}
+                  >
+                    📌
+                  </button>
+                </div>
               ))}
             </div>
           )}
