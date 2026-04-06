@@ -97,6 +97,17 @@ export default function EventDetailPage() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
 
+  // Edit event state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editMaxAttendees, setEditMaxAttendees] = useState("");
+  const [editVisibility, setEditVisibility] = useState<"public" | "private">("public");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const fetchEvent = useCallback(async () => {
     try {
       const res = await fetch(`/api/events/${eventId}`);
@@ -117,6 +128,47 @@ export default function EventDetailPage() {
   useEffect(() => {
     fetchEvent();
   }, [fetchEvent]);
+
+  const openEditModal = () => {
+    if (!event) return;
+    setEditName(event.name);
+    setEditDescription(event.description || "");
+    // Convert ISO date to datetime-local format
+    setEditDate(event.date ? new Date(event.date).toISOString().slice(0, 16) : "");
+    setEditEndDate(event.endDate ? new Date(event.endDate).toISOString().slice(0, 16) : "");
+    setEditLocation(event.location || "");
+    setEditMaxAttendees(event.maxAttendees ? String(event.maxAttendees) : "");
+    setEditVisibility(event.visibility as "public" | "private");
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription || null,
+          date: editDate ? new Date(editDate).toISOString() : undefined,
+          endDate: editEndDate ? new Date(editEndDate).toISOString() : null,
+          location: editLocation || null,
+          maxAttendees: editMaxAttendees ? parseInt(editMaxAttendees) : null,
+          visibility: editVisibility,
+        }),
+      });
+      if (res.ok) {
+        setShowEdit(false);
+        fetchEvent();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Error al guardar");
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleAddGame = async (game: { bggId: number; name?: string }) => {
     setAddingGame(true);
@@ -268,7 +320,17 @@ export default function EventDetailPage() {
       <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">{event.name}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold">{event.name}</h1>
+            {event.isCreator && (
+              <button
+                onClick={openEditModal}
+                className="shrink-0 px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 border border-slate-700 hover:border-amber-500/50 rounded-lg transition-colors"
+              >
+                Editar
+              </button>
+            )}
+          </div>
           {event.description && (
             <p className="text-slate-400 mt-1">{event.description}</p>
           )}
@@ -401,6 +463,73 @@ export default function EventDetailPage() {
           <AttendeesTab event={event} />
         )}
       </div>
+
+      {/* Edit event modal */}
+      {showEdit && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-100">Editar evento</h3>
+              <button onClick={() => setShowEdit(false)} className="text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Nombre del evento *</label>
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none" maxLength={200} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Descripción</label>
+                <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none" maxLength={2000} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Fecha y hora *</label>
+                  <input type="datetime-local" value={editDate} onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Fecha fin (opcional)</label>
+                  <input type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Ubicación</label>
+                  <input type="text" value={editLocation} onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none" maxLength={300} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Máx. asistentes</label>
+                  <input type="number" value={editMaxAttendees} onChange={(e) => setEditMaxAttendees(e.target.value)} min={1}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Visibilidad</label>
+                <div className="flex gap-2">
+                  {(["public", "private"] as const).map((v) => (
+                    <button key={v} onClick={() => setEditVisibility(v)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        editVisibility === v ? "bg-amber-500 text-slate-900" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      }`}
+                    >
+                      {v === "public" ? "Público" : "Privado"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <button onClick={handleSaveEdit} disabled={savingEdit || !editName.trim() || !editDate}
+              className="w-full mt-5 px-4 py-2.5 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+            >
+              {savingEdit ? "Guardando..." : "Guardar cambios"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
