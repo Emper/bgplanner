@@ -161,7 +161,7 @@ export default function GroupsPage() {
               {groups.map((group) => (
                 <div
                   key={group.id}
-                  className="relative bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-amber-500/50 transition-colors"
+                  className="group/card relative bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-amber-500/50 transition-colors"
                 >
                   <Link
                     href={`/groups/${group.id}`}
@@ -212,10 +212,10 @@ export default function GroupsPage() {
                           .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
                       );
                     }}
-                    className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-sm ${
+                    className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg transition-all text-sm ${
                       group.pinned
                         ? "text-amber-400 bg-amber-500/10"
-                        : "text-slate-600 hover:text-slate-400 hover:bg-slate-700/50"
+                        : "text-slate-600 hover:text-slate-400 hover:bg-slate-700/50 opacity-0 group-hover/card:opacity-100"
                     }`}
                     title={group.pinned ? "Desfijar" : "Fijar arriba"}
                   >
