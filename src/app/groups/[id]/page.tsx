@@ -773,7 +773,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4 pb-7 sm:pb-8"
+                            className="relative bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4 pb-6"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -1038,11 +1038,10 @@ function GroupDashboardPage() {
                         {playedGames.map((item) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-slate-800/60 rounded-xl border border-slate-700/50 p-3 pb-7"
+                            className="relative bg-slate-800/60 rounded-xl border border-slate-700/50 p-3"
                           >
-                            {/* Row 1: Thumbnail + Name + Score */}
                             <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                              <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-slate-700">
                                 {item.game.thumbnail ? (
                                   <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -1050,7 +1049,7 @@ function GroupDashboardPage() {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium text-slate-300 text-sm leading-tight">
+                                <div className="font-medium text-slate-400 text-sm leading-tight">
                                   <a
                                     href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
                                     target="_blank"
@@ -1060,77 +1059,20 @@ function GroupDashboardPage() {
                                     {item.game.name}
                                   </a>
                                 </div>
-                                {item.lastPlayedDate && (
-                                  <div className="text-xs text-slate-500 mt-0.5">
-                                    Jugado el {new Date(item.lastPlayedDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                              </div>
+                              <div className="text-right shrink-0">
+                                {item.lastPlayedDate ? (
+                                  <div className="text-xs text-slate-500">
+                                    {new Date(item.lastPlayedDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                                   </div>
+                                ) : (
+                                  <div className="text-xs text-slate-600">—</div>
                                 )}
-                                <div className="hidden sm:flex flex-wrap gap-1.5 mt-0.5">
-                                  {item.playCount > 0 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
-                                      {item.playCount} partida{item.playCount !== 1 && "s"}
-                                    </span>
-                                  )}
-                                  {item.game.bggRating && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400/70">
-                                      ★ {item.game.bggRating.toFixed(1)}
-                                    </span>
-                                  )}
-                                  {item.game.playingTime && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700/50 text-slate-400">
-                                      ⏱ {formatDuration(item.game.playingTime)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-center shrink-0">
-                                <div className="text-base sm:text-lg font-bold text-slate-400">{item.score}</div>
-                                <div className="text-[10px] sm:text-xs text-slate-600">pts</div>
                               </div>
                             </div>
-
-                            {/* Row 2: Badges (mobile) + Vote buttons */}
-                            <div className="flex items-center justify-between mt-1.5 gap-2 pl-12 sm:pl-15">
-                              <div className="flex sm:hidden flex-wrap gap-1 flex-1 min-w-0">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
-                                  {item.playCount} partida{item.playCount !== 1 && "s"}
-                                </span>
-                                {item.game.bggRating && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400/70">
-                                    ★ {item.game.bggRating.toFixed(1)}
-                                  </span>
-                                )}
-                                {item.game.playingTime && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/50 text-slate-400">
-                                    ⏱ {formatDuration(item.game.playingTime)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="hidden sm:block flex-1" />
-                              <div className="flex gap-1 shrink-0">
-                                {(["up", "super", "down"] as const).map((type) => (
-                                  <button
-                                    key={type}
-                                    onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                    className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border text-sm sm:text-base transition-colors ${
-                                      item.userVote === type
-                                        ? type === "up"
-                                          ? "bg-amber-500/20 border-amber-500 text-amber-400"
-                                          : type === "super"
-                                            ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                            : "bg-red-500/20 border-red-500 text-red-400"
-                                        : "border-slate-700 text-slate-600 hover:bg-slate-700"
-                                    }`}
-                                    title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                  >
-                                    {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            {/* Admin actions — absolute bottom-right */}
+                            {/* Admin actions */}
                             {isAdmin && (
-                              <div className="absolute bottom-2 right-3 flex gap-3 text-[11px]">
+                              <div className="flex justify-end gap-3 mt-1.5 text-[11px]">
                                 <button
                                   onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
                                   className="text-slate-500 hover:text-amber-400 transition-colors"
