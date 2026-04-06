@@ -464,7 +464,7 @@ export default function EventDetailPage() {
               key={tab}
               onClick={() => {
                 setActiveTab(tab);
-                if (tab === "activity" && !feedLoaded) fetchEventFeed();
+                if (tab === "activity") fetchEventFeed();
               }}
               className={`pb-2 text-sm font-medium transition-colors ${
                 activeTab === tab

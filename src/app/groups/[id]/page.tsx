@@ -220,8 +220,8 @@ function GroupDashboardPage() {
     setActiveTab(tab);
     setExpandedSessionId(null);
     updateUrl(tab, null);
-    if (tab === "activity" && !feedLoaded) fetchGroupFeed();
-  }, [updateUrl, feedLoaded, fetchGroupFeed]);
+    if (tab === "activity") fetchGroupFeed();
+  }, [updateUrl, fetchGroupFeed]);
 
   const toggleSession = useCallback((sessionId: string) => {
     const newId = expandedSessionId === sessionId ? null : sessionId;
