@@ -189,7 +189,7 @@ function GroupDashboardPage() {
   // Sync tab and session to URL
   const updateUrl = useCallback((tab: Tab, sessionId: string | null) => {
     const params = new URLSearchParams();
-    if (tab !== "ranking") params.set("tab", tab);
+    if (tab !== "activity") params.set("tab", tab);
     if (sessionId) params.set("session", sessionId);
     const query = params.toString();
     router.replace(`/groups/${groupId}${query ? `?${query}` : ""}`, { scroll: false });
