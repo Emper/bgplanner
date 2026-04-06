@@ -44,8 +44,8 @@ export const createEventSchema = z.object({
 
 export const updateEventSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  description: z.string().max(2000).optional(),
-  date: z.string().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  date: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
   location: z.string().max(300).nullable().optional(),
   maxAttendees: z.number().int().positive().nullable().optional(),
