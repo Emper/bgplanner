@@ -36,7 +36,7 @@ export async function DELETE(
   }
 
   // Only the user who added the game or a group admin can delete it
-  const isAdmin = membership.role === "admin";
+  const isAdmin = membership.role === "admin" || membership.role === "owner";
   const isOwner = groupGame.addedById === session.userId;
 
   if (!isAdmin && !isOwner) {

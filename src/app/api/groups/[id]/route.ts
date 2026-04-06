@@ -71,7 +71,7 @@ export async function PUT(
     where: { groupId_userId: { groupId: id, userId: session.userId } },
   });
 
-  if (!membership || membership.role !== "admin") {
+  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
     return NextResponse.json({ error: "Solo el admin puede editar" }, { status: 403 });
   }
 
@@ -108,7 +108,7 @@ export async function DELETE(
     where: { groupId_userId: { groupId: id, userId: session.userId } },
   });
 
-  if (!membership || membership.role !== "admin") {
+  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
     return NextResponse.json({ error: "Solo el admin puede eliminar" }, { status: 403 });
   }
 

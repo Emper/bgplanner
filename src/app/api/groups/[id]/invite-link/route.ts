@@ -51,7 +51,7 @@ export async function POST(
     where: { groupId_userId: { groupId, userId: session.userId } },
   });
 
-  if (!membership || membership.role !== "admin") {
+  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
     return NextResponse.json({ error: "Solo el admin puede gestionar el enlace" }, { status: 403 });
   }
 
@@ -82,7 +82,7 @@ export async function PATCH(
     where: { groupId_userId: { groupId, userId: session.userId } },
   });
 
-  if (!membership || membership.role !== "admin") {
+  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
     return NextResponse.json({ error: "Solo el admin puede gestionar el enlace" }, { status: 403 });
   }
 
