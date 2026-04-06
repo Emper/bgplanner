@@ -35,6 +35,7 @@ export async function GET(
                 },
               },
             },
+            orderBy: { user: { name: "asc" } },
           },
           _count: { select: { games: true } },
           invitations: {

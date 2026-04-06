@@ -33,6 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         include: {
           user: { select: { id: true, name: true, surname: true, email: true, avatarUrl: true } },
         },
+        orderBy: { user: { name: "asc" } },
       },
     },
   });
