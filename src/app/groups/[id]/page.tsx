@@ -1614,15 +1614,39 @@ function GroupDashboardPage() {
                           <span className="text-sm text-slate-500 ml-2">{member.user.email}</span>
                         </div>
                       </div>
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          member.role === "admin"
-                            ? "bg-amber-500/20 text-amber-300"
-                            : "bg-slate-700 text-slate-300"
-                        }`}
-                      >
-                        {member.role === "admin" ? "Admin" : "Miembro"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isAdmin && member.role !== "admin" && member.user.id !== group.currentUserId && (
+                          <button
+                            onClick={async () => {
+                              const name = member.user.name || member.user.email;
+                              if (!confirm(`¿Hacer admin a ${name}?`)) return;
+                              const res = await fetch(`/api/groups/${groupId}/members/${member.user.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ role: "admin" }),
+                              });
+                              if (res.ok) fetchData();
+                              else {
+                                const data = await res.json();
+                                alert(data.error || "Error al cambiar rol");
+                              }
+                            }}
+                            className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                            title="Hacer administrador"
+                          >
+                            Hacer admin
+                          </button>
+                        )}
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            member.role === "admin"
+                              ? "bg-amber-500/20 text-amber-300"
+                              : "bg-slate-700 text-slate-300"
+                          }`}
+                        >
+                          {member.role === "admin" ? "Admin" : "Miembro"}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
