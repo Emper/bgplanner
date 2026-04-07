@@ -1767,7 +1767,6 @@ function GroupDashboardPage() {
                               ? `${member.user.name} ${member.user.surname || ""}`
                               : member.user.email}
                           </span>
-                          <span className="text-sm text-[var(--text-muted)] ml-2">{member.user.email}</span>
                           {member.user.bggUsername && (
                             <a
                               href={`https://boardgamegeek.com/user/${member.user.bggUsername}`}
