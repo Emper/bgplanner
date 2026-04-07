@@ -44,7 +44,7 @@ interface Attendee {
   eventId: string;
   userId: string;
   status: string;
-  user: { id: string; name: string | null; surname: string | null; email: string; avatarUrl: string | null };
+  user: { id: string; name: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null };
 }
 
 interface EventData {
@@ -865,6 +865,16 @@ function AttendeesTab({ event }: { event: EventData }) {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[var(--text)] text-sm">
                       {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
+                      {att.user.bggUsername && (
+                        <a
+                          href={`https://boardgamegeek.com/user/${att.user.bggUsername}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors ml-1.5 font-normal"
+                        >
+                          @{att.user.bggUsername}
+                        </a>
+                      )}
                     </div>
                     {isCreator && (
                       <span className="text-xs text-amber-400">Gestor</span>

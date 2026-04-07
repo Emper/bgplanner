@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       attendees: {
         include: {
-          user: { select: { id: true, name: true, surname: true, email: true, avatarUrl: true } },
+          user: { select: { id: true, name: true, surname: true, email: true, avatarUrl: true, bggUsername: true } },
         },
         orderBy: { user: { name: "asc" } },
       },

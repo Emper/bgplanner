@@ -1768,6 +1768,16 @@ function GroupDashboardPage() {
                               : member.user.email}
                           </span>
                           <span className="text-sm text-[var(--text-muted)] ml-2">{member.user.email}</span>
+                          {member.user.bggUsername && (
+                            <a
+                              href={`https://boardgamegeek.com/user/${member.user.bggUsername}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors ml-1"
+                            >
+                              @{member.user.bggUsername}
+                            </a>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
