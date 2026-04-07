@@ -52,14 +52,14 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
       <div className="max-w-2xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         <h1 className="text-2xl font-bold mb-6">Crear evento</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
               Nombre del evento *
             </label>
             <input
@@ -69,12 +69,12 @@ export default function NewEventPage() {
               required
               maxLength={200}
               placeholder="Ej: Jornada de juegos de mesa en Madrid"
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
               Descripción
             </label>
             <textarea
@@ -83,13 +83,13 @@ export default function NewEventPage() {
               maxLength={2000}
               rows={3}
               placeholder="Describe el evento..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+              className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                 Fecha de inicio *
               </label>
               <input
@@ -97,25 +97,25 @@ export default function NewEventPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                 Fecha de fin
               </label>
               <input
                 type="datetime-local"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                 Ubicación
               </label>
               <input
@@ -124,11 +124,11 @@ export default function NewEventPage() {
                 onChange={(e) => setLocation(e.target.value)}
                 maxLength={300}
                 placeholder="Ej: Cafetería Ludo, Madrid"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                 Máximo de asistentes
               </label>
               <input
@@ -137,13 +137,13 @@ export default function NewEventPage() {
                 onChange={(e) => setMaxAttendees(e.target.value)}
                 min={1}
                 placeholder="Sin límite"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border)] rounded-lg text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
               Visibilidad
             </label>
             <div className="flex gap-3">
@@ -152,8 +152,8 @@ export default function NewEventPage() {
                 onClick={() => setVisibility("public")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   visibility === "public"
-                    ? "bg-amber-500 text-slate-900"
-                    : "bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
+                    ? "bg-amber-500 text-[var(--primary-text)]"
+                    : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 Público
@@ -163,8 +163,8 @@ export default function NewEventPage() {
                 onClick={() => setVisibility("private")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   visibility === "private"
-                    ? "bg-amber-500 text-slate-900"
-                    : "bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
+                    ? "bg-amber-500 text-[var(--primary-text)]"
+                    : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 Privado
@@ -180,14 +180,14 @@ export default function NewEventPage() {
             <button
               type="submit"
               disabled={saving || !name || !date}
-              className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+              className="bg-amber-500 hover:bg-amber-600 text-[var(--primary-text)] font-semibold px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
             >
               {saving ? "Creando..." : "Crear evento"}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-6 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              className="px-6 py-2 rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
             >
               Cancelar
             </button>

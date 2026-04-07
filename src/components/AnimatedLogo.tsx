@@ -100,7 +100,7 @@ export default function AnimatedLogo() {
         letterSpacing="-1"
       >
         <tspan fill="#f59e0b">We</tspan>
-        <tspan fill="#e2e8f0">Board</tspan>
+        <tspan fill="currentColor">Board</tspan>
       </text>
       <g
         className={shaking ? "dice-shaking" : ""}

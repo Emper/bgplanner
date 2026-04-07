@@ -43,7 +43,7 @@ export default function ActivityFeed({
 }) {
   if (items.length === 0 && !loading) {
     return (
-      <p className="text-sm text-slate-500 text-center py-4">
+      <p className="text-sm text-[var(--text-muted)] text-center py-4">
         No hay actividad reciente
       </p>
     );
@@ -69,14 +69,14 @@ export default function ActivityFeed({
               size="xs"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-300 leading-snug">
-                <span className="font-medium text-slate-200">{userName}</span>{" "}
+              <p className="text-sm text-[var(--text-secondary)] leading-snug">
+                <span className="font-medium text-[var(--text)]">{userName}</span>{" "}
                 {text}
                 {context && (
-                  <span className="text-slate-500"> en {context}</span>
+                  <span className="text-[var(--text-muted)]"> en {context}</span>
                 )}
               </p>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
                 {timeAgo(item.createdAt)}
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function ActivityFeed({
         <button
           onClick={onLoadMore}
           disabled={loading}
-          className="w-full py-2 text-xs text-slate-500 hover:text-amber-400 transition-colors"
+          className="w-full py-2 text-xs text-[var(--text-muted)] hover:text-amber-400 transition-colors"
         >
           {loading ? "Cargando..." : "Ver más"}
         </button>

@@ -61,7 +61,7 @@ export default function InvitePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
         Cargando...
       </div>
     );
@@ -69,14 +69,14 @@ export default function InvitePage() {
 
   if (error && !groupName) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
         <div className="w-full max-w-md text-center">
           <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
-          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
             <p className="text-red-400 mb-4">{error}</p>
             <button
               onClick={() => router.push("/")}
-              className="px-4 py-2 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 text-sm"
+              className="px-4 py-2 bg-[var(--surface-hover)] text-[var(--text)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
             >
               Ir al inicio
             </button>
@@ -87,18 +87,18 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-md text-center">
         <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
           <div className="text-4xl mb-3">🎲</div>
-          <h2 className="text-lg font-semibold text-slate-100 mb-2">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
             Te han invitado a unirte a
           </h2>
           <p className="text-2xl font-bold text-amber-400 mb-1">
             &ldquo;{groupName}&rdquo;
           </p>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-[var(--text-muted)] mb-6">
             {memberCount} {memberCount === 1 ? "miembro" : "miembros"}
           </p>
 
@@ -108,18 +108,18 @@ export default function InvitePage() {
             <button
               onClick={handleJoin}
               disabled={joining}
-              className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+              className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
             >
               {joining ? "Uniéndote..." : "Unirme al grupo"}
             </button>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-[var(--text-secondary)]">
                 Necesitas iniciar sesión para unirte al grupo.
               </p>
               <button
                 onClick={() => router.push(`/login?redirect=/invite/${token}`)}
-                className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium"
+                className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium"
               >
                 Iniciar sesión / Crear cuenta
               </button>

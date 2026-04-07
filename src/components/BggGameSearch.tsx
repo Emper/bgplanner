@@ -119,25 +119,25 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
       />
       {loading && (
         <div className="absolute right-3 top-2.5 text-amber-400 text-xs animate-pulse">Buscando...</div>
       )}
 
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
           {results.map((r) => (
             <button
               key={r.bggId}
               onClick={() => handleSelect(r)}
               disabled={loadingGame === r.bggId}
-              className="w-full text-left px-3 py-2.5 hover:bg-slate-700 transition-colors border-b border-slate-700/50 last:border-0 disabled:opacity-50"
+              className="w-full text-left px-3 py-2.5 hover:bg-[var(--surface-hover)] transition-colors border-b border-[var(--border)]/50 last:border-0 disabled:opacity-50"
             >
-              <div className="text-sm text-slate-100">
+              <div className="text-sm text-[var(--text)]">
                 {r.name}
                 {r.yearPublished && (
-                  <span className="text-slate-500 ml-1">({r.yearPublished})</span>
+                  <span className="text-[var(--text-muted)] ml-1">({r.yearPublished})</span>
                 )}
               </div>
               {loadingGame === r.bggId && (
@@ -149,7 +149,7 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
       )}
 
       {isOpen && !loading && results.length === 0 && query.trim().length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 p-3 text-sm text-slate-400">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg shadow-xl z-50 p-3 text-sm text-[var(--text-secondary)]">
           No se encontraron resultados
         </div>
       )}

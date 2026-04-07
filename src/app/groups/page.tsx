@@ -113,7 +113,7 @@ export default function GroupsPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-slate-900 py-8 px-4">
+      <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
         <div className="max-w-4xl mx-auto">
 
           {/* Banner BGG */}
@@ -122,36 +122,36 @@ export default function GroupsPage() {
               href={`https://boardgamegeek.com/user/${profile.bggUsername}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mb-6 bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:border-amber-500/50 transition-colors block"
+              className="mb-6 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 flex items-center gap-4 hover:border-amber-500/50 transition-colors block"
             >
               <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-400 font-bold text-lg">
                 B
               </div>
               <div className="flex-1">
-                <p className="text-sm text-slate-400">Tu perfil en BoardGameGeek</p>
+                <p className="text-sm text-[var(--text-secondary)]">Tu perfil en BoardGameGeek</p>
                 <p className="text-amber-400 font-medium">@{profile.bggUsername}</p>
               </div>
-              <span className="text-slate-500 text-xl">&rarr;</span>
+              <span className="text-[var(--text-muted)] text-xl">&rarr;</span>
             </a>
           )}
 
           {/* Mis Grupos */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-slate-100">Mis Grupos</h2>
+            <h2 className="text-xl font-bold text-[var(--text)]">Mis Grupos</h2>
             <Link
               href="/groups/new"
               prefetch={false}
-              className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm"
+              className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium text-sm"
             >
               Crear grupo
             </Link>
           </div>
 
-          {loading && <p className="text-slate-500">Cargando...</p>}
+          {loading && <p className="text-[var(--text-muted)]">Cargando...</p>}
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           {!loading && !error && groups.length === 0 && (
-            <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400 mb-8">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6 text-center text-[var(--text-secondary)] mb-8">
               No perteneces a ningún grupo todavía. ¡Crea uno o acepta una invitación!
             </div>
           )}
@@ -161,18 +161,18 @@ export default function GroupsPage() {
               {groups.map((group) => (
                 <div
                   key={group.id}
-                  className="group/card relative bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-amber-500/50 transition-colors"
+                  className="group/card relative bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 hover:border-amber-500/50 transition-colors"
                 >
                   <Link
                     href={`/groups/${group.id}`}
                     prefetch={false}
                     className="block"
                   >
-                  <h3 className="text-lg font-semibold text-slate-100 mb-2">
+                  <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
                     {group.name}
                   </h3>
                   <div className="flex items-center justify-between">
-                    <div className="flex gap-4 text-sm text-slate-400">
+                    <div className="flex gap-4 text-sm text-[var(--text-secondary)]">
                       <span>{group._count?.members || 0} miembros</span>
                       <span>{group._count?.games || 0} juegos</span>
                     </div>
@@ -184,11 +184,11 @@ export default function GroupsPage() {
                             name={m.user.name || "?"}
                             avatarUrl={m.user.avatarUrl}
                             size="xs"
-                            className="ring-2 ring-slate-800"
+                            className="ring-2 ring-[var(--surface)]"
                           />
                         ))}
                         {group._count.members > 4 && (
-                          <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[9px] text-slate-400 ring-2 ring-slate-800 shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-[9px] text-[var(--text-secondary)] ring-2 ring-[var(--surface)] shrink-0">
                             +{group._count.members - 4}
                           </div>
                         )}
@@ -215,7 +215,7 @@ export default function GroupsPage() {
                     className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg transition-all text-sm ${
                       group.pinned
                         ? "text-amber-400 bg-amber-500/10"
-                        : "text-slate-600 hover:text-slate-400 hover:bg-slate-700/50 opacity-0 group-hover/card:opacity-100"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] opacity-0 group-hover/card:opacity-100"
                     }`}
                     title={group.pinned ? "Desfijar" : "Fijar arriba"}
                   >
@@ -230,7 +230,7 @@ export default function GroupsPage() {
           {!loading && upcomingEvents.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-slate-100">Próximos eventos</h2>
+                <h2 className="text-xl font-bold text-[var(--text)]">Próximos eventos</h2>
                 <Link
                   href="/events"
                   prefetch={false}
@@ -245,10 +245,10 @@ export default function GroupsPage() {
                     key={event.id}
                     href={`/events/${event.id}`}
                     prefetch={false}
-                    className="bg-slate-800 border border-slate-700 rounded-xl p-4 hover:border-amber-500/50 transition-colors block"
+                    className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 hover:border-amber-500/50 transition-colors block"
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-slate-100">{event.name}</h3>
+                      <h3 className="font-semibold text-[var(--text)]">{event.name}</h3>
                       {event.attendees?.length > 0 && (
                         <div className="flex -space-x-2">
                           {event.attendees.slice(0, 4).map((a, i) => (
@@ -257,11 +257,11 @@ export default function GroupsPage() {
                               name={a.user.name || "?"}
                               avatarUrl={a.user.avatarUrl}
                               size="xs"
-                              className="ring-2 ring-slate-800"
+                              className="ring-2 ring-[var(--surface)]"
                             />
                           ))}
                           {event._count.attendees > 4 && (
-                            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[9px] text-slate-400 ring-2 ring-slate-800 shrink-0">
+                            <div className="w-6 h-6 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-[9px] text-[var(--text-secondary)] ring-2 ring-[var(--surface)] shrink-0">
                               +{event._count.attendees - 4}
                             </div>
                           )}
@@ -273,9 +273,9 @@ export default function GroupsPage() {
                         {new Date(event.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                       </span>
                       {event.location && (
-                        <span className="text-xs text-slate-400">{event.location}</span>
+                        <span className="text-xs text-[var(--text-secondary)]">{event.location}</span>
                       )}
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-[var(--text-muted)]">
                         {event._count.attendees} asistente{event._count.attendees !== 1 ? "s" : ""} · {event._count.games} juego{event._count.games !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -288,8 +288,8 @@ export default function GroupsPage() {
           {/* Actividad reciente */}
           {!loading && feedItems.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-100 mb-4">Actividad reciente</h2>
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+              <h2 className="text-xl font-bold text-[var(--text)] mb-4">Actividad reciente</h2>
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4">
                 <ActivityFeed
                   items={feedItems}
                   showContext
@@ -304,14 +304,14 @@ export default function GroupsPage() {
           {/* Juegos Recientes */}
           {!loading && recentGames.length > 0 && (
             <>
-              <h2 className="text-xl font-bold text-slate-100 mb-4">Juegos recientes</h2>
+              <h2 className="text-xl font-bold text-[var(--text)] mb-4">Juegos recientes</h2>
               <div className="space-y-2">
                 {recentGames.map((item, i) => (
                   <Link
                     key={`${item.groupId}-${item.gameId}-${i}`}
                     href={`/groups/${item.groupId}`}
                     prefetch={false}
-                    className="bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-3 hover:border-amber-500/50 transition-colors block"
+                    className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 flex items-center gap-3 hover:border-amber-500/50 transition-colors block"
                   >
                     {item.thumbnail ? (
                       <img
@@ -320,15 +320,15 @@ export default function GroupsPage() {
                         className="w-10 h-10 rounded object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-slate-700 rounded flex items-center justify-center text-slate-500 text-xs">
+                      <div className="w-10 h-10 bg-[var(--surface-hover)] rounded flex items-center justify-center text-[var(--text-muted)] text-xs">
                         ?
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-100 truncate">
+                      <p className="font-medium text-[var(--text)] truncate">
                         {item.gameName}
                       </p>
-                      <p className="text-sm text-slate-400 truncate">
+                      <p className="text-sm text-[var(--text-secondary)] truncate">
                         en {item.groupName}
                       </p>
                     </div>

@@ -41,31 +41,31 @@ export default function EventsPage() {
   const past = events.filter((e) => new Date(e.date) < now);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
       <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Eventos</h1>
           <Link
             href="/events/new"
-            className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+            className="bg-amber-500 hover:bg-amber-600 text-[var(--primary-text)] font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
           >
             Crear evento
           </Link>
         </div>
 
         {loading ? (
-          <p className="text-slate-400 text-center py-12">Cargando...</p>
+          <p className="text-[var(--text-secondary)] text-center py-12">Cargando...</p>
         ) : events.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-slate-400 text-lg mb-2">No hay eventos todavía</p>
-            <p className="text-slate-500 text-sm">Crea el primero para organizar tu próxima jornada de juegos</p>
+            <p className="text-[var(--text-secondary)] text-lg mb-2">No hay eventos todavía</p>
+            <p className="text-[var(--text-muted)] text-sm">Crea el primero para organizar tu próxima jornada de juegos</p>
           </div>
         ) : (
           <>
             {upcoming.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
                   Próximos eventos ({upcoming.length})
                 </h2>
                 <div className="space-y-3">
@@ -78,7 +78,7 @@ export default function EventsPage() {
 
             {past.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
                   Eventos pasados ({past.length})
                 </h2>
                 <div className="space-y-3">
@@ -99,13 +99,13 @@ function EventCard({ event }: { event: EventData }) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="block bg-slate-800 rounded-xl border border-slate-700 p-4 hover:border-slate-600 transition-colors"
+      className="block bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--border-strong)] transition-colors"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-semibold text-slate-100 text-lg leading-tight">{event.name}</h3>
+          <h3 className="font-semibold text-[var(--text)] text-lg leading-tight">{event.name}</h3>
           {event.description && (
-            <p className="text-slate-400 text-sm mt-1 line-clamp-2">{event.description}</p>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 line-clamp-2">{event.description}</p>
           )}
           <div className="flex flex-wrap gap-2 mt-2">
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
@@ -113,7 +113,7 @@ function EventCard({ event }: { event: EventData }) {
               {event.endDate && ` – ${formatDate(event.endDate)}`}
             </span>
             {event.location && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                 {event.location}
               </span>
             )}
@@ -125,7 +125,7 @@ function EventCard({ event }: { event: EventData }) {
             </span>
           </div>
         </div>
-        <div className="text-slate-500 text-2xl shrink-0">›</div>
+        <div className="text-[var(--text-muted)] text-2xl shrink-0">›</div>
       </div>
     </Link>
   );

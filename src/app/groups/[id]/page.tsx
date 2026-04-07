@@ -117,7 +117,7 @@ type Tab = "ranking" | "sessions" | "members" | "activity";
 
 export default function GroupDashboardWrapper() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-500">Cargando...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)] flex items-center justify-center text-[var(--text-muted)]">Cargando...</div>}>
       <GroupDashboardPage />
     </Suspense>
   );
@@ -756,7 +756,7 @@ function GroupDashboardPage() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center text-slate-500">
+        <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">
           Cargando...
         </div>
       </>
@@ -777,19 +777,19 @@ function GroupDashboardPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-slate-900 py-4 sm:py-6 px-3 sm:px-4">
+      <div className="min-h-screen bg-[var(--bg)] py-4 sm:py-6 px-3 sm:px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-100">{group.name}</h1>
-            <p className="text-sm text-slate-400">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">{group.name}</h1>
+            <p className="text-sm text-[var(--text-secondary)]">
               {group.members.length} miembros &middot; {group._count.games}{" "}
               juegos
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mb-6 border-b border-slate-700">
+          <div className="flex gap-1 mb-6 border-b border-[var(--border)]">
             {(["activity", "ranking", "sessions", "members"] as Tab[]).map((tab) => (
               <button
                 key={tab}
@@ -797,7 +797,7 @@ function GroupDashboardPage() {
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab
                     ? "border-amber-400 text-amber-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]"
                 }`}
               >
                 {tab === "ranking" ? "Ranking" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : "Actividad"}
@@ -817,12 +817,12 @@ function GroupDashboardPage() {
                         return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
                       })()}`}
                       prefetch={false}
-                      className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                      className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
                     >
                       Añadir juegos
                     </Link>
                   </div>
-                  <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-slate-400">
+                  <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6 text-[var(--text-secondary)]">
                     No hay juegos en este grupo todavía. ¡Añade algunos!
                   </div>
                 </div>
@@ -831,25 +831,25 @@ function GroupDashboardPage() {
                   {/* ── Pending games (not yet played) ── */}
                   {pendingGames.length > 0 && (
                     <div>
-                      <div className="sticky top-0 z-10 bg-slate-900 py-2 -mx-1 px-1">
+                      <div className="sticky top-0 z-10 bg-[var(--bg)] py-2 -mx-1 px-1">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                          <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                             Pendientes de jugar ({pendingGames.length})
                           </h3>
                           {quickSelectIds.size > 0 ? (
                             <div className="flex items-center gap-2 sm:gap-3">
-                              <span className="text-xs sm:text-sm text-slate-400">
+                              <span className="text-xs sm:text-sm text-[var(--text-secondary)]">
                                 {quickSelectIds.size} seleccionado{quickSelectIds.size !== 1 && "s"}
                               </span>
                               <button
                                 onClick={() => setQuickSelectIds(new Set())}
-                                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
                               >
                                 ✕
                               </button>
                               <button
                                 onClick={() => setShowQuickSession(true)}
-                                className="px-3 sm:px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-xs sm:text-sm font-medium"
+                                className="px-3 sm:px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 text-xs sm:text-sm font-medium"
                               >
                                 🎲 Crear sesión
                               </button>
@@ -861,7 +861,7 @@ function GroupDashboardPage() {
                                 return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
                               })()}`}
                               prefetch={false}
-                              className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                              className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
                             >
                               Añadir juegos
                             </Link>
@@ -872,7 +872,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-slate-800 rounded-xl border border-slate-700 p-3 sm:p-4 pb-6"
+                            className="relative bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 sm:p-4 pb-6"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -890,11 +890,11 @@ function GroupDashboardPage() {
                                       isSelected
                                         ? "flex bg-amber-500 border-amber-500"
                                         : hasSelection
-                                          ? "flex border-slate-600 hover:border-amber-500/50"
-                                          : "hidden group-hover/check:flex border-slate-600 hover:border-amber-500/50"
+                                          ? "flex border-[var(--border-strong)] hover:border-amber-500/50"
+                                          : "hidden group-hover/check:flex border-[var(--border-strong)] hover:border-amber-500/50"
                                     }`}>
                                       {isSelected && (
-                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--primary-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                         </svg>
                                       )}
@@ -933,22 +933,22 @@ function GroupDashboardPage() {
                                           </text>
                                         </svg>
                                       ) : (
-                                        <span className="text-sm sm:text-base font-bold text-slate-500">#{index + 1}</span>
+                                        <span className="text-sm sm:text-base font-bold text-[var(--text-muted)]">#{index + 1}</span>
                                       )}
                                     </div>
                                   </div>
                                 );
                               })()}
                               {/* Thumbnail: 130px for top 3, 100px for rest on desktop */}
-                              <div className={`w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-slate-700 ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
+                              <div className={`w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
                                 {item.game.thumbnail ? (
                                   <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-contain" />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
+                                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-slate-100 text-sm sm:text-base leading-tight">
+                                <div className="font-semibold text-[var(--text)] text-sm sm:text-base leading-tight">
                                   <a
                                     href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
                                     target="_blank"
@@ -958,7 +958,7 @@ function GroupDashboardPage() {
                                     {item.game.name}
                                   </a>
                                   {item.game.yearPublished && (
-                                    <span className="text-slate-500 font-normal ml-1 text-xs">({item.game.yearPublished})</span>
+                                    <span className="text-[var(--text-muted)] font-normal ml-1 text-xs">({item.game.yearPublished})</span>
                                   )}
                                 </div>
                                 {/* Badges inline on desktop */}
@@ -979,7 +979,7 @@ function GroupDashboardPage() {
                                     </span>
                                   )}
                                   {(item.game.minPlayers || item.game.maxPlayers) && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                                       {item.game.minPlayers === item.game.maxPlayers
                                         ? `${item.game.minPlayers}p`
                                         : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
@@ -1001,7 +1001,7 @@ function GroupDashboardPage() {
                                             : type === "super"
                                               ? "bg-orange-500/20 border-orange-500 text-orange-400"
                                               : "bg-red-500/20 border-red-500 text-red-400"
-                                          : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                          : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
                                       }`}
                                       title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
                                     >
@@ -1010,26 +1010,26 @@ function GroupDashboardPage() {
                                   ))}
                                 </div>
                                 <div className="relative group/score text-center w-12 cursor-default">
-                                  <div className="text-xl font-bold text-slate-100">{item.score}</div>
-                                  <div className="text-xs text-slate-500">pts</div>
+                                  <div className="text-xl font-bold text-[var(--text)]">{item.score}</div>
+                                  <div className="text-xs text-[var(--text-muted)]">pts</div>
                                   {/* Tooltip with voter breakdown */}
                                   {item.voters.length > 0 && (
                                     <div className="absolute bottom-full right-0 mb-2 hidden group-hover/score:block z-50">
-                                      <div className="bg-slate-900 border border-slate-600 rounded-lg shadow-xl p-3 min-w-[180px] text-left">
-                                        <div className="text-xs font-semibold text-slate-300 mb-2">Votos</div>
+                                      <div className="bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-3 min-w-[180px] text-left">
+                                        <div className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Votos</div>
                                         <div className="space-y-1.5">
                                           {item.voters.map((voter, vi) => (
                                             <div key={vi} className="flex items-center justify-between gap-3 text-xs">
-                                              <span className="text-slate-300 truncate max-w-[120px]">{voter.name}</span>
+                                              <span className="text-[var(--text-secondary)] truncate max-w-[120px]">{voter.name}</span>
                                               <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-amber-400'}`}>
                                                 {voter.points > 0 ? '+' : ''}{voter.points}
                                               </span>
                                             </div>
                                           ))}
                                         </div>
-                                        <div className="border-t border-slate-700 mt-2 pt-1.5 flex justify-between text-xs font-bold">
-                                          <span className="text-slate-400">Total</span>
-                                          <span className="text-slate-100">{item.score}</span>
+                                        <div className="border-t border-[var(--border)] mt-2 pt-1.5 flex justify-between text-xs font-bold">
+                                          <span className="text-[var(--text-secondary)]">Total</span>
+                                          <span className="text-[var(--text)]">{item.score}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -1045,26 +1045,26 @@ function GroupDashboardPage() {
                                     setOpenVoteTooltip(openVoteTooltip === item.groupGameId ? null : item.groupGameId);
                                   }}
                                 >
-                                  <div className="text-lg font-bold text-slate-100">{item.score}</div>
-                                  <div className="text-[10px] text-slate-500">pts</div>
+                                  <div className="text-lg font-bold text-[var(--text)]">{item.score}</div>
+                                  <div className="text-[10px] text-[var(--text-muted)]">pts</div>
                                 </div>
                                 {item.voters.length > 0 && openVoteTooltip === item.groupGameId && (
                                   <div className="absolute bottom-full right-0 mb-2 z-50">
-                                    <div className="bg-slate-900 border border-slate-600 rounded-lg shadow-xl p-3 min-w-[160px] text-left">
-                                      <div className="text-xs font-semibold text-slate-300 mb-2">Votos</div>
+                                    <div className="bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-3 min-w-[160px] text-left">
+                                      <div className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Votos</div>
                                       <div className="space-y-1.5">
                                         {item.voters.map((voter, vi) => (
                                           <div key={vi} className="flex items-center justify-between gap-3 text-xs">
-                                            <span className="text-slate-300 truncate max-w-[100px]">{voter.name}</span>
+                                            <span className="text-[var(--text-secondary)] truncate max-w-[100px]">{voter.name}</span>
                                             <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-amber-400'}`}>
                                               {voter.points > 0 ? '+' : ''}{voter.points}
                                             </span>
                                           </div>
                                         ))}
                                       </div>
-                                      <div className="border-t border-slate-700 mt-2 pt-1.5 flex justify-between text-xs font-bold">
-                                        <span className="text-slate-400">Total</span>
-                                        <span className="text-slate-100">{item.score}</span>
+                                      <div className="border-t border-[var(--border)] mt-2 pt-1.5 flex justify-between text-xs font-bold">
+                                        <span className="text-[var(--text-secondary)]">Total</span>
+                                        <span className="text-[var(--text)]">{item.score}</span>
                                       </div>
                                     </div>
                                   </div>
@@ -1091,7 +1091,7 @@ function GroupDashboardPage() {
                                   </span>
                                 )}
                                 {(item.game.minPlayers || item.game.maxPlayers) && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700 text-slate-300">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                                     {item.game.minPlayers === item.game.maxPlayers
                                       ? `${item.game.minPlayers}p`
                                       : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
@@ -1110,7 +1110,7 @@ function GroupDashboardPage() {
                                           : type === "super"
                                             ? "bg-orange-500/20 border-orange-500 text-orange-400"
                                             : "bg-red-500/20 border-red-500 text-red-400"
-                                        : "border-slate-700 text-slate-500 hover:bg-slate-700"
+                                        : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
                                     }`}
                                     title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
                                   >
@@ -1124,14 +1124,14 @@ function GroupDashboardPage() {
                               <div className="absolute bottom-2 right-3 flex gap-3 text-[11px]">
                                 <button
                                   onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
-                                  className="text-slate-500 hover:text-emerald-400 transition-colors"
+                                  className="text-[var(--text-muted)] hover:text-emerald-400 transition-colors"
                                 >
                                   Marcar jugado
                                 </button>
                                 <button
                                   onClick={() => handleRemoveGame(item.game.id, item.game.name)}
                                   disabled={removingGame === item.game.id}
-                                  className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                                  className="text-[var(--text-muted)] hover:text-red-400 transition-colors disabled:opacity-50"
                                 >
                                   Quitar
                                 </button>
@@ -1147,13 +1147,13 @@ function GroupDashboardPage() {
                   {playedGames.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                        <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                           Ya jugados ({playedGames.length})
                         </h3>
                         {isAdmin && (
                           <button
                             onClick={handleArchiveAllPlayed}
-                            className="text-xs text-slate-500 hover:text-amber-400 transition-colors"
+                            className="text-xs text-[var(--text-muted)] hover:text-amber-400 transition-colors"
                           >
                             Ocultar todo
                           </button>
@@ -1163,18 +1163,18 @@ function GroupDashboardPage() {
                         {playedGames.map((item) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-slate-800/60 rounded-xl border border-slate-700/50 p-3"
+                            className="relative bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3"
                           >
                             <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                              <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
                                 {item.game.thumbnail ? (
                                   <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
+                                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium text-slate-400 text-sm leading-tight">
+                                <div className="font-medium text-[var(--text-secondary)] text-sm leading-tight">
                                   <a
                                     href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
                                     target="_blank"
@@ -1187,11 +1187,11 @@ function GroupDashboardPage() {
                               </div>
                               <div className="text-right shrink-0">
                                 {item.lastPlayedDate ? (
-                                  <div className="text-xs text-slate-500">
+                                  <div className="text-xs text-[var(--text-muted)]">
                                     {new Date(item.lastPlayedDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                                   </div>
                                 ) : (
-                                  <div className="text-xs text-slate-600">—</div>
+                                  <div className="text-xs text-[var(--text-muted)]">—</div>
                                 )}
                               </div>
                             </div>
@@ -1200,13 +1200,13 @@ function GroupDashboardPage() {
                               <div className="flex justify-end gap-3 mt-1.5 text-[11px]">
                                 <button
                                   onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
-                                  className="text-slate-500 hover:text-amber-400 transition-colors"
+                                  className="text-[var(--text-muted)] hover:text-amber-400 transition-colors"
                                 >
                                   Devolver al ranking
                                 </button>
                                 <button
                                   onClick={() => handleArchiveGame(item.game.id, item.game.name)}
-                                  className="text-slate-500 hover:text-red-400 transition-colors"
+                                  className="text-[var(--text-muted)] hover:text-red-400 transition-colors"
                                 >
                                   Ocultar
                                 </button>
@@ -1225,42 +1225,42 @@ function GroupDashboardPage() {
           {/* Quick session modal */}
           {showQuickSession && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQuickSession(false)}>
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-100">
+                  <h3 className="text-lg font-semibold text-[var(--text)]">
                     🎲 Crear sesión rápida
                   </h3>
-                  <button onClick={() => setShowQuickSession(false)} className="text-slate-400 hover:text-slate-200">✕</button>
+                  <button onClick={() => setShowQuickSession(false)} className="text-[var(--text-secondary)] hover:text-[var(--text)]">✕</button>
                 </div>
-                <p className="text-sm text-slate-400 mb-4">
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
                   {quickSelectIds.size} juego{quickSelectIds.size !== 1 && "s"} seleccionado{quickSelectIds.size !== 1 && "s"}
                 </p>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Nombre (opcional)</label>
+                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre (opcional)</label>
                     <input
                       type="text"
                       value={sessionName}
                       onChange={(e) => setSessionName(e.target.value)}
                       placeholder="Ej: Viernes épico"
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Fecha</label>
+                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha</label>
                     <input
                       type="date"
                       value={sessionDate}
                       onChange={(e) => setSessionDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Jugadores</label>
+                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Jugadores</label>
                     <select
                       value={sessionPlayers}
                       onChange={(e) => setSessionPlayers(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     >
                       {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                         <option key={n} value={n}>{n} jugadores</option>
@@ -1268,11 +1268,11 @@ function GroupDashboardPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Tiempo</label>
+                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Tiempo</label>
                     <select
                       value={sessionHours}
                       onChange={(e) => setSessionHours(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     >
                       <option value="1.5">1h 30min</option>
                       <option value="2">2 horas</option>
@@ -1287,7 +1287,7 @@ function GroupDashboardPage() {
                 <button
                   onClick={handleQuickSession}
                   disabled={savingSession}
-                  className="w-full px-4 py-2.5 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                  className="w-full px-4 py-2.5 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
                 >
                   {savingSession ? "Creando..." : `Crear sesión con ${quickSelectIds.size} juego${quickSelectIds.size !== 1 ? "s" : ""}`}
                 </button>
@@ -1302,7 +1302,7 @@ function GroupDashboardPage() {
               {!showNewSession && (
                 <button
                   onClick={() => setShowNewSession(true)}
-                  className="w-full px-4 py-3 bg-amber-500 text-slate-900 rounded-xl hover:bg-amber-600 font-medium transition-colors"
+                  className="w-full px-4 py-3 bg-amber-500 text-[var(--primary-text)] rounded-xl hover:bg-amber-600 font-medium transition-colors"
                 >
                   🎲 Planificar sesión
                 </button>
@@ -1310,12 +1310,12 @@ function GroupDashboardPage() {
 
               {/* New session planner */}
               {showNewSession && (
-                <div className="bg-slate-800 rounded-xl border border-amber-500/30 p-5 space-y-4">
+                <div className="bg-[var(--surface)] rounded-xl border border-amber-500/30 p-5 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-100">Nueva sesión</h3>
+                    <h3 className="text-lg font-semibold text-[var(--text)]">Nueva sesión</h3>
                     <button
                       onClick={() => { setShowNewSession(false); setSuggestedGames([]); setAllCandidates([]); }}
-                      className="text-slate-400 hover:text-slate-200 text-sm"
+                      className="text-[var(--text-secondary)] hover:text-[var(--text)] text-sm"
                     >
                       ✕ Cancelar
                     </button>
@@ -1324,30 +1324,30 @@ function GroupDashboardPage() {
                   {/* Session params */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Nombre (opcional)</label>
+                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre (opcional)</label>
                       <input
                         type="text"
                         value={sessionName}
                         onChange={(e) => setSessionName(e.target.value)}
                         placeholder="Ej: Viernes épico"
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Fecha</label>
+                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha</label>
                       <input
                         type="date"
                         value={sessionDate}
                         onChange={(e) => setSessionDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Jugadores</label>
+                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Jugadores</label>
                       <select
                         value={sessionPlayers}
                         onChange={(e) => setSessionPlayers(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       >
                         {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                           <option key={n} value={n}>{n} jugadores</option>
@@ -1355,11 +1355,11 @@ function GroupDashboardPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Tiempo disponible</label>
+                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Tiempo disponible</label>
                       <select
                         value={sessionHours}
                         onChange={(e) => setSessionHours(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       >
                         <option value="1.5">1h 30min</option>
                         <option value="2">2 horas</option>
@@ -1385,7 +1385,7 @@ function GroupDashboardPage() {
                   {allCandidates.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm text-slate-300">
+                        <p className="text-sm text-[var(--text-secondary)]">
                           Selecciona los juegos para la sesión
                         </p>
                         <div className="text-sm">
@@ -1396,12 +1396,12 @@ function GroupDashboardPage() {
                           }`}>
                             ⏱ {formatDuration(selectedTotalTime)}
                           </span>
-                          <span className="text-slate-500"> / {formatDuration(parseFloat(sessionHours) * 60)}</span>
+                          <span className="text-[var(--text-muted)]"> / {formatDuration(parseFloat(sessionHours) * 60)}</span>
                         </div>
                       </div>
 
                       {/* Time bar */}
-                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-2 bg-[var(--surface-hover)] rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             selectedTotalTime > parseFloat(sessionHours) * 60
@@ -1425,25 +1425,25 @@ function GroupDashboardPage() {
                               className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
                                 isSelected
                                   ? "bg-amber-500/10 border-amber-500/40"
-                                  : "bg-slate-800 border-slate-700 hover:border-slate-600"
+                                  : "bg-[var(--surface)] border-[var(--border)] hover:border-[var(--border-strong)]"
                               }`}
                             >
                               <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
                                 isSelected
-                                  ? "bg-amber-500 border-amber-500 text-slate-900"
-                                  : "border-slate-600"
+                                  ? "bg-amber-500 border-amber-500 text-[var(--primary-text)]"
+                                  : "border-[var(--border-strong)]"
                               }`}>
                                 {isSelected && <span className="text-xs font-bold">✓</span>}
                               </div>
-                              <div className="w-10 h-10 shrink-0 rounded overflow-hidden bg-slate-700">
+                              <div className="w-10 h-10 shrink-0 rounded overflow-hidden bg-[var(--surface-hover)]">
                                 {game.thumbnail ? (
                                   <img src={game.thumbnail} alt={game.name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">?</div>
+                                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-100 truncate">
+                                <div className="text-sm font-medium text-[var(--text)] truncate">
                                   {game.name}
                                   {wasSuggested && (
                                     <span className="ml-1.5 text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
@@ -1451,7 +1451,7 @@ function GroupDashboardPage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex gap-2 text-xs text-slate-400 mt-0.5">
+                                <div className="flex gap-2 text-xs text-[var(--text-secondary)] mt-0.5">
                                   <span>⏱ {game.playingTime ? formatDuration(game.playingTime) : "~90min"}</span>
                                   <span>👥 {game.minPlayers}-{game.maxPlayers}</span>
                                   {game.weight && <span>⚖️ {game.weight.toFixed(1)}</span>}
@@ -1466,7 +1466,7 @@ function GroupDashboardPage() {
                       <button
                         onClick={handleSaveSession}
                         disabled={savingSession || selectedGameIds.size === 0}
-                        className="w-full px-4 py-3 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium disabled:opacity-50 transition-colors"
+                        className="w-full px-4 py-3 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium disabled:opacity-50 transition-colors"
                       >
                         {savingSession
                           ? "Guardando..."
@@ -1479,12 +1479,12 @@ function GroupDashboardPage() {
 
               {/* Add games to existing session modal */}
               {editingSessionId && (
-                <div className="bg-slate-800 rounded-xl border border-amber-500/30 p-5 space-y-3">
+                <div className="bg-[var(--surface)] rounded-xl border border-amber-500/30 p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-100">Añadir juegos a la sesión</h3>
+                    <h3 className="text-sm font-semibold text-[var(--text)]">Añadir juegos a la sesión</h3>
                     <button
                       onClick={() => { setEditingSessionId(null); setAllCandidates([]); }}
-                      className="text-slate-400 hover:text-slate-200 text-sm"
+                      className="text-[var(--text-secondary)] hover:text-[var(--text)] text-sm"
                     >
                       ✕
                     </button>
@@ -1499,16 +1499,16 @@ function GroupDashboardPage() {
                           className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
                             isSelected
                               ? "bg-amber-500/10 border-amber-500/40"
-                              : "bg-slate-800 border-slate-700 hover:border-slate-600"
+                              : "bg-[var(--surface)] border-[var(--border)] hover:border-[var(--border-strong)]"
                           }`}
                         >
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                            isSelected ? "bg-amber-500 border-amber-500 text-slate-900" : "border-slate-600"
+                            isSelected ? "bg-amber-500 border-amber-500 text-[var(--primary-text)]" : "border-[var(--border-strong)]"
                           }`}>
                             {isSelected && <span className="text-xs font-bold">✓</span>}
                           </div>
-                          <span className="text-sm text-slate-200 flex-1 truncate">{game.name}</span>
-                          <span className="text-xs text-slate-400">
+                          <span className="text-sm text-[var(--text)] flex-1 truncate">{game.name}</span>
+                          <span className="text-xs text-[var(--text-secondary)]">
                             ⏱ {game.playingTime ? formatDuration(game.playingTime) : "~90min"}
                           </span>
                         </button>
@@ -1518,7 +1518,7 @@ function GroupDashboardPage() {
                   {selectedGameIds.size > 0 && (
                     <button
                       onClick={handleConfirmAddGames}
-                      className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
+                      className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
                     >
                       Añadir {selectedGameIds.size} juego{selectedGameIds.size !== 1 ? "s" : ""}
                     </button>
@@ -1532,7 +1532,7 @@ function GroupDashboardPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
                 </div>
               ) : sessions.length === 0 && !showNewSession ? (
-                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-400">
+                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6 text-center text-[var(--text-secondary)]">
                   No hay sesiones planificadas. ¡Crea la primera!
                 </div>
               ) : (
@@ -1548,7 +1548,7 @@ function GroupDashboardPage() {
                     const statusColors: Record<string, string> = {
                       planned: "bg-blue-500/20 text-blue-300",
                       playing: "bg-emerald-500/20 text-emerald-300",
-                      completed: "bg-slate-600/50 text-slate-400",
+                      completed: "bg-[var(--surface-hover)] text-[var(--text-secondary)]",
                     };
                     const statusLabels: Record<string, string> = {
                       planned: "Planificada",
@@ -1559,12 +1559,12 @@ function GroupDashboardPage() {
                     return (
                       <div
                         key={s.id}
-                        className={`bg-slate-800 rounded-xl border transition-colors ${
+                        className={`bg-[var(--surface)] rounded-xl border transition-colors ${
                           s.status === "playing"
                             ? "border-emerald-500/40"
                             : isPast && s.status !== "completed"
                               ? "border-amber-500/30"
-                              : "border-slate-700"
+                              : "border-[var(--border)]"
                         }`}
                       >
                         {/* Session header — clickable to expand */}
@@ -1574,7 +1574,7 @@ function GroupDashboardPage() {
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold text-slate-100 text-sm sm:text-base truncate">
+                              <h4 className="font-semibold text-[var(--text)] text-sm sm:text-base truncate">
                                 {s.name || sDate.toLocaleDateString("es-ES", {
                                   weekday: "long",
                                   day: "numeric",
@@ -1585,7 +1585,7 @@ function GroupDashboardPage() {
                                 {statusLabels[s.status] || s.status}
                               </span>
                             </div>
-                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-slate-400 mt-1">
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-[var(--text-secondary)] mt-1">
                               <span>📅 {sDate.toLocaleDateString("es-ES")}</span>
                               <span>👥 {s.playerCount}</span>
                               <span>⏱ {formatDuration(s.totalMinutes)}</span>
@@ -1596,7 +1596,7 @@ function GroupDashboardPage() {
                             </div>
                           </div>
                           <svg
-                            className={`w-5 h-5 text-slate-500 transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                            className={`w-5 h-5 text-[var(--text-muted)] transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
                             fill="none" stroke="currentColor" viewBox="0 0 24 24"
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -1615,7 +1615,7 @@ function GroupDashboardPage() {
                                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                                     s.status === st
                                       ? statusColors[st] + " border-current"
-                                      : "bg-slate-700 text-slate-400 border-slate-600 hover:border-slate-500"
+                                      : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:border-[var(--border-strong)]"
                                   }`}
                                 >
                                   {statusLabels[st]}
@@ -1642,8 +1642,8 @@ function GroupDashboardPage() {
                                           : sg.status === "playing"
                                             ? "bg-amber-500/10"
                                             : sg.status === "skipped"
-                                              ? "bg-slate-700/30 opacity-60"
-                                              : "bg-slate-700/50"
+                                              ? "bg-[var(--surface-hover)] opacity-60"
+                                              : "bg-[var(--surface-hover)]"
                                       }`}
                                     >
                                       {/* Row 1: Reorder + Index + Thumbnail + Name + Time */}
@@ -1652,33 +1652,33 @@ function GroupDashboardPage() {
                                           <button
                                             disabled={idx === 0}
                                             onClick={() => handleReorderGame(s.id, idx, "up")}
-                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
+                                            className="text-[var(--text-muted)] hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
                                             title="Mover arriba"
                                           >▲</button>
                                           <button
                                             disabled={idx === s.games.length - 1}
                                             onClick={() => handleReorderGame(s.id, idx, "down")}
-                                            className="text-slate-500 hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
+                                            className="text-[var(--text-muted)] hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
                                             title="Mover abajo"
                                           >▼</button>
                                         </div>
-                                        <span className="text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}.</span>
-                                        <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded overflow-hidden bg-slate-700">
+                                        <span className="text-xs text-[var(--text-muted)] w-4 text-center shrink-0">{idx + 1}.</span>
+                                        <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded overflow-hidden bg-[var(--surface-hover)]">
                                           {sg.game.thumbnail ? (
                                             <img src={sg.game.thumbnail} alt={sg.game.name} className="w-full h-full object-cover" />
                                           ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">?</div>
+                                            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-[10px]">?</div>
                                           )}
                                         </div>
                                         <a
                                           href={`https://boardgamegeek.com/boardgame/${sg.game.bggId}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs sm:text-sm text-slate-200 flex-1 min-w-0 truncate hover:text-amber-300 transition-colors"
+                                          className="text-xs sm:text-sm text-[var(--text)] flex-1 min-w-0 truncate hover:text-amber-300 transition-colors"
                                         >
                                           {sg.game.name}
                                         </a>
-                                        <span className="text-[10px] sm:text-xs text-slate-400 shrink-0">
+                                        <span className="text-[10px] sm:text-xs text-[var(--text-secondary)] shrink-0">
                                           ⏱ {sg.game.playingTime ? formatDuration(sg.game.playingTime) : "~90min"}
                                         </span>
                                       </div>
@@ -1690,8 +1690,8 @@ function GroupDashboardPage() {
                                             onClick={() => handleGameStatus(s.id, sg.id, gs)}
                                             className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded text-xs sm:text-sm transition-colors ${
                                               sg.status === gs
-                                                ? "bg-slate-600 ring-1 ring-amber-500/50"
-                                                : "hover:bg-slate-600"
+                                                ? "bg-[var(--surface-hover)] ring-1 ring-amber-500/50"
+                                                : "hover:bg-[var(--surface-hover)]"
                                             }`}
                                             title={gs === "pending" ? "Pendiente" : gs === "playing" ? "Jugando" : gs === "completed" ? "Jugado" : "Saltado"}
                                           >
@@ -1700,7 +1700,7 @@ function GroupDashboardPage() {
                                         ))}
                                         <button
                                           onClick={() => handleRemoveGameFromSession(s.id, sg.game.id)}
-                                          className="text-slate-600 hover:text-red-400 text-xs transition-colors shrink-0 ml-1"
+                                          className="text-[var(--text-muted)] hover:text-red-400 text-xs transition-colors shrink-0 ml-1"
                                           title="Quitar de la sesión"
                                         >
                                           ✕
@@ -1710,13 +1710,13 @@ function GroupDashboardPage() {
                                   );
                                 })}
                                 <div className="flex items-center justify-between pt-1">
-                                  <span className="text-xs text-slate-500">
+                                  <span className="text-xs text-[var(--text-muted)]">
                                     Total estimado: {formatDuration(totalTime)}
                                   </span>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-sm text-slate-500">Sin juegos asignados</p>
+                              <p className="text-sm text-[var(--text-muted)]">Sin juegos asignados</p>
                             )}
 
                             {/* Action buttons */}
@@ -1747,13 +1747,13 @@ function GroupDashboardPage() {
           {/* ═══════════ Members Tab ═══════════ */}
           {activeTab === "members" && (
             <div className="space-y-6">
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 className="text-lg font-semibold text-slate-100 mb-4">Miembros</h2>
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Miembros</h2>
                 <div className="space-y-3">
                   {group.members.map((member) => (
                     <div
                       key={member.user.id}
-                      className="flex items-center justify-between py-2 border-b border-slate-700/50 last:border-0"
+                      className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
                     >
                       <div className="flex items-center gap-3">
                         <Avatar
@@ -1762,12 +1762,12 @@ function GroupDashboardPage() {
                           size="sm"
                         />
                         <div>
-                          <span className="font-medium text-slate-100">
+                          <span className="font-medium text-[var(--text)]">
                             {member.user.name
                               ? `${member.user.name} ${member.user.surname || ""}`
                               : member.user.email}
                           </span>
-                          <span className="text-sm text-slate-500 ml-2">{member.user.email}</span>
+                          <span className="text-sm text-[var(--text-muted)] ml-2">{member.user.email}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1821,7 +1821,7 @@ function GroupDashboardPage() {
                               ? "bg-amber-500/30 text-amber-200"
                               : member.role === "admin"
                                 ? "bg-amber-500/20 text-amber-300"
-                                : "bg-slate-700 text-slate-300"
+                                : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
                           }`}
                         >
                           {member.role === "owner" ? "Propietario" : member.role === "admin" ? "Admin" : "Miembro"}
@@ -1833,9 +1833,9 @@ function GroupDashboardPage() {
               </div>
 
               {/* Enlace de invitación */}
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 className="text-lg font-semibold text-slate-100 mb-4">Enlace de invitación</h2>
-                <p className="text-sm text-slate-400 mb-4">
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Enlace de invitación</h2>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
                   Comparte este enlace para que cualquiera pueda unirse al grupo.
                 </p>
 
@@ -1846,7 +1846,7 @@ function GroupDashboardPage() {
                         type="text"
                         readOnly
                         value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${inviteLinkCode}`}
-                        className="flex-1 min-w-0 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs sm:text-sm font-mono truncate"
+                        className="flex-1 min-w-0 px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text-secondary)] text-xs sm:text-sm font-mono truncate"
                       />
                       <button
                         onClick={() => {
@@ -1854,7 +1854,7 @@ function GroupDashboardPage() {
                           setInviteLinkCopied(true);
                           setTimeout(() => setInviteLinkCopied(false), 2000);
                         }}
-                        className="px-3 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm whitespace-nowrap"
+                        className="px-3 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium text-sm whitespace-nowrap"
                       >
                         {inviteLinkCopied ? "¡Copiado!" : "Copiar"}
                       </button>
@@ -1883,7 +1883,7 @@ function GroupDashboardPage() {
                             }}
                             disabled={inviteLinkLoading}
                             className={`relative w-10 h-5 rounded-full transition-colors ${
-                              inviteLinkEnabled ? "bg-amber-500" : "bg-slate-600"
+                              inviteLinkEnabled ? "bg-amber-500" : "bg-[var(--surface-hover)]"
                             }`}
                           >
                             <span
@@ -1892,7 +1892,7 @@ function GroupDashboardPage() {
                               }`}
                             />
                           </button>
-                          <span className="text-sm text-slate-400">
+                          <span className="text-sm text-[var(--text-secondary)]">
                             {inviteLinkEnabled ? "Activo" : "Desactivado"}
                           </span>
                         </div>
@@ -1916,7 +1916,7 @@ function GroupDashboardPage() {
                             }
                           }}
                           disabled={inviteLinkLoading}
-                          className="text-xs text-slate-500 hover:text-slate-300 disabled:opacity-50"
+                          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] disabled:opacity-50"
                         >
                           Regenerar enlace
                         </button>
@@ -1944,12 +1944,12 @@ function GroupDashboardPage() {
                           }
                         }}
                         disabled={inviteLinkLoading}
-                        className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                        className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
                       >
                         {inviteLinkLoading ? "Generando..." : "Generar enlace de invitación"}
                       </button>
                     ) : (
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-[var(--text-muted)]">
                         No hay enlace de invitación activo. Solo un admin puede generarlo.
                       </p>
                     )}
@@ -1957,8 +1957,8 @@ function GroupDashboardPage() {
                 )}
               </div>
 
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h2 className="text-lg font-semibold text-slate-100 mb-4">Invitar por email</h2>
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Invitar por email</h2>
                 <form onSubmit={handleInvite} className="flex gap-3">
                   <input
                     type="email"
@@ -1966,12 +1966,12 @@ function GroupDashboardPage() {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                    className="flex-1 px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={inviting}
-                    className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                    className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
                   >
                     {inviting ? "Enviando..." : "Invitar"}
                   </button>
@@ -1981,16 +1981,16 @@ function GroupDashboardPage() {
               </div>
 
               {group.invitations.length > 0 && (
-                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                  <h2 className="text-lg font-semibold text-slate-100 mb-4">Invitaciones pendientes</h2>
+                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+                  <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Invitaciones pendientes</h2>
                   <div className="space-y-2">
                     {group.invitations.map((inv) => (
                       <div
                         key={inv.email}
-                        className="flex items-center justify-between py-2 border-b border-slate-700/50 last:border-0"
+                        className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
                       >
-                        <span className="text-sm text-slate-300">{inv.email}</span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-sm text-[var(--text-secondary)]">{inv.email}</span>
+                        <span className="text-xs text-[var(--text-muted)]">
                           {new Date(inv.createdAt).toLocaleDateString("es-ES")}
                         </span>
                       </div>
@@ -2004,8 +2004,8 @@ function GroupDashboardPage() {
           {/* ═══════════ Activity Tab ═══════════ */}
           {activeTab === "activity" && (
             <div>
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <h2 className="text-lg font-semibold text-slate-100 mb-4">Actividad del grupo</h2>
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4">
+                <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Actividad del grupo</h2>
                 <ActivityFeed
                   items={feedItems}
                   onLoadMore={() => feedCursor && fetchGroupFeed(feedCursor)}

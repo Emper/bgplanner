@@ -117,19 +117,19 @@ function VerifyForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto" />
         </div>
 
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-          <h2 className="text-lg font-semibold text-slate-100 mb-2">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
             Verificar código
           </h2>
-          <p className="text-sm text-slate-400 mb-6">
+          <p className="text-sm text-[var(--text-secondary)] mb-6">
             Ingresa el código de 6 dígitos enviado a{" "}
-            <span className="font-medium text-slate-200">{email}</span>
+            <span className="font-medium text-[var(--text)]">{email}</span>
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -144,7 +144,7 @@ function VerifyForm() {
                   value={digit}
                   onChange={(e) => handleChange(i, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(i, e)}
-                  className="w-12 h-14 text-center text-2xl font-semibold bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                  className="w-12 h-14 text-center text-2xl font-semibold bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                 />
               ))}
             </div>
@@ -154,7 +154,7 @@ function VerifyForm() {
             <button
               type="submit"
               disabled={loading || code.join("").length !== 6}
-              className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+              className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
             >
               {loading ? "Verificando..." : "Verificar"}
             </button>
@@ -164,7 +164,7 @@ function VerifyForm() {
             <button
               onClick={handleResend}
               disabled={resendCooldown > 0}
-              className="text-sm text-amber-400 hover:text-amber-400 disabled:text-slate-600"
+              className="text-sm text-amber-400 hover:text-amber-400 disabled:text-[var(--text-muted)]"
             >
               {resendCooldown > 0
                 ? `Reenviar código (${resendCooldown}s)`
@@ -181,7 +181,7 @@ export default function VerifyPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center text-slate-500">
+        <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">
           Cargando...
         </div>
       }

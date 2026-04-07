@@ -60,21 +60,21 @@ function LandingPage() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
         Cargando...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       {/* Navbar mínimo */}
       <nav className="px-4 sm:px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <AnimatedLogo />
           <Link
             href="/login"
-            className="px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
+            className="px-4 py-2 bg-amber-500 text-[var(--bg)] rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
           >
             Entrar
           </Link>
@@ -88,12 +88,12 @@ function LandingPage() {
             Organiza tus juegos de mesa<br />
             <span className="text-amber-400">con tus amigos</span>
           </h1>
-          <p className="text-lg sm:text-xl text-slate-400 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-[var(--text-secondary)] mb-8 max-w-2xl mx-auto">
             Vota qué jugar, planifica sesiones, organiza eventos y descubre los favoritos de tu grupo. Todo conectado con BoardGameGeek.
           </p>
           <Link
             href="/login"
-            className="inline-block px-8 py-3 bg-amber-500 text-slate-900 rounded-xl hover:bg-amber-600 font-semibold text-lg transition-colors"
+            className="inline-block px-8 py-3 bg-amber-500 text-[var(--bg)] rounded-xl hover:bg-amber-600 font-semibold text-lg transition-colors"
           >
             Empieza gratis
           </Link>
@@ -110,11 +110,11 @@ function LandingPage() {
             {FEATURES.map((feature) => (
               <div
                 key={feature.title}
-                className="bg-slate-800 rounded-xl border border-slate-700 p-5 sm:p-6"
+                className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 sm:p-6"
               >
                 <div className="text-3xl mb-3">{feature.icon}</div>
-                <h3 className="text-lg font-semibold text-slate-100 mb-2">{feature.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg font-semibold text-[var(--text)] mb-2">{feature.title}</h3>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -134,8 +134,8 @@ function LandingPage() {
                   {step.num}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-100">{step.title}</h3>
-                  <p className="text-sm text-slate-400 mt-0.5">{step.description}</p>
+                  <h3 className="font-semibold text-[var(--text)]">{step.title}</h3>
+                  <p className="text-sm text-[var(--text-secondary)] mt-0.5">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -144,15 +144,15 @@ function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="px-4 py-8 border-t border-slate-800">
-        <div className="max-w-5xl mx-auto text-center text-sm text-slate-500">
+      <footer className="px-4 py-8 border-t border-[var(--surface)]">
+        <div className="max-w-5xl mx-auto text-center text-sm text-[var(--text-muted)]">
           <p>
             Hecho con dados y café.{" "}
             <a
               href="https://boardgamegeek.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-amber-400 transition-colors"
+              className="text-[var(--text-secondary)] hover:text-amber-400 transition-colors"
             >
               Datos de BoardGameGeek
             </a>
@@ -167,7 +167,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
           Cargando...
         </div>
       }

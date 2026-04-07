@@ -1,16 +1,54 @@
 @import "tailwindcss";
 
+/* ── Theme variables ─────────────────────────────────────────────────── */
+
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --surface-hover: #e2e8f0;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --input-bg: #f1f5f9;
+  --input-border: #cbd5e1;
+  --primary: #d97706;
+  --primary-hover: #b45309;
+  --primary-text: #ffffff;
+  --overlay: rgba(0, 0, 0, 0.3);
+}
+
+.dark {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #1e293b;
+  --surface-hover: #334155;
+  --border: #334155;
+  --border-strong: #475569;
+  --text: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --input-bg: #334155;
+  --input-border: #475569;
+  --primary: #f59e0b;
+  --primary-hover: #d97706;
+  --primary-text: #0f172a;
+  --overlay: rgba(0, 0, 0, 0.6);
+}
+
 @theme inline {
-  --color-primary: #f59e0b;
-  --color-primary-hover: #d97706;
-  --color-background: #0f172a;
-  --color-foreground: #f1f5f9;
-  --color-card: #1e293b;
-  --color-card-hover: #334155;
-  --color-muted: #94a3b8;
-  --color-border: #334155;
-  --color-input: #1e293b;
-  --color-input-border: #475569;
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-hover: var(--surface-hover);
+  --color-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-input: var(--input-bg);
+  --color-input-border: var(--input-border);
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
@@ -19,8 +57,8 @@
 }
 
 body {
-  background: var(--color-background);
-  color: var(--color-foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 

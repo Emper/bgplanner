@@ -275,7 +275,7 @@ export default function AddGamesPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-slate-900 py-6 px-4">
+      <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
@@ -286,7 +286,7 @@ export default function AddGamesPage() {
             >
               &larr; Volver
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-100">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">
               Añadir juegos
             </h1>
           </div>
@@ -298,12 +298,12 @@ export default function AddGamesPage() {
           ) : (
             <>
               {/* Username selector */}
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-4">
-                <label className="block text-sm font-medium text-slate-200 mb-2">
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4 mb-4">
+                <label className="block text-sm font-medium text-[var(--text)] mb-2">
                   Colección de BGG
                 </label>
                 {membersWithBgg.length === 0 ? (
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     Ningún miembro tiene un nombre de usuario de BGG configurado.
                     Configúralo en tu{" "}
                     <Link href="/profile" prefetch={false} className="text-amber-400 underline">
@@ -319,7 +319,7 @@ export default function AddGamesPage() {
                         setSelectedUsername(e.target.value);
                         setPage(1);
                       }}
-                      className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                      className="flex-1 px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     >
                       {membersWithBgg.map((m) => (
                         <option key={m.user.id} value={m.user.bggUsername!}>
@@ -331,7 +331,7 @@ export default function AddGamesPage() {
                       onClick={() => loadCollection(true)}
                       disabled={loadingCollection}
                       title="Actualizar colección desde BGG"
-                      className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 hover:text-amber-400 hover:border-amber-500/50 disabled:opacity-50 transition-colors"
+                      className="px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text-secondary)] hover:text-amber-400 hover:border-amber-500/50 disabled:opacity-50 transition-colors"
                     >
                       {loadingCollection ? (
                         <span className="animate-spin inline-block">↻</span>
@@ -344,12 +344,12 @@ export default function AddGamesPage() {
               </div>
 
               {/* Search + Sort toolbar */}
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-4">
+              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4 mb-4">
                 <div className="flex flex-col sm:flex-row gap-3">
                   {/* Search */}
                   <div className="relative flex-1">
                     <svg
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -366,7 +366,7 @@ export default function AddGamesPage() {
                       placeholder="Buscar juegos..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                      className="w-full pl-10 pr-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                     />
                   </div>
 
@@ -379,7 +379,7 @@ export default function AddGamesPage() {
                         className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-colors whitespace-nowrap ${
                           sort === opt.value
                             ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
-                            : "bg-slate-700 text-slate-400 border border-slate-600 hover:text-slate-200 hover:border-slate-500"
+                            : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-strong)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
                         }`}
                       >
                         <span className="sm:mr-1">{opt.icon}</span>
@@ -411,7 +411,7 @@ export default function AddGamesPage() {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       unplayed
                         ? "bg-red-500/20 text-red-300 border border-red-500/50"
-                        : "bg-slate-700 text-slate-400 border border-slate-600 hover:text-slate-200 hover:border-slate-500"
+                        : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-strong)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
                     }`}
                   >
                     📦 Antiludoteca
@@ -419,7 +419,7 @@ export default function AddGamesPage() {
 
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="mt-3 flex items-center gap-2 text-sm text-slate-400 hover:text-amber-400 transition-colors"
+                  className="mt-3 flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-amber-400 transition-colors"
                 >
                   <svg
                     className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
@@ -445,16 +445,16 @@ export default function AddGamesPage() {
 
                 {/* Collapsible filters */}
                 {showFilters && (
-                  <div className="mt-3 pt-3 border-t border-slate-700">
+                  <div className="mt-3 pt-3 border-t border-[var(--border)]">
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                        <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                           Jugadores (mín)
                         </label>
                         <select
                           value={minPlayers}
                           onChange={(e) => setMinPlayers(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                         >
                           <option value="">Cualquiera</option>
                           {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -465,13 +465,13 @@ export default function AddGamesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                        <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                           Jugadores (máx)
                         </label>
                         <select
                           value={maxPlayers}
                           onChange={(e) => setMaxPlayers(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                         >
                           <option value="">Cualquiera</option>
                           {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
@@ -482,13 +482,13 @@ export default function AddGamesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                        <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                           Peso mínimo
                         </label>
                         <select
                           value={minWeight}
                           onChange={(e) => setMinWeight(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                         >
                           <option value="">Cualquiera</option>
                           <option value="1">1+ (Ligero)</option>
@@ -498,13 +498,13 @@ export default function AddGamesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                        <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                           Peso máximo
                         </label>
                         <select
                           value={maxWeight}
                           onChange={(e) => setMaxWeight(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                         >
                           <option value="">Cualquiera</option>
                           <option value="2">Hasta 2 (Ligero)</option>
@@ -514,13 +514,13 @@ export default function AddGamesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                        <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                           Rank máximo
                         </label>
                         <select
                           value={maxRank}
                           onChange={(e) => setMaxRank(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                         >
                           <option value="">Cualquiera</option>
                           <option value="100">Top 100</option>
@@ -531,13 +531,13 @@ export default function AddGamesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                        <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
                           Mín. partidas
                         </label>
                         <select
                           value={minPlays}
                           onChange={(e) => setMinPlays(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
                         >
                           <option value="">Cualquiera</option>
                           <option value="1">1+ partida</option>
@@ -552,14 +552,14 @@ export default function AddGamesPage() {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={applyFilters}
-                        className="px-4 py-1.5 bg-amber-500 text-slate-900 rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors"
+                        className="px-4 py-1.5 bg-amber-500 text-[var(--primary-text)] rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors"
                       >
                         Aplicar
                       </button>
                       {hasActiveFilters && (
                         <button
                           onClick={clearFilters}
-                          className="px-4 py-1.5 bg-slate-700 text-slate-300 rounded-lg text-sm hover:bg-slate-600 transition-colors"
+                          className="px-4 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-sm hover:bg-[var(--surface-hover)] transition-colors"
                         >
                           Limpiar filtros
                         </button>
@@ -579,7 +579,7 @@ export default function AddGamesPage() {
               {/* Results header */}
               {!loadingCollection && (
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {availableItems.length < total
                       ? `${availableItems.length} disponible${availableItems.length !== 1 ? "s" : ""} de ${total}`
                       : `${total} juego${total !== 1 ? "s" : ""}`}
@@ -591,7 +591,7 @@ export default function AddGamesPage() {
                     )}
                   </p>
                   {totalPages > 1 && (
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-[var(--text-muted)]">
                       Página {page} de {totalPages}
                     </p>
                   )}
@@ -605,11 +605,11 @@ export default function AddGamesPage() {
                 </div>
               ) : availableItems.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-slate-500 text-lg">
+                  <p className="text-[var(--text-muted)] text-lg">
                     No se encontraron juegos
                   </p>
                   {(searchDebounced || hasActiveFilters) && (
-                    <p className="text-slate-600 text-sm mt-1">
+                    <p className="text-[var(--text-muted)] text-sm mt-1">
                       Prueba a cambiar los filtros o la búsqueda
                     </p>
                   )}
@@ -621,10 +621,10 @@ export default function AddGamesPage() {
                       const isAdding = addingGame === game.bggId;
 
                       return (
-                        <div key={game.bggId} className="bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-600 transition-colors overflow-hidden">
+                        <div key={game.bggId} className="bg-[var(--surface)] rounded-xl border border-[var(--border)] hover:border-[var(--border-strong)] transition-colors overflow-hidden">
                           <div className="p-3 flex items-center gap-3">
                             {/* Thumbnail */}
-                            <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-700">
+                            <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
                               {game.thumbnail ? (
                                 <img
                                   src={game.thumbnail}
@@ -632,7 +632,7 @@ export default function AddGamesPage() {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
+                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
                                   ?
                                 </div>
                               )}
@@ -640,7 +640,7 @@ export default function AddGamesPage() {
 
                             {/* Info */}
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-slate-100 text-sm truncate">
+                              <div className="font-medium text-[var(--text)] text-sm truncate">
                                 <a
                                   href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
                                   target="_blank"
@@ -649,10 +649,10 @@ export default function AddGamesPage() {
                                   title="Ver en BGG"
                                 >
                                   {game.name}
-                                  <span className="inline-block ml-1 text-slate-500 text-xs align-middle">↗</span>
+                                  <span className="inline-block ml-1 text-[var(--text-muted)] text-xs align-middle">↗</span>
                                 </a>
                                 {game.yearPublished && (
-                                  <span className="text-slate-500 font-normal ml-1">
+                                  <span className="text-[var(--text-muted)] font-normal ml-1">
                                     ({game.yearPublished})
                                   </span>
                                 )}
@@ -669,7 +669,7 @@ export default function AddGamesPage() {
                                   </span>
                                 )}
                                 {(game.minPlayers || game.maxPlayers) && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                                  <span className="inline-flex items-center gap-1 text-xs bg-[var(--surface-hover)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full">
                                     👥 {game.minPlayers}-{game.maxPlayers}
                                   </span>
                                 )}
@@ -699,7 +699,7 @@ export default function AddGamesPage() {
                             <button
                               onClick={() => handleAdd(game.bggId)}
                               disabled={isAdding}
-                              className="px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors bg-amber-500 text-slate-900 hover:bg-amber-600 disabled:opacity-50"
+                              className="px-4 py-2 rounded-lg text-sm font-medium shrink-0 transition-colors bg-amber-500 text-[var(--primary-text)] hover:bg-amber-600 disabled:opacity-50"
                             >
                               {isAdding ? "..." : "Añadir"}
                             </button>
@@ -709,7 +709,7 @@ export default function AddGamesPage() {
                           {game.expansions.length > 0 && (
                             <div className="px-3 pb-2 pt-0 ml-17">
                               <div className="flex flex-wrap gap-1.5 items-center">
-                                <span className="text-[11px] text-slate-500 font-medium">
+                                <span className="text-[11px] text-[var(--text-muted)] font-medium">
                                   Expansiones:
                                 </span>
                                 {game.expansions.slice(0, 5).map((exp) => (
@@ -718,7 +718,7 @@ export default function AddGamesPage() {
                                     href={`https://boardgamegeek.com/boardgameexpansion/${exp.bggId}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full hover:text-amber-300 hover:bg-slate-700 transition-colors"
+                                    className="inline-flex items-center gap-1 text-[11px] bg-[var(--surface-hover)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full hover:text-amber-300 hover:bg-[var(--surface-hover)] transition-colors"
                                     title={exp.name}
                                   >
                                     {exp.thumbnail && (
@@ -734,7 +734,7 @@ export default function AddGamesPage() {
                                   </a>
                                 ))}
                                 {game.expansions.length > 5 && (
-                                  <span className="text-[11px] text-slate-500">
+                                  <span className="text-[11px] text-[var(--text-muted)]">
                                     +{game.expansions.length - 5} más
                                   </span>
                                 )}
@@ -752,14 +752,14 @@ export default function AddGamesPage() {
                       <button
                         onClick={() => setPage(1)}
                         disabled={page === 1}
-                        className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 disabled:cursor-default transition-colors"
+                        className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border-strong)] disabled:opacity-30 disabled:cursor-default transition-colors"
                       >
                         «
                       </button>
                       <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page === 1}
-                        className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 disabled:cursor-default transition-colors"
+                        className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border-strong)] disabled:opacity-30 disabled:cursor-default transition-colors"
                       >
                         ‹ Anterior
                       </button>
@@ -784,7 +784,7 @@ export default function AddGamesPage() {
                               className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
                                 page === pageNum
                                   ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
-                                  : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500"
+                                  : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border-strong)]"
                               }`}
                             >
                               {pageNum}
@@ -796,14 +796,14 @@ export default function AddGamesPage() {
                       <button
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages}
-                        className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 disabled:cursor-default transition-colors"
+                        className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border-strong)] disabled:opacity-30 disabled:cursor-default transition-colors"
                       >
                         Siguiente ›
                       </button>
                       <button
                         onClick={() => setPage(totalPages)}
                         disabled={page === totalPages}
-                        className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 disabled:cursor-default transition-colors"
+                        className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border-strong)] disabled:opacity-30 disabled:cursor-default transition-colors"
                       >
                         »
                       </button>

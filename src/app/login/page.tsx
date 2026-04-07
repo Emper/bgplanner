@@ -62,26 +62,26 @@ function LoginForm() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
         Cargando...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/">
             <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto" />
           </Link>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--text-secondary)] mt-2">
             Sin contraseñas. Introduce tu email y te enviamos un código de acceso.
           </p>
         </div>
 
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-          <h2 className="text-lg font-semibold text-slate-100 mb-4">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
             Iniciar sesión
           </h2>
 
@@ -89,7 +89,7 @@ function LoginForm() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-slate-200 mb-1"
+                className="block text-sm font-medium text-[var(--text)] mb-1"
               >
                 Correo electrónico
               </label>
@@ -100,7 +100,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                className="w-full px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
               />
             </div>
 
@@ -109,15 +109,15 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-2 bg-amber-500 text-slate-900 rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+              className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
             >
               {loading ? "Enviando..." : "Enviar código de acceso"}
             </button>
           </form>
         </div>
 
-        <p className="text-center mt-6 text-sm text-slate-500">
-          <Link href="/" className="text-slate-400 hover:text-amber-400 transition-colors">
+        <p className="text-center mt-6 text-sm text-[var(--text-muted)]">
+          <Link href="/" className="text-[var(--text-secondary)] hover:text-amber-400 transition-colors">
             Volver a la página principal
           </Link>
         </p>
@@ -130,7 +130,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-500">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
           Cargando...
         </div>
       }
