@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
+import Footer from "@/components/Footer";
 
 interface GroupMemberPreview {
   user: { name: string | null; avatarUrl: string | null };
@@ -339,6 +340,7 @@ export default function GroupsPage() {
           )}
         </div>
       </div>
+      <Footer />
     </>
   );
 }

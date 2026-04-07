@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import Footer from "@/components/Footer";
 import { useTheme } from "@/lib/theme";
 
 const FEATURES = [
@@ -163,21 +164,7 @@ function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="px-4 py-8 border-t border-[var(--surface)]">
-        <div className="max-w-5xl mx-auto text-center text-sm text-[var(--text-muted)]">
-          <p>
-            Hecho con dados y café.{" "}
-            <a
-              href="https://boardgamegeek.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--text-secondary)] hover:text-amber-400 transition-colors"
-            >
-              Datos de BoardGameGeek
-            </a>
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
