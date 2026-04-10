@@ -39,10 +39,45 @@ export function useTheme() {
     applyTheme(t);
   }, []);
 
-  const toggleTheme = useCallback(() => {
+  const toggleTheme = useCallback((e?: React.MouseEvent) => {
     const resolved = theme === "system" ? getSystemTheme() : theme;
     const next = resolved === "dark" ? "light" : "dark";
-    setTheme(next);
+
+    // Use View Transitions API for circular reveal animation
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const doc = document as any;
+    if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTheme(next);
+      return;
+    }
+
+    // Get click coordinates for the circular reveal origin
+    const x = e?.clientX ?? window.innerWidth / 2;
+    const y = e?.clientY ?? 0;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    const transition = doc.startViewTransition(() => {
+      setTheme(next);
+    });
+
+    transition.ready.then(() => {
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`,
+          ],
+        },
+        {
+          duration: 500,
+          easing: "ease-in-out",
+          pseudoElement: "::view-transition-new(root)",
+        }
+      );
+    });
   }, [theme, setTheme]);
 
   const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
