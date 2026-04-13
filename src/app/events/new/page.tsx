@@ -13,8 +13,48 @@ export default function NewEventPage() {
   const [location, setLocation] = useState("");
   const [maxAttendees, setMaxAttendees] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const handleImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setUploadingImage(true);
+    try {
+      const resized = await resizeImage(file, 600);
+      setImageUrl(resized);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  function resizeImage(file: File, maxSize: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > height) {
+            if (width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
+          } else {
+            if (height > maxSize) { width = (width * maxSize) / height; height = maxSize; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +73,7 @@ export default function NewEventPage() {
           location: location || undefined,
           maxAttendees: maxAttendees ? parseInt(maxAttendees) : undefined,
           visibility,
+          imageUrl: imageUrl || undefined,
         }),
       });
 
@@ -139,6 +180,49 @@ export default function NewEventPage() {
                 placeholder="Sin límite"
                 className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              Imagen del evento
+            </label>
+            <div className="flex items-center gap-3">
+              {imageUrl ? (
+                <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
+                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center shrink-0">
+                  <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                  </svg>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer text-center">
+                  {uploadingImage ? "Procesando..." : imageUrl ? "Cambiar imagen" : "Subir imagen"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleImageUpload(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl(null)}
+                    className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

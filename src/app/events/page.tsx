@@ -14,6 +14,7 @@ interface EventData {
   endDate: string | null;
   location: string | null;
   maxAttendees: number | null;
+  imageUrl: string | null;
   visibility: string;
   createdById: string;
   createdBy: { name: string | null; email: string };
@@ -100,8 +101,14 @@ function EventCard({ event }: { event: EventData }) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="block bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 shadow-[var(--card-shadow)]"
+      className="block bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 shadow-[var(--card-shadow)]"
     >
+      {event.imageUrl && (
+        <div className="h-28 sm:h-36 overflow-hidden">
+          <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
+        </div>
+      )}
+      <div className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-semibold text-[var(--text)] text-lg leading-tight">{event.name}</h3>
@@ -127,6 +134,7 @@ function EventCard({ event }: { event: EventData }) {
           </div>
         </div>
         <div className="text-[var(--text-muted)] text-2xl shrink-0">›</div>
+      </div>
       </div>
     </Link>
   );

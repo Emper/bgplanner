@@ -40,6 +40,7 @@ export const createEventSchema = z.object({
   location: z.string().max(300).optional(),
   maxAttendees: z.number().int().positive().optional(),
   visibility: z.enum(["public", "private"]).default("public"),
+  imageUrl: z.string().nullable().optional(),
 });
 
 export const updateEventSchema = z.object({
@@ -50,6 +51,7 @@ export const updateEventSchema = z.object({
   location: z.string().max(300).nullable().optional(),
   maxAttendees: z.number().int().positive().nullable().optional(),
   visibility: z.enum(["public", "private"]).optional(),
+  imageUrl: z.string().nullable().optional(),
 });
 
 export const eventInterestSchema = z.object({

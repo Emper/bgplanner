@@ -208,6 +208,7 @@ model Event {
   endDate      DateTime?
   location     String?
   maxAttendees Int?
+  imageUrl     String?   @db.Text
   visibility   String    @default("public") // public | private
   inviteCode   String?   @unique
   createdById  String

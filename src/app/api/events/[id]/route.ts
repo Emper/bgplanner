@@ -109,6 +109,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (parsed.data.location !== undefined) data.location = parsed.data.location;
   if (parsed.data.maxAttendees !== undefined) data.maxAttendees = parsed.data.maxAttendees;
   if (parsed.data.visibility !== undefined) data.visibility = parsed.data.visibility;
+  if (parsed.data.imageUrl !== undefined) data.imageUrl = parsed.data.imageUrl;
 
   const updated = await prisma.event.update({ where: { id }, data });
 

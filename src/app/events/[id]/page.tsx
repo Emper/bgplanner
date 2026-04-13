@@ -55,6 +55,7 @@ interface EventData {
   endDate: string | null;
   location: string | null;
   maxAttendees: number | null;
+  imageUrl: string | null;
   visibility: string;
   inviteCode: string | null;
   createdById: string;
@@ -64,6 +65,39 @@ interface EventData {
   currentUserId: string;
   isCreator: boolean;
   currentAttendeeId: string | null;
+}
+
+function resizeImage(file: File, maxSize: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 type Tab = "activity" | "games" | "mylist" | "attendees";
@@ -117,6 +151,8 @@ export default function EventDetailPage() {
   const [editLocation, setEditLocation] = useState("");
   const [editMaxAttendees, setEditMaxAttendees] = useState("");
   const [editVisibility, setEditVisibility] = useState<"public" | "private">("public");
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchEventFeed = useCallback(async (cursor?: string) => {
@@ -180,7 +216,31 @@ export default function EventDetailPage() {
     setEditLocation(event.location || "");
     setEditMaxAttendees(event.maxAttendees ? String(event.maxAttendees) : "");
     setEditVisibility(event.visibility as "public" | "private");
+    setEditImageUrl(event.imageUrl || null);
     setShowEdit(true);
+  };
+
+  const handleImageUpload = async (file: File, target: "edit" | "direct") => {
+    if (!file.type.startsWith("image/")) return;
+    setUploadingImage(true);
+    try {
+      const resized = await resizeImage(file, 600);
+      if (target === "edit") {
+        setEditImageUrl(resized);
+      } else {
+        // Direct upload (from header) — save immediately
+        const res = await fetch(`/api/events/${eventId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: resized }),
+        });
+        if (res.ok) {
+          setEvent((prev) => prev ? { ...prev, imageUrl: resized } : prev);
+        }
+      }
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -197,6 +257,7 @@ export default function EventDetailPage() {
           location: editLocation || null,
           maxAttendees: editMaxAttendees ? parseInt(editMaxAttendees) : null,
           visibility: editVisibility,
+          imageUrl: editImageUrl,
         }),
       });
       if (res.ok) {
@@ -359,6 +420,59 @@ export default function EventDetailPage() {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
       <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+        {/* Event image */}
+        {(event.imageUrl || event.isCreator) && (
+          <div className="mb-4 relative group">
+            {event.imageUrl ? (
+              <div className="relative rounded-2xl overflow-hidden border border-[var(--border)]">
+                <img
+                  src={event.imageUrl}
+                  alt={event.name}
+                  className="w-full h-40 sm:h-52 object-cover"
+                />
+                {event.isCreator && (
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-xl">
+                      {uploadingImage ? "Subiendo..." : "Cambiar imagen"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImageUpload(f, "direct");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            ) : event.isCreator ? (
+              <label className="flex items-center justify-center h-32 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/40 bg-[var(--surface)] cursor-pointer transition-all duration-200">
+                <div className="text-center">
+                  <svg className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                  </svg>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {uploadingImage ? "Subiendo..." : "Añadir imagen del evento"}
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImageUpload(f, "direct");
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ) : null}
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-start justify-between gap-3">
@@ -559,6 +673,44 @@ export default function EventDetailPage() {
                   <label className="block text-xs text-[var(--text-secondary)] mb-1">Máx. asistentes</label>
                   <input type="number" value={editMaxAttendees} onChange={(e) => setEditMaxAttendees(e.target.value)} min={1}
                     className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-secondary)] mb-1">Imagen del evento</label>
+                <div className="flex items-center gap-3">
+                  {editImageUrl ? (
+                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
+                      <img src={editImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-xs shrink-0">
+                      Sin imagen
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all duration-200 cursor-pointer text-center">
+                      {uploadingImage ? "Subiendo..." : editImageUrl ? "Cambiar" : "Subir imagen"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleImageUpload(f, "edit");
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {editImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditImageUrl(null)}
+                        className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               <div>

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { name, description, date, endDate, location, maxAttendees, visibility } = parsed.data;
+  const { name, description, date, endDate, location, maxAttendees, visibility, imageUrl } = parsed.data;
 
   const event = await prisma.event.create({
     data: {
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       location,
       maxAttendees,
       visibility,
+      imageUrl: imageUrl || null,
       createdById: session.userId,
       // Auto-attend as creator
       attendees: {
