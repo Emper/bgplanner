@@ -24,6 +24,7 @@ interface Game {
 }
 
 interface Voter {
+  userId: string;
   name: string;
   type: "up" | "super" | "down";
   points: number;
@@ -874,20 +875,45 @@ function GroupDashboardPage() {
                           )}
                         </div>
                       </div>
-                      {/* Super vote available banner */}
+                      {/* Super votes available banner */}
                       {(() => {
-                        const hasSuperVote = ranking.some((r) => r.userVote === "super");
-                        if (!hasSuperVote && pendingGames.length > 0) {
-                          return (
-                            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
-                              <span className="text-base">🔥</span>
-                              <span className="text-xs sm:text-sm text-[var(--primary)] font-medium">
-                                ¡Tienes tu super voto disponible! Úsalo en el juego que más te apetezca para darle +3 puntos.
-                              </span>
+                        if (pendingGames.length === 0 || !group) return null;
+                        // Collect all userIds who have used their super vote
+                        const usedSuperUserIds = new Set<string>();
+                        ranking.forEach((r) => {
+                          r.voters.forEach((v) => {
+                            if (v.type === "super") usedSuperUserIds.add(v.userId);
+                          });
+                        });
+                        // Find members who haven't used it
+                        const membersWithAvailable = group.members.filter(
+                          (m) => !usedSuperUserIds.has(m.user.id)
+                        );
+                        if (membersWithAvailable.length === 0) return null;
+                        const currentUserAvailable = membersWithAvailable.some(
+                          (m) => m.user.id === group.currentUserId
+                        );
+                        const others = membersWithAvailable.filter(
+                          (m) => m.user.id !== group.currentUserId
+                        );
+                        return (
+                          <div className="flex items-start gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
+                            <span className="text-base mt-0.5">🔥</span>
+                            <div className="text-xs sm:text-sm text-[var(--primary)]">
+                              {currentUserAvailable && (
+                                <p className="font-semibold">¡Tienes tu super voto disponible! Úsalo en el juego que más te apetezca (+3 puntos).</p>
+                              )}
+                              {others.length > 0 && (
+                                <p className={currentUserAvailable ? "mt-1 opacity-80 font-normal" : "font-medium"}>
+                                  {others.length === 1
+                                    ? `${others[0].user.name || others[0].user.email} también tiene su super voto libre`
+                                    : `${others.map((m) => m.user.name || m.user.email).join(", ")} tienen su super voto libre`
+                                  }
+                                </p>
+                              )}
                             </div>
-                          );
-                        }
-                        return null;
+                          </div>
+                        );
                       })()}
                       <div className="space-y-3">
                         {pendingGames.map((item, index) => (

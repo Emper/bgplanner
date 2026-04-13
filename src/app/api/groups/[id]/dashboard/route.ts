@@ -112,6 +112,7 @@ export async function GET(
       const downVotes = gg.votes.filter((v) => v.type === "down").length;
       const userVote = gg.votes.find((v) => v.userId === session.userId);
       const voters = gg.votes.map((v) => ({
+        userId: v.userId,
         name: v.user.name || v.user.email,
         type: v.type,
         points: v.type === "super" ? 3 : v.type === "down" ? -1 : 1,
