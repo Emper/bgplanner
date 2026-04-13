@@ -896,24 +896,22 @@ function GroupDashboardPage() {
                         const others = membersWithAvailable.filter(
                           (m) => m.user.id !== group.currentUserId
                         );
+                        const otherNames = others.map((m) => m.user.name || m.user.email);
+                        const otherText = others.length === 1
+                          ? `${otherNames[0]} tiene su super voto libre`
+                          : `${otherNames.join(", ")} tienen su super voto libre`;
+                        // Single-line cases: center. Multi-line (tú + otros): top-align emoji.
+                        const isMultiLine = currentUserAvailable && others.length > 0;
                         return (
-                          <div className="flex items-center gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
-                            <span className="text-base shrink-0">🔥</span>
+                          <div className={`flex ${isMultiLine ? "items-start" : "items-center"} gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15`}>
+                            <span className={`text-base shrink-0 ${isMultiLine ? "mt-0.5" : ""}`}>🔥</span>
                             <div className="text-xs sm:text-sm text-[var(--primary)]">
-                              {currentUserAvailable && others.length === 0 && (
+                              {currentUserAvailable && (
                                 <p className="font-semibold">¡Tienes tu super voto disponible! Úsalo en el juego que más te apetezca (+3 puntos).</p>
                               )}
-                              {currentUserAvailable && others.length > 0 && (
-                                <p className="font-semibold">
-                                  Tú, {others.map((m) => m.user.name || m.user.email).join(", ")} tenéis el super voto libre
-                                </p>
-                              )}
-                              {!currentUserAvailable && others.length > 0 && (
-                                <p className="font-medium">
-                                  {others.length === 1
-                                    ? `${others[0].user.name || others[0].user.email} tiene su super voto libre`
-                                    : `${others.map((m) => m.user.name || m.user.email).join(", ")} tienen su super voto libre`
-                                  }
+                              {others.length > 0 && (
+                                <p className={currentUserAvailable ? "mt-0.5 opacity-75 font-normal" : "font-medium"}>
+                                  {otherText}
                                 </p>
                               )}
                             </div>
