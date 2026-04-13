@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import PageLoader from "@/components/PageLoader";
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -61,11 +62,7 @@ export default function InvitePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
-        Cargando...
-      </div>
-    );
+    return <div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>;
   }
 
   if (error && !groupName) {

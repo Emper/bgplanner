@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
+import PageLoader from "@/components/PageLoader";
 
 interface Profile {
   name: string;
@@ -147,9 +148,7 @@ function ProfileForm() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">
-          Cargando...
-        </div>
+        <PageLoader withNavbar />
       </>
     );
   }
@@ -308,11 +307,7 @@ function ProfileForm() {
 export default function ProfilePage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
-          Cargando...
-        </div>
-      }
+      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
     >
       <ProfileForm />
     </Suspense>

@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
+import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
 import { formatDuration } from "@/lib/format";
 
@@ -117,7 +118,7 @@ type Tab = "ranking" | "sessions" | "members" | "activity";
 
 export default function GroupDashboardWrapper() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)] flex items-center justify-center text-[var(--text-muted)]">Cargando...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}>
       <GroupDashboardPage />
     </Suspense>
   );
@@ -763,9 +764,7 @@ function GroupDashboardPage() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">
-          Cargando...
-        </div>
+        <PageLoader withNavbar />
       </>
     );
   }

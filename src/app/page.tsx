@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import Footer from "@/components/Footer";
 import { useTheme } from "@/lib/theme";
+import PageLoader from "@/components/PageLoader";
 
 const FEATURES = [
   {
@@ -139,11 +140,7 @@ function LandingPage() {
   }, [router, redirect]);
 
   if (checkingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
-        Cargando...
-      </div>
-    );
+    return <div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>;
   }
 
   return (
@@ -324,11 +321,7 @@ function LandingPage() {
 export default function Home() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
-          Cargando...
-        </div>
-      }
+      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
     >
       <LandingPage />
     </Suspense>

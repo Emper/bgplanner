@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import { useTheme } from "@/lib/theme";
+import PageLoader from "@/components/PageLoader";
 
 function LoginForm() {
   const router = useRouter();
@@ -63,11 +64,7 @@ function LoginForm() {
   };
 
   if (checkingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
-        Cargando...
-      </div>
-    );
+    return <div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>;
   }
 
   return (
@@ -150,11 +147,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
-          Cargando...
-        </div>
-      }
+      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
     >
       <LoginForm />
     </Suspense>

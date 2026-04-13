@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import { formatDateShort } from "@/lib/format";
+import PageLoader from "@/components/PageLoader";
 
 interface EventData {
   id: string;
@@ -55,7 +56,7 @@ export default function EventsPage() {
         </div>
 
         {loading ? (
-          <p className="text-[var(--text-secondary)] text-center py-12">Cargando...</p>
+          <PageLoader withNavbar />
         ) : events.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-[var(--text-secondary)] text-lg mb-2">No hay eventos todavía</p>

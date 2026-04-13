@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
 import Footer from "@/components/Footer";
+import PageLoader from "@/components/PageLoader";
 
 interface GroupMemberPreview {
   user: { name: string | null; avatarUrl: string | null };
@@ -148,7 +149,7 @@ export default function GroupsPage() {
             </Link>
           </div>
 
-          {loading && <p className="text-[var(--text-muted)]">Cargando...</p>}
+          {loading && <PageLoader withNavbar />}
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           {!loading && !error && groups.length === 0 && (

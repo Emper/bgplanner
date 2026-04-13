@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import PageLoader from "@/components/PageLoader";
 
 function VerifyForm() {
   const router = useRouter();
@@ -186,11 +187,7 @@ function VerifyForm() {
 export default function VerifyPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">
-          Cargando...
-        </div>
-      }
+      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
     >
       <VerifyForm />
     </Suspense>
