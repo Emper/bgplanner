@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { resend } from "@/lib/resend";
 
 export async function GET(
   request: NextRequest,
@@ -114,10 +115,49 @@ export async function PATCH(
       if (newStatus === "completed") {
         const sessionGame = await prisma.gameSessionGame.findUnique({
           where: { id: gameSessionGameId },
-          include: { game: { select: { name: true } } },
+          include: { game: { select: { id: true, name: true } } },
         });
         if (sessionGame) {
           logActivity("session_game_completed", session.userId, { groupId, gameName: sessionGame.game.name });
+
+          // Release super votes on this game (same logic as "mark as played")
+          const groupGame = await prisma.groupGame.findFirst({
+            where: { groupId, gameId: sessionGame.game.id },
+          });
+          if (groupGame) {
+            const superVotes = await prisma.vote.findMany({
+              where: { groupGameId: groupGame.id, type: "super" },
+              include: { user: { select: { email: true, name: true } } },
+            });
+            if (superVotes.length > 0) {
+              await prisma.vote.updateMany({
+                where: { groupGameId: groupGame.id, type: "super" },
+                data: { type: "up" },
+              });
+              const groupData = await prisma.group.findUnique({
+                where: { id: groupId },
+                select: { name: true },
+              });
+              for (const vote of superVotes) {
+                resend.emails.send({
+                  from: "BG Planner <cesar@tiradacritica.es>",
+                  to: vote.user.email,
+                  subject: `Tu super voto en "${groupData?.name}" se ha liberado`,
+                  html: `
+                    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
+                      <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
+                      <p>¡Buenas noticias, ${vote.user.name || "jugador"}! 🎲</p>
+                      <p>El juego <strong style="color: #f59e0b;">"${sessionGame.game.name}"</strong> en el grupo <strong>"${groupData?.name}"</strong> se ha completado en una sesión.</p>
+                      <p>Tu super voto se ha convertido en un voto normal y <strong style="color: #f59e0b;">vuelves a tener tu super voto disponible</strong> para usarlo en otro juego del grupo.</p>
+                      <a href="${process.env.NEXT_PUBLIC_URL || "https://bgplanner.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+                        Ir al grupo
+                      </a>
+                    </div>
+                  `,
+                }).catch(() => {});
+              }
+            }
+          }
         }
       }
     }
