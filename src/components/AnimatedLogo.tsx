@@ -42,7 +42,7 @@ export default function AnimatedLogo() {
   const [shaking, setShaking] = useState(false);
 
   const rollDice = useCallback(() => {
-    if (shaking) return; // Don't stack animations
+    if (shaking) return;
     setShaking(true);
     setTimeout(() => {
       setFace((prev) => {
@@ -94,12 +94,12 @@ export default function AnimatedLogo() {
       <text
         x="0"
         y="36"
-        fontFamily="system-ui, -apple-system, sans-serif"
+        fontFamily="var(--font-display), system-ui, sans-serif"
         fontSize="36"
         fontWeight="800"
-        letterSpacing="-1"
+        letterSpacing="-1.5"
       >
-        <tspan fill="#f59e0b">We</tspan>
+        <tspan fill="var(--primary)">We</tspan>
         <tspan fill="currentColor">Board</tspan>
       </text>
       <g
@@ -107,9 +107,9 @@ export default function AnimatedLogo() {
         onMouseEnter={() => rollDice()}
         style={{ cursor: "pointer" }}
       >
-        <rect x="164" y="8" width="28" height="28" rx="5" fill="#f59e0b" opacity="0.15" />
+        <rect x="164" y="8" width="28" height="28" rx="6" fill="var(--primary)" opacity="0.12" />
         {dots.map((dot, i) => (
-          <circle key={`${face}-${i}`} cx={dot.cx} cy={dot.cy} r="2" fill="#f59e0b" />
+          <circle key={`${face}-${i}`} cx={dot.cx} cy={dot.cy} r="2.2" fill="var(--primary)" />
         ))}
       </g>
     </svg>

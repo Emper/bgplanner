@@ -48,7 +48,7 @@ export default function EventsPage() {
           <h1 className="text-2xl font-bold">Eventos</h1>
           <Link
             href="/events/new"
-            className="bg-amber-500 hover:bg-amber-600 text-[var(--primary-text)] font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+            className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-4 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"
           >
             Crear evento
           </Link>
@@ -99,7 +99,7 @@ function EventCard({ event }: { event: EventData }) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="block bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--border-strong)] transition-colors"
+      className="block bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 shadow-[var(--card-shadow)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -108,19 +108,19 @@ function EventCard({ event }: { event: EventData }) {
             <p className="text-[var(--text-secondary)] text-sm mt-1 line-clamp-2">{event.description}</p>
           )}
           <div className="flex flex-wrap gap-2 mt-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
               {formatDate(event.date)}
               {event.endDate && ` – ${formatDate(event.endDate)}`}
             </span>
             {event.location && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                 {event.location}
               </span>
             )}
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-300">
               {event._count.attendees} asistente{event._count.attendees !== 1 ? "s" : ""}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-300">
               {event._count.games} juego{event._count.games !== 1 ? "s" : ""}
             </span>
           </div>

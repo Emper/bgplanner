@@ -796,7 +796,7 @@ function GroupDashboardPage() {
                 onClick={() => switchTab(tab)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab
-                    ? "border-amber-400 text-amber-400"
+                    ? "border-[var(--primary)] text-[var(--primary)]"
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]"
                 }`}
               >
@@ -817,12 +817,12 @@ function GroupDashboardPage() {
                         return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
                       })()}`}
                       prefetch={false}
-                      className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                      className="px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] text-sm font-semibold shrink-0 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       Añadir juegos
                     </Link>
                   </div>
-                  <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6 text-[var(--text-secondary)]">
+                  <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6 text-[var(--text-secondary)]">
                     No hay juegos en este grupo todavía. ¡Añade algunos!
                   </div>
                 </div>
@@ -849,7 +849,7 @@ function GroupDashboardPage() {
                               </button>
                               <button
                                 onClick={() => setShowQuickSession(true)}
-                                className="px-3 sm:px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 text-xs sm:text-sm font-medium"
+                                className="px-3 sm:px-4 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] text-xs sm:text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
                               >
                                 🎲 Crear sesión
                               </button>
@@ -861,7 +861,7 @@ function GroupDashboardPage() {
                                 return firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : "";
                               })()}`}
                               prefetch={false}
-                              className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 text-sm font-medium shrink-0"
+                              className="px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] text-sm font-semibold shrink-0 transition-all duration-200 shadow-sm hover:shadow-md"
                             >
                               Añadir juegos
                             </Link>
@@ -872,7 +872,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 sm:p-4 pb-6"
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-6 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -888,10 +888,10 @@ function GroupDashboardPage() {
                                     {/* Checkbox */}
                                     <div className={`items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-lg border-2 transition-all ${
                                       isSelected
-                                        ? "flex bg-amber-500 border-amber-500"
+                                        ? "flex bg-[var(--primary)] border-[var(--primary)]"
                                         : hasSelection
-                                          ? "flex border-[var(--border-strong)] hover:border-amber-500/50"
-                                          : "hidden group-hover/check:flex border-[var(--border-strong)] hover:border-amber-500/50"
+                                          ? "flex border-[var(--border-strong)] hover:border-[var(--primary)]/50"
+                                          : "hidden group-hover/check:flex border-[var(--border-strong)] hover:border-[var(--primary)]/50"
                                     }`}>
                                       {isSelected && (
                                         <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--primary-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -953,7 +953,7 @@ function GroupDashboardPage() {
                                     href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="hover:text-amber-300 transition-colors"
+                                    className="hover:text-[var(--primary)] transition-colors"
                                   >
                                     {item.game.name}
                                   </a>
@@ -997,7 +997,7 @@ function GroupDashboardPage() {
                                       className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
                                         item.userVote === type
                                           ? type === "up"
-                                            ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                            ? "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]"
                                             : type === "super"
                                               ? "bg-orange-500/20 border-orange-500 text-orange-400"
                                               : "bg-red-500/20 border-red-500 text-red-400"
@@ -1021,7 +1021,7 @@ function GroupDashboardPage() {
                                           {item.voters.map((voter, vi) => (
                                             <div key={vi} className="flex items-center justify-between gap-3 text-xs">
                                               <span className="text-[var(--text-secondary)] truncate max-w-[120px]">{voter.name}</span>
-                                              <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-amber-400'}`}>
+                                              <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-[var(--primary)]'}`}>
                                                 {voter.points > 0 ? '+' : ''}{voter.points}
                                               </span>
                                             </div>
@@ -1056,7 +1056,7 @@ function GroupDashboardPage() {
                                         {item.voters.map((voter, vi) => (
                                           <div key={vi} className="flex items-center justify-between gap-3 text-xs">
                                             <span className="text-[var(--text-secondary)] truncate max-w-[100px]">{voter.name}</span>
-                                            <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-amber-400'}`}>
+                                            <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-[var(--primary)]'}`}>
                                               {voter.points > 0 ? '+' : ''}{voter.points}
                                             </span>
                                           </div>
@@ -1106,7 +1106,7 @@ function GroupDashboardPage() {
                                     className={`w-8 h-8 flex items-center justify-center rounded-lg border text-base transition-colors ${
                                       item.userVote === type
                                         ? type === "up"
-                                          ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                                          ? "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]"
                                           : type === "super"
                                             ? "bg-orange-500/20 border-orange-500 text-orange-400"
                                             : "bg-red-500/20 border-red-500 text-red-400"
@@ -1153,7 +1153,7 @@ function GroupDashboardPage() {
                         {isAdmin && (
                           <button
                             onClick={handleArchiveAllPlayed}
-                            className="text-xs text-[var(--text-muted)] hover:text-amber-400 transition-colors"
+                            className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                           >
                             Ocultar todo
                           </button>
@@ -1163,7 +1163,7 @@ function GroupDashboardPage() {
                         {playedGames.map((item) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3"
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 transition-all duration-200"
                           >
                             <div className="flex items-center gap-2 sm:gap-3">
                               <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
@@ -1179,7 +1179,7 @@ function GroupDashboardPage() {
                                     href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="hover:text-amber-300 transition-colors"
+                                    className="hover:text-[var(--primary)] transition-colors"
                                   >
                                     {item.game.name}
                                   </a>
@@ -1200,7 +1200,7 @@ function GroupDashboardPage() {
                               <div className="flex justify-end gap-3 mt-1.5 text-[11px]">
                                 <button
                                   onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
-                                  className="text-[var(--text-muted)] hover:text-amber-400 transition-colors"
+                                  className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                                 >
                                   Devolver al ranking
                                 </button>
@@ -1225,7 +1225,7 @@ function GroupDashboardPage() {
           {/* Quick session modal */}
           {showQuickSession && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQuickSession(false)}>
-              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-[var(--text)]">
                     🎲 Crear sesión rápida
@@ -1243,7 +1243,7 @@ function GroupDashboardPage() {
                       value={sessionName}
                       onChange={(e) => setSessionName(e.target.value)}
                       placeholder="Ej: Viernes épico"
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                     />
                   </div>
                   <div>
@@ -1252,7 +1252,7 @@ function GroupDashboardPage() {
                       type="date"
                       value={sessionDate}
                       onChange={(e) => setSessionDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                     />
                   </div>
                   <div>
@@ -1260,7 +1260,7 @@ function GroupDashboardPage() {
                     <select
                       value={sessionPlayers}
                       onChange={(e) => setSessionPlayers(e.target.value)}
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                     >
                       {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                         <option key={n} value={n}>{n} jugadores</option>
@@ -1272,7 +1272,7 @@ function GroupDashboardPage() {
                     <select
                       value={sessionHours}
                       onChange={(e) => setSessionHours(e.target.value)}
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                     >
                       <option value="1.5">1h 30min</option>
                       <option value="2">2 horas</option>
@@ -1287,7 +1287,7 @@ function GroupDashboardPage() {
                 <button
                   onClick={handleQuickSession}
                   disabled={savingSession}
-                  className="w-full px-4 py-2.5 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                  className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   {savingSession ? "Creando..." : `Crear sesión con ${quickSelectIds.size} juego${quickSelectIds.size !== 1 ? "s" : ""}`}
                 </button>
@@ -1302,7 +1302,7 @@ function GroupDashboardPage() {
               {!showNewSession && (
                 <button
                   onClick={() => setShowNewSession(true)}
-                  className="w-full px-4 py-3 bg-amber-500 text-[var(--primary-text)] rounded-xl hover:bg-amber-600 font-medium transition-colors"
+                  className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   🎲 Planificar sesión
                 </button>
@@ -1310,7 +1310,7 @@ function GroupDashboardPage() {
 
               {/* New session planner */}
               {showNewSession && (
-                <div className="bg-[var(--surface)] rounded-xl border border-amber-500/30 p-5 space-y-4">
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--primary)]/30 shadow-[var(--card-shadow)] p-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-[var(--text)]">Nueva sesión</h3>
                     <button
@@ -1330,7 +1330,7 @@ function GroupDashboardPage() {
                         value={sessionName}
                         onChange={(e) => setSessionName(e.target.value)}
                         placeholder="Ej: Viernes épico"
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -1339,7 +1339,7 @@ function GroupDashboardPage() {
                         type="date"
                         value={sessionDate}
                         onChange={(e) => setSessionDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -1347,7 +1347,7 @@ function GroupDashboardPage() {
                       <select
                         value={sessionPlayers}
                         onChange={(e) => setSessionPlayers(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                       >
                         {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                           <option key={n} value={n}>{n} jugadores</option>
@@ -1359,7 +1359,7 @@ function GroupDashboardPage() {
                       <select
                         value={sessionHours}
                         onChange={(e) => setSessionHours(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                       >
                         <option value="1.5">1h 30min</option>
                         <option value="2">2 horas</option>
@@ -1376,7 +1376,7 @@ function GroupDashboardPage() {
                   <button
                     onClick={handleSuggestGames}
                     disabled={loadingSuggestion}
-                    className="px-4 py-2 bg-amber-500/20 text-amber-300 border border-amber-500/50 rounded-lg text-sm font-medium hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+                    className="px-4 py-2 bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/50 rounded-xl text-sm font-semibold hover:bg-[var(--primary)]/20 disabled:opacity-50 transition-all duration-200"
                   >
                     {loadingSuggestion ? "Calculando..." : "🎯 Sugerir juegos"}
                   </button>
@@ -1422,15 +1422,15 @@ function GroupDashboardPage() {
                             <button
                               key={game.gameId}
                               onClick={() => toggleGameSelection(game.gameId)}
-                              className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 text-left ${
                                 isSelected
-                                  ? "bg-amber-500/10 border-amber-500/40"
+                                  ? "bg-[var(--accent-soft)] border-[var(--primary)]/40"
                                   : "bg-[var(--surface)] border-[var(--border)] hover:border-[var(--border-strong)]"
                               }`}
                             >
                               <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
                                 isSelected
-                                  ? "bg-amber-500 border-amber-500 text-[var(--primary-text)]"
+                                  ? "bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-text)]"
                                   : "border-[var(--border-strong)]"
                               }`}>
                                 {isSelected && <span className="text-xs font-bold">✓</span>}
@@ -1446,7 +1446,7 @@ function GroupDashboardPage() {
                                 <div className="text-sm font-medium text-[var(--text)] truncate">
                                   {game.name}
                                   {wasSuggested && (
-                                    <span className="ml-1.5 text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
+                                    <span className="ml-1.5 text-xs bg-[var(--accent-soft)] text-[var(--primary)] px-1.5 py-0.5 rounded-full">
                                       sugerido
                                     </span>
                                   )}
@@ -1455,7 +1455,7 @@ function GroupDashboardPage() {
                                   <span>⏱ {game.playingTime ? formatDuration(game.playingTime) : "~90min"}</span>
                                   <span>👥 {game.minPlayers}-{game.maxPlayers}</span>
                                   {game.weight && <span>⚖️ {game.weight.toFixed(1)}</span>}
-                                  <span className="text-amber-400">{game.score} pts</span>
+                                  <span className="text-[var(--primary)]">{game.score} pts</span>
                                 </div>
                               </div>
                             </button>
@@ -1466,7 +1466,7 @@ function GroupDashboardPage() {
                       <button
                         onClick={handleSaveSession}
                         disabled={savingSession || selectedGameIds.size === 0}
-                        className="w-full px-4 py-3 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium disabled:opacity-50 transition-colors"
+                        className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                       >
                         {savingSession
                           ? "Guardando..."
@@ -1479,7 +1479,7 @@ function GroupDashboardPage() {
 
               {/* Add games to existing session modal */}
               {editingSessionId && (
-                <div className="bg-[var(--surface)] rounded-xl border border-amber-500/30 p-5 space-y-3">
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--primary)]/30 shadow-[var(--card-shadow)] p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-[var(--text)]">Añadir juegos a la sesión</h3>
                     <button
@@ -1496,14 +1496,14 @@ function GroupDashboardPage() {
                         <button
                           key={game.gameId}
                           onClick={() => toggleGameSelection(game.gameId)}
-                          className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
+                          className={`w-full flex items-center gap-3 p-2 rounded-xl border transition-all duration-200 text-left ${
                             isSelected
-                              ? "bg-amber-500/10 border-amber-500/40"
+                              ? "bg-[var(--accent-soft)] border-[var(--primary)]/40"
                               : "bg-[var(--surface)] border-[var(--border)] hover:border-[var(--border-strong)]"
                           }`}
                         >
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                            isSelected ? "bg-amber-500 border-amber-500 text-[var(--primary-text)]" : "border-[var(--border-strong)]"
+                            isSelected ? "bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-text)]" : "border-[var(--border-strong)]"
                           }`}>
                             {isSelected && <span className="text-xs font-bold">✓</span>}
                           </div>
@@ -1518,7 +1518,7 @@ function GroupDashboardPage() {
                   {selectedGameIds.size > 0 && (
                     <button
                       onClick={handleConfirmAddGames}
-                      className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium text-sm transition-colors"
+                      className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       Añadir {selectedGameIds.size} juego{selectedGameIds.size !== 1 ? "s" : ""}
                     </button>
@@ -1529,10 +1529,10 @@ function GroupDashboardPage() {
               {/* Existing sessions */}
               {loadingSessions ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
                 </div>
               ) : sessions.length === 0 && !showNewSession ? (
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6 text-center text-[var(--text-secondary)]">
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6 text-center text-[var(--text-secondary)]">
                   No hay sesiones planificadas. ¡Crea la primera!
                 </div>
               ) : (
@@ -1559,11 +1559,11 @@ function GroupDashboardPage() {
                     return (
                       <div
                         key={s.id}
-                        className={`bg-[var(--surface)] rounded-xl border transition-colors ${
+                        className={`bg-[var(--surface)] rounded-2xl border shadow-[var(--card-shadow)] transition-all duration-200 ${
                           s.status === "playing"
                             ? "border-emerald-500/40"
                             : isPast && s.status !== "completed"
-                              ? "border-amber-500/30"
+                              ? "border-[var(--primary)]/30"
                               : "border-[var(--border)]"
                         }`}
                       >
@@ -1612,7 +1612,7 @@ function GroupDashboardPage() {
                                 <button
                                   key={st}
                                   onClick={() => handleUpdateSession(s.id, { status: st })}
-                                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                  className={`px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 ${
                                     s.status === st
                                       ? statusColors[st] + " border-current"
                                       : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:border-[var(--border-strong)]"
@@ -1636,11 +1636,11 @@ function GroupDashboardPage() {
                                   return (
                                     <div
                                       key={sg.id}
-                                      className={`py-2 px-2 sm:px-3 rounded-lg transition-colors ${
+                                      className={`py-2 px-2 sm:px-3 rounded-xl transition-all duration-200 ${
                                         sg.status === "completed"
                                           ? "bg-emerald-500/10"
                                           : sg.status === "playing"
-                                            ? "bg-amber-500/10"
+                                            ? "bg-[var(--accent-soft)]"
                                             : sg.status === "skipped"
                                               ? "bg-[var(--surface-hover)] opacity-60"
                                               : "bg-[var(--surface-hover)]"
@@ -1652,13 +1652,13 @@ function GroupDashboardPage() {
                                           <button
                                             disabled={idx === 0}
                                             onClick={() => handleReorderGame(s.id, idx, "up")}
-                                            className="text-[var(--text-muted)] hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
+                                            className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-20 text-base leading-none transition-colors p-0.5"
                                             title="Mover arriba"
                                           >▲</button>
                                           <button
                                             disabled={idx === s.games.length - 1}
                                             onClick={() => handleReorderGame(s.id, idx, "down")}
-                                            className="text-[var(--text-muted)] hover:text-amber-400 disabled:opacity-20 text-base leading-none transition-colors p-0.5"
+                                            className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-20 text-base leading-none transition-colors p-0.5"
                                             title="Mover abajo"
                                           >▼</button>
                                         </div>
@@ -1674,7 +1674,7 @@ function GroupDashboardPage() {
                                           href={`https://boardgamegeek.com/boardgame/${sg.game.bggId}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs sm:text-sm text-[var(--text)] flex-1 min-w-0 truncate hover:text-amber-300 transition-colors"
+                                          className="text-xs sm:text-sm text-[var(--text)] flex-1 min-w-0 truncate hover:text-[var(--primary)] transition-colors"
                                         >
                                           {sg.game.name}
                                         </a>
@@ -1690,7 +1690,7 @@ function GroupDashboardPage() {
                                             onClick={() => handleGameStatus(s.id, sg.id, gs)}
                                             className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded text-xs sm:text-sm transition-colors ${
                                               sg.status === gs
-                                                ? "bg-[var(--surface-hover)] ring-1 ring-amber-500/50"
+                                                ? "bg-[var(--surface-hover)] ring-1 ring-[var(--primary)]/50"
                                                 : "hover:bg-[var(--surface-hover)]"
                                             }`}
                                             title={gs === "pending" ? "Pendiente" : gs === "playing" ? "Jugando" : gs === "completed" ? "Jugado" : "Saltado"}
@@ -1723,13 +1723,13 @@ function GroupDashboardPage() {
                             <div className="flex gap-2 pt-1">
                               <button
                                 onClick={() => handleAddGameToSession(s.id)}
-                                className="px-3 py-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/50 rounded-lg text-xs font-medium hover:bg-amber-500/30 transition-colors"
+                                className="px-3 py-1.5 bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/50 rounded-xl text-xs font-medium hover:bg-[var(--primary)]/20 transition-all duration-200"
                               >
                                 + Añadir juego
                               </button>
                               <button
                                 onClick={() => handleDeleteSession(s.id)}
-                                className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors"
+                                className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl text-xs font-medium hover:bg-red-500/20 transition-all duration-200"
                               >
                                 Eliminar sesión
                               </button>
@@ -1747,7 +1747,7 @@ function GroupDashboardPage() {
           {/* ═══════════ Members Tab ═══════════ */}
           {activeTab === "members" && (
             <div className="space-y-6">
-              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6">
                 <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Miembros</h2>
                 <div className="space-y-3">
                   {group.members.map((member) => (
@@ -1797,7 +1797,7 @@ function GroupDashboardPage() {
                                 alert(data.error || "Error al cambiar rol");
                               }
                             }}
-                            className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                            className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)] hover:bg-[var(--primary)]/20 transition-colors"
                           >
                             Hacer admin
                           </button>
@@ -1827,9 +1827,9 @@ function GroupDashboardPage() {
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-medium ${
                             member.role === "owner"
-                              ? "bg-amber-500/30 text-amber-200"
+                              ? "bg-[var(--primary)]/30 text-[var(--primary)]"
                               : member.role === "admin"
-                                ? "bg-amber-500/20 text-amber-300"
+                                ? "bg-[var(--accent-soft)] text-[var(--primary)]"
                                 : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
                           }`}
                         >
@@ -1842,7 +1842,7 @@ function GroupDashboardPage() {
               </div>
 
               {/* Enlace de invitación */}
-              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6">
                 <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Enlace de invitación</h2>
                 <p className="text-sm text-[var(--text-secondary)] mb-4">
                   Comparte este enlace para que cualquiera pueda unirse al grupo.
@@ -1855,7 +1855,7 @@ function GroupDashboardPage() {
                         type="text"
                         readOnly
                         value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${inviteLinkCode}`}
-                        className="flex-1 min-w-0 px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text-secondary)] text-xs sm:text-sm font-mono truncate"
+                        className="flex-1 min-w-0 px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text-secondary)] text-xs sm:text-sm font-mono truncate transition-all duration-200"
                       />
                       <button
                         onClick={() => {
@@ -1863,7 +1863,7 @@ function GroupDashboardPage() {
                           setInviteLinkCopied(true);
                           setTimeout(() => setInviteLinkCopied(false), 2000);
                         }}
-                        className="px-3 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium text-sm whitespace-nowrap"
+                        className="px-3 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold text-sm whitespace-nowrap transition-all duration-200 shadow-sm hover:shadow-md"
                       >
                         {inviteLinkCopied ? "¡Copiado!" : "Copiar"}
                       </button>
@@ -1891,8 +1891,8 @@ function GroupDashboardPage() {
                               }
                             }}
                             disabled={inviteLinkLoading}
-                            className={`relative w-10 h-5 rounded-full transition-colors ${
-                              inviteLinkEnabled ? "bg-amber-500" : "bg-[var(--surface-hover)]"
+                            className={`relative w-10 h-5 rounded-full transition-all duration-200 ${
+                              inviteLinkEnabled ? "bg-[var(--primary)]" : "bg-[var(--surface-hover)]"
                             }`}
                           >
                             <span
@@ -1953,7 +1953,7 @@ function GroupDashboardPage() {
                           }
                         }}
                         disabled={inviteLinkLoading}
-                        className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                        className="px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
                       >
                         {inviteLinkLoading ? "Generando..." : "Generar enlace de invitación"}
                       </button>
@@ -1966,7 +1966,7 @@ function GroupDashboardPage() {
                 )}
               </div>
 
-              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6">
                 <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Invitar por email</h2>
                 <form onSubmit={handleInvite} className="flex gap-3">
                   <input
@@ -1975,12 +1975,12 @@ function GroupDashboardPage() {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="flex-1 px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                    className="flex-1 px-4 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                   />
                   <button
                     type="submit"
                     disabled={inviting}
-                    className="px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+                    className="px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     {inviting ? "Enviando..." : "Invitar"}
                   </button>
@@ -1990,7 +1990,7 @@ function GroupDashboardPage() {
               </div>
 
               {group.invitations.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6">
                   <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Invitaciones pendientes</h2>
                   <div className="space-y-2">
                     {group.invitations.map((inv) => (
@@ -2013,7 +2013,7 @@ function GroupDashboardPage() {
           {/* ═══════════ Activity Tab ═══════════ */}
           {activeTab === "activity" && (
             <div>
-              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
                 <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Actividad del grupo</h2>
                 <ActivityFeed
                   items={feedItems}

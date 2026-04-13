@@ -79,7 +79,7 @@ const INTENSITY_LABELS: Record<number, string> = {
 const INTENSITY_COLORS: Record<number, string> = {
   5: "bg-red-500/20 text-red-300 border-red-500",
   4: "bg-orange-500/20 text-orange-300 border-orange-500",
-  3: "bg-amber-500/20 text-amber-300 border-amber-500",
+  3: "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]",
   2: "bg-blue-500/20 text-blue-300 border-blue-500",
   1: "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)]",
 };
@@ -359,7 +359,7 @@ export default function EventDetailPage() {
             {event.isCreator && (
               <button
                 onClick={openEditModal}
-                className="shrink-0 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-amber-400 border border-[var(--border)] hover:border-amber-500/50 rounded-lg transition-colors"
+                className="shrink-0 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border)] hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] rounded-xl transition-all duration-200"
               >
                 Editar
               </button>
@@ -369,7 +369,7 @@ export default function EventDetailPage() {
             <p className="text-[var(--text-secondary)] mt-1">{event.description}</p>
           )}
           <div className="flex flex-wrap gap-2 mt-3">
-            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
+            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
               {formatDate(event.date)}
             </span>
             {event.location && (
@@ -403,7 +403,7 @@ export default function EventDetailPage() {
               <button
                 onClick={handleJoin}
                 disabled={joiningEvent}
-                className="bg-amber-500 hover:bg-amber-600 text-[var(--primary-text)] font-semibold px-5 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
               >
                 {joiningEvent ? "Apuntándote..." : "Apuntarme"}
               </button>
@@ -412,7 +412,7 @@ export default function EventDetailPage() {
 
           {/* Invite link (creator only) */}
           {event.isCreator && (
-            <div className="mt-4 bg-[var(--surface)] rounded-lg border border-[var(--border)] p-3">
+            <div className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3">
               <div className="text-xs font-medium text-[var(--text-secondary)] mb-2">Enlace de invitación</div>
               {inviteCode ? (
                 <div className="flex items-center gap-2">
@@ -420,7 +420,7 @@ export default function EventDetailPage() {
                     type="text"
                     readOnly
                     value={`${window.location.origin}/join-event/${inviteCode}`}
-                    className="flex-1 min-w-0 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded text-xs sm:text-sm text-[var(--text-secondary)] truncate"
+                    className="flex-1 min-w-0 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs sm:text-sm text-[var(--text-secondary)] truncate transition-all duration-200"
                   />
                   <button
                     onClick={() => {
@@ -428,7 +428,7 @@ export default function EventDetailPage() {
                       setInviteCopied(true);
                       setTimeout(() => setInviteCopied(false), 2000);
                     }}
-                    className="shrink-0 px-3 py-1.5 bg-amber-500 text-[var(--primary-text)] rounded text-xs font-medium hover:bg-amber-600 transition-colors"
+                    className="shrink-0 px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     {inviteCopied ? "Copiado" : "Copiar"}
                   </button>
@@ -448,7 +448,7 @@ export default function EventDetailPage() {
                     }
                   }}
                   disabled={generatingLink}
-                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded text-xs font-medium hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)] transition-all duration-200 disabled:opacity-50"
                 >
                   {generatingLink ? "Generando..." : "Generar enlace"}
                 </button>
@@ -468,7 +468,7 @@ export default function EventDetailPage() {
               }}
               className={`pb-2 text-sm font-medium transition-colors ${
                 activeTab === tab
-                  ? "text-amber-400 border-b-2 border-amber-400"
+                  ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]"
               }`}
             >
@@ -479,7 +479,7 @@ export default function EventDetailPage() {
 
         {/* Tab content */}
         {activeTab === "activity" && (
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4">
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
             <ActivityFeed
               items={feedItems}
               onLoadMore={() => feedCursor && fetchEventFeed(feedCursor)}
@@ -514,7 +514,7 @@ export default function EventDetailPage() {
       {/* Edit event modal */}
       {showEdit && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-[var(--text)]">Editar evento</h3>
               <button onClick={() => setShowEdit(false)} className="text-[var(--text-secondary)] hover:text-[var(--text)]">✕</button>
@@ -523,35 +523,35 @@ export default function EventDetailPage() {
               <div>
                 <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre del evento *</label>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none" maxLength={200} />
+                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={200} />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-secondary)] mb-1">Descripción</label>
                 <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3}
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none" maxLength={2000} />
+                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-none transition-all duration-200" maxLength={2000} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha y hora *</label>
                   <input type="datetime-local" value={editDate} onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha fin (opcional)</label>
                   <input type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-[var(--text-secondary)] mb-1">Ubicación</label>
                   <input type="text" value={editLocation} onChange={(e) => setEditLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none" maxLength={300} />
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={300} />
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-secondary)] mb-1">Máx. asistentes</label>
                   <input type="number" value={editMaxAttendees} onChange={(e) => setEditMaxAttendees(e.target.value)} min={1}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
                 </div>
               </div>
               <div>
@@ -559,8 +559,8 @@ export default function EventDetailPage() {
                 <div className="flex gap-2">
                   {(["public", "private"] as const).map((v) => (
                     <button key={v} onClick={() => setEditVisibility(v)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        editVisibility === v ? "bg-amber-500 text-[var(--primary-text)]" : "bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        editVisibility === v ? "bg-[var(--primary)] text-[var(--primary-text)]" : "bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                       }`}
                     >
                       {v === "public" ? "Público" : "Privado"}
@@ -570,7 +570,7 @@ export default function EventDetailPage() {
               </div>
             </div>
             <button onClick={handleSaveEdit} disabled={savingEdit || !editName.trim() || !editDate}
-              className="w-full mt-5 px-4 py-2.5 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium text-sm"
+              className="w-full mt-5 px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
             >
               {savingEdit ? "Guardando..." : "Guardar cambios"}
             </button>
@@ -630,7 +630,7 @@ function GamesTab({
             return (
               <div
                 key={eg.id}
-                className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 sm:p-4"
+                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
               >
                 <div className="flex items-center gap-3 sm:gap-4">
                   <div className="w-11 h-11 sm:w-[80px] sm:h-[80px] shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
@@ -646,7 +646,7 @@ function GamesTab({
                         href={`https://boardgamegeek.com/boardgame/${eg.game.bggId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-amber-300 transition-colors"
+                        className="hover:text-[var(--primary)] transition-colors"
                       >
                         {eg.game.name}
                       </a>
@@ -761,7 +761,7 @@ function MyListTab({
       {myInterests.map(({ id: eventGameId, game, myInterest }) => (
         <div
           key={eventGameId}
-          className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 sm:p-4"
+          className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
@@ -795,7 +795,7 @@ function MyListTab({
                   onChange={(e) => setNotesValue(e.target.value)}
                   maxLength={500}
                   placeholder="Notas privadas..."
-                  className="flex-1 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="flex-1 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       onUpdateNotes(eventGameId, myInterest.intensity, notesValue);
@@ -808,7 +808,7 @@ function MyListTab({
                     onUpdateNotes(eventGameId, myInterest.intensity, notesValue);
                     setEditingNotes(null);
                   }}
-                  className="px-3 py-1.5 bg-amber-500 text-[var(--primary-text)] rounded text-xs font-medium hover:bg-amber-600 transition-colors"
+                  className="px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   Guardar
                 </button>
@@ -854,7 +854,7 @@ function AttendeesTab({ event }: { event: EventData }) {
             return (
               <div
                 key={att.id}
-                className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 sm:p-4"
+                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
               >
                 <div className="flex items-center gap-2">
                   <Avatar
@@ -877,14 +877,14 @@ function AttendeesTab({ event }: { event: EventData }) {
                       )}
                     </div>
                     {isCreator && (
-                      <span className="text-xs text-amber-400">Gestor</span>
+                      <span className="text-xs text-[var(--primary)]">Gestor</span>
                     )}
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                     att.status === "attending"
                       ? "bg-emerald-500/20 text-emerald-300"
                       : att.status === "maybe"
-                        ? "bg-amber-500/20 text-amber-300"
+                        ? "bg-[var(--accent-soft)] text-[var(--primary)]"
                         : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
                   }`}>
                     {att.status === "attending" ? "Asiste" : att.status === "maybe" ? "Quizás" : "Cancelado"}

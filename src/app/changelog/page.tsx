@@ -138,7 +138,7 @@ const CHANGELOG: ChangelogEntry[] = [
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   new: { label: "Nuevo", color: "bg-emerald-500/20 text-emerald-400" },
   improved: { label: "Mejora", color: "bg-blue-500/20 text-blue-400" },
-  fixed: { label: "Fix", color: "bg-amber-500/20 text-amber-400" },
+  fixed: { label: "Fix", color: "bg-[var(--accent-soft)] text-[var(--primary)]" },
 };
 
 export default function ChangelogPage() {
@@ -154,14 +154,14 @@ export default function ChangelogPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={toggleTheme}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--surface-hover)] transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
             >
               {resolvedTheme === "dark" ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
@@ -183,7 +183,7 @@ export default function ChangelogPage() {
           {CHANGELOG.map((entry) => (
             <div key={entry.version} className="relative">
               <div className="flex items-baseline gap-3 mb-3">
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--primary)] text-[var(--primary-text)]">
+                <span className="text-xs font-mono px-2 py-0.5 rounded-lg bg-[var(--primary)] text-[var(--primary-text)]">
                   v{entry.version}
                 </span>
                 <h2 className="text-lg font-semibold text-[var(--text)]">{entry.title}</h2>
@@ -192,7 +192,7 @@ export default function ChangelogPage() {
               <ul className="space-y-2 ml-1">
                 {entry.changes.map((change, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium mt-0.5 ${TYPE_LABELS[change.type].color}`}>
+                    <span className={`shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-medium mt-0.5 ${TYPE_LABELS[change.type].color}`}>
                       {TYPE_LABELS[change.type].label}
                     </span>
                     <span className="text-[var(--text-secondary)]">{change.text}</span>

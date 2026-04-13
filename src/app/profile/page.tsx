@@ -161,7 +161,7 @@ function ProfileForm() {
         <div className="max-w-lg mx-auto">
           <h1 className="text-2xl font-bold text-[var(--text)] mb-6">Mi Perfil</h1>
 
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
             {/* Avatar section */}
             <div className="flex items-center gap-4 mb-6">
               <div className="relative">
@@ -172,7 +172,7 @@ function ProfileForm() {
                 />
                 {uploadingAvatar && (
                   <div className="absolute inset-0 rounded-full bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] flex items-center justify-center">
-                    <span className="text-xs text-amber-400 animate-pulse">...</span>
+                    <span className="text-xs text-[var(--primary)] animate-pulse">...</span>
                   </div>
                 )}
               </div>
@@ -180,7 +180,7 @@ function ProfileForm() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                  className="text-xs text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
                 >
                   {avatarUrl ? "Cambiar foto" : "Subir foto"}
                 </button>
@@ -205,7 +205,7 @@ function ProfileForm() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                   Nombre
                 </label>
                 <input
@@ -213,12 +213,12 @@ function ProfileForm() {
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                   Apellido
                 </label>
                 <input
@@ -226,12 +226,12 @@ function ProfileForm() {
                   required
                   value={form.surname}
                   onChange={(e) => setForm({ ...form, surname: e.target.value })}
-                  className="w-full px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                   Ubicación
                 </label>
                 <input
@@ -239,12 +239,12 @@ function ProfileForm() {
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
                   placeholder="Ciudad, País"
-                  className="w-full px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                   Usuario de BGG
                 </label>
                 <input
@@ -254,14 +254,14 @@ function ProfileForm() {
                     setForm({ ...form, bggUsername: e.target.value })
                   }
                   placeholder="Tu nombre de usuario en BoardGameGeek"
-                  className="w-full px-4 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />
                 {form.bggUsername && (
                   <a
                     href={`https://boardgamegeek.com/user/${form.bggUsername}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-400 hover:text-amber-300"
+                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-[var(--primary)] hover:text-[var(--primary-hover)]"
                   >
                     Ver perfil de @{form.bggUsername} en BGG &rarr;
                   </a>
@@ -276,7 +276,7 @@ function ProfileForm() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+                className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 {saving ? "Guardando..." : "Guardar perfil"}
               </button>
@@ -295,7 +295,7 @@ function ProfileForm() {
               }
             }}
             disabled={loggingOut}
-            className="w-full mt-6 px-4 py-2 border border-[var(--border)] text-[var(--text-secondary)] rounded-lg hover:text-red-400 hover:border-red-500/50 transition-colors disabled:opacity-50 text-sm"
+            className="w-full mt-6 px-4 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] rounded-xl hover:text-red-400 hover:border-red-500/50 transition-all duration-200 disabled:opacity-50 text-sm"
           >
             {loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
           </button>

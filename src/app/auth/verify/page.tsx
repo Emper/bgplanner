@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 function VerifyForm() {
   const router = useRouter();
@@ -117,14 +118,19 @@ function VerifyForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto" />
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-[var(--glow)] rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="text-center mb-8 animate-fade-up">
+          <Link href="/" className="inline-block">
+            <AnimatedLogo />
+          </Link>
         </div>
 
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
-          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-7 shadow-[var(--card-shadow)] animate-fade-up delay-100">
+          <h2 className="text-xl font-bold text-[var(--text)] mb-2">
             Verificar código
           </h2>
           <p className="text-sm text-[var(--text-secondary)] mb-6">
@@ -144,7 +150,7 @@ function VerifyForm() {
                   value={digit}
                   onChange={(e) => handleChange(i, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(i, e)}
-                  className="w-12 h-14 text-center text-2xl font-semibold bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                  className="w-12 h-14 text-center text-2xl font-semibold bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />
               ))}
             </div>
@@ -154,7 +160,7 @@ function VerifyForm() {
             <button
               type="submit"
               disabled={loading || code.join("").length !== 6}
-              className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+              className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
             >
               {loading ? "Verificando..." : "Verificar"}
             </button>
@@ -164,7 +170,7 @@ function VerifyForm() {
             <button
               onClick={handleResend}
               disabled={resendCooldown > 0}
-              className="text-sm text-amber-400 hover:text-amber-400 disabled:text-[var(--text-muted)]"
+              className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)] disabled:text-[var(--text-muted)] transition-colors"
             >
               {resendCooldown > 0
                 ? `Reenviar código (${resendCooldown}s)`

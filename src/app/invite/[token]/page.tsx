@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -71,12 +72,12 @@ export default function InvitePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
         <div className="w-full max-w-md text-center">
-          <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+          <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
             <p className="text-red-400 mb-4">{error}</p>
             <button
               onClick={() => router.push("/")}
-              className="px-4 py-2 bg-[var(--surface-hover)] text-[var(--text)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
+              className="px-4 py-2.5 bg-[var(--surface-hover)] text-[var(--text)] rounded-xl text-sm transition-all duration-200"
             >
               Ir al inicio
             </button>
@@ -89,13 +90,13 @@ export default function InvitePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-md text-center">
-        <Image src="/logo.svg" alt="WeBoard" width={200} height={48} priority className="mx-auto mb-2" />
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6">
+        <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
           <div className="text-4xl mb-3">🎲</div>
           <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
             Te han invitado a unirte a
           </h2>
-          <p className="text-2xl font-bold text-amber-400 mb-1">
+          <p className="text-2xl font-bold text-[var(--primary)] mb-1">
             &ldquo;{groupName}&rdquo;
           </p>
           <p className="text-sm text-[var(--text-muted)] mb-6">
@@ -108,7 +109,7 @@ export default function InvitePage() {
             <button
               onClick={handleJoin}
               disabled={joining}
-              className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
+              className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
             >
               {joining ? "Uniéndote..." : "Unirme al grupo"}
             </button>
@@ -119,7 +120,7 @@ export default function InvitePage() {
               </p>
               <button
                 onClick={() => router.push(`/login?redirect=/invite/${token}`)}
-                className="w-full px-4 py-2 bg-amber-500 text-[var(--primary-text)] rounded-lg hover:bg-amber-600 font-medium"
+                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Iniciar sesión / Crear cuenta
               </button>

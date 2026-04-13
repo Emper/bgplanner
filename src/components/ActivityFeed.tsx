@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Avatar from "./Avatar";
 import { formatActivity } from "@/lib/activity";
 
@@ -36,7 +35,7 @@ export default function ActivityFeed({
   loading = false,
 }: {
   items: ActivityItem[];
-  showContext?: boolean; // show group/event name (for global feed)
+  showContext?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
   loading?: boolean;
@@ -87,7 +86,7 @@ export default function ActivityFeed({
         <button
           onClick={onLoadMore}
           disabled={loading}
-          className="w-full py-2 text-xs text-[var(--text-muted)] hover:text-amber-400 transition-colors"
+          className="w-full py-2 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
         >
           {loading ? "Cargando..." : "Ver más"}
         </button>

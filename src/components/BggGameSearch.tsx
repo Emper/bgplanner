@@ -119,14 +119,14 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--border-strong)] rounded-lg text-[var(--text)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+        className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] text-sm transition-all duration-200"
       />
       {loading && (
-        <div className="absolute right-3 top-2.5 text-amber-400 text-xs animate-pulse">Buscando...</div>
+        <div className="absolute right-3 top-2.5 text-[var(--primary)] text-xs animate-pulse">Buscando...</div>
       )}
 
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto">
           {results.map((r) => (
             <button
               key={r.bggId}
@@ -141,7 +141,7 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
                 )}
               </div>
               {loadingGame === r.bggId && (
-                <div className="text-xs text-amber-400 mt-0.5 animate-pulse">Añadiendo juego...</div>
+                <div className="text-xs text-[var(--primary)] mt-0.5 animate-pulse">Añadiendo juego...</div>
               )}
             </button>
           ))}
@@ -149,7 +149,7 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
       )}
 
       {isOpen && !loading && results.length === 0 && query.trim().length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg shadow-xl z-50 p-3 text-sm text-[var(--text-secondary)]">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 p-3 text-sm text-[var(--text-secondary)]">
           No se encontraron resultados
         </div>
       )}
