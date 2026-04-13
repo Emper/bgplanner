@@ -838,7 +838,7 @@ function GroupDashboardPage() {
                   {/* ── Pending games (not yet played) ── */}
                   {pendingGames.length > 0 && (
                     <div>
-                      <div className="sticky top-0 z-10 bg-[var(--bg)] py-2 -mx-1 px-1">
+                      <div className="sticky top-[49px] z-10 bg-[var(--bg)] py-2 -mx-1 px-1">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                             Pendientes de jugar ({pendingGames.length})
