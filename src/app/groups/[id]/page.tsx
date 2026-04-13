@@ -874,6 +874,21 @@ function GroupDashboardPage() {
                           )}
                         </div>
                       </div>
+                      {/* Super vote available banner */}
+                      {(() => {
+                        const hasSuperVote = ranking.some((r) => r.userVote === "super");
+                        if (!hasSuperVote && pendingGames.length > 0) {
+                          return (
+                            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
+                              <span className="text-base">🔥</span>
+                              <span className="text-xs sm:text-sm text-[var(--primary)] font-medium">
+                                ¡Tienes tu super voto disponible! Úsalo en el juego que más te apetezca para darle +3 puntos.
+                              </span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className="space-y-3">
                         {pendingGames.map((item, index) => (
                           <div
