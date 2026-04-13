@@ -15,6 +15,24 @@ interface ActivityItem {
   event?: { id: string; name: string } | null;
 }
 
+// ── In-memory feed cache (survives tab switches & navigations within SPA) ──
+const feedCache = new Map<string, { items: ActivityItem[]; cursor: string | null; ts: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+export function getCachedFeed(key: string) {
+  const entry = feedCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    feedCache.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+export function setCachedFeed(key: string, items: ActivityItem[], cursor: string | null) {
+  feedCache.set(key, { items, cursor, ts: Date.now() });
+}
+
 function timeAgo(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
@@ -25,6 +43,30 @@ function timeAgo(dateStr: string): string {
   if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
   if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`;
   return new Date(dateStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+
+function SkeletonRow() {
+  return (
+    <div className="flex items-start gap-2.5 py-2 px-1 animate-pulse">
+      <div className="w-6 h-6 rounded-full bg-[var(--surface-hover)]" />
+      <div className="flex-1 space-y-1.5">
+        <div className="h-3.5 bg-[var(--surface-hover)] rounded-md w-3/4" />
+        <div className="h-2.5 bg-[var(--surface-hover)] rounded-md w-1/4" />
+      </div>
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-1">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} style={{ animationDelay: `${i * 80}ms` }}>
+          <SkeletonRow />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function ActivityFeed({
@@ -40,6 +82,10 @@ export default function ActivityFeed({
   hasMore?: boolean;
   loading?: boolean;
 }) {
+  if (items.length === 0 && loading) {
+    return <LoadingSkeleton />;
+  }
+
   if (items.length === 0 && !loading) {
     return (
       <p className="text-sm text-[var(--text-muted)] text-center py-4">

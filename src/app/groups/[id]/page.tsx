@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
-import ActivityFeed from "@/components/ActivityFeed";
+import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import Avatar from "@/components/Avatar";
 import { formatDuration } from "@/lib/format";
 
@@ -140,13 +140,15 @@ function GroupDashboardPage() {
   const [removingGame, setRemovingGame] = useState<string | null>(null);
   const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
 
-  // Group activity feed
+  // Group activity feed (restore from cache if available)
+  const feedCacheKey = `group:${groupId}`;
+  const cachedFeed = getCachedFeed(feedCacheKey);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [feedItems, setFeedItems] = useState<any[]>([]);
-  const [feedCursor, setFeedCursor] = useState<string | null>(null);
-  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedItems, setFeedItems] = useState<any[]>(cachedFeed?.items ?? []);
+  const [feedCursor, setFeedCursor] = useState<string | null>(cachedFeed?.cursor ?? null);
+  const [feedHasMore, setFeedHasMore] = useState(!!cachedFeed?.cursor);
   const [feedLoading, setFeedLoading] = useState(false);
-  const [feedLoaded, setFeedLoaded] = useState(false);
+  const [feedLoaded, setFeedLoaded] = useState(!!cachedFeed);
 
   // Quick session from ranking
   const [quickSelectIds, setQuickSelectIds] = useState<Set<string>>(new Set());
@@ -203,9 +205,14 @@ function GroupDashboardPage() {
       if (res.ok) {
         const data = await res.json();
         if (cursor) {
-          setFeedItems((prev) => [...prev, ...data.items]);
+          setFeedItems((prev) => {
+            const merged = [...prev, ...data.items];
+            setCachedFeed(`group:${groupId}`, merged, data.nextCursor);
+            return merged;
+          });
         } else {
           setFeedItems(data.items);
+          setCachedFeed(`group:${groupId}`, data.items, data.nextCursor);
         }
         setFeedCursor(data.nextCursor);
         setFeedHasMore(!!data.nextCursor);

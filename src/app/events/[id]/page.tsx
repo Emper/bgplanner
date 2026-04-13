@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import BggGameSearch from "@/components/BggGameSearch";
 import Avatar from "@/components/Avatar";
-import ActivityFeed from "@/components/ActivityFeed";
+import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import { formatDateFull, formatDuration } from "@/lib/format";
 
 interface Game {
@@ -98,13 +98,15 @@ export default function EventDetailPage() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
 
-  // Activity feed state
+  // Activity feed state (restore from cache if available)
+  const eventFeedCacheKey = `event:${eventId}`;
+  const cachedEventFeed = getCachedFeed(eventFeedCacheKey);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [feedItems, setFeedItems] = useState<any[]>([]);
-  const [feedCursor, setFeedCursor] = useState<string | null>(null);
-  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedItems, setFeedItems] = useState<any[]>(cachedEventFeed?.items ?? []);
+  const [feedCursor, setFeedCursor] = useState<string | null>(cachedEventFeed?.cursor ?? null);
+  const [feedHasMore, setFeedHasMore] = useState(!!cachedEventFeed?.cursor);
   const [feedLoading, setFeedLoading] = useState(false);
-  const [feedLoaded, setFeedLoaded] = useState(false);
+  const [feedLoaded, setFeedLoaded] = useState(!!cachedEventFeed);
 
   // Edit event state
   const [showEdit, setShowEdit] = useState(false);
@@ -125,9 +127,14 @@ export default function EventDetailPage() {
       if (res.ok) {
         const data = await res.json();
         if (cursor) {
-          setFeedItems((prev) => [...prev, ...data.items]);
+          setFeedItems((prev) => {
+            const merged = [...prev, ...data.items];
+            setCachedFeed(`event:${eventId}`, merged, data.nextCursor);
+            return merged;
+          });
         } else {
           setFeedItems(data.items);
+          setCachedFeed(`event:${eventId}`, data.items, data.nextCursor);
         }
         setFeedCursor(data.nextCursor);
         setFeedHasMore(!!data.nextCursor);
