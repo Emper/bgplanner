@@ -27,11 +27,11 @@
 
 .dark {
   --bg: #151118;
-  --surface: #1e1a24;
-  --surface-alt: #252130;
-  --surface-hover: #302b3a;
-  --border: #302b3a;
-  --border-strong: #443d50;
+  --surface: #23202b;
+  --surface-alt: #2a2635;
+  --surface-hover: #342f40;
+  --border: #3a3548;
+  --border-strong: #4a4458;
   --text: #f0ece8;
   --text-secondary: #a09890;
   --text-muted: #6b6360;
