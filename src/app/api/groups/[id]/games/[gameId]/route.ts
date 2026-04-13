@@ -129,16 +129,16 @@ export async function PATCH(
       // Send notification emails (fire and forget)
       for (const vote of superVotes) {
         resend.emails.send({
-          from: "WeBoard <cesar@tiradacritica.es>",
+          from: "BG Planner <cesar@tiradacritica.es>",
           to: vote.user.email,
           subject: `Tu super voto en "${group?.name}" se ha liberado`,
           html: `
             <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-              <h2 style="color: #f59e0b; margin-bottom: 16px;">WeBoard</h2>
+              <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
               <p>¡Buenas noticias, ${vote.user.name || "jugador"}! 🎲</p>
               <p>El juego <strong style="color: #f59e0b;">"${groupGame.game.name}"</strong> en el grupo <strong>"${group?.name}"</strong> ha sido marcado como jugado.</p>
               <p>Tu super voto se ha convertido en un voto normal y <strong style="color: #f59e0b;">vuelves a tener tu super voto disponible</strong> para usarlo en otro juego del grupo.</p>
-              <a href="${process.env.NEXT_PUBLIC_URL || "https://weboard-five.vercel.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+              <a href="${process.env.NEXT_PUBLIC_URL || "https://bgplanner.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
                 Ir al grupo
               </a>
             </div>

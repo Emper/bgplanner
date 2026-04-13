@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="border-t border-[var(--border)] mt-16 py-8 px-4">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--text-muted)]">
         <div className="flex items-center gap-4">
-          <span className="font-medium">© {new Date().getFullYear()} WeBoard</span>
+          <span className="font-medium">© {new Date().getFullYear()} BG Planner</span>
           <span className="text-[var(--border)]">·</span>
           <Link href="/changelog" className="hover:text-[var(--primary)] transition-colors">
             Changelog

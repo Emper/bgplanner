@@ -78,7 +78,7 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Medallas oro, plata y bronce para el top 3 del ranking" },
       { type: "new", text: "Tooltip con desglose de votos al pasar el ratón por la puntuación" },
       { type: "new", text: "Logo animado con dado que vibra y cambia de cara" },
-      { type: "new", text: "Favicon personalizado con la W de WeBoard" },
+      { type: "new", text: "Favicon personalizado de BG Planner" },
       { type: "improved", text: "Diseño responsive completo para móvil (~390px)" },
       { type: "improved", text: "Thumbnails de juegos sin recortar (object-contain)" },
       { type: "improved", text: "Enlace de invitación por link compartible" },
@@ -178,7 +178,7 @@ export default function ChangelogPage() {
       <main className="max-w-3xl mx-auto py-8 sm:py-12 px-4">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">Changelog</h1>
         <p className="text-[var(--text-secondary)] mb-10">
-          Historial de cambios y mejoras de WeBoard.
+          Historial de cambios y mejoras de BG Planner.
         </p>
 
         <div className="space-y-10">

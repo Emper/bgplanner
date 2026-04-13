@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WeBoard - Organiza tus juegos de mesa",
+  title: "BG Planner - Organiza tus juegos de mesa",
   description:
     "Decide qué jugar con tu grupo de amigos votando vuestros juegos de mesa favoritos",
   icons: {

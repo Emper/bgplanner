@@ -45,7 +45,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Sesiones",
-    description: "Planifica sesiones de juego. WeBoard te sugiere los mejores juegos según tiempo, jugadores y votos.",
+    description: "Planifica sesiones de juego. BG Planner te sugiere los mejores juegos según tiempo, jugadores y votos.",
     gradient: "from-emerald-500/10 to-teal-500/10",
   },
   {
@@ -299,7 +299,7 @@ function LandingPage() {
                 ¿Listo para la próxima partida?
               </h2>
               <p className="text-[var(--text-secondary)] mb-8 max-w-md mx-auto">
-                Únete a WeBoard y organiza tus juegos de mesa como nunca.
+                Únete a BG Planner y organiza tus juegos de mesa como nunca.
               </p>
               <Link
                 href="/login"

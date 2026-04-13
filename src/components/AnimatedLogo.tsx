@@ -2,38 +2,38 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-// Dot positions for each die face (1-6), centered in a 28x28 box offset at x=164, y=8
+// Dot positions for each die face (1-6), centered in a 28x28 box offset at x=204, y=8
 const dieFaces: Record<number, { cx: number; cy: number }[]> = {
-  1: [{ cx: 178, cy: 22 }],
+  1: [{ cx: 218, cy: 22 }],
   2: [
-    { cx: 172, cy: 16 },
-    { cx: 184, cy: 28 },
+    { cx: 212, cy: 16 },
+    { cx: 224, cy: 28 },
   ],
   3: [
-    { cx: 172, cy: 16 },
-    { cx: 178, cy: 22 },
-    { cx: 184, cy: 28 },
+    { cx: 212, cy: 16 },
+    { cx: 218, cy: 22 },
+    { cx: 224, cy: 28 },
   ],
   4: [
-    { cx: 172, cy: 16 },
-    { cx: 184, cy: 16 },
-    { cx: 172, cy: 28 },
-    { cx: 184, cy: 28 },
+    { cx: 212, cy: 16 },
+    { cx: 224, cy: 16 },
+    { cx: 212, cy: 28 },
+    { cx: 224, cy: 28 },
   ],
   5: [
-    { cx: 172, cy: 16 },
-    { cx: 184, cy: 16 },
-    { cx: 178, cy: 22 },
-    { cx: 172, cy: 28 },
-    { cx: 184, cy: 28 },
+    { cx: 212, cy: 16 },
+    { cx: 224, cy: 16 },
+    { cx: 218, cy: 22 },
+    { cx: 212, cy: 28 },
+    { cx: 224, cy: 28 },
   ],
   6: [
-    { cx: 172, cy: 15 },
-    { cx: 184, cy: 15 },
-    { cx: 172, cy: 22 },
-    { cx: 184, cy: 22 },
-    { cx: 172, cy: 29 },
-    { cx: 184, cy: 29 },
+    { cx: 212, cy: 15 },
+    { cx: 224, cy: 15 },
+    { cx: 212, cy: 22 },
+    { cx: 224, cy: 22 },
+    { cx: 212, cy: 29 },
+    { cx: 224, cy: 29 },
   ],
 };
 
@@ -66,12 +66,12 @@ export default function AnimatedLogo() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="-4 2 208 44"
+      viewBox="-4 2 248 44"
       fill="none"
-      width={140}
+      width={168}
       height={33}
       role="img"
-      aria-label="WeBoard"
+      aria-label="BG Planner"
     >
       <style>{`
         @keyframes dice-shake {
@@ -88,7 +88,7 @@ export default function AnimatedLogo() {
         }
         .dice-shaking {
           animation: dice-shake 0.6s ease-in-out;
-          transform-origin: 178px 22px;
+          transform-origin: 218px 22px;
         }
       `}</style>
       <text
@@ -99,15 +99,15 @@ export default function AnimatedLogo() {
         fontWeight="800"
         letterSpacing="-1.5"
       >
-        <tspan fill="var(--primary)">We</tspan>
-        <tspan fill="currentColor">Board</tspan>
+        <tspan fill="var(--primary)">BG</tspan>
+        <tspan fill="currentColor"> Planner</tspan>
       </text>
       <g
         className={shaking ? "dice-shaking" : ""}
         onMouseEnter={() => rollDice()}
         style={{ cursor: "pointer" }}
       >
-        <rect x="164" y="8" width="28" height="28" rx="6" fill="var(--primary)" opacity="0.12" />
+        <rect x="204" y="8" width="28" height="28" rx="6" fill="var(--primary)" opacity="0.12" />
         {dots.map((dot, i) => (
           <circle key={`${face}-${i}`} cx={dot.cx} cy={dot.cy} r="2.2" fill="var(--primary)" />
         ))}

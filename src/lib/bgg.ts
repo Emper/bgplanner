@@ -650,7 +650,7 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
   try {
     const geekdoUrl = `https://api.geekdo.com/api/geeksearch?objecttype=thing&subtype=boardgame&q=${encodeURIComponent(normalizedQuery)}`;
     const geekdoRes = await fetch(geekdoUrl, {
-      headers: { "User-Agent": "WeBoard/1.0" },
+      headers: { "User-Agent": "BGPlanner/1.0" },
     });
     if (geekdoRes.ok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

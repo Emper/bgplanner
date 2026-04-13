@@ -75,12 +75,12 @@ export async function PATCH(
   // Send email notification
   if (role === "admin") {
     resend.emails.send({
-      from: "WeBoard <cesar@tiradacritica.es>",
+      from: "BG Planner <cesar@tiradacritica.es>",
       to: targetMembership.user.email,
-      subject: `¡Ahora eres admin de "${group?.name}" en WeBoard!`,
+      subject: `¡Ahora eres admin de "${group?.name}" en BG Planner!`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-          <h2 style="color: #f59e0b; margin-bottom: 16px;">WeBoard</h2>
+          <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
           <p>¡Enhorabuena, ${targetMembership.user.name || "jugador"}! 🎉</p>
           <p>Ahora eres <strong style="color: #f59e0b;">administrador</strong> del grupo <strong style="color: #f59e0b;">"${group?.name}"</strong>.</p>
           <p>Como admin puedes:</p>
@@ -89,7 +89,7 @@ export async function PATCH(
             <li>Gestionar sesiones y miembros</li>
             <li>Generar y controlar el enlace de invitación</li>
           </ul>
-          <a href="${process.env.NEXT_PUBLIC_URL || "https://weboard-five.vercel.app"}/groups/${groupId}?tab=members" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+          <a href="${process.env.NEXT_PUBLIC_URL || "https://bgplanner.app"}/groups/${groupId}?tab=members" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
             Ir al grupo
           </a>
         </div>
@@ -97,12 +97,12 @@ export async function PATCH(
     }).catch(() => {});
   } else if (role === "member") {
     resend.emails.send({
-      from: "WeBoard <cesar@tiradacritica.es>",
+      from: "BG Planner <cesar@tiradacritica.es>",
       to: targetMembership.user.email,
       subject: `Tu rol en "${group?.name}" ha cambiado`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-          <h2 style="color: #f59e0b; margin-bottom: 16px;">WeBoard</h2>
+          <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
           <p>Hola, ${targetMembership.user.name || "jugador"}.</p>
           <p>Tu rol en el grupo <strong style="color: #f59e0b;">"${group?.name}"</strong> ha cambiado a <strong>miembro</strong>.</p>
           <p style="color: #94a3b8; font-size: 14px;">Sigues formando parte del grupo y puedes votar y participar en sesiones como siempre.</p>
