@@ -16,12 +16,14 @@ function applyTheme(theme: Theme) {
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>("system");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("theme") as Theme | null;
     const initial = stored || "system";
     setThemeState(initial);
     applyTheme(initial);
+    setMounted(true);
 
     // Listen for system preference changes
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -82,5 +84,5 @@ export function useTheme() {
 
   const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
 
-  return { theme, resolvedTheme, setTheme, toggleTheme };
+  return { theme, resolvedTheme, setTheme, toggleTheme, mounted };
 }

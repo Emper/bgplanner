@@ -7,7 +7,7 @@ import { useTheme } from "@/lib/theme";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { resolvedTheme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme, mounted } = useTheme();
 
   const navItems = [
     { href: "/groups", label: "Grupos", match: "/groups" },
@@ -49,7 +49,9 @@ export default function Navbar() {
             className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
             title={resolvedTheme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           >
-            {resolvedTheme === "dark" ? (
+            {!mounted ? (
+              <span className="w-[18px] h-[18px]" />
+            ) : resolvedTheme === "dark" ? (
               <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
