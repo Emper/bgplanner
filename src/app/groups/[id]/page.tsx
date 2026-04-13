@@ -897,16 +897,21 @@ function GroupDashboardPage() {
                           (m) => m.user.id !== group.currentUserId
                         );
                         return (
-                          <div className="flex items-start gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
-                            <span className="text-base mt-0.5">🔥</span>
+                          <div className="flex items-center gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
+                            <span className="text-base shrink-0">🔥</span>
                             <div className="text-xs sm:text-sm text-[var(--primary)]">
-                              {currentUserAvailable && (
+                              {currentUserAvailable && others.length === 0 && (
                                 <p className="font-semibold">¡Tienes tu super voto disponible! Úsalo en el juego que más te apetezca (+3 puntos).</p>
                               )}
-                              {others.length > 0 && (
-                                <p className={currentUserAvailable ? "mt-1 opacity-80 font-normal" : "font-medium"}>
+                              {currentUserAvailable && others.length > 0 && (
+                                <p className="font-semibold">
+                                  Tú, {others.map((m) => m.user.name || m.user.email).join(", ")} tenéis el super voto libre
+                                </p>
+                              )}
+                              {!currentUserAvailable && others.length > 0 && (
+                                <p className="font-medium">
                                   {others.length === 1
-                                    ? `${others[0].user.name || others[0].user.email} también tiene su super voto libre`
+                                    ? `${others[0].user.name || others[0].user.email} tiene su super voto libre`
                                     : `${others.map((m) => m.user.name || m.user.email).join(", ")} tienen su super voto libre`
                                   }
                                 </p>
