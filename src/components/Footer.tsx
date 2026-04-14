@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useTheme } from "@/lib/theme";
 
 export default function Footer() {
-  const { resolvedTheme, mounted } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -43,15 +41,13 @@ export default function Footer() {
           rel="noopener noreferrer"
           className="hover:opacity-80 transition-opacity"
         >
-          {mounted && (
-            <Image
-              src={resolvedTheme === "dark" ? "/powered-by-bgg-reversed.svg" : "/powered-by-bgg.svg"}
-              alt="Powered by BoardGameGeek"
-              width={120}
-              height={27}
-              className="h-[27px] w-auto"
-            />
-          )}
+          <Image
+            src="/powered-by-bgg.svg"
+            alt="Powered by BoardGameGeek"
+            width={120}
+            height={27}
+            className="h-[27px] w-auto"
+          />
         </a>
       </div>
     </footer>
