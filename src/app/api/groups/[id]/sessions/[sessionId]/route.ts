@@ -149,7 +149,7 @@ export async function PATCH(
                       <p>¡Buenas noticias, ${vote.user.name || "jugador"}! 🎲</p>
                       <p>El juego <strong style="color: #f59e0b;">"${sessionGame.game.name}"</strong> en el grupo <strong>"${groupData?.name}"</strong> se ha completado en una sesión.</p>
                       <p>Tu super voto se ha convertido en un voto normal y <strong style="color: #f59e0b;">vuelves a tener tu super voto disponible</strong> para usarlo en otro juego del grupo.</p>
-                      <a href="${process.env.NEXT_PUBLIC_URL || "https://bgplanner.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+                      <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
                         Ir al grupo
                       </a>
                     </div>

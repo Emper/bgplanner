@@ -89,7 +89,7 @@ export async function PATCH(
             <li>Gestionar sesiones y miembros</li>
             <li>Generar y controlar el enlace de invitación</li>
           </ul>
-          <a href="${process.env.NEXT_PUBLIC_URL || "https://bgplanner.app"}/groups/${groupId}?tab=members" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app"}/groups/${groupId}?tab=members" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
             Ir al grupo
           </a>
         </div>
