@@ -45,10 +45,14 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
-function SkeletonRow() {
+function SkeletonRow({ showAvatar = true }: { showAvatar?: boolean }) {
   return (
-    <div className="flex items-start gap-2.5 py-2 px-1 animate-pulse">
-      <div className="w-6 h-6 rounded-full bg-[var(--surface-hover)]" />
+    <div className="flex items-start gap-3 py-2 px-1 animate-pulse">
+      {showAvatar ? (
+        <div className="w-8 h-8 rounded-full bg-[var(--surface-hover)] shrink-0" />
+      ) : (
+        <div className="w-8 shrink-0" />
+      )}
       <div className="flex-1 space-y-1.5">
         <div className="h-3.5 bg-[var(--surface-hover)] rounded-md w-3/4" />
         <div className="h-2.5 bg-[var(--surface-hover)] rounded-md w-1/4" />
@@ -59,14 +63,40 @@ function SkeletonRow() {
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-1">
+    <div>
       {[0, 1, 2, 3, 4].map((i) => (
         <div key={i} style={{ animationDelay: `${i * 80}ms` }}>
-          <SkeletonRow />
+          <SkeletonRow showAvatar={i === 0 || i === 3} />
         </div>
       ))}
     </div>
   );
+}
+
+// Group consecutive items by the same user
+interface ItemGroup {
+  userId: string;
+  userName: string;
+  avatarUrl: string | null;
+  items: ActivityItem[];
+}
+
+function groupByUser(items: ActivityItem[]): ItemGroup[] {
+  const groups: ItemGroup[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.userId === item.userId) {
+      last.items.push(item);
+    } else {
+      groups.push({
+        userId: item.userId,
+        userName: item.user.displayName || item.user.name || "Alguien",
+        avatarUrl: item.user.avatarUrl,
+        items: [item],
+      });
+    }
+  }
+  return groups;
 }
 
 export default function ActivityFeed({
@@ -94,40 +124,51 @@ export default function ActivityFeed({
     );
   }
 
-  return (
-    <div className="space-y-1">
-      {items.map((item) => {
-        const text = formatActivity(item.type, item.metadata as Record<string, unknown>);
-        const userName = item.user.displayName || item.user.name || "Alguien";
-        const context = showContext
-          ? item.group?.name || item.event?.name
-          : null;
+  const groups = groupByUser(items);
 
-        return (
-          <div
-            key={item.id}
-            className="flex items-start gap-2.5 py-2 px-1"
-          >
+  return (
+    <div>
+      {groups.map((group) => (
+        <div key={`${group.userId}-${group.items[0].id}`} className="flex gap-3 py-2 px-1">
+          {/* Avatar + vertical line column */}
+          <div className="flex flex-col items-center shrink-0 w-8">
             <Avatar
-              name={userName}
-              avatarUrl={item.user.avatarUrl}
-              size="xs"
+              name={group.userName}
+              avatarUrl={group.avatarUrl}
+              size="sm"
             />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-[var(--text-secondary)] leading-snug">
-                <span className="font-medium text-[var(--text)]">{userName}</span>{" "}
-                {text}
-                {context && (
-                  <span className="text-[var(--text-muted)]"> en {context}</span>
-                )}
-              </p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                {timeAgo(item.createdAt)}
-              </p>
-            </div>
+            {group.items.length > 1 && (
+              <div className="flex-1 w-px bg-[var(--border)] mt-1.5 mb-0.5 rounded-full" />
+            )}
           </div>
-        );
-      })}
+          {/* Actions */}
+          <div className="flex-1 min-w-0 pt-1">
+            {group.items.map((item, idx) => {
+              const text = formatActivity(item.type, item.metadata as Record<string, unknown>);
+              const context = showContext
+                ? item.group?.name || item.event?.name
+                : null;
+
+              return (
+                <div key={item.id} className={idx > 0 ? "mt-2.5" : ""}>
+                  <p className="text-sm text-[var(--text-secondary)] leading-snug">
+                    {idx === 0 && (
+                      <span className="font-medium text-[var(--text)]">{group.userName} </span>
+                    )}
+                    {text}
+                    {context && (
+                      <span className="text-[var(--text-muted)]"> en {context}</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    {timeAgo(item.createdAt)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
       {hasMore && onLoadMore && (
         <button
           onClick={onLoadMore}
