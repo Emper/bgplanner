@@ -341,7 +341,7 @@ export default function GroupsPage() {
           )}
         </div>
       </div>
-      <Footer />
+      <Footer variant="internal" />
     </>
   );
 }

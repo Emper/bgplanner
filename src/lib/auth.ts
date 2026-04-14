@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
@@ -40,6 +41,17 @@ export async function getSession(
 
   if (!token) return null;
   return verifyToken(token);
+}
+
+export async function getSuperadminEmails(): Promise<string[]> {
+  const superadmins = await prisma.user.findMany({
+    where: { role: "superadmin" },
+    select: { email: true },
+  });
+  if (superadmins.length > 0) {
+    return superadmins.map((u) => u.email);
+  }
+  return process.env.SUPERADMIN_EMAIL ? [process.env.SUPERADMIN_EMAIL] : [];
 }
 
 export function sessionCookieOptions(token: string) {

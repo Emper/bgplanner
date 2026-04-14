@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "@/lib/theme";
 
-export default function Footer() {
+export default function Footer({ variant = "public" }: { variant?: "public" | "internal" }) {
   const { resolvedTheme } = useTheme();
 
   return (
@@ -15,6 +15,18 @@ export default function Footer() {
           <span className="text-[var(--border)]">·</span>
           <Link href="/changelog" className="hover:text-[var(--primary)] transition-colors">
             Changelog
+          </Link>
+          {variant === "internal" && (
+            <>
+              <span className="text-[var(--border)]">·</span>
+              <Link href="/feedback" className="hover:text-[var(--primary)] transition-colors">
+                Feedback
+              </Link>
+            </>
+          )}
+          <span className="text-[var(--border)]">·</span>
+          <Link href="/contact" className="hover:text-[var(--primary)] transition-colors">
+            Contacto
           </Link>
         </div>
         <a

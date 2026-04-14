@@ -59,3 +59,17 @@ export const eventInterestSchema = z.object({
   intensity: z.number().int().min(1).max(5),
   notes: z.string().max(500).optional(),
 });
+
+export const feedbackSchema = z.object({
+  subject: z.string().min(1, "El asunto es obligatorio").max(200),
+  message: z.string().min(1, "El mensaje es obligatorio").max(5000),
+  images: z.array(z.string()).max(5).optional(),
+});
+
+export const contactSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio").max(100),
+  email: z.string().email("Email no válido"),
+  subject: z.string().min(1, "El asunto es obligatorio").max(200),
+  message: z.string().min(1, "El mensaje es obligatorio").max(5000),
+  honeypot: z.string().max(0).optional(),
+});
