@@ -25,7 +25,7 @@ export async function GET(
     orderBy: { createdAt: "desc" },
     take: limit + 1,
     include: {
-      user: { select: { id: true, name: true, avatarUrl: true } },
+      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
     },
   });
 

@@ -12,6 +12,7 @@ export const otpSchema = z.object({
 export const profileSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   surname: z.string().min(1, "Los apellidos son obligatorios"),
+  displayName: z.string().max(50).optional(),
   location: z.string().optional(),
   bggUsername: z.string().optional(),
 });

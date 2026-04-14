@@ -9,7 +9,7 @@ import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
 
 interface GroupMemberPreview {
-  user: { name: string | null; avatarUrl: string | null };
+  user: { name: string | null; displayName: string | null; avatarUrl: string | null };
 }
 
 interface Group {
@@ -30,7 +30,7 @@ interface RecentGame {
 }
 
 interface EventAttendeePreview {
-  user: { name: string | null; avatarUrl: string | null };
+  user: { name: string | null; displayName: string | null; avatarUrl: string | null };
 }
 
 interface UpcomingEvent {
@@ -183,7 +183,7 @@ export default function GroupsPage() {
                         {group.members.slice(0, 4).map((m, i) => (
                           <Avatar
                             key={i}
-                            name={m.user.name || "?"}
+                            name={m.user.displayName || m.user.name || "?"}
                             avatarUrl={m.user.avatarUrl}
                             size="xs"
                             className="ring-2 ring-[var(--surface)]"
@@ -256,7 +256,7 @@ export default function GroupsPage() {
                           {event.attendees.slice(0, 4).map((a, i) => (
                             <Avatar
                               key={i}
-                              name={a.user.name || "?"}
+                              name={a.user.displayName || a.user.name || "?"}
                               avatarUrl={a.user.avatarUrl}
                               size="xs"
                               className="ring-2 ring-[var(--surface)]"

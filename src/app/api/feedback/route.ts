@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { name: true, email: true },
+    select: { name: true, displayName: true, email: true },
   });
 
   const recipients = await getSuperadminEmails();
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     content: Buffer.from(img.split(",")[1], "base64"),
   }));
 
-  const userName = user?.name || "Usuario";
+  const userName = user?.displayName || user?.name || "Usuario";
   const userEmail = user?.email || session.email;
 
   await resend.emails.send({

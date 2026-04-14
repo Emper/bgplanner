@@ -39,7 +39,7 @@ export async function PATCH(
   // Check target is a member
   const targetMembership = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId, userId: targetUserId } },
-    include: { user: { select: { email: true, name: true } } },
+    include: { user: { select: { email: true, name: true, displayName: true } } },
   });
 
   if (!targetMembership) {
@@ -81,7 +81,7 @@ export async function PATCH(
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
           <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-          <p>¡Enhorabuena, ${targetMembership.user.name || "jugador"}! 🎉</p>
+          <p>¡Enhorabuena, ${targetMembership.user.displayName || targetMembership.user.name || "jugador"}! 🎉</p>
           <p>Ahora eres <strong style="color: #f59e0b;">administrador</strong> del grupo <strong style="color: #f59e0b;">"${group?.name}"</strong>.</p>
           <p>Como admin puedes:</p>
           <ul style="color: #94a3b8; font-size: 14px; padding-left: 20px;">
@@ -103,7 +103,7 @@ export async function PATCH(
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
           <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-          <p>Hola, ${targetMembership.user.name || "jugador"}.</p>
+          <p>Hola, ${targetMembership.user.displayName || targetMembership.user.name || "jugador"}.</p>
           <p>Tu rol en el grupo <strong style="color: #f59e0b;">"${group?.name}"</strong> ha cambiado a <strong>miembro</strong>.</p>
           <p style="color: #94a3b8; font-size: 14px;">Sigues formando parte del grupo y puedes votar y participar en sesiones como siempre.</p>
         </div>
@@ -111,7 +111,7 @@ export async function PATCH(
     }).catch(() => {});
   }
 
-  logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, { groupId, targetName: targetMembership.user.name || targetMembership.user.email });
+  logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, { groupId, targetName: targetMembership.user.displayName || targetMembership.user.name || targetMembership.user.email });
 
   return NextResponse.json({ success: true, role });
 }

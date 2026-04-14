@@ -41,6 +41,7 @@ interface Member {
   user: {
     id: string;
     name: string | null;
+    displayName: string | null;
     surname: string | null;
     email: string;
     bggUsername: string | null;
@@ -324,7 +325,7 @@ export default function AddGamesPage() {
                     >
                       {membersWithBgg.map((m) => (
                         <option key={m.user.id} value={m.user.bggUsername!}>
-                          {m.user.name || m.user.email} ({m.user.bggUsername})
+                          {m.user.displayName || m.user.name || m.user.email} ({m.user.bggUsername})
                         </option>
                       ))}
                     </select>

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       location: true,
       bggUsername: true,
       avatarUrl: true,
+      displayName: true,
     },
   });
 
@@ -42,11 +43,16 @@ export async function PUT(request: NextRequest) {
     );
   }
 
+  // Resolve displayName: use provided value, or fall back to name
+  const data: Record<string, unknown> = { ...parsed.data };
+  if (!data.displayName || (data.displayName as string).trim() === "") {
+    data.displayName = parsed.data.name;
+  }
+
   // Validate BGG username if provided
-  const data = { ...parsed.data };
-  if (data.bggUsername && data.bggUsername.trim()) {
-    data.bggUsername = data.bggUsername.trim().toLowerCase();
-    const validation = await validateBggUsername(data.bggUsername);
+  if (data.bggUsername && (data.bggUsername as string).trim()) {
+    data.bggUsername = (data.bggUsername as string).trim().toLowerCase();
+    const validation = await validateBggUsername(data.bggUsername as string);
     if (!validation.valid) {
       return NextResponse.json(
         { error: validation.error },
@@ -66,6 +72,7 @@ export async function PUT(request: NextRequest) {
       location: true,
       bggUsername: true,
       avatarUrl: true,
+      displayName: true,
     },
   });
 

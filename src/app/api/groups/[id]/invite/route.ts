@@ -68,7 +68,7 @@ export async function POST(
 
   const inviter = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { name: true, email: true },
+    select: { name: true, displayName: true, email: true },
   });
 
   const invitation = await prisma.groupInvitation.create({
@@ -80,7 +80,7 @@ export async function POST(
   await resend.emails.send({
     from: "BG Planner <cesar@tiradacritica.es>",
     to: email,
-    subject: `${inviter?.name || inviter?.email} te invita a "${group?.name}" en BG Planner`,
+    subject: `${inviter?.displayName || inviter?.name || inviter?.email} te invita a "${group?.name}" en BG Planner`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
         <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>

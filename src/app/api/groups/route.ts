@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     include: {
       _count: { select: { members: true, games: true } },
       members: {
-        include: { user: { select: { name: true, avatarUrl: true } } },
+        include: { user: { select: { name: true, displayName: true, avatarUrl: true } } },
         take: 5,
       },
     },

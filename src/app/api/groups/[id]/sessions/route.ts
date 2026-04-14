@@ -23,7 +23,7 @@ export async function GET(
       where: { groupId },
       orderBy: { date: "desc" },
       include: {
-        createdBy: { select: { name: true } },
+        createdBy: { select: { name: true, displayName: true } },
         games: {
           orderBy: { order: "asc" },
           include: {

@@ -10,7 +10,7 @@ interface ActivityItem {
   userId: string;
   metadata: Record<string, unknown>;
   createdAt: string;
-  user: { id: string; name: string | null; avatarUrl: string | null };
+  user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null };
   group?: { id: string; name: string } | null;
   event?: { id: string; name: string } | null;
 }
@@ -98,7 +98,7 @@ export default function ActivityFeed({
     <div className="space-y-1">
       {items.map((item) => {
         const text = formatActivity(item.type, item.metadata as Record<string, unknown>);
-        const userName = item.user.name || "Alguien";
+        const userName = item.user.displayName || item.user.name || "Alguien";
         const context = showContext
           ? item.group?.name || item.event?.name
           : null;

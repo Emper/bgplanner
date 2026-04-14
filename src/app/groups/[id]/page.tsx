@@ -34,7 +34,7 @@ interface Voter {
 interface RankedGame {
   groupGameId: string;
   game: Game;
-  addedBy: { name: string | null };
+  addedBy: { name: string | null; displayName: string | null };
   addedById: string;
   score: number;
   upVotes: number;
@@ -52,6 +52,7 @@ interface Member {
   user: {
     id: string;
     name: string | null;
+    displayName: string | null;
     surname: string | null;
     email: string;
     bggUsername: string | null;
@@ -897,7 +898,7 @@ function GroupDashboardPage() {
                         const others = membersWithAvailable.filter(
                           (m) => m.user.id !== group.currentUserId
                         );
-                        const otherNames = others.map((m) => m.user.name || m.user.email);
+                        const otherNames = others.map((m) => m.user.displayName || m.user.name || m.user.email);
                         const otherText = others.length === 1
                           ? `${otherNames[0]} tiene su super voto libre`
                           : `${otherNames.join(", ")} tienen su super voto libre`;
@@ -1808,14 +1809,14 @@ function GroupDashboardPage() {
                     >
                       <div className="flex items-center gap-3">
                         <Avatar
-                          name={member.user.name || member.user.email}
+                          name={member.user.displayName || member.user.name || member.user.email}
                           avatarUrl={member.user.avatarUrl}
                           size="sm"
                         />
                         <div>
                           <span className="font-medium text-[var(--text)]">
                             {member.user.name
-                              ? `${member.user.name} ${member.user.surname || ""}`
+                              ? `${member.user.displayName || member.user.name} ${member.user.surname || ""}`
                               : member.user.email}
                           </span>
                           {member.user.bggUsername && (
@@ -1835,7 +1836,7 @@ function GroupDashboardPage() {
                         {isAdmin && member.role === "member" && member.user.id !== group.currentUserId && (
                           <button
                             onClick={async () => {
-                              const name = member.user.name || member.user.email;
+                              const name = member.user.displayName || member.user.name || member.user.email;
                               if (!confirm(`¿Hacer admin a ${name}?`)) return;
                               const res = await fetch(`/api/groups/${groupId}/members/${member.user.id}`, {
                                 method: "PATCH",
@@ -1857,7 +1858,7 @@ function GroupDashboardPage() {
                         {isOwner && member.role === "admin" && (
                           <button
                             onClick={async () => {
-                              const name = member.user.name || member.user.email;
+                              const name = member.user.displayName || member.user.name || member.user.email;
                               if (!confirm(`¿Quitar admin a ${name}? Pasará a ser miembro.`)) return;
                               const res = await fetch(`/api/groups/${groupId}/members/${member.user.id}`, {
                                 method: "PATCH",

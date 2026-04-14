@@ -23,7 +23,7 @@ export async function GET(
     prisma.gameSession.findUnique({
       where: { id: sessionId },
       include: {
-        createdBy: { select: { name: true } },
+        createdBy: { select: { name: true, displayName: true } },
         games: {
           orderBy: { order: "asc" },
           include: {
@@ -127,7 +127,7 @@ export async function PATCH(
           if (groupGame) {
             const superVotes = await prisma.vote.findMany({
               where: { groupGameId: groupGame.id, type: "super" },
-              include: { user: { select: { email: true, name: true } } },
+              include: { user: { select: { email: true, name: true, displayName: true } } },
             });
             if (superVotes.length > 0) {
               await prisma.vote.updateMany({
@@ -146,7 +146,7 @@ export async function PATCH(
                   html: `
                     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
                       <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-                      <p>¡Buenas noticias, ${vote.user.name || "jugador"}! 🎲</p>
+                      <p>¡Buenas noticias, ${vote.user.displayName || vote.user.name || "jugador"}! 🎲</p>
                       <p>El juego <strong style="color: #f59e0b;">"${sessionGame.game.name}"</strong> en el grupo <strong>"${groupData?.name}"</strong> se ha completado en una sesión.</p>
                       <p>Tu super voto se ha convertido en un voto normal y <strong style="color: #f59e0b;">vuelves a tener tu super voto disponible</strong> para usarlo en otro juego del grupo.</p>
                       <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
@@ -167,7 +167,7 @@ export async function PATCH(
   const updated = await prisma.gameSession.findUnique({
     where: { id: sessionId },
     include: {
-      createdBy: { select: { name: true } },
+      createdBy: { select: { name: true, displayName: true } },
       games: {
         orderBy: { order: "asc" },
         include: {

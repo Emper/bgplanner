@@ -46,7 +46,7 @@ interface Attendee {
   eventId: string;
   userId: string;
   status: string;
-  user: { id: string; name: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null };
+  user: { id: string; name: string | null; displayName: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null };
 }
 
 interface EventData {
@@ -61,7 +61,7 @@ interface EventData {
   visibility: string;
   inviteCode: string | null;
   createdById: string;
-  createdBy: { id: string; name: string | null; email: string };
+  createdBy: { id: string; name: string | null; displayName: string | null; email: string };
   games: EventGame[];
   attendees: Attendee[];
   currentUserId: string;
@@ -471,7 +471,7 @@ export default function EventDetailPage() {
               {attendingCount} asistente{attendingCount !== 1 ? "s" : ""}
             </span>
             <span className="text-xs text-[var(--text-muted)]">
-              Organiza: {event.createdBy.name || event.createdBy.email}
+              Organiza: {event.createdBy.displayName || event.createdBy.name || event.createdBy.email}
             </span>
           </div>
 
@@ -986,13 +986,13 @@ function AttendeesTab({ event }: { event: EventData }) {
               >
                 <div className="flex items-center gap-2">
                   <Avatar
-                    name={att.user.name || att.user.email}
+                    name={att.user.displayName || att.user.name || att.user.email}
                     avatarUrl={att.user.avatarUrl}
                     size="sm"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[var(--text)] text-sm">
-                      {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
+                      {att.user.name ? `${att.user.displayName || att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
                       {att.user.bggUsername && (
                         <a
                           href={`https://boardgamegeek.com/user/${att.user.bggUsername}`}

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
     take: limit + 1, // +1 to know if there are more
     include: {
-      user: { select: { id: true, name: true, avatarUrl: true } },
+      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
       group: { select: { id: true, name: true } },
       event: { select: { id: true, name: true } },
     },

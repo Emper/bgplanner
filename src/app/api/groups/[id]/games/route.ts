@@ -25,7 +25,7 @@ export async function GET(
       where: { groupId },
       include: {
         game: true,
-        addedBy: { select: { name: true } },
+        addedBy: { select: { name: true, displayName: true } },
         votes: { select: { userId: true, type: true } },
         _count: { select: { votes: true } },
       },

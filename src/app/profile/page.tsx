@@ -11,6 +11,7 @@ import { resizeImage } from "@/lib/image";
 interface Profile {
   name: string;
   surname: string;
+  displayName: string;
   location: string;
   bggUsername: string;
 }
@@ -23,6 +24,7 @@ function ProfileForm() {
   const [form, setForm] = useState<Profile>({
     name: "",
     surname: "",
+    displayName: "",
     location: "",
     bggUsername: "",
   });
@@ -42,6 +44,7 @@ function ProfileForm() {
           setForm({
             name: data.name || "",
             surname: data.surname || "",
+            displayName: data.displayName || "",
             location: data.location || "",
             bggUsername: data.bggUsername || "",
           });
@@ -196,6 +199,23 @@ function ProfileForm() {
                   onChange={(e) => setForm({ ...form, surname: e.target.value })}
                   className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
+                  Nombre para mostrar
+                </label>
+                <input
+                  type="text"
+                  value={form.displayName}
+                  onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+                  placeholder={form.name || "Tu nombre visible para el resto"}
+                  maxLength={50}
+                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
+                />
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Aparecerá en el feed de actividad, votos y listas de miembros. Si lo dejas vacío se usará tu nombre.
+                </p>
               </div>
 
               <div>
