@@ -3,20 +3,23 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AnimatedLogo from "./AnimatedLogo";
 import { useTheme } from "@/lib/theme";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
+  // null = loading, "" = no username, string = username
   const [bggUsername, setBggUsername] = useState<string | null>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     fetch("/api/profile")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data?.bggUsername) setBggUsername(data.bggUsername); })
-      .catch(() => {});
+      .then((data) => setBggUsername(data?.bggUsername || ""))
+      .catch(() => setBggUsername(""));
   }, []);
 
   const navItems = [
@@ -24,6 +27,51 @@ export default function Navbar() {
     { href: "/events", label: "Eventos", match: "/events" },
     { href: "/profile", label: "Perfil", match: "/profile" },
   ];
+
+  const isConnected = bggUsername !== null && bggUsername !== "";
+
+  const bggBadge = bggUsername !== null ? (
+    isConnected ? (
+      <a
+        href={`https://boardgamegeek.com/user/${bggUsername}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all duration-200"
+        title={`@${bggUsername} en BoardGameGeek`}
+      >
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+        </span>
+        <Image src="/bgg-icon.svg" alt="BGG" width={14} height={14} className="w-[14px] h-auto" />
+        <span className="text-[11px] font-medium leading-none">@{bggUsername}</span>
+      </a>
+    ) : (
+      <div
+        className="relative hidden sm:inline-flex"
+        onMouseEnter={() => { clearTimeout(tooltipTimeout.current); setShowTooltip(true); }}
+        onMouseLeave={() => { tooltipTimeout.current = setTimeout(() => setShowTooltip(false), 150); }}
+      >
+        <Link
+          href="/profile"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)] hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/15 transition-all duration-200"
+        >
+          <Image src="/bgg-icon.svg" alt="BGG" width={14} height={14} className="w-[14px] h-auto" />
+          <span className="text-[11px] font-medium leading-none">Conectar BGG</span>
+        </Link>
+        {showTooltip && (
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg z-50 text-xs text-[var(--text-secondary)] leading-relaxed">
+            <p className="font-medium text-[var(--text)] mb-1">Vincula tu cuenta de BGG</p>
+            <p>Conecta tu usuario de BoardGameGeek para importar tu colección de juegos y compartirla con tus grupos.</p>
+            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-[var(--surface)] border-l border-t border-[var(--border)]" />
+          </div>
+        )}
+      </div>
+    )
+  ) : (
+    // Placeholder while loading to prevent layout shift
+    <span className="hidden sm:inline-flex w-[120px] h-[30px]" />
+  );
 
   return (
     <nav className="sticky top-0 z-40 bg-[var(--surface)]/80 backdrop-blur-xl border-b border-[var(--border)] px-3 sm:px-6 py-3">
@@ -36,6 +84,7 @@ export default function Navbar() {
           <AnimatedLogo />
         </Link>
         <div className="flex items-center gap-3 sm:gap-5">
+          {bggBadge}
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.match);
             return (
@@ -54,22 +103,6 @@ export default function Navbar() {
               </Link>
             );
           })}
-          {bggUsername && (
-            <a
-              href={`https://boardgamegeek.com/user/${bggUsername}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all duration-200"
-              title={`@${bggUsername} en BoardGameGeek`}
-            >
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-              </span>
-              <Image src="/bgg-icon.svg" alt="BGG" width={14} height={14} className="w-[14px] h-auto" />
-              <span className="text-[11px] font-medium leading-none">@{bggUsername}</span>
-            </a>
-          )}
           <button
             onClick={toggleTheme}
             className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
