@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import AnimatedLogo from "./AnimatedLogo";
 import { useTheme } from "@/lib/theme";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
+  const [bggUsername, setBggUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data?.bggUsername) setBggUsername(data.bggUsername); })
+      .catch(() => {});
+  }, []);
 
   const navItems = [
     { href: "/groups", label: "Grupos", match: "/groups" },
@@ -44,6 +54,17 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {bggUsername && (
+            <a
+              href={`https://boardgamegeek.com/user/${bggUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
+              title={`@${bggUsername} en BGG`}
+            >
+              <Image src="/bgg-icon.svg" alt="BGG" width={18} height={18} className="w-[18px] h-auto" />
+            </a>
+          )}
           <button
             onClick={toggleTheme}
             className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"

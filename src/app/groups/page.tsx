@@ -42,15 +42,10 @@ interface UpcomingEvent {
   _count: { attendees: number; games: number };
 }
 
-interface Profile {
-  bggUsername: string | null;
-}
-
 export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,10 +57,9 @@ export default function GroupsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [groupsRes, gamesRes, profileRes, eventsRes] = await Promise.all([
+        const [groupsRes, gamesRes, eventsRes] = await Promise.all([
           fetch("/api/groups", { credentials: "include" }),
           fetch("/api/profile/recent-games", { credentials: "include" }),
-          fetch("/api/profile", { credentials: "include" }),
           fetch("/api/events", { credentials: "include" }),
         ]);
 
@@ -73,7 +67,6 @@ export default function GroupsPage() {
         setGroups(await groupsRes.json());
 
         if (gamesRes.ok) setRecentGames(await gamesRes.json());
-        if (profileRes.ok) setProfile(await profileRes.json());
         if (eventsRes.ok) {
           const allEvents: UpcomingEvent[] = await eventsRes.json();
           setUpcomingEvents(allEvents.filter((e) => new Date(e.date) >= new Date()));
@@ -117,25 +110,6 @@ export default function GroupsPage() {
       <Navbar />
       <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
         <div className="max-w-4xl mx-auto">
-
-          {/* Banner BGG */}
-          {profile?.bggUsername && (
-            <a
-              href={`https://boardgamegeek.com/user/${profile.bggUsername}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mb-6 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center gap-4 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 block shadow-[var(--card-shadow)]"
-            >
-              <div className="w-10 h-10 bg-[var(--accent-soft)] rounded-xl flex items-center justify-center text-[var(--primary)] font-bold text-lg">
-                B
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-[var(--text-secondary)]">Tu perfil en BoardGameGeek</p>
-                <p className="text-[var(--primary)] font-medium">@{profile.bggUsername}</p>
-              </div>
-              <span className="text-[var(--text-muted)] text-xl">&rarr;</span>
-            </a>
-          )}
 
           {/* Mis Grupos */}
           <div className="flex items-center justify-between mb-4">
