@@ -14,6 +14,35 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "14 abril 2026",
+    version: "1.1",
+    title: "Super votos, imágenes de evento y dominio propio",
+    changes: [
+      { type: "new", text: "Indicador de super votos libres en el ranking: ve quién tiene su super voto disponible y anima a usarlo" },
+      { type: "new", text: "Imagen identificativa para eventos: sube un logo o foto al crear o editar un evento, visible en el listado y la ficha" },
+      { type: "new", text: "Dominio propio: la app ahora vive en bgplanner.app" },
+      { type: "fixed", text: "Los super votos ahora se liberan correctamente al completar un juego desde una sesión (antes solo funcionaba al marcar jugado manualmente)" },
+      { type: "improved", text: "Mayor contraste en las tarjetas del modo oscuro para mejor legibilidad" },
+      { type: "improved", text: "El header sticky del ranking ya no se solapa con la barra de navegación" },
+    ],
+  },
+  {
+    date: "10 abril 2026",
+    version: "1.0",
+    title: "BG Planner: nueva identidad y rediseño visual",
+    changes: [
+      { type: "new", text: "Renombrado de WeBoard a BG Planner con nueva marca, logo y favicon" },
+      { type: "new", text: "Rediseño visual completo: nueva paleta de colores, tipografía y landing page" },
+      { type: "new", text: "Transición de tema con animación circular desde el toggle (View Transitions API)" },
+      { type: "new", text: "Loader animado con dado giratorio en todas las páginas" },
+      { type: "new", text: "Badge oficial \"Powered by BGG\" en el footer" },
+      { type: "improved", text: "Carga del feed de actividad más rápida con skeleton loader y caché local" },
+      { type: "improved", text: "Sesión de usuario extendida de 7 a 60 días" },
+      { type: "improved", text: "Perfil de BGG visible en las listas de miembros y asistentes" },
+      { type: "improved", text: "Emails de miembros ocultos en las listas por privacidad" },
+    ],
+  },
+  {
     date: "7 abril 2026",
     version: "0.9",
     title: "Modo claro y feed de actividad",
