@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { formatDateShort } from "@/lib/format";
 import PageLoader from "@/components/PageLoader";
 
@@ -93,6 +94,7 @@ export default function EventsPage() {
           </>
         )}
       </div>
+      <Footer variant="internal" />
     </div>
   );
 }

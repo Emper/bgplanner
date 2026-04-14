@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
@@ -2076,6 +2077,7 @@ function GroupDashboardPage() {
           )}
         </div>
       </div>
+      <Footer variant="internal" />
     </>
   );
 }

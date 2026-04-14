@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
 import { resizeImage } from "@/lib/image";
@@ -268,6 +269,7 @@ function ProfileForm() {
           </button>
         </div>
       </div>
+      <Footer variant="internal" />
     </>
   );
 }

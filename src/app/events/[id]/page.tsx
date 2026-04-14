@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import BggGameSearch from "@/components/BggGameSearch";
 import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
@@ -1038,6 +1039,7 @@ function AttendeesTab({ event }: { event: EventData }) {
           })}
         </div>
       )}
+      <Footer variant="internal" />
     </div>
   );
 }

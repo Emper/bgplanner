@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 interface ExpansionItem {
   bggId: number;
@@ -815,6 +816,7 @@ export default function AddGamesPage() {
           )}
         </div>
       </div>
+      <Footer variant="internal" />
     </>
   );
 }

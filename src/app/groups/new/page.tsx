@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export default function NewGroupPage() {
   const router = useRouter();
@@ -75,6 +76,7 @@ export default function NewGroupPage() {
           </div>
         </div>
       </div>
+      <Footer variant="internal" />
     </>
   );
 }
