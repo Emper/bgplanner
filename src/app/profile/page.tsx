@@ -269,7 +269,7 @@ function ProfileForm() {
           </button>
         </div>
       </div>
-      <Footer variant="internal" />
+      <Footer />
     </>
   );
 }

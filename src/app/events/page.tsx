@@ -94,7 +94,7 @@ export default function EventsPage() {
           </>
         )}
       </div>
-      <Footer variant="internal" />
+      <Footer />
     </div>
   );
 }

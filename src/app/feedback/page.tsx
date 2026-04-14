@@ -183,7 +183,7 @@ export default function FeedbackPage() {
         )}
       </main>
 
-      <Footer variant="internal" />
+      <Footer />
     </div>
   );
 }

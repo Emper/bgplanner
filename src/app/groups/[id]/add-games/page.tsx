@@ -816,7 +816,7 @@ export default function AddGamesPage() {
           )}
         </div>
       </div>
-      <Footer variant="internal" />
+      <Footer />
     </>
   );
 }

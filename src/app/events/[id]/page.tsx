@@ -1039,7 +1039,7 @@ function AttendeesTab({ event }: { event: EventData }) {
           })}
         </div>
       )}
-      <Footer variant="internal" />
+      <Footer />
     </div>
   );
 }

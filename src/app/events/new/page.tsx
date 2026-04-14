@@ -253,7 +253,7 @@ export default function NewEventPage() {
           </div>
         </form>
       </div>
-      <Footer variant="internal" />
+      <Footer />
     </div>
   );
 }

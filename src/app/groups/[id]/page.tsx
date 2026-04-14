@@ -2077,7 +2077,7 @@ function GroupDashboardPage() {
           )}
         </div>
       </div>
-      <Footer variant="internal" />
+      <Footer />
     </>
   );
 }

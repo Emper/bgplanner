@@ -1,11 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "@/lib/theme";
 
-export default function Footer({ variant = "public" }: { variant?: "public" | "internal" }) {
+export default function Footer() {
   const { resolvedTheme, mounted } = useTheme();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => setIsLoggedIn(res.ok))
+      .catch(() => {});
+  }, []);
 
   return (
     <footer className="border-t border-[var(--border)] mt-16 py-8 px-4">
@@ -16,7 +24,7 @@ export default function Footer({ variant = "public" }: { variant?: "public" | "i
           <Link href="/changelog" className="hover:text-[var(--primary)] transition-colors">
             Changelog
           </Link>
-          {variant === "internal" && (
+          {isLoggedIn && (
             <>
               <span className="text-[var(--border)]">·</span>
               <Link href="/feedback" className="hover:text-[var(--primary)] transition-colors">

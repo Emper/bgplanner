@@ -76,7 +76,7 @@ export default function NewGroupPage() {
           </div>
         </div>
       </div>
-      <Footer variant="internal" />
+      <Footer />
     </>
   );
 }
