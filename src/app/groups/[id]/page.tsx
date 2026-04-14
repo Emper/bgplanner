@@ -1816,7 +1816,7 @@ function GroupDashboardPage() {
                         <div>
                           <span className="font-medium text-[var(--text)]">
                             {member.user.name
-                              ? `${member.user.displayName || member.user.name} ${member.user.surname || ""}`
+                              ? `${member.user.name} ${member.user.surname || ""}`
                               : member.user.email}
                           </span>
                           {member.user.bggUsername && (

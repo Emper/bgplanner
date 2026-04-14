@@ -992,7 +992,7 @@ function AttendeesTab({ event }: { event: EventData }) {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[var(--text)] text-sm">
-                      {att.user.name ? `${att.user.displayName || att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
+                      {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
                       {att.user.bggUsername && (
                         <a
                           href={`https://boardgamegeek.com/user/${att.user.bggUsername}`}
