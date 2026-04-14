@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useTheme } from "@/lib/theme";
 
 export default function Footer({ variant = "public" }: { variant?: "public" | "internal" }) {
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, mounted } = useTheme();
 
   return (
     <footer className="border-t border-[var(--border)] mt-16 py-8 px-4">
@@ -35,13 +35,15 @@ export default function Footer({ variant = "public" }: { variant?: "public" | "i
           rel="noopener noreferrer"
           className="hover:opacity-80 transition-opacity"
         >
-          <Image
-            src={resolvedTheme === "dark" ? "/powered-by-bgg-reversed.svg" : "/powered-by-bgg.svg"}
-            alt="Powered by BoardGameGeek"
-            width={120}
-            height={27}
-            className="h-[27px] w-auto"
-          />
+          {mounted && (
+            <Image
+              src={resolvedTheme === "dark" ? "/powered-by-bgg-reversed.svg" : "/powered-by-bgg.svg"}
+              alt="Powered by BoardGameGeek"
+              width={120}
+              height={27}
+              className="h-[27px] w-auto"
+            />
+          )}
         </a>
       </div>
     </footer>
