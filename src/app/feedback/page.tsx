@@ -181,6 +181,37 @@ export default function FeedbackPage() {
             </div>
           </form>
         )}
+
+        {/* Roadmap */}
+        <section className="mt-12 pt-8 border-t border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Estamos trabajando en...</h2>
+          <p className="text-sm text-[var(--text-muted)] mb-5">
+            Próximas mejoras en las que estamos trabajando. Si quieres priorizar alguna, mándanos tu feedback.
+          </p>
+          <ul className="space-y-3">
+            {[
+              { text: "Poder añadir juegos que no estén en tu colección a los eventos", status: "in-progress" as const },
+            ].map((item, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-[var(--card-shadow)]"
+              >
+                <span className="shrink-0 mt-0.5">
+                  {item.status === "in-progress" ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
+                      En curso
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-muted)]">
+                      Pendiente
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm text-[var(--text-secondary)]">{item.text}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
 
       <Footer />
