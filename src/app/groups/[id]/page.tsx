@@ -2383,7 +2383,7 @@ function GroupDashboardPage() {
                       value={stats.lastPlayedAt ? formatRelativeShort(stats.lastPlayedAt) : "Aún ninguna"}
                     />
                   </div>
-                  {stats.topGame && (
+                  {stats.topGame && stats.topGame.playCount > 1 && (
                     <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center gap-3">
                       {stats.topGame.thumbnail ? (
                         <Image
