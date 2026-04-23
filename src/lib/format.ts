@@ -36,3 +36,22 @@ export function formatDuration(minutes: number) {
   const m = minutes % 60;
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
+
+/** "hoy", "ayer", "hace 3 días", "hace 2 semanas", "hace 4 meses", "hace 1 año" */
+export function formatRelativeShort(dateStr: string | Date) {
+  const then = typeof dateStr === "string" ? new Date(dateStr).getTime() : dateStr.getTime();
+  const days = Math.floor((Date.now() - then) / 86400000);
+  if (days <= 0) return "hoy";
+  if (days === 1) return "ayer";
+  if (days < 7) return `hace ${days} días`;
+  if (days < 30) {
+    const w = Math.floor(days / 7);
+    return `hace ${w} ${w === 1 ? "semana" : "semanas"}`;
+  }
+  if (days < 365) {
+    const m = Math.floor(days / 30);
+    return `hace ${m} ${m === 1 ? "mes" : "meses"}`;
+  }
+  const y = Math.floor(days / 365);
+  return `hace ${y} ${y === 1 ? "año" : "años"}`;
+}

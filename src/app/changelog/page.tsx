@@ -13,6 +13,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "24 abril 2026",
+    version: "1.5",
+    title: "El grupo en números",
+    changes: [
+      { type: "new", text: "En la portada del grupo aparece un resumen con cuántos juegos hay, partidas jugadas, tiempo a la mesa, cuál es el juego más jugado y cuándo fue la última partida" },
+    ],
+  },
+  {
+    date: "24 abril 2026",
     version: "1.4",
     title: "Eliminar un grupo (con todas las precauciones)",
     changes: [

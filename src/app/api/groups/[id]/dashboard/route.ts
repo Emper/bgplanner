@@ -14,7 +14,7 @@ export async function GET(
   const { id: groupId } = await params;
 
   // Run ALL queries in parallel — single cold start, single DB connection
-  const [membership, group, memberCount, groupGames, sessions] =
+  const [membership, group, memberCount, groupGames, sessions, manualPlaysLog] =
     await Promise.all([
       prisma.groupMember.findUnique({
         where: { groupId_userId: { groupId, userId: session.userId } },
@@ -78,6 +78,10 @@ export async function GET(
           },
         },
       }),
+      prisma.activityLog.findMany({
+        where: { groupId, type: "game_marked_played" },
+        select: { metadata: true, createdAt: true },
+      }),
     ]);
 
   if (!membership) {
@@ -87,9 +91,15 @@ export async function GET(
   // Count completed plays per game and track last played date from sessions
   const playCountByGameId = new Map<string, number>();
   const lastSessionDateByGameId = new Map<string, Date>();
+  let totalSessionPlays = 0;
+  let totalSessionMinutes = 0;
+  let lastPlayedAt: Date | null = null;
   for (const s of sessions) {
+    let sessionHasCompleted = false;
     for (const sg of s.games) {
       if (sg.status === "completed") {
+        sessionHasCompleted = true;
+        totalSessionPlays += 1;
         playCountByGameId.set(sg.game.id, (playCountByGameId.get(sg.game.id) || 0) + 1);
         const existing = lastSessionDateByGameId.get(sg.game.id);
         if (!existing || s.date > existing) {
@@ -97,7 +107,23 @@ export async function GET(
         }
       }
     }
+    if (sessionHasCompleted) {
+      totalSessionMinutes += s.totalMinutes;
+      if (!lastPlayedAt || s.date > lastPlayedAt) lastPlayedAt = s.date;
+    }
   }
+
+  // Manual "marked as played" actions from the ranking. Each log entry counts
+  // as one play; metadata.gameName lets us also bucket them per game so the
+  // "most played" stat reflects manual marks too.
+  const manualPlaysByGameName = new Map<string, number>();
+  for (const log of manualPlaysLog) {
+    const meta = log.metadata as { gameName?: string } | null;
+    const name = meta?.gameName;
+    if (name) manualPlaysByGameName.set(name, (manualPlaysByGameName.get(name) || 0) + 1);
+    if (!lastPlayedAt || log.createdAt > lastPlayedAt) lastPlayedAt = log.createdAt;
+  }
+  const totalManualPlays = manualPlaysLog.length;
 
   // Compute ranking in memory
   const ranking = groupGames
@@ -136,6 +162,30 @@ export async function GET(
       return (b.game.bggRating || 0) - (a.game.bggRating || 0);
     });
 
+  // Combine session plays + manual marks per game to find the most played one
+  let topGame: { name: string; thumbnail: string | null; playCount: number } | null = null;
+  const combinedByGameId = new Map<string, number>(playCountByGameId);
+  for (const gg of groupGames) {
+    const manual = manualPlaysByGameName.get(gg.game.name) || 0;
+    if (manual > 0) {
+      combinedByGameId.set(gg.game.id, (combinedByGameId.get(gg.game.id) || 0) + manual);
+    }
+  }
+  for (const gg of groupGames) {
+    const count = combinedByGameId.get(gg.game.id) || 0;
+    if (count > 0 && (!topGame || count > topGame.playCount)) {
+      topGame = { name: gg.game.name, thumbnail: gg.game.thumbnail, playCount: count };
+    }
+  }
+
+  const stats = {
+    gamesCount: groupGames.length,
+    playsCount: totalSessionPlays + totalManualPlays,
+    totalMinutes: totalSessionMinutes,
+    lastPlayedAt,
+    topGame,
+  };
+
   const response = NextResponse.json({
     group: {
       ...group,
@@ -146,6 +196,7 @@ export async function GET(
     ranking,
     memberCount,
     sessions,
+    stats,
   });
 
   // No CDN cache — response is personalized per user (userVote, currentUserId)

@@ -9,7 +9,7 @@ import Footer from "@/components/Footer";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 
 interface Game {
@@ -201,6 +201,15 @@ function GroupDashboardPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Group stats (juegos, partidas, horas, juego más jugado, última partida)
+  const [stats, setStats] = useState<{
+    gamesCount: number;
+    playsCount: number;
+    totalMinutes: number;
+    lastPlayedAt: string | null;
+    topGame: { name: string; thumbnail: string | null; playCount: number } | null;
+  } | null>(null);
+
   // Sessions state
   const [sessions, setSessions] = useState<GameSessionData[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -253,7 +262,8 @@ function GroupDashboardPage() {
         const data = await res.json();
         if (cursor) {
           setFeedItems((prev) => {
-            const merged = [...prev, ...data.items];
+            const seen = new Set(prev.map((i: { id: string }) => i.id));
+            const merged = [...prev, ...data.items.filter((i: { id: string }) => !seen.has(i.id))];
             setCachedFeed(`group:${groupId}`, merged, data.nextCursor);
             return merged;
           });
@@ -313,6 +323,7 @@ function GroupDashboardPage() {
       setGroup(data.group);
       setRanking(data.ranking);
       setSessions(data.sessions);
+      setStats(data.stats ?? null);
       if (data.group) {
         setInviteLinkCode(data.group.inviteCode);
         setInviteLinkEnabled(data.group.inviteEnabled ?? true);
@@ -2354,7 +2365,52 @@ function GroupDashboardPage() {
 
           {/* ═══════════ Activity Tab ═══════════ */}
           {activeTab === "activity" && (
-            <div>
+            <div className="space-y-4">
+              {stats && (
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 sm:p-5">
+                  <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                    El grupo en números
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <StatTile label="Juegos" value={stats.gamesCount.toLocaleString("es-ES")} />
+                    <StatTile label="Partidas" value={stats.playsCount.toLocaleString("es-ES")} />
+                    <StatTile
+                      label="A la mesa"
+                      value={stats.totalMinutes > 0 ? formatDuration(stats.totalMinutes) : "—"}
+                    />
+                    <StatTile
+                      label="Última partida"
+                      value={stats.lastPlayedAt ? formatRelativeShort(stats.lastPlayedAt) : "Aún ninguna"}
+                    />
+                  </div>
+                  {stats.topGame && (
+                    <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center gap-3">
+                      {stats.topGame.thumbnail ? (
+                        <Image
+                          src={stats.topGame.thumbnail}
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="w-10 h-10 rounded-lg object-cover shrink-0"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-[var(--surface-hover)] shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
+                          Juego más jugado
+                        </div>
+                        <div className="text-sm font-medium text-[var(--text)] truncate">
+                          {stats.topGame.name}
+                          <span className="text-[var(--text-secondary)] font-normal"> · {stats.topGame.playCount} {stats.topGame.playCount === 1 ? "partida" : "partidas"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
                 <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Actividad del grupo</h2>
                 <ActivityFeed
@@ -2370,5 +2426,14 @@ function GroupDashboardPage() {
       </div>
       <Footer />
     </>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5">
+      <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</div>
+      <div className="text-lg font-semibold text-[var(--text)] tabular-nums">{value}</div>
+    </div>
   );
 }

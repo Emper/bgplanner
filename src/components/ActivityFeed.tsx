@@ -153,15 +153,13 @@ function GroupedLine({ data }: { data: GroupedActivity }) {
             <span className="cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
               {hidden.length} más
             </span>
-            <span className="invisible group-hover/more:visible absolute left-0 bottom-full mb-1.5 z-50 w-max max-w-[260px] bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-2.5 text-xs text-[var(--text-secondary)] text-left">
-              <ul className="space-y-1">
-                {hidden.map((h, i) => (
-                  <li key={i} className="flex items-center gap-1.5">
-                    <span className="truncate text-[var(--text)]">&quot;{h.name}&quot;</span>
-                    {h.affix && <span className="shrink-0">{h.affix}</span>}
-                  </li>
-                ))}
-              </ul>
+            <span className="invisible group-hover/more:visible absolute left-0 bottom-full mb-1.5 z-50 w-max max-w-[260px] bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-2.5 text-xs text-[var(--text-secondary)] text-left flex flex-col gap-1">
+              {hidden.map((h, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  <span className="truncate text-[var(--text)]">&quot;{h.name}&quot;</span>
+                  {h.affix && <span className="shrink-0">{h.affix}</span>}
+                </span>
+              ))}
             </span>
           </span>
         </>
