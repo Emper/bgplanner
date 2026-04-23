@@ -147,27 +147,29 @@ export default function GroupsPage() {
                     prefetch={false}
                     className="block"
                   >
-                  {(() => {
-                    const cfg = getGroupType(group.type);
-                    return (
-                      <div className="flex items-center gap-2 mb-2 pr-9">
-                        <h3 className="text-lg font-semibold text-[var(--text)] truncate">
-                          {group.name}
-                        </h3>
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/20 shrink-0"
-                          title={cfg.description}
-                        >
-                          <span>{cfg.emoji}</span>
-                          <span>{cfg.label}</span>
-                        </span>
-                      </div>
-                    );
-                  })()}
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-4 text-sm text-[var(--text-secondary)]">
-                      <span>{group._count?.members || 0} miembros</span>
-                      <span>{group._count?.games || 0} juegos</span>
+                  <h3 className="text-lg font-semibold text-[var(--text)] mb-2 pr-9 truncate">
+                    {group.name}
+                  </h3>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      {(() => {
+                        const cfg = getGroupType(group.type);
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-soft)] text-[var(--primary)]"
+                            title={cfg.description}
+                          >
+                            <span>{cfg.emoji}</span>
+                            <span className="font-medium">{cfg.label}</span>
+                          </span>
+                        );
+                      })()}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-medium">
+                        {group._count?.members || 0} {group._count?.members === 1 ? "miembro" : "miembros"}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
+                        {group._count?.games || 0} {group._count?.games === 1 ? "juego" : "juegos"}
+                      </span>
                     </div>
                     {group.members?.length > 0 && (
                       <div className="flex -space-x-2">
