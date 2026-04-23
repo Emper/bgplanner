@@ -195,6 +195,12 @@ function GroupDashboardPage() {
   const [pingError, setPingError] = useState("");
   const [pingToast, setPingToast] = useState("");
 
+  // Delete group modal (solo propietario)
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   // Sessions state
   const [sessions, setSessions] = useState<GameSessionData[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -649,6 +655,26 @@ function GroupDashboardPage() {
       setPingError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
       setPinging(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!group || deleteConfirmText !== group.name) return;
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/groups/${groupId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al eliminar el grupo");
+      }
+      router.push("/groups");
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : "Error inesperado");
+      setDeleting(false);
     }
   };
 
@@ -1445,6 +1471,78 @@ function GroupDashboardPage() {
             </div>
           )}
 
+          {/* Delete group modal — solo propietario, requiere escribir el nombre */}
+          {showDeleteModal && (
+            <div
+              className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+              onClick={() => !deleting && setShowDeleteModal(false)}
+            >
+              <div
+                className="bg-[var(--surface)] rounded-2xl border border-red-500/40 shadow-[var(--card-shadow)] p-5 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-red-400">
+                    ⚠️ Eliminar grupo
+                  </h3>
+                  <button
+                    onClick={() => !deleting && setShowDeleteModal(false)}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text)]"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-3 mb-4 text-sm text-[var(--text-secondary)]">
+                  <p>
+                    Vas a eliminar <strong className="text-[var(--text)]">&quot;{group.name}&quot;</strong> de forma permanente. Se borrarán:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-muted)]">
+                    <li>Todos sus juegos y votos</li>
+                    <li>Todas las sesiones planificadas y jugadas</li>
+                    <li>Todos los miembros e invitaciones pendientes</li>
+                    <li>Todo el historial de actividad del grupo</li>
+                  </ul>
+                  <p className="text-red-400 font-medium">
+                    Esta acción no se puede deshacer.
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-xs text-[var(--text-secondary)] mb-1.5">
+                    Para confirmar, escribe el nombre exacto del grupo: <span className="font-mono text-[var(--text)]">{group.name}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={group.name}
+                    autoFocus
+                    disabled={deleting}
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-red-500/40 focus:border-red-500 focus:outline-none transition-all duration-200"
+                  />
+                </div>
+                {deleteError && (
+                  <p className="text-sm text-red-400 mb-3">{deleteError}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleting}
+                    className="flex-1 px-4 py-2.5 bg-[var(--surface-hover)] text-[var(--text)] rounded-xl hover:bg-[var(--border)] disabled:opacity-50 font-semibold text-sm transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleDeleteGroup}
+                    disabled={deleting || deleteConfirmText !== group.name}
+                    className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-200 shadow-sm"
+                  >
+                    {deleting ? "Eliminando..." : "Eliminar para siempre"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Ping modal */}
           {showPingModal && (
             <div
@@ -2224,6 +2322,26 @@ function GroupDashboardPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ── Zona peligrosa: solo el propietario puede eliminar el grupo ── */}
+              {isOwner && (
+                <div className="bg-[var(--surface)] rounded-2xl border border-red-500/30 shadow-[var(--card-shadow)] p-6">
+                  <h2 className="text-lg font-semibold text-red-400 mb-2">Zona peligrosa</h2>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">
+                    Eliminar el grupo borra para siempre todos sus miembros, juegos, votos, sesiones e invitaciones. <strong className="text-[var(--text)]">Esta acción no se puede deshacer.</strong>
+                  </p>
+                  <button
+                    onClick={() => {
+                      setDeleteConfirmText("");
+                      setDeleteError("");
+                      setShowDeleteModal(true);
+                    }}
+                    className="px-4 py-2.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl hover:bg-red-500/20 hover:border-red-500/50 font-semibold text-sm transition-all duration-200"
+                  >
+                    Eliminar este grupo
+                  </button>
                 </div>
               )}
             </div>

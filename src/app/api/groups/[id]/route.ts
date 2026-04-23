@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { groupSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(
   request: NextRequest,
@@ -104,15 +105,26 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId: id, userId: session.userId } },
-  });
+  const [membership, group] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: id, userId: session.userId } },
+    }),
+    prisma.group.findUnique({ where: { id }, select: { name: true } }),
+  ]);
 
-  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
-    return NextResponse.json({ error: "Solo el admin puede eliminar" }, { status: 403 });
+  if (!membership || membership.role !== "owner") {
+    return NextResponse.json({ error: "Solo el propietario puede eliminar el grupo" }, { status: 403 });
+  }
+
+  if (!group) {
+    return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
   }
 
   await prisma.group.delete({ where: { id } });
+
+  // Activity log: groupId queda colgando porque el grupo ya no existe; lo
+  // registramos sin groupId para que la entrada sobreviva al borrado en cascada.
+  logActivity("group_deleted", session.userId, { groupName: group.name });
 
   return NextResponse.json({ success: true });
 }

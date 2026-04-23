@@ -12,6 +12,14 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "24 abril 2026",
+    version: "1.4",
+    title: "Eliminar un grupo (con todas las precauciones)",
+    changes: [
+      { type: "new", text: "El propietario de un grupo puede eliminarlo desde la pestaña de miembros, con un aviso bien claro y pidiendo que escriba el nombre del grupo para confirmar" },
+    ],
+  },
+  {
     date: "23 abril 2026",
     version: "1.3",
     title: "Tipos de grupo: ahora también «en pareja»",
