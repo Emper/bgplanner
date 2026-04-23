@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Avatar from "./Avatar";
-import { formatGroupedActivity, isGroupableActivity } from "@/lib/activity";
+import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
 
 interface ActivityItem {
   id: string;
@@ -112,19 +113,94 @@ function groupItems(items: ActivityItem[]): UserGroup[] {
   return groups;
 }
 
+// Para "creó el grupo" / "se unió al grupo" el nombre va pegado al verbo
+// (sin "en"), porque "se unió al grupo en C&N" no suena bien.
+const APPEND_CONTEXT_TYPES = new Set(["group_created", "group_joined"]);
+
+function PartSpan({ name, affix }: { name: string; affix?: string }) {
+  return (
+    <span>
+      <span className="text-[var(--text)]">&quot;{name}&quot;</span>
+      {affix && <span> {affix}</span>}
+    </span>
+  );
+}
+
+function GroupedLine({ data }: { data: GroupedActivity }) {
+  const { prefix, visible, hidden } = data;
+  if (visible.length === 0) return <>{prefix}</>;
+  return (
+    <>
+      {prefix}{" "}
+      {visible.map((p, i) => {
+        const isLast = i === visible.length - 1;
+        const sep = i === 0
+          ? null
+          : isLast && hidden.length === 0
+            ? <> y </>
+            : <>, </>;
+        return (
+          <span key={i}>
+            {sep}
+            <PartSpan name={p.name} affix={p.affix} />
+          </span>
+        );
+      })}
+      {hidden.length > 0 && (
+        <>
+          {" "}y{" "}
+          <span className="relative group/more inline-block">
+            <span className="cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+              {hidden.length} más
+            </span>
+            <span className="invisible group-hover/more:visible absolute left-0 bottom-full mb-1.5 z-50 w-max max-w-[260px] bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-2.5 text-xs text-[var(--text-secondary)] text-left">
+              <ul className="space-y-1">
+                {hidden.map((h, i) => (
+                  <li key={i} className="flex items-center gap-1.5">
+                    <span className="truncate text-[var(--text)]">&quot;{h.name}&quot;</span>
+                    {h.affix && <span className="shrink-0">{h.affix}</span>}
+                  </li>
+                ))}
+              </ul>
+            </span>
+          </span>
+        </>
+      )}
+    </>
+  );
+}
+
+const MIN_VISIBLE_BLOCKS = 5;
+const MAX_AUTOLOAD_ATTEMPTS = 3;
+
 export default function ActivityFeed({
   items,
   showContext = false,
   onLoadMore,
   hasMore = false,
   loading = false,
+  minBlocks = MIN_VISIBLE_BLOCKS,
 }: {
   items: ActivityItem[];
   showContext?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
   loading?: boolean;
+  minBlocks?: number;
 }) {
+  const groups = items.length ? groupItems(items) : [];
+
+  // Auto-cargar páginas adicionales si tras agrupar quedan menos bloques
+  // de los esperados. Limitado para evitar bucles si el feed real es corto.
+  const autoloadAttemptsRef = useRef(0);
+  useEffect(() => {
+    if (!hasMore || loading || !onLoadMore) return;
+    if (groups.length >= minBlocks) return;
+    if (autoloadAttemptsRef.current >= MAX_AUTOLOAD_ATTEMPTS) return;
+    autoloadAttemptsRef.current++;
+    onLoadMore();
+  }, [groups.length, hasMore, loading, onLoadMore, minBlocks]);
+
   if (items.length === 0 && loading) {
     return <LoadingSkeleton />;
   }
@@ -137,17 +213,13 @@ export default function ActivityFeed({
     );
   }
 
-  const groups = groupItems(items);
-
   return (
     <div>
       {groups.map((group) => {
-        // El timestamp del bloque entero es el del item más reciente.
         const latestTime = group.runs[0].items[0].createdAt;
         const hasMultipleRuns = group.runs.length > 1;
         return (
           <div key={`${group.userId}-${group.runs[0].items[0].id}`} className="flex gap-3 py-2.5 px-1">
-            {/* Avatar + línea vertical conectora */}
             <div className="flex flex-col items-center shrink-0 w-8">
               <Avatar
                 name={group.userName}
@@ -158,28 +230,31 @@ export default function ActivityFeed({
                 <div className="flex-1 w-0.5 bg-[var(--border)] mt-2 mb-0.5 rounded-full" />
               )}
             </div>
-            {/* Acciones del usuario */}
             <div className="flex-1 min-w-0 pt-1">
               <p className="text-sm text-[var(--text-secondary)] leading-snug">
                 <span className="font-semibold text-[var(--text)]">{group.userName}</span>
               </p>
               <div className="space-y-1 mt-0.5">
                 {group.runs.map((run) => {
-                  const text = formatGroupedActivity(
+                  const data = getGroupedActivity(
                     run.type,
                     run.items.map((i) => i.metadata as Record<string, unknown>)
                   );
-                  const context = showContext
+                  const contextName = showContext
                     ? run.items[0].group?.name || run.items[0].event?.name
                     : null;
+                  const appendContext = APPEND_CONTEXT_TYPES.has(run.type);
                   return (
                     <p
                       key={run.items[0].id}
                       className="text-sm text-[var(--text-secondary)] leading-snug"
                     >
-                      {text}
-                      {context && (
-                        <span className="text-[var(--text-muted)]"> en {context}</span>
+                      <GroupedLine data={data} />
+                      {contextName && appendContext && (
+                        <span className="text-[var(--text)]"> {contextName}</span>
+                      )}
+                      {contextName && !appendContext && (
+                        <span className="text-[var(--text-muted)]"> en {contextName}</span>
                       )}
                     </p>
                   );

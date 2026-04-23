@@ -119,27 +119,36 @@ const GROUP_FORMATS: Record<string, { verb: string; extract: (m: Meta) => GroupP
   member_demoted: { verb: "quitó admin a", extract: (m) => m.targetName ? { name: m.targetName } : null },
 };
 
-function joinParts(parts: GroupPart[], maxInline = 2): string {
-  const fmt = (p: GroupPart) => p.affix ? `"${p.name}" ${p.affix}` : `"${p.name}"`;
-  if (parts.length === 1) return fmt(parts[0]);
-  if (parts.length === 2) return `${fmt(parts[0])} y ${fmt(parts[1])}`;
-  if (parts.length <= maxInline + 1) {
-    // 3 items con maxInline=2 → "A, B y C"
-    const head = parts.slice(0, -1).map(fmt).join(", ");
-    return `${head} y ${fmt(parts[parts.length - 1])}`;
-  }
-  const shown = parts.slice(0, maxInline).map(fmt).join(", ");
-  const rest = parts.length - maxInline;
-  return `${shown} y ${rest} más`;
+// Estructura que consume el componente del feed: un prefijo (verbo o
+// texto completo si no se agrupa) + las partes visibles inline + las
+// partes "ocultas" tras el "y N más" para mostrarlas en un tooltip.
+export interface GroupedActivity {
+  prefix: string;
+  visible: GroupPart[];
+  hidden: GroupPart[];
 }
 
-export function formatGroupedActivity(type: string, metadatas: Meta[]): string {
-  if (metadatas.length === 1) return formatActivity(type, metadatas[0]);
+const MAX_INLINE = 2;
+
+export function getGroupedActivity(type: string, metadatas: Meta[]): GroupedActivity {
   const grouper = GROUP_FORMATS[type];
-  if (!grouper) return formatActivity(type, metadatas[0]);
+  if (metadatas.length === 1 || !grouper) {
+    return { prefix: formatActivity(type, metadatas[0]), visible: [], hidden: [] };
+  }
   const parts = metadatas.map(grouper.extract).filter((p): p is GroupPart => !!p);
-  if (parts.length === 0) return formatActivity(type, metadatas[0]);
-  return `${grouper.verb} ${joinParts(parts)}`;
+  if (parts.length === 0) {
+    return { prefix: formatActivity(type, metadatas[0]), visible: [], hidden: [] };
+  }
+  // Si caben todos sin tener que decir "y N más" (hasta MAX_INLINE+1),
+  // los mostramos íntegros; si no, los primeros MAX_INLINE + tooltip.
+  if (parts.length <= MAX_INLINE + 1) {
+    return { prefix: grouper.verb, visible: parts, hidden: [] };
+  }
+  return {
+    prefix: grouper.verb,
+    visible: parts.slice(0, MAX_INLINE),
+    hidden: parts.slice(MAX_INLINE),
+  };
 }
 
 export function isGroupableActivity(type: string): boolean {
