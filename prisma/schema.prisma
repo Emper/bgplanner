@@ -60,12 +60,13 @@ model Group {
 }
 
 model GroupMember {
-  id       String   @id @default(cuid())
-  groupId  String
-  userId   String
-  role     String   @default("member")
-  pinned   Boolean  @default(false)
-  joinedAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  groupId      String
+  userId       String
+  role         String    @default("member")
+  pinned       Boolean   @default(false)
+  joinedAt     DateTime  @default(now())
+  lastPingedAt DateTime?
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id])

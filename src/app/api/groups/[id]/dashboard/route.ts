@@ -148,7 +148,12 @@ export async function GET(
     });
 
   const response = NextResponse.json({
-    group: { ...group, currentUserRole: membership.role, currentUserId: session.userId },
+    group: {
+      ...group,
+      currentUserRole: membership.role,
+      currentUserId: session.userId,
+      currentUserLastPingedAt: membership.lastPingedAt,
+    },
     ranking,
     memberCount,
     sessions,

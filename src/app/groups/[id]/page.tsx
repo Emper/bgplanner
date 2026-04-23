@@ -73,6 +73,7 @@ interface GroupData {
   invitations: Invitation[];
   currentUserRole: string;
   currentUserId: string;
+  currentUserLastPingedAt: string | null;
   inviteCode: string | null;
   inviteEnabled: boolean;
 }
@@ -157,6 +158,13 @@ function GroupDashboardPage() {
   // Quick session from ranking
   const [quickSelectIds, setQuickSelectIds] = useState<Set<string>>(new Set());
   const [showQuickSession, setShowQuickSession] = useState(false);
+
+  // Ping (convocatoria) modal
+  const [showPingModal, setShowPingModal] = useState(false);
+  const [pingMessage, setPingMessage] = useState("");
+  const [pinging, setPinging] = useState(false);
+  const [pingError, setPingError] = useState("");
+  const [pingToast, setPingToast] = useState("");
 
   // Sessions state
   const [sessions, setSessions] = useState<GameSessionData[]>([]);
@@ -313,6 +321,14 @@ function GroupDashboardPage() {
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
   const isOwner = group?.currentUserRole === "owner";
+
+  const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+  const pingAvailableAt = group?.currentUserLastPingedAt
+    ? new Date(
+        new Date(group.currentUserLastPingedAt).getTime() + PING_COOLDOWN_MS
+      )
+    : null;
+  const canPing = !pingAvailableAt || pingAvailableAt.getTime() <= Date.now();
 
   const handleArchiveAllPlayed = async () => {
     if (!confirm(`¿Ocultar todos los juegos ya jugados? Se podrán volver a añadir desde "Añadir juegos".`)) return;
@@ -570,6 +586,47 @@ function GroupDashboardPage() {
     }
   };
 
+  const handlePing = async () => {
+    setPingError("");
+    setPinging(true);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/ping`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(
+          pingMessage.trim() ? { message: pingMessage.trim() } : {}
+        ),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 429 && data.nextAvailableAt) {
+          const when = new Date(data.nextAvailableAt).toLocaleDateString(
+            "es-ES",
+            { day: "numeric", month: "long" }
+          );
+          throw new Error(`Ya convocaste esta semana. Disponible el ${when}.`);
+        }
+        throw new Error(data.error || "Error al convocar");
+      }
+      setGroup((g) =>
+        g ? { ...g, currentUserLastPingedAt: new Date().toISOString() } : g
+      );
+      setShowPingModal(false);
+      setPingMessage("");
+      setPingToast(
+        `📯 ¡Convocatoria enviada a ${data.recipientCount} jugador${
+          data.recipientCount !== 1 ? "es" : ""
+        }!`
+      );
+      setTimeout(() => setPingToast(""), 4000);
+    } catch (err: unknown) {
+      setPingError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setPinging(false);
+    }
+  };
+
   // Session planning
   const handleSuggestGames = async () => {
     setLoadingSuggestion(true);
@@ -789,12 +846,26 @@ function GroupDashboardPage() {
       <div className="min-h-screen bg-[var(--bg)] py-4 sm:py-6 px-3 sm:px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-4 sm:mb-6">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">{group.name}</h1>
-            <p className="text-sm text-[var(--text-secondary)]">
-              {group.members.length} miembros &middot; {group._count.games}{" "}
-              juegos
-            </p>
+          <div className="mb-4 sm:mb-6 flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">{group.name}</h1>
+              <p className="text-sm text-[var(--text-secondary)]">
+                {group.members.length} miembros &middot; {group._count.games}{" "}
+                juegos
+              </p>
+            </div>
+            <button
+              onClick={() => canPing && setShowPingModal(true)}
+              disabled={!canPing}
+              title={
+                canPing
+                  ? "Envía un email al grupo para pedir votos"
+                  : `Disponible de nuevo el ${pingAvailableAt?.toLocaleDateString("es-ES", { day: "numeric", month: "long" })}`
+              }
+              className="shrink-0 px-3 sm:px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-xl hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text)] text-xs sm:text-sm font-semibold transition-all duration-200 shadow-sm"
+            >
+              📯 <span className="hidden sm:inline">Convocar a los jugadores</span><span className="sm:hidden">Convocar</span>
+            </button>
           </div>
 
           {/* Tabs */}
@@ -1344,6 +1415,75 @@ function GroupDashboardPage() {
                   {savingSession ? "Creando..." : `Crear sesión con ${quickSelectIds.size} juego${quickSelectIds.size !== 1 ? "s" : ""}`}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Ping modal */}
+          {showPingModal && (
+            <div
+              className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+              onClick={() => !pinging && setShowPingModal(false)}
+            >
+              <div
+                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[var(--text)]">
+                    📯 ¿Convocar a los jugadores?
+                  </h3>
+                  <button
+                    onClick={() => !pinging && setShowPingModal(false)}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text)]"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Esto enviará un email a los demás miembros del grupo para pedirles que actualicen sus votos en el ranking. Solo puedes hacerlo una vez por semana.
+                </p>
+                <div className="mb-4">
+                  <label className="block text-xs text-[var(--text-secondary)] mb-1">
+                    Mensaje personal (opcional)
+                  </label>
+                  <textarea
+                    value={pingMessage}
+                    onChange={(e) => setPingMessage(e.target.value.slice(0, 200))}
+                    placeholder="Ej: vamos el viernes a casa de Ana"
+                    rows={3}
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200 resize-none"
+                  />
+                  <div className="text-right text-xs text-[var(--text-muted)] mt-1">
+                    {pingMessage.length}/200
+                  </div>
+                </div>
+                {pingError && (
+                  <p className="text-sm text-red-400 mb-3">{pingError}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowPingModal(false)}
+                    disabled={pinging}
+                    className="flex-1 px-4 py-2.5 bg-transparent border border-[var(--border)] text-[var(--text)] rounded-xl hover:bg-[var(--border)]/30 disabled:opacity-50 font-semibold text-sm transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handlePing}
+                    disabled={pinging}
+                    className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    {pinging ? "Enviando..." : "Convocar 📯"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ping success toast */}
+          {pingToast && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+              {pingToast}
             </div>
           )}
 

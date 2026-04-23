@@ -25,6 +25,10 @@ export const inviteSchema = z.object({
   email: z.string().email("Email no válido"),
 });
 
+export const pingSchema = z.object({
+  message: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
+});
+
 export const addGameSchema = z.object({
   bggId: z.number().int().positive(),
 });
