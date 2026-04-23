@@ -8,6 +8,7 @@ import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
 import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
+import { getGroupType } from "@/lib/groupTypes";
 
 interface GroupMemberPreview {
   user: { name: string | null; displayName: string | null; avatarUrl: string | null };
@@ -16,6 +17,7 @@ interface GroupMemberPreview {
 interface Group {
   id: string;
   name: string;
+  type: string;
   pinned: boolean;
   _count: { members: number; games: number };
   members: GroupMemberPreview[];
@@ -145,9 +147,23 @@ export default function GroupsPage() {
                     prefetch={false}
                     className="block"
                   >
-                  <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
-                    {group.name}
-                  </h3>
+                  {(() => {
+                    const cfg = getGroupType(group.type);
+                    return (
+                      <div className="flex items-center gap-2 mb-2 pr-9">
+                        <h3 className="text-lg font-semibold text-[var(--text)] truncate">
+                          {group.name}
+                        </h3>
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/20 shrink-0"
+                          title={cfg.description}
+                        >
+                          <span>{cfg.emoji}</span>
+                          <span>{cfg.label}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center justify-between">
                     <div className="flex gap-4 text-sm text-[var(--text-secondary)]">
                       <span>{group._count?.members || 0} miembros</span>
