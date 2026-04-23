@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GROUP_TYPE_IDS } from "./groupTypes";
 
 export const emailSchema = z.object({
   email: z.string().email("Email no válido"),
@@ -19,6 +20,7 @@ export const profileSchema = z.object({
 
 export const groupSchema = z.object({
   name: z.string().min(1, "El nombre del grupo es obligatorio").max(100),
+  type: z.enum(GROUP_TYPE_IDS as [string, ...string[]]).default("friends"),
 });
 
 export const inviteSchema = z.object({
@@ -34,7 +36,7 @@ export const addGameSchema = z.object({
 });
 
 export const voteSchema = z.object({
-  type: z.enum(["up", "super", "down"]),
+  value: z.number().int().min(-10).max(10),
 });
 
 export const createEventSchema = z.object({

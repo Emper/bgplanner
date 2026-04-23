@@ -9,6 +9,7 @@ import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/Activit
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
 import { formatDuration } from "@/lib/format";
+import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 
 interface Game {
   id: string;
@@ -27,8 +28,7 @@ interface Game {
 interface Voter {
   userId: string;
   name: string;
-  type: "up" | "super" | "down";
-  points: number;
+  value: number;
 }
 
 interface RankedGame {
@@ -37,11 +37,8 @@ interface RankedGame {
   addedBy: { name: string | null; displayName: string | null };
   addedById: string;
   score: number;
-  upVotes: number;
-  superVotes: number;
-  downVotes: number;
   voters: Voter[];
-  userVote: "up" | "super" | "down" | null;
+  userVoteValue: number | null;
   playCount: number;
   playedAt: string | null;
   lastPlayedDate: string | null;
@@ -68,6 +65,7 @@ interface Invitation {
 interface GroupData {
   id: string;
   name: string;
+  type: string;
   members: Member[];
   _count: { games: number };
   invitations: Invitation[];
@@ -118,6 +116,37 @@ interface GameSessionData {
 }
 
 type Tab = "ranking" | "sessions" | "members" | "activity";
+
+function VoteButton({
+  option,
+  active,
+  onClick,
+  size,
+}: {
+  option: VoteOption;
+  active: boolean;
+  onClick: () => void;
+  size: "sm" | "md";
+}) {
+  const dims = size === "md" ? "w-9 h-9 text-lg" : "w-8 h-8 text-base";
+  const activeClass =
+    option.tone === "super"
+      ? "bg-orange-500/20 border-orange-500 text-orange-400"
+      : option.tone === "negative"
+        ? "bg-red-500/20 border-red-500 text-red-400"
+        : "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]";
+  return (
+    <button
+      onClick={onClick}
+      className={`${dims} flex items-center justify-center rounded-lg border transition-colors ${
+        active ? activeClass : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+      }`}
+      title={`${option.shortLabel} · ${option.label}`}
+    >
+      {option.emoji}
+    </button>
+  );
+}
 
 
 export default function GroupDashboardWrapper() {
@@ -316,6 +345,8 @@ function GroupDashboardPage() {
   const playedGames = ranking.filter(isPlayed);
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
+  const groupTypeCfg = getGroupType(group?.type);
+  const voteOptions = groupTypeCfg.allowedVotes;
   const isOwner = group?.currentUserRole === "owner";
 
   const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -416,29 +447,26 @@ function GroupDashboardPage() {
     (
       prev: RankedGame[],
       targetGameDbId: string,
-      newVote: "up" | "super" | "down" | null,
-      oldVote: "up" | "super" | "down" | null
+      newValue: number | null,
+      oldValue: number | null,
+      currentUserId: string
     ): RankedGame[] => {
-      const voteScore = (t: string) => (t === "super" ? 3 : t === "down" ? -1 : 1);
       return prev
         .map((item) => {
           if (item.groupGameId !== targetGameDbId) return item;
-          let { score, upVotes, superVotes, downVotes } = item;
-          // Remove old vote contribution
-          if (oldVote) {
-            score -= voteScore(oldVote);
-            if (oldVote === "up") upVotes--;
-            else if (oldVote === "super") superVotes--;
-            else if (oldVote === "down") downVotes--;
+          let { score } = item;
+          let voters = item.voters;
+          if (oldValue !== null) {
+            score -= oldValue;
+            voters = voters.filter((v) => v.userId !== currentUserId);
           }
-          // Add new vote contribution
-          if (newVote) {
-            score += voteScore(newVote);
-            if (newVote === "up") upVotes++;
-            else if (newVote === "super") superVotes++;
-            else if (newVote === "down") downVotes++;
+          if (newValue !== null) {
+            score += newValue;
+            const me = item.voters.find((v) => v.userId === currentUserId);
+            const myName = me?.name || "Tú";
+            voters = [...voters, { userId: currentUserId, name: myName, value: newValue }];
           }
-          return { ...item, score, upVotes, superVotes, downVotes, userVote: newVote };
+          return { ...item, score, voters, userVoteValue: newValue };
         })
         .sort((a, b) => {
           if (b.score !== a.score) return b.score - a.score;
@@ -451,36 +479,37 @@ function GroupDashboardPage() {
   const handleVote = async (
     gameId: string,
     gameDbId: string,
-    type: "up" | "super" | "down",
-    currentVote: string | null
+    value: number,
+    currentValue: number | null
   ) => {
-    const isRemove = currentVote === type;
-    const newVote = isRemove ? null : type;
-    const snapshot = ranking; // save for rollback
+    if (!group) return;
+    const isRemove = currentValue === value;
+    const newValue = isRemove ? null : value;
+    const snapshot = ranking;
+    const groupTypeCfg = getGroupType(group.type);
 
-    // ── Super vote with existing super → ask FIRST, then update ──
-    const existingSuper = type === "super" && !isRemove
-      ? ranking.find((r) => r.userVote === "super" && r.groupGameId !== gameDbId)
+    // ── Vote-limit conflict: ask before moving (e.g. super vote in friends) ──
+    const limit = !isRemove ? groupTypeCfg.voteLimits.find((l) => l.value === value && l.max <= 1) : null;
+    const conflicting = limit
+      ? ranking.find((r) => r.userVoteValue === value && r.groupGameId !== gameDbId)
       : null;
 
-    if (existingSuper) {
-      // Don't touch UI yet — wait for user decision
+    if (conflicting) {
+      const optionLabel = groupTypeCfg.allowedVotes.find((v) => v.value === value)?.label || `voto de ${value}`;
       const move = confirm(
-        "Ya tienes un super voto en otro juego de este grupo. ¿Quieres moverlo a este juego?"
+        `Ya tienes un ${optionLabel.toLowerCase()} en otro juego del grupo. ¿Quieres moverlo a este juego?`
       );
       if (!move) return;
 
-      // User confirmed — apply both changes optimistically
       setRanking((prev) => {
-        let next = applyVoteLocally(prev, existingSuper.groupGameId, null, "super");
-        next = applyVoteLocally(next, gameDbId, "super", currentVote as RankedGame["userVote"]);
+        let next = applyVoteLocally(prev, conflicting.groupGameId, null, value, group.currentUserId);
+        next = applyVoteLocally(next, gameDbId, value, currentValue, group.currentUserId);
         return next;
       });
 
-      // Fire API calls
       try {
         await fetch(
-          `/api/groups/${groupId}/games/${existingSuper.game.id}/vote`,
+          `/api/groups/${groupId}/games/${conflicting.game.id}/vote`,
           { method: "DELETE", credentials: "include" }
         );
         const res = await fetch(
@@ -489,19 +518,18 @@ function GroupDashboardPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ type: "super" }),
+            body: JSON.stringify({ value }),
           }
         );
         if (!res.ok) throw new Error();
       } catch {
         setRanking(snapshot);
-        alert("Error al mover el super voto");
+        alert("Error al mover el voto");
       }
       return;
     }
 
-    // ── Normal vote: optimistic update immediately ──
-    setRanking((prev) => applyVoteLocally(prev, gameDbId, newVote, currentVote as RankedGame["userVote"]));
+    setRanking((prev) => applyVoteLocally(prev, gameDbId, newValue, currentValue, group.currentUserId));
 
     try {
       if (isRemove) {
@@ -517,7 +545,7 @@ function GroupDashboardPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ type }),
+            body: JSON.stringify({ value }),
           }
         );
         if (!res.ok) throw new Error();
@@ -844,7 +872,16 @@ function GroupDashboardPage() {
           {/* Header */}
           <div className="mb-4 sm:mb-6 flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">{group.name}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">{group.name}</h1>
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/20"
+                  title={groupTypeCfg.description}
+                >
+                  <span>{groupTypeCfg.emoji}</span>
+                  <span>{groupTypeCfg.label}</span>
+                </span>
+              </div>
               <p className="text-sm text-[var(--text-secondary)]">
                 {group.members.length} miembros &middot; {group._count.games}{" "}
                 juegos
@@ -944,19 +981,30 @@ function GroupDashboardPage() {
                           )}
                         </div>
                       </div>
-                      {/* Super votes available banner */}
+                      {/* Available-slot banner for limited votes (e.g. super vote in friends mode) */}
                       {(() => {
                         if (pendingGames.length === 0 || !group) return null;
-                        // Collect all userIds who have used their super vote
-                        const usedSuperUserIds = new Set<string>();
+                        const cfg = getGroupType(group.type);
+                        const limit = cfg.voteLimits.find((l) => l.max <= 1);
+                        if (!limit) {
+                          // Mode without vote limits → show ranking hint instead, if any
+                          if (!cfg.rankingHint) return null;
+                          return (
+                            <div className="flex items-start gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15">
+                              <span className="text-base shrink-0 mt-0.5">💡</span>
+                              <p className="text-xs sm:text-sm text-[var(--primary)] font-medium">{cfg.rankingHint}</p>
+                            </div>
+                          );
+                        }
+                        const limitOption = cfg.allowedVotes.find((v) => v.value === limit.value);
+                        const usedUserIds = new Set<string>();
                         ranking.forEach((r) => {
                           r.voters.forEach((v) => {
-                            if (v.type === "super") usedSuperUserIds.add(v.userId);
+                            if (v.value === limit.value) usedUserIds.add(v.userId);
                           });
                         });
-                        // Find members who haven't used it
                         const membersWithAvailable = group.members.filter(
-                          (m) => !usedSuperUserIds.has(m.user.id)
+                          (m) => !usedUserIds.has(m.user.id)
                         );
                         if (membersWithAvailable.length === 0) return null;
                         const currentUserAvailable = membersWithAvailable.some(
@@ -966,17 +1014,17 @@ function GroupDashboardPage() {
                           (m) => m.user.id !== group.currentUserId
                         );
                         const otherNames = others.map((m) => m.user.displayName || m.user.name || m.user.email);
+                        const optionLabel = (limitOption?.label || "super voto").toLowerCase();
                         const otherText = others.length === 1
-                          ? `${otherNames[0]} tiene su super voto libre`
-                          : `${otherNames.join(", ")} tienen su super voto libre`;
-                        // Single-line cases: center. Multi-line (tú + otros): top-align emoji.
+                          ? `${otherNames[0]} tiene su ${optionLabel} libre`
+                          : `${otherNames.join(", ")} tienen su ${optionLabel} libre`;
                         const isMultiLine = currentUserAvailable && others.length > 0;
                         return (
                           <div className={`flex ${isMultiLine ? "items-start" : "items-center"} gap-2 px-3 py-2.5 mb-2 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/15`}>
-                            <span className={`text-base shrink-0 ${isMultiLine ? "mt-0.5" : ""}`}>🔥</span>
+                            <span className={`text-base shrink-0 ${isMultiLine ? "mt-0.5" : ""}`}>{limitOption?.emoji || "🔥"}</span>
                             <div className="text-xs sm:text-sm text-[var(--primary)]">
                               {currentUserAvailable && (
-                                <p className="font-semibold">¡Tienes tu super voto disponible! Úsalo en el juego que más te apetezca (+3 puntos).</p>
+                                <p className="font-semibold">¡Tienes tu {optionLabel} disponible! Úsalo en el juego que más te apetezca ({limitOption?.shortLabel || "+3"} puntos).</p>
                               )}
                               {others.length > 0 && (
                                 <p className={currentUserAvailable ? "mt-0.5 opacity-75 font-normal" : "font-medium"}>
@@ -1108,24 +1156,15 @@ function GroupDashboardPage() {
                               </div>
                               {/* Desktop: Vote buttons + Score, vertically centered */}
                               <div className="hidden sm:flex items-center gap-3 shrink-0">
-                                <div className="flex gap-1.5">
-                                  {(["up", "super", "down"] as const).map((type) => (
-                                    <button
-                                      key={type}
-                                      onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                      className={`w-9 h-9 flex items-center justify-center rounded-lg border text-lg transition-colors ${
-                                        item.userVote === type
-                                          ? type === "up"
-                                            ? "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]"
-                                            : type === "super"
-                                              ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                              : "bg-red-500/20 border-red-500 text-red-400"
-                                          : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-                                      }`}
-                                      title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                    >
-                                      {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                    </button>
+                                <div className="flex gap-1.5 flex-wrap justify-end max-w-[260px]">
+                                  {voteOptions.map((opt) => (
+                                    <VoteButton
+                                      key={opt.value}
+                                      option={opt}
+                                      active={item.userVoteValue === opt.value}
+                                      onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
+                                      size="md"
+                                    />
                                   ))}
                                 </div>
                                 <div className="relative group/score text-center w-12 cursor-default">
@@ -1140,8 +1179,8 @@ function GroupDashboardPage() {
                                           {item.voters.map((voter, vi) => (
                                             <div key={vi} className="flex items-center justify-between gap-3 text-xs">
                                               <span className="text-[var(--text-secondary)] truncate max-w-[120px]">{voter.name}</span>
-                                              <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-[var(--primary)]'}`}>
-                                                {voter.points > 0 ? '+' : ''}{voter.points}
+                                              <span className={`font-bold whitespace-nowrap ${voter.value >= 3 ? 'text-orange-400' : voter.value < 0 ? 'text-red-400' : 'text-[var(--primary)]'}`}>
+                                                {voter.value > 0 ? '+' : ''}{voter.value}
                                               </span>
                                             </div>
                                           ))}
@@ -1175,8 +1214,8 @@ function GroupDashboardPage() {
                                         {item.voters.map((voter, vi) => (
                                           <div key={vi} className="flex items-center justify-between gap-3 text-xs">
                                             <span className="text-[var(--text-secondary)] truncate max-w-[100px]">{voter.name}</span>
-                                            <span className={`font-bold whitespace-nowrap ${voter.type === 'super' ? 'text-orange-400' : voter.type === 'down' ? 'text-red-400' : 'text-[var(--primary)]'}`}>
-                                              {voter.points > 0 ? '+' : ''}{voter.points}
+                                            <span className={`font-bold whitespace-nowrap ${voter.value >= 3 ? 'text-orange-400' : voter.value < 0 ? 'text-red-400' : 'text-[var(--primary)]'}`}>
+                                              {voter.value > 0 ? '+' : ''}{voter.value}
                                             </span>
                                           </div>
                                         ))}
@@ -1217,24 +1256,15 @@ function GroupDashboardPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex gap-1 shrink-0">
-                                {(["up", "super", "down"] as const).map((type) => (
-                                  <button
-                                    key={type}
-                                    onClick={() => handleVote(item.game.id, item.groupGameId, type, item.userVote)}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-lg border text-base transition-colors ${
-                                      item.userVote === type
-                                        ? type === "up"
-                                          ? "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]"
-                                          : type === "super"
-                                            ? "bg-orange-500/20 border-orange-500 text-orange-400"
-                                            : "bg-red-500/20 border-red-500 text-red-400"
-                                        : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-                                    }`}
-                                    title={type === "up" ? "+1" : type === "super" ? "+3 (Super)" : "-1"}
-                                  >
-                                    {type === "up" ? "👍" : type === "super" ? "🔥" : "👎"}
-                                  </button>
+                              <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[200px]">
+                                {voteOptions.map((opt) => (
+                                  <VoteButton
+                                    key={opt.value}
+                                    option={opt}
+                                    active={item.userVoteValue === opt.value}
+                                    onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
+                                    size="sm"
+                                  />
                                 ))}
                               </div>
                             </div>

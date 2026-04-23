@@ -51,7 +51,7 @@ export async function GET(
         include: {
           game: true,
           addedBy: { select: { name: true, displayName: true } },
-          votes: { select: { userId: true, type: true, user: { select: { name: true, displayName: true, email: true } } } },
+          votes: { select: { userId: true, value: true, user: { select: { name: true, displayName: true, email: true } } } },
         },
       }),
       prisma.gameSession.findMany({
@@ -102,21 +102,13 @@ export async function GET(
   // Compute ranking in memory
   const ranking = groupGames
     .map((gg) => {
-      const score = gg.votes.reduce((acc, v) => {
-        if (v.type === "super") return acc + 3;
-        if (v.type === "down") return acc - 1;
-        return acc + 1;
-      }, 0);
+      const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
 
-      const upVotes = gg.votes.filter((v) => v.type === "up").length;
-      const superVotes = gg.votes.filter((v) => v.type === "super").length;
-      const downVotes = gg.votes.filter((v) => v.type === "down").length;
       const userVote = gg.votes.find((v) => v.userId === session.userId);
       const voters = gg.votes.map((v) => ({
         userId: v.userId,
         name: v.user.displayName || v.user.name || v.user.email,
-        type: v.type,
-        points: v.type === "super" ? 3 : v.type === "down" ? -1 : 1,
+        value: v.value,
       }));
 
       const playCount = playCountByGameId.get(gg.game.id) || 0;
@@ -132,11 +124,8 @@ export async function GET(
         addedBy: gg.addedBy,
         addedById: gg.addedById,
         score,
-        upVotes,
-        superVotes,
-        downVotes,
         voters,
-        userVote: userVote?.type || null,
+        userVoteValue: userVote?.value ?? null,
         playCount,
         playedAt: gg.playedAt,
         lastPlayedDate,

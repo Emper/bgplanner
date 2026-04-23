@@ -25,7 +25,7 @@ export async function GET(
       where: { groupId },
       include: {
         game: true,
-        votes: { select: { type: true } },
+        votes: { select: { value: true } },
       },
     }),
   ]);
@@ -42,11 +42,7 @@ export async function GET(
       return playerCount >= min && playerCount <= max;
     })
     .map((gg) => {
-      const score = gg.votes.reduce((acc, v) => {
-        if (v.type === "super") return acc + 3;
-        if (v.type === "down") return acc - 1;
-        return acc + 1;
-      }, 0);
+      const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
       return {
         gameId: gg.game.id,
         bggId: gg.game.bggId,

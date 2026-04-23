@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "23 abril 2026",
+    version: "1.3",
+    title: "Tipos de grupo: ahora también «en pareja»",
+    changes: [
+      { type: "new", text: "Al crear un grupo eliges su modo: el clásico «con amigos» (👍, 👎 y un super voto) o el nuevo «en pareja» con una escala más fina del -1 al +5 para decidir entre dos con más matiz" },
+      { type: "new", text: "Selector vistoso al crear un grupo que te explica para qué situación encaja mejor cada modo" },
+      { type: "new", text: "Insignia con el modo del grupo junto a su nombre, para que se vea de un vistazo" },
+    ],
+  },
+  {
+    date: "23 abril 2026",
     version: "1.2",
     title: "Convoca a tu grupo a votar",
     changes: [

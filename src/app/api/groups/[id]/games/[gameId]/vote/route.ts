@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { voteSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { getGroupType, isVoteValueAllowed } from "@/lib/groupTypes";
 
 export async function POST(
   request: NextRequest,
@@ -15,12 +16,18 @@ export async function POST(
 
   const { id: groupId, gameId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
+  const [membership, group] = await Promise.all([
+    prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: session.userId } },
+    }),
+    prisma.group.findUnique({ where: { id: groupId }, select: { type: true } }),
+  ]);
 
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
+  }
+  if (!group) {
+    return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
   }
 
   const body = await request.json();
@@ -33,7 +40,15 @@ export async function POST(
     );
   }
 
-  const { type } = parsed.data;
+  const { value } = parsed.data;
+  const groupType = getGroupType(group.type);
+
+  if (!isVoteValueAllowed(group.type, value)) {
+    return NextResponse.json(
+      { error: "Ese voto no está disponible en este modo de grupo" },
+      { status: 400 }
+    );
+  }
 
   const groupGame = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId } },
@@ -47,7 +62,7 @@ export async function POST(
     );
   }
 
-  // Check for existing vote before upsert
+  // Check for existing vote (used to differentiate cast vs change)
   const existingVote = await prisma.vote.findUnique({
     where: {
       groupGameId_userId: {
@@ -57,29 +72,29 @@ export async function POST(
     },
   });
 
-  // If super vote, check limit (1 per user per group)
-  if (type === "super") {
-    const existingSuper = await prisma.vote.findFirst({
+  // Apply vote limits configured for this group type
+  for (const limit of groupType.voteLimits) {
+    if (value !== limit.value) continue;
+    const otherVotesWithSameValue = await prisma.vote.findFirst({
       where: {
         userId: session.userId,
-        type: "super",
+        value: limit.value,
         groupGame: { groupId },
         NOT: { groupGameId: groupGame.id },
       },
     });
-
-    if (existingSuper) {
+    // max=1 means: any existing vote with this value on a different game blocks it
+    if (otherVotesWithSameValue && limit.max <= 1) {
       return NextResponse.json(
         {
-          error: "Ya tienes un super voto en este grupo",
-          existingSuperGameId: existingSuper.groupGameId,
+          error: limit.errorMessage,
+          conflictingGameId: otherVotesWithSameValue.groupGameId,
         },
         { status: 409 }
       );
     }
   }
 
-  // Upsert vote (replace existing vote type)
   const vote = await prisma.vote.upsert({
     where: {
       groupGameId_userId: {
@@ -87,18 +102,18 @@ export async function POST(
         userId: session.userId,
       },
     },
-    update: { type },
+    update: { value },
     create: {
       groupGameId: groupGame.id,
       userId: session.userId,
-      type,
+      value,
     },
   });
 
   if (!existingVote) {
-    logActivity("vote_cast", session.userId, { groupId, gameName: groupGame.game.name, voteType: type });
-  } else if (existingVote.type !== type) {
-    logActivity("vote_changed", session.userId, { groupId, gameName: groupGame.game.name, from: existingVote.type, to: type });
+    logActivity("vote_cast", session.userId, { groupId, gameName: groupGame.game.name, voteValue: value });
+  } else if (existingVote.value !== value) {
+    logActivity("vote_changed", session.userId, { groupId, gameName: groupGame.game.name, fromValue: existingVote.value, toValue: value });
   }
 
   return NextResponse.json(vote);

@@ -26,7 +26,7 @@ export async function GET(
       include: {
         game: true,
         addedBy: { select: { name: true, displayName: true } },
-        votes: { select: { userId: true, type: true } },
+        votes: { select: { userId: true, value: true } },
         _count: { select: { votes: true } },
       },
     }),
@@ -37,11 +37,7 @@ export async function GET(
   }
 
   const gamesWithScores = groupGames.map((gg) => {
-    const score = gg.votes.reduce((acc, v) => {
-      if (v.type === "super") return acc + 3;
-      if (v.type === "down") return acc - 1;
-      return acc + 1;
-    }, 0);
+    const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
 
     const userVote = gg.votes.find((v) => v.userId === session.userId);
 
@@ -52,7 +48,7 @@ export async function GET(
       addedAt: gg.addedAt,
       score,
       voteCount: gg._count.votes,
-      userVote: userVote?.type || null,
+      userVoteValue: userVote?.value ?? null,
       votes: gg.votes,
     };
   });
@@ -137,7 +133,7 @@ export async function POST(
     data: {
       groupGameId: groupGame.id,
       userId: session.userId,
-      type: "up",
+      value: 1,
     },
   });
 

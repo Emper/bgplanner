@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { resend } from "@/lib/resend";
 import { logActivity } from "@/lib/activity";
+import { getGroupType } from "@/lib/groupTypes";
 
 export async function DELETE(
   request: NextRequest,
@@ -106,24 +107,29 @@ export async function PATCH(
     data: { playedAt: played ? new Date() : null },
   });
 
-  // When marking as played, convert super votes to normal and notify users
+  // When marking as played, free up votes that are slot-limited by the group type
+  // (e.g. the super vote in "friends" mode). Modes without limits keep their
+  // votes intact — nadie está "esperando" su slot.
   if (played) {
-    const superVotes = await prisma.vote.findMany({
-      where: { groupGameId: groupGame.id, type: "super" },
-      include: { user: { select: { email: true, name: true, displayName: true } } },
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      select: { name: true, type: true },
     });
+    const limitedValues = getGroupType(group?.type)
+      .voteLimits.filter((l) => l.max <= 1)
+      .map((l) => l.value);
+
+    const superVotes = limitedValues.length
+      ? await prisma.vote.findMany({
+          where: { groupGameId: groupGame.id, value: { in: limitedValues } },
+          include: { user: { select: { email: true, name: true, displayName: true } } },
+        })
+      : [];
 
     if (superVotes.length > 0) {
-      // Convert all super votes to normal
       await prisma.vote.updateMany({
-        where: { groupGameId: groupGame.id, type: "super" },
-        data: { type: "up" },
-      });
-
-      // Get group name for the email
-      const group = await prisma.group.findUnique({
-        where: { id: groupId },
-        select: { name: true },
+        where: { groupGameId: groupGame.id, value: { in: limitedValues } },
+        data: { value: 1 },
       });
 
       // Send notification emails (fire and forget)

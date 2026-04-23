@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { resend } from "@/lib/resend";
+import { getGroupType } from "@/lib/groupTypes";
 
 export async function GET(
   request: NextRequest,
@@ -120,23 +121,28 @@ export async function PATCH(
         if (sessionGame) {
           logActivity("session_game_completed", session.userId, { groupId, gameName: sessionGame.game.name });
 
-          // Release super votes on this game (same logic as "mark as played")
+          // Release slot-limited votes on this game (e.g. super vote in friends mode)
           const groupGame = await prisma.groupGame.findFirst({
             where: { groupId, gameId: sessionGame.game.id },
           });
           if (groupGame) {
-            const superVotes = await prisma.vote.findMany({
-              where: { groupGameId: groupGame.id, type: "super" },
-              include: { user: { select: { email: true, name: true, displayName: true } } },
+            const groupData = await prisma.group.findUnique({
+              where: { id: groupId },
+              select: { name: true, type: true },
             });
+            const limitedValues = getGroupType(groupData?.type)
+              .voteLimits.filter((l) => l.max <= 1)
+              .map((l) => l.value);
+            const superVotes = limitedValues.length
+              ? await prisma.vote.findMany({
+                  where: { groupGameId: groupGame.id, value: { in: limitedValues } },
+                  include: { user: { select: { email: true, name: true, displayName: true } } },
+                })
+              : [];
             if (superVotes.length > 0) {
               await prisma.vote.updateMany({
-                where: { groupGameId: groupGame.id, type: "super" },
-                data: { type: "up" },
-              });
-              const groupData = await prisma.group.findUnique({
-                where: { id: groupId },
-                select: { name: true },
+                where: { groupGameId: groupGame.id, value: { in: limitedValues } },
+                data: { value: 1 },
               });
               for (const vote of superVotes) {
                 resend.emails.send({

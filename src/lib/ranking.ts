@@ -10,7 +10,7 @@ export async function computeRanking(
       include: {
         game: true,
         addedBy: { select: { name: true } },
-        votes: { select: { userId: true, type: true } },
+        votes: { select: { userId: true, value: true } },
       },
     }),
     prisma.gameSessionGame.groupBy({
@@ -29,15 +29,11 @@ export async function computeRanking(
 
   return groupGames
     .map((gg) => {
-      const score = gg.votes.reduce((acc, v) => {
-        if (v.type === "super") return acc + 3;
-        if (v.type === "down") return acc - 1;
-        return acc + 1;
-      }, 0);
+      const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
 
-      const upVotes = gg.votes.filter((v) => v.type === "up").length;
-      const superVotes = gg.votes.filter((v) => v.type === "super").length;
-      const downVotes = gg.votes.filter((v) => v.type === "down").length;
+      const upVotes = gg.votes.filter((v) => v.value === 1).length;
+      const superVotes = gg.votes.filter((v) => v.value >= 3).length;
+      const downVotes = gg.votes.filter((v) => v.value < 0).length;
       const userVote = viewerUserId
         ? gg.votes.find((v) => v.userId === viewerUserId)
         : undefined;
@@ -51,7 +47,7 @@ export async function computeRanking(
         upVotes,
         superVotes,
         downVotes,
-        userVote: userVote?.type || null,
+        userVoteValue: userVote?.value ?? null,
         playCount: playCountByGameId.get(gg.game.id) || 0,
       };
     })

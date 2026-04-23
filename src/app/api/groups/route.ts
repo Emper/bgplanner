@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
   const group = await prisma.group.create({
     data: {
       name: parsed.data.name,
+      type: parsed.data.type,
       createdById: session.userId,
       members: {
         create: {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logActivity("group_created", session.userId, { groupId: group.id, groupName: parsed.data.name });
+  logActivity("group_created", session.userId, { groupId: group.id, groupName: parsed.data.name, groupType: parsed.data.type });
 
   return NextResponse.json(group, { status: 201 });
 }

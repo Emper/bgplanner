@@ -45,6 +45,23 @@ export function logActivity(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Meta = Record<string, any>;
 
+function voteEmoji(m: Meta): string {
+  // Prefer numeric value (current schema); fall back to legacy "voteType" string
+  // for activity entries written before the vote-value migration.
+  if (typeof m.voteValue === "number") {
+    if (m.voteValue >= 5) return "🔥";
+    if (m.voteValue === 4) return "💖";
+    if (m.voteValue === 3) return "🔥";
+    if (m.voteValue === 2) return "✨";
+    if (m.voteValue === 1) return "👍";
+    if (m.voteValue < 0) return "👎";
+    return "🙂";
+  }
+  if (m.voteType === "super") return "🔥";
+  if (m.voteType === "down") return "👎";
+  return "👍";
+}
+
 const TEMPLATES: Record<string, (m: Meta) => string> = {
   group_created: () => "creó el grupo",
   group_joined: () => "se unió al grupo",
@@ -56,11 +73,8 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   game_marked_played: (m) => `marcó "${m.gameName || "un juego"}" como jugado`,
   game_returned_pending: (m) => `devolvió "${m.gameName || "un juego"}" a pendientes`,
   game_archived: (m) => `ocultó "${m.gameName || "un juego"}"`,
-  vote_cast: (m) => `votó ${m.voteType === "super" ? "🔥" : m.voteType === "up" ? "👍" : "👎"} por "${m.gameName || "un juego"}"`,
-  vote_changed: (m) => {
-    const t = m.to || m.voteType;
-    return `cambió su voto en "${m.gameName || "un juego"}" a ${t === "super" ? "🔥" : t === "up" ? "👍" : "👎"}`;
-  },
+  vote_cast: (m) => `votó ${voteEmoji(m)} por "${m.gameName || "un juego"}"`,
+  vote_changed: (m) => `cambió su voto en "${m.gameName || "un juego"}" a ${voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType })}`,
   vote_removed: (m) => `quitó su voto en "${m.gameName || "un juego"}"`,
   session_created: (m) => `creó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
   session_updated: (m) => `actualizó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
