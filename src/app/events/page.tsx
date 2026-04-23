@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -107,7 +108,7 @@ function EventCard({ event }: { event: EventData }) {
     >
       {event.imageUrl && (
         <div className="h-28 sm:h-36 overflow-hidden">
-          <img src={event.imageUrl} alt={event.name} className="w-full h-full object-cover" />
+          <Image src={event.imageUrl} alt={event.name} width={600} height={200} unoptimized className="w-full h-full object-cover" />
         </div>
       )}
       <div className="p-4">

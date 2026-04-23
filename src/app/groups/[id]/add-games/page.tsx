@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "@/components/Navbar";
@@ -628,9 +629,11 @@ export default function AddGamesPage() {
                             {/* Thumbnail */}
                             <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
                               {game.thumbnail ? (
-                                <img
+                                <Image
                                   src={game.thumbnail}
                                   alt={game.name}
+                                  width={56}
+                                  height={56}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -724,9 +727,11 @@ export default function AddGamesPage() {
                                     title={exp.name}
                                   >
                                     {exp.thumbnail && (
-                                      <img
+                                      <Image
                                         src={exp.thumbnail}
                                         alt=""
+                                        width={14}
+                                        height={14}
                                         className="w-3.5 h-3.5 rounded-sm object-cover"
                                       />
                                     )}

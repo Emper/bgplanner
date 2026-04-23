@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { resizeImage } from "@/lib/image";
@@ -134,7 +135,7 @@ export default function FeedbackPage() {
                 <div className="flex flex-wrap gap-2 mb-3">
                   {images.map((img, i) => (
                     <div key={i} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
-                      <img src={img} alt={`Captura ${i + 1}`} className="w-full h-full object-cover" />
+                      <Image src={img} alt={`Captura ${i + 1}`} width={80} height={80} unoptimized className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => removeImage(i)}

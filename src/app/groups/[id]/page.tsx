@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
@@ -1061,7 +1062,7 @@ function GroupDashboardPage() {
                               {/* Thumbnail: 130px for top 3, 100px for rest on desktop */}
                               <div className={`w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
                                 {item.game.thumbnail ? (
-                                  <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-contain" />
+                                  <Image src={item.game.thumbnail} alt={item.game.name} width={130} height={130} className="w-full h-full object-contain" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                                 )}
@@ -1287,7 +1288,7 @@ function GroupDashboardPage() {
                             <div className="flex items-center gap-2 sm:gap-3">
                               <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
                                 {item.game.thumbnail ? (
-                                  <img src={item.game.thumbnail} alt={item.game.name} className="w-full h-full object-cover" />
+                                  <Image src={item.game.thumbnail} alt={item.game.name} width={40} height={40} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                                 )}
@@ -1625,7 +1626,7 @@ function GroupDashboardPage() {
                               </div>
                               <div className="w-10 h-10 shrink-0 rounded overflow-hidden bg-[var(--surface-hover)]">
                                 {game.thumbnail ? (
-                                  <img src={game.thumbnail} alt={game.name} className="w-full h-full object-cover" />
+                                  <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                                 )}
@@ -1853,7 +1854,7 @@ function GroupDashboardPage() {
                                         <span className="text-xs text-[var(--text-muted)] w-4 text-center shrink-0">{idx + 1}.</span>
                                         <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded overflow-hidden bg-[var(--surface-hover)]">
                                           {sg.game.thumbnail ? (
-                                            <img src={sg.game.thumbnail} alt={sg.game.name} className="w-full h-full object-cover" />
+                                            <Image src={sg.game.thumbnail} alt={sg.game.name} width={32} height={32} className="w-full h-full object-cover" />
                                           ) : (
                                             <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-[10px]">?</div>
                                           )}
