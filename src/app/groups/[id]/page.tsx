@@ -914,18 +914,23 @@ function GroupDashboardPage() {
                 juegos
               </p>
             </div>
-            <button
-              onClick={() => canPing && setShowPingModal(true)}
-              disabled={!canPing}
-              title={
-                canPing
-                  ? "Envía un email al grupo para pedir votos"
-                  : `Disponible de nuevo el ${pingAvailableAt?.toLocaleDateString("es-ES", { day: "numeric", month: "long" })}`
-              }
-              className="shrink-0 px-3 sm:px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-xl hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text)] text-xs sm:text-sm font-semibold transition-all duration-200 shadow-sm"
-            >
-              📯 <span className="hidden sm:inline">Convocar a los jugadores</span><span className="sm:hidden">Convocar</span>
-            </button>
+            <div className="relative group/ping shrink-0">
+              <button
+                onClick={() => canPing && setShowPingModal(true)}
+                disabled={!canPing}
+                className="px-3 sm:px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-xl hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border)] disabled:hover:text-[var(--text)] text-xs sm:text-sm font-semibold transition-all duration-200 shadow-sm"
+              >
+                📯 <span className="hidden sm:inline">Convocar a los jugadores</span><span className="sm:hidden">Convocar</span>
+              </button>
+              <span
+                role="tooltip"
+                className="pointer-events-none opacity-0 group-hover/ping:opacity-100 group-focus-within/ping:opacity-100 absolute right-0 top-full mt-1.5 z-50 w-max max-w-[260px] bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl px-3 py-2 text-xs text-[var(--text-secondary)] text-left transition-opacity duration-150"
+              >
+                {canPing
+                  ? "Envía un email al grupo para pedirles que voten"
+                  : `Disponible de nuevo el ${pingAvailableAt?.toLocaleDateString("es-ES", { day: "numeric", month: "long" })}`}
+              </span>
+            </div>
           </div>
 
           {/* Tabs */}
