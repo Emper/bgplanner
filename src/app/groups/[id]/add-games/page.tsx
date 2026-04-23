@@ -148,7 +148,7 @@ export default function AddGamesPage() {
       }
     };
     fetchGroup();
-  }, [groupId]);
+  }, [groupId, initialUsername]);
 
   // Fetch collection (paginated)
   const loadCollection = useCallback(

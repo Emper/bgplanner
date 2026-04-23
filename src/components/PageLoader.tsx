@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId } from "react";
 
 // Dot positions for each dice face (1-6)
 const DICE_FACES: Record<number, [number, number][]> = {
@@ -17,7 +17,12 @@ const DICE_FACES: Record<number, [number, number][]> = {
  * Use for full-page loading states and Suspense fallbacks.
  */
 export default function PageLoader({ withNavbar = false }: { withNavbar?: boolean }) {
-  const face = useMemo(() => Math.floor(Math.random() * 6) + 1, []);
+  // Deriva una cara estable (1-6) a partir del id único del render.
+  // Evita impureza (Math.random) durante render y mantiene el mismo dado en SSR y CSR.
+  const id = useId();
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  const face = (Math.abs(hash) % 6) + 1;
   const dots = DICE_FACES[face];
 
   return (

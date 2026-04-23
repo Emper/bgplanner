@@ -171,12 +171,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Solo admins pueden archivar" }, { status: 403 });
   }
 
-  // Find all played (not already archived) games - both manually marked and from sessions
-  const playedGames = await prisma.groupGame.findMany({
-    where: { groupId, archivedAt: null, playedAt: { not: null } },
-  });
-
-  // Also find games with completed sessions
+  // Find games marked played via completed sessions (manually-marked ones ya llevan playedAt)
   const sessionsWithCompleted = await prisma.gameSessionGame.findMany({
     where: { status: "completed", session: { groupId } },
     select: { gameId: true },

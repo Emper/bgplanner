@@ -134,7 +134,6 @@ function GroupDashboardPage() {
   const router = useRouter();
   const [group, setGroup] = useState<GroupData | null>(null);
   const [ranking, setRanking] = useState<RankedGame[]>([]);
-  const [memberCount, setMemberCount] = useState(0);
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
@@ -277,7 +276,6 @@ function GroupDashboardPage() {
 
       setGroup(data.group);
       setRanking(data.ranking);
-      setMemberCount(data.memberCount);
       setSessions(data.sessions);
       if (data.group) {
         setInviteLinkCode(data.group.inviteCode);
@@ -316,8 +314,6 @@ function GroupDashboardPage() {
   const isPlayed = (item: RankedGame) => item.playCount > 0 || item.playedAt !== null;
   const pendingGames = ranking.filter((item) => !isPlayed(item));
   const playedGames = ranking.filter(isPlayed);
-
-  const canRemoveGame = () => isAdmin;
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
   const isOwner = group?.currentUserRole === "owner";

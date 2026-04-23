@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 // Deterministic color from string — same name always gets same color
 const COLORS = [
   "bg-red-800 text-red-200",
@@ -32,20 +34,23 @@ interface Props {
 }
 
 const SIZES = {
-  xs: "w-6 h-6 text-[10px]",
-  sm: "w-8 h-8 text-xs",
-  md: "w-10 h-10 text-sm",
-  lg: "w-14 h-14 text-lg",
+  xs: { cls: "w-6 h-6 text-[10px]", px: 24 },
+  sm: { cls: "w-8 h-8 text-xs", px: 32 },
+  md: { cls: "w-10 h-10 text-sm", px: 40 },
+  lg: { cls: "w-14 h-14 text-lg", px: 56 },
 };
 
 export default function Avatar({ name, avatarUrl, size = "md", className = "" }: Props) {
-  const sizeClass = SIZES[size];
+  const { cls: sizeClass, px } = SIZES[size];
 
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={px}
+        height={px}
+        unoptimized
         className={`${sizeClass} rounded-full object-cover shrink-0 ${className}`}
       />
     );

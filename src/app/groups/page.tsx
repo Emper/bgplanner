@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
@@ -290,9 +291,11 @@ export default function GroupsPage() {
                     className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 flex items-center gap-3 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 block shadow-[var(--card-shadow)]"
                   >
                     {item.thumbnail ? (
-                      <img
+                      <Image
                         src={item.thumbnail}
                         alt={item.gameName}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-lg object-cover"
                       />
                     ) : (
