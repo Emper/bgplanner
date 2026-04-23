@@ -1,7 +1,7 @@
 "use client";
 
 import Avatar from "./Avatar";
-import { formatActivity } from "@/lib/activity";
+import { formatGroupedActivity, isGroupableActivity } from "@/lib/activity";
 
 interface ActivityItem {
   id: string;
@@ -73,26 +73,39 @@ function LoadingSkeleton() {
   );
 }
 
-// Group consecutive items by the same user
-interface ItemGroup {
-  userId: string;
-  userName: string;
-  avatarUrl: string | null;
+// Cada "run" agrupa ítems consecutivos del mismo tipo dentro de un mismo
+// bloque de usuario, para poder colapsarlos en una sola línea.
+interface ItemRun {
+  type: string;
   items: ActivityItem[];
 }
 
-function groupByUser(items: ActivityItem[]): ItemGroup[] {
-  const groups: ItemGroup[] = [];
+interface UserGroup {
+  userId: string;
+  userName: string;
+  avatarUrl: string | null;
+  runs: ItemRun[];
+}
+
+function groupItems(items: ActivityItem[]): UserGroup[] {
+  const groups: UserGroup[] = [];
   for (const item of items) {
-    const last = groups[groups.length - 1];
-    if (last && last.userId === item.userId) {
-      last.items.push(item);
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup.userId === item.userId) {
+      const lastRun = lastGroup.runs[lastGroup.runs.length - 1];
+      // Solo agrupamos en un mismo run los tipos para los que tiene sentido
+      // resumir en una lista (añadir, votar…). El resto va en runs separados.
+      if (lastRun.type === item.type && isGroupableActivity(item.type)) {
+        lastRun.items.push(item);
+      } else {
+        lastGroup.runs.push({ type: item.type, items: [item] });
+      }
     } else {
       groups.push({
         userId: item.userId,
         userName: item.user.displayName || item.user.name || "Alguien",
         avatarUrl: item.user.avatarUrl,
-        items: [item],
+        runs: [{ type: item.type, items: [item] }],
       });
     }
   }
@@ -124,51 +137,61 @@ export default function ActivityFeed({
     );
   }
 
-  const groups = groupByUser(items);
+  const groups = groupItems(items);
 
   return (
     <div>
-      {groups.map((group) => (
-        <div key={`${group.userId}-${group.items[0].id}`} className="flex gap-3 py-2 px-1">
-          {/* Avatar + vertical line column */}
-          <div className="flex flex-col items-center shrink-0 w-8">
-            <Avatar
-              name={group.userName}
-              avatarUrl={group.avatarUrl}
-              size="sm"
-            />
-            {group.items.length > 1 && (
-              <div className="flex-1 w-px bg-[var(--border)] mt-1.5 mb-0.5 rounded-full" />
-            )}
+      {groups.map((group) => {
+        // El timestamp del bloque entero es el del item más reciente.
+        const latestTime = group.runs[0].items[0].createdAt;
+        const hasMultipleRuns = group.runs.length > 1;
+        return (
+          <div key={`${group.userId}-${group.runs[0].items[0].id}`} className="flex gap-3 py-2.5 px-1">
+            {/* Avatar + línea vertical conectora */}
+            <div className="flex flex-col items-center shrink-0 w-8">
+              <Avatar
+                name={group.userName}
+                avatarUrl={group.avatarUrl}
+                size="sm"
+              />
+              {hasMultipleRuns && (
+                <div className="flex-1 w-0.5 bg-[var(--border)] mt-2 mb-0.5 rounded-full" />
+              )}
+            </div>
+            {/* Acciones del usuario */}
+            <div className="flex-1 min-w-0 pt-1">
+              <p className="text-sm text-[var(--text-secondary)] leading-snug">
+                <span className="font-semibold text-[var(--text)]">{group.userName}</span>
+              </p>
+              <div className="space-y-1 mt-0.5">
+                {group.runs.map((run) => {
+                  const text = formatGroupedActivity(
+                    run.type,
+                    run.items.map((i) => i.metadata as Record<string, unknown>)
+                  );
+                  const context = showContext
+                    ? run.items[0].group?.name || run.items[0].event?.name
+                    : null;
+                  return (
+                    <p
+                      key={run.items[0].id}
+                      className="text-sm text-[var(--text-secondary)] leading-snug"
+                    >
+                      {text}
+                      {context && (
+                        <span className="text-[var(--text-muted)]"> en {context}</span>
+                      )}
+                    </p>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                {timeAgo(latestTime)}
+              </p>
+            </div>
           </div>
-          {/* Actions */}
-          <div className="flex-1 min-w-0 pt-1">
-            {group.items.map((item, idx) => {
-              const text = formatActivity(item.type, item.metadata as Record<string, unknown>);
-              const context = showContext
-                ? item.group?.name || item.event?.name
-                : null;
-
-              return (
-                <div key={item.id} className={idx > 0 ? "mt-2.5" : ""}>
-                  <p className="text-sm text-[var(--text-secondary)] leading-snug">
-                    {idx === 0 && (
-                      <span className="font-medium text-[var(--text)]">{group.userName} </span>
-                    )}
-                    {text}
-                    {context && (
-                      <span className="text-[var(--text-muted)]"> en {context}</span>
-                    )}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                    {timeAgo(item.createdAt)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
       {hasMore && onLoadMore && (
         <button
           onClick={onLoadMore}

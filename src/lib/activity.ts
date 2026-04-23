@@ -93,3 +93,55 @@ export function formatActivity(type: string, metadata: Meta): string {
   const template = TEMPLATES[type];
   return template ? template(metadata) : type;
 }
+
+// ── Grouped activity (varios items consecutivos del mismo tipo) ─────────
+
+interface GroupPart {
+  name: string;   // sustantivo principal (juego, miembro, etc.)
+  affix?: string; // sufijo opcional (emoji, etc.)
+}
+
+// Para cada tipo agrupable: el verbo común y cómo extraer el sustantivo
+// de cada item. Los tipos no listados aquí se renderizan uno a uno.
+const GROUP_FORMATS: Record<string, { verb: string; extract: (m: Meta) => GroupPart | null }> = {
+  game_added: { verb: "añadió", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  game_removed: { verb: "quitó", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  game_marked_played: { verb: "marcó como jugado", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  game_returned_pending: { verb: "devolvió a pendientes", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  game_archived: { verb: "ocultó", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  vote_cast: { verb: "votó por", extract: (m) => m.gameName ? { name: m.gameName, affix: voteEmoji(m) } : null },
+  vote_changed: { verb: "cambió su voto en", extract: (m) => m.gameName ? { name: m.gameName, affix: voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType }) } : null },
+  vote_removed: { verb: "quitó su voto en", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  session_game_completed: { verb: "completó", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  event_game_added: { verb: "añadió al evento", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  event_interest_set: { verb: "marcó interés en", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  member_promoted: { verb: "hizo admin a", extract: (m) => m.targetName ? { name: m.targetName } : null },
+  member_demoted: { verb: "quitó admin a", extract: (m) => m.targetName ? { name: m.targetName } : null },
+};
+
+function joinParts(parts: GroupPart[], maxInline = 2): string {
+  const fmt = (p: GroupPart) => p.affix ? `"${p.name}" ${p.affix}` : `"${p.name}"`;
+  if (parts.length === 1) return fmt(parts[0]);
+  if (parts.length === 2) return `${fmt(parts[0])} y ${fmt(parts[1])}`;
+  if (parts.length <= maxInline + 1) {
+    // 3 items con maxInline=2 → "A, B y C"
+    const head = parts.slice(0, -1).map(fmt).join(", ");
+    return `${head} y ${fmt(parts[parts.length - 1])}`;
+  }
+  const shown = parts.slice(0, maxInline).map(fmt).join(", ");
+  const rest = parts.length - maxInline;
+  return `${shown} y ${rest} más`;
+}
+
+export function formatGroupedActivity(type: string, metadatas: Meta[]): string {
+  if (metadatas.length === 1) return formatActivity(type, metadatas[0]);
+  const grouper = GROUP_FORMATS[type];
+  if (!grouper) return formatActivity(type, metadatas[0]);
+  const parts = metadatas.map(grouper.extract).filter((p): p is GroupPart => !!p);
+  if (parts.length === 0) return formatActivity(type, metadatas[0]);
+  return `${grouper.verb} ${joinParts(parts)}`;
+}
+
+export function isGroupableActivity(type: string): boolean {
+  return type in GROUP_FORMATS;
+}
