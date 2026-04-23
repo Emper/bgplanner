@@ -35,6 +35,8 @@ La base de datos de Supabase del proyecto es **producción**, sin entorno de sta
 
 Cuando haya que migrar datos asociados a un cambio de esquema, **plantear al usuario el plan completo y la ventana de incompatibilidad esperada** antes de ejecutar nada. Si la migración requiere varios pasos coordinados con el deploy, avisar de que la web puede quedar parcialmente rota durante el proceso.
 
+**Antes de cualquier operación destructiva o migración**: ejecutar `npm run db:snapshot` para generar un volcado en `backups/` (ignored por git). Restaurar luego con `pg_restore -d "$DIRECT_URL" --clean --no-owner --no-acl <archivo>`. Requiere `pg_dump` instalado (`brew install libpq && brew link --force libpq`).
+
 ## Auth
 
 - OTP-only (sin contraseñas). Envío 6 dígitos por email, rate-limit **3 códigos / 5 min**, expira en **10 min**.

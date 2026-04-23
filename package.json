@@ -7,6 +7,7 @@
     "build": "rm -rf node_modules/.prisma && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "db:snapshot": "bash scripts/db-snapshot.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {
