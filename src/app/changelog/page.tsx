@@ -16,8 +16,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.2",
     title: "Convoca a tu grupo a votar",
     changes: [
-      { type: "new", text: "Botón \"Convocar a los jugadores\" en cada grupo: envía un email a los demás miembros para recordarles que actualicen sus votos. Puedes usarlo una vez por semana y añadir un mensaje personal opcional" },
-      { type: "new", text: "El email de convocatoria incluye el top 3 del ranking actual y un acceso directo para votar" },
+      { type: "new", text: "Nuevo botón \"Convocar a los jugadores\" para avisar al resto del grupo cuando queráis organizar la próxima partida, con la opción de añadir un mensaje personal" },
     ],
   },
   {

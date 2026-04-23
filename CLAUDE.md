@@ -93,7 +93,7 @@ NextResponse.json(...)
 ```ts
 {
   date: "23 abril 2026",         // en español, día mes año
-  version: "1.2",                // incrementar minor para features, patch para fixes
+  version: "1.2",                // minor por defecto en cada release; patch solo si es exclusivamente fixes
   title: "Título corto y evocador",
   changes: [
     { type: "new", text: "..." },      // feature nueva
@@ -103,14 +103,14 @@ NextResponse.json(...)
 },
 ```
 
-El texto debe ser legible por usuarios no técnicos, en español, y describir el valor (no la implementación).
+Descriptivo pero **sin explicar cómo funciona por dentro**: se trata de enseñar "cosas chulas nuevas", no detalles de implementación. Texto en español, orientado al valor que aporta al usuario. Evita tecnicismos tipo "caché", "rate limit", "campo X", "optimización de queries".
 
 ## Comandos
 
 ```bash
 npm run dev                      # Next dev (puerto 3000)
 npm run build                    # limpia caché Prisma, genera cliente, build Next
-npm run lint                     # ESLint (hay warnings preexistentes en repo, no bloquear por ellos)
+npm run lint                     # ESLint
 
 npx prisma db push               # sincroniza schema con Supabase
 npx prisma generate              # regenera cliente Prisma
@@ -118,6 +118,10 @@ npx prisma studio                # GUI de la BD
 ```
 
 No hay tests ni formateador configurado.
+
+## Limpieza proactiva
+
+Cuando detectemos al pasar por un fichero **cualquier error** — funcional, de lint o posible vulnerabilidad de seguridad — limpiarlo en el momento (o, si infla demasiado la tarea actual, sacarlo a una tarea aparte con `spawn_task`). No dejar errores "que ya estaban" sin tocar si los hemos visto.
 
 ## Convenciones de commit
 
