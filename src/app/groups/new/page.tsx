@@ -67,39 +67,49 @@ export default function NewGroupPage() {
                       key={id}
                       type="button"
                       onClick={() => setType(id)}
-                      className={`text-left rounded-2xl border p-4 transition-all duration-200 shadow-[var(--card-shadow)] ${
+                      className={`text-left rounded-2xl border p-5 transition-all duration-200 shadow-[var(--card-shadow)] flex flex-col ${
                         selected
                           ? "border-[var(--primary)] bg-[var(--accent-soft)] ring-2 ring-[var(--primary)]/30"
                           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)]/40"
                       }`}
                     >
-                      <div className="flex items-start gap-3 mb-2">
-                        <span className="text-2xl shrink-0">{cfg.emoji}</span>
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-3xl leading-none shrink-0">{cfg.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-[var(--text)]">{cfg.label}</div>
-                          <div className="text-xs text-[var(--text-secondary)]">{cfg.tagline}</div>
+                          <div className="text-lg font-semibold text-[var(--text)] leading-tight">{cfg.label}</div>
+                          <div className="text-xs text-[var(--text-secondary)] mt-0.5">{cfg.tagline}</div>
                         </div>
                       </div>
-                      <p className="text-sm text-[var(--text-secondary)] mb-3">{cfg.description}</p>
-                      <ul className="text-xs text-[var(--text-muted)] space-y-1 mb-3">
-                        {cfg.recommendedFor.map((r, i) => (
-                          <li key={i} className="flex gap-2">
-                            <span className="text-[var(--primary)]">·</span>
-                            <span>{r}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="flex flex-wrap gap-1.5 pt-3 border-t border-[var(--border)]">
-                        {cfg.allowedVotes.map((v) => (
-                          <span
-                            key={v.value}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-[var(--surface-hover)] text-[var(--text-secondary)]"
-                            title={v.label}
-                          >
-                            <span>{v.emoji}</span>
-                            <span className="font-mono font-semibold">{v.shortLabel}</span>
-                          </span>
-                        ))}
+                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">{cfg.description}</p>
+                      <div className="mb-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                          Recomendado para
+                        </div>
+                        <ul className="text-xs text-[var(--text-secondary)] space-y-1">
+                          {cfg.recommendedFor.map((r, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="text-[var(--primary)] shrink-0 leading-5">·</span>
+                              <span className="leading-5">{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="mt-auto pt-4 border-t border-[var(--border)]">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                          Votos disponibles
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {cfg.allowedVotes.map((v) => (
+                            <span
+                              key={v.value}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-[var(--surface-hover)] text-[var(--text-secondary)]"
+                              title={v.label}
+                            >
+                              <span>{v.emoji}</span>
+                              <span className="font-mono font-semibold">{v.shortLabel}</span>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </button>
                   );

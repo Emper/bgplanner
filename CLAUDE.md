@@ -23,6 +23,18 @@ App para que grupos de amigos organicen sus partidas de juegos de mesa: importas
 - `DATABASE_URL` = pooler Supabase; `DIRECT_URL` = conexión directa (necesaria para `prisma generate`).
 - Modelos principales: `User`, `OtpCode`, `Group`, `GroupMember`, `GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameSession`, `GameSessionGame`, `Event`, `EventAttendee`, `EventGame`, `EventGameInterest`, `CollectionGame` (caché por usuario BGG), `ActivityLog`.
 
+### Seguridad con la base de datos — IMPORTANTE
+
+La base de datos de Supabase del proyecto es **producción**, sin entorno de staging. Cualquier `db push`, `UPDATE`/`DELETE` masivo o cambio de esquema afecta a la app en vivo y puede romper la versión desplegada hasta que se publique el código nuevo.
+
+**Regla**: nunca tocar la BD (esquema o datos) sin pedir confirmación explícita al usuario justo antes, aunque parezca un cambio menor o esté implícito en una tarea más grande. Esto incluye:
+
+- `npx prisma db push` (incluso para añadir un campo opcional)
+- Scripts que escriban con `$executeRaw`, `updateMany`, `deleteMany`, `create*` masivos
+- Cualquier query destructiva manual
+
+Cuando haya que migrar datos asociados a un cambio de esquema, **plantear al usuario el plan completo y la ventana de incompatibilidad esperada** antes de ejecutar nada. Si la migración requiere varios pasos coordinados con el deploy, avisar de que la web puede quedar parcialmente rota durante el proceso.
+
 ## Auth
 
 - OTP-only (sin contraseñas). Envío 6 dígitos por email, rate-limit **3 códigos / 5 min**, expira en **10 min**.
