@@ -515,21 +515,27 @@ function GroupDashboardPage() {
     if (conflicting) {
       const optionLabel = groupTypeCfg.allowedVotes.find((v) => v.value === value)?.label || `voto de ${value}`;
       const move = confirm(
-        `Ya tienes un ${optionLabel.toLowerCase()} en otro juego del grupo. ¿Quieres moverlo a este juego?`
+        `Ya tienes un ${optionLabel.toLowerCase()} en otro juego del grupo. ¿Lo mueves aquí? El anterior se quedará con un voto normal.`
       );
       if (!move) return;
 
       setRanking((prev) => {
-        let next = applyVoteLocally(prev, conflicting.groupGameId, null, value, group.currentUserId);
+        let next = applyVoteLocally(prev, conflicting.groupGameId, 1, value, group.currentUserId);
         next = applyVoteLocally(next, gameDbId, value, currentValue, group.currentUserId);
         return next;
       });
 
       try {
-        await fetch(
+        const downgradeRes = await fetch(
           `/api/groups/${groupId}/games/${conflicting.game.id}/vote`,
-          { method: "DELETE", credentials: "include" }
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ value: 1 }),
+          }
         );
+        if (!downgradeRes.ok) throw new Error();
         const res = await fetch(
           `/api/groups/${groupId}/games/${gameId}/vote`,
           {

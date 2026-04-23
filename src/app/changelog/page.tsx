@@ -13,6 +13,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "24 abril 2026",
+    version: "1.6",
+    title: "Mover el super voto sin perder el voto del juego anterior",
+    changes: [
+      { type: "improved", text: "Cuando mueves tu super voto a otro juego, el anterior se queda con un voto normal en vez de quedarse sin voto" },
+    ],
+  },
+  {
+    date: "24 abril 2026",
     version: "1.5",
     title: "El grupo en números",
     changes: [
