@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { resizeImage } from "@/lib/image";
@@ -165,7 +166,7 @@ export default function NewEventPage() {
             <div className="flex items-center gap-3">
               {imageUrl ? (
                 <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
-                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <Image src={imageUrl} alt="Preview" width={96} height={96} unoptimized className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center shrink-0">

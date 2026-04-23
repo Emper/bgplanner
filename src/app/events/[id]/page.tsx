@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggGameSearch from "@/components/BggGameSearch";
@@ -394,9 +395,12 @@ export default function EventDetailPage() {
           <div className="mb-4 relative group">
             {event.imageUrl ? (
               <div className="relative rounded-2xl overflow-hidden border border-[var(--border)]">
-                <img
+                <Image
                   src={event.imageUrl}
                   alt={event.name}
+                  width={1200}
+                  height={400}
+                  unoptimized
                   className="w-full h-40 sm:h-52 object-cover"
                 />
                 {event.isCreator && (
@@ -649,7 +653,7 @@ export default function EventDetailPage() {
                 <div className="flex items-center gap-3">
                   {editImageUrl ? (
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
-                      <img src={editImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <Image src={editImageUrl} alt="Preview" width={80} height={80} unoptimized className="w-full h-full object-cover" />
                     </div>
                   ) : (
                     <div className="w-20 h-20 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-xs shrink-0">
@@ -763,7 +767,7 @@ function GamesTab({
                 <div className="flex items-center gap-3 sm:gap-4">
                   <div className="w-11 h-11 sm:w-[80px] sm:h-[80px] shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
                     {eg.game.thumbnail ? (
-                      <img src={eg.game.thumbnail} alt={eg.game.name} className="w-full h-full object-contain" />
+                      <Image src={eg.game.thumbnail} alt={eg.game.name} width={80} height={80} className="w-full h-full object-contain" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
                     )}
@@ -894,7 +898,7 @@ function MyListTab({
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
               {game.thumbnail ? (
-                <img src={game.thumbnail} alt={game.name} className="w-full h-full object-contain" />
+                <Image src={game.thumbnail} alt={game.name} width={64} height={64} className="w-full h-full object-contain" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
               )}
