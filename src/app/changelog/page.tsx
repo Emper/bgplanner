@@ -13,6 +13,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "24 abril 2026",
+    version: "1.7",
+    title: "Salta al grupo o evento desde el feed",
+    changes: [
+      { type: "improved", text: "En la actividad reciente, los nombres de grupos y eventos son ahora enlaces: un clic y estás dentro" },
+    ],
+  },
+  {
+    date: "24 abril 2026",
     version: "1.6",
     title: "Mover el super voto sin perder el voto del juego anterior",
     changes: [

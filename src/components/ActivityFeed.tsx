@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import Avatar from "./Avatar";
 import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
 
@@ -238,8 +239,12 @@ export default function ActivityFeed({
                     run.type,
                     run.items.map((i) => i.metadata as Record<string, unknown>)
                   );
-                  const contextName = showContext
-                    ? run.items[0].group?.name || run.items[0].event?.name
+                  const ctx = showContext
+                    ? run.items[0].group
+                      ? { name: run.items[0].group.name, href: `/groups/${run.items[0].group.id}` }
+                      : run.items[0].event
+                        ? { name: run.items[0].event.name, href: `/events/${run.items[0].event.id}` }
+                        : null
                     : null;
                   const appendContext = APPEND_CONTEXT_TYPES.has(run.type);
                   return (
@@ -248,11 +253,29 @@ export default function ActivityFeed({
                       className="text-sm text-[var(--text-secondary)] leading-snug"
                     >
                       <GroupedLine data={data} />
-                      {contextName && appendContext && (
-                        <span className="text-[var(--text)]"> {contextName}</span>
+                      {ctx && appendContext && (
+                        <>
+                          {" "}
+                          <Link
+                            href={ctx.href}
+                            prefetch={false}
+                            className="text-[var(--text)] hover:text-[var(--primary)] transition-colors"
+                          >
+                            {ctx.name}
+                          </Link>
+                        </>
                       )}
-                      {contextName && !appendContext && (
-                        <span className="text-[var(--text-muted)]"> en {contextName}</span>
+                      {ctx && !appendContext && (
+                        <>
+                          <span className="text-[var(--text-muted)]"> en </span>
+                          <Link
+                            href={ctx.href}
+                            prefetch={false}
+                            className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                          >
+                            {ctx.name}
+                          </Link>
+                        </>
                       )}
                     </p>
                   );
