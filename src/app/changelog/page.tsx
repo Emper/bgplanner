@@ -13,6 +13,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "24 abril 2026",
+    version: "1.7",
+    title: "Invitaciones más resistentes y páginas de error útiles",
+    changes: [
+      { type: "improved", text: "Si al abrir una invitación falla la red o el servidor tarda en despertar, la página reintenta sola en vez de quedarse a medias" },
+      { type: "improved", text: "Cuando algo peta en la web ya no ves el aviso genérico de siempre: te contamos qué ha pasado y te damos un botón para reintentar" },
+    ],
+  },
+  {
+    date: "24 abril 2026",
     version: "1.6",
     title: "Mover el super voto sin perder el voto del juego anterior",
     changes: [

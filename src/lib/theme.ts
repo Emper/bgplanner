@@ -32,7 +32,12 @@ function subscribeTheme(callback: () => void) {
 }
 
 function getThemeSnapshot(): Theme {
-  return (localStorage.getItem("theme") as Theme | null) || "system";
+  // Safari privado puede lanzar al leer localStorage — si falla, asumimos "system".
+  try {
+    return (localStorage.getItem("theme") as Theme | null) || "system";
+  } catch {
+    return "system";
+  }
 }
 
 function getServerThemeSnapshot(): Theme {
@@ -60,7 +65,11 @@ export function useTheme() {
   }, [theme, mounted]);
 
   const setTheme = useCallback((t: Theme) => {
-    localStorage.setItem("theme", t);
+    try {
+      localStorage.setItem("theme", t);
+    } catch {
+      // Safari privado o storage lleno: aplicamos igual el tema en memoria.
+    }
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
     applyTheme(t);
   }, []);

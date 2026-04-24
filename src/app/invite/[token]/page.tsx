@@ -18,25 +18,63 @@ export default function InvitePage() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkAuth = fetch("/api/profile", { credentials: "include" }).then((r) => r.ok);
-    const resolveInvite = fetch(`/api/invite/${token}`).then(async (r) => {
+    let cancelled = false;
+
+    // Reintentamos ante fallos de red o 5xx (cold starts de Prisma en Vercel,
+    // red móvil inestable…): pequeña espera exponencial y máximo 3 intentos.
+    const withRetry = async <T,>(fn: () => Promise<T>, attempts = 3): Promise<T> => {
+      let lastErr: unknown;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          return await fn();
+        } catch (err) {
+          lastErr = err;
+          if (i < attempts - 1) await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        }
+      }
+      throw lastErr;
+    };
+
+    const checkAuth = withRetry(() =>
+      fetch("/api/profile", { credentials: "include" }).then((r) => r.ok)
+    );
+
+    const resolveInvite = withRetry(async () => {
+      const r = await fetch(`/api/invite/${token}`);
+      if (r.status >= 500) throw new Error("Servidor no disponible");
       if (!r.ok) {
-        const data = await r.json();
-        throw new Error(data.error || "Invitación no válida");
+        // 4xx son definitivos (invitación no válida / caducada); no reintentamos.
+        const data = await r.json().catch(() => ({}));
+        const err = new Error(data.error || "Invitación no válida") as Error & {
+          fatal?: boolean;
+        };
+        err.fatal = true;
+        throw err;
       }
       return r.json();
+    }, 3).catch((err) => {
+      // Propagamos 4xx sin más; el resto se reintentó ya arriba.
+      throw err;
     });
 
     Promise.all([checkAuth, resolveInvite])
       .then(([loggedIn, data]) => {
+        if (cancelled) return;
         setIsLoggedIn(loggedIn);
         setGroupName(data.groupName);
         setMemberCount(data.memberCount);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : "Error inesperado");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const handleJoin = async () => {
