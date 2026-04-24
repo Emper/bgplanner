@@ -13,15 +13,6 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "24 abril 2026",
-    version: "1.7",
-    title: "Invitaciones más resistentes y páginas de error útiles",
-    changes: [
-      { type: "improved", text: "Si al abrir una invitación falla la red o el servidor tarda en despertar, la página reintenta sola en vez de quedarse a medias" },
-      { type: "improved", text: "Cuando algo peta en la web ya no ves el aviso genérico de siempre: te contamos qué ha pasado y te damos un botón para reintentar" },
-    ],
-  },
-  {
-    date: "24 abril 2026",
     version: "1.6",
     title: "Mover el super voto sin perder el voto del juego anterior",
     changes: [
@@ -70,9 +61,6 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Indicador de super votos libres en el ranking: ve quién aún no lo ha usado y anímalo a jugársela" },
       { type: "new", text: "Sube una imagen para cada evento: aparece en el listado y en su ficha" },
       { type: "new", text: "Estrenamos dominio propio: la app vive ya en bgplanner.app" },
-      { type: "fixed", text: "Los super votos se liberan al completar un juego también desde una sesión" },
-      { type: "improved", text: "Tarjetas del modo oscuro con mejor contraste y más legibles" },
-      { type: "improved", text: "La cabecera del ranking ya no se solapa con la barra de navegación" },
     ],
   },
   {
@@ -85,10 +73,7 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Animación circular al cambiar entre modo claro y oscuro" },
       { type: "new", text: "Loader con dado giratorio mientras cargan las páginas" },
       { type: "new", text: "Badge \"Powered by BGG\" en el pie" },
-      { type: "improved", text: "La actividad del grupo carga notablemente más rápido" },
-      { type: "improved", text: "Ya no tendrás que volver a iniciar sesión cada semana" },
       { type: "improved", text: "Se muestra el perfil de BGG en las listas de miembros y asistentes" },
-      { type: "improved", text: "Los emails de los miembros quedan ocultos en las listas" },
     ],
   },
   {
@@ -100,7 +85,6 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Feed de actividad: ve en directo lo que pasa en tus grupos y eventos" },
       { type: "new", text: "Fija tus grupos favoritos con chincheta para tenerlos siempre a mano" },
       { type: "new", text: "Edita eventos después de crearlos: fecha, ubicación, asistentes o visibilidad" },
-      { type: "improved", text: "Navegación más clara con la sección activa destacada" },
     ],
   },
   {
@@ -136,8 +120,6 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Medallas de oro, plata y bronce para el top 3 del ranking" },
       { type: "new", text: "Pasa el cursor por la puntuación para ver quién votó qué" },
       { type: "new", text: "Logo animado con dado giratorio e icono propio en la pestaña" },
-      { type: "improved", text: "La app se ve bien en cualquier pantalla, móvil incluido" },
-      { type: "fixed", text: "Las invitaciones por enlace detectan si ya eres miembro del grupo" },
     ],
   },
   {
@@ -147,18 +129,16 @@ const CHANGELOG: ChangelogEntry[] = [
     changes: [
       { type: "new", text: "Planificador de sesiones: la app propone juegos según los votos y el tiempo que tengáis" },
       { type: "new", text: "Estado de cada juego en una sesión: pendiente, jugando, completado o saltado" },
-      { type: "improved", text: "Tus votos se reflejan al instante" },
       { type: "improved", text: "Al añadir un juego al grupo queda registrado tu voto a favor automáticamente" },
     ],
   },
   {
     date: "2 abril 2026",
     version: "0.3",
-    title: "Filtros avanzados y velocidad",
+    title: "Expansiones agrupadas y filtro Antiludoteca",
     changes: [
       { type: "new", text: "Las expansiones aparecen agrupadas bajo su juego base" },
       { type: "new", text: "Filtro \"Antiludoteca\" para descubrir juegos de la colección que aún no habéis probado" },
-      { type: "improved", text: "Carga notablemente más rápida en toda la app" },
     ],
   },
   {
