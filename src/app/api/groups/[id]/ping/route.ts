@@ -99,23 +99,29 @@ export async function POST(
   const medals = ["🥇", "🥈", "🥉"];
   const groupUrl = `${process.env.NEXT_PUBLIC_APP_URL}/groups/${groupId}`;
 
+  // Usamos <table> en vez de flex: Gmail/Outlook no soportan flex de forma
+  // fiable y sin esto los puntos quedan pegados al nombre del juego.
   const top3Html = top3.length
     ? `
-      <div style="background: #1e293b; border-radius: 8px; padding: 16px; margin: 20px 0;">
-        <p style="margin: 0 0 12px; color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Así va el ranking</p>
-        ${top3
-          .map(
-            (g, i) =>
-              `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: ${
-                i < top3.length - 1 ? "1px solid #334155" : "none"
-              };">
-                <span style="color: #f1f5f9;">${medals[i]} ${escapeHtml(
-                g.game.name
-              )}</span>
-                <span style="color: #f59e0b; font-weight: bold;">${g.score} pts</span>
-              </div>`
-          )
-          .join("")}
+      <div style="background: #1e293b; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
+        <p style="margin: 0 0 14px; color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Así va el ranking</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse: collapse;">
+          ${top3
+            .map((g, i) => {
+              const borderStyle =
+                i < top3.length - 1 ? "border-bottom: 1px solid #334155;" : "";
+              return `
+            <tr>
+              <td style="padding: 10px 0; color: #f1f5f9; font-size: 15px; ${borderStyle}">
+                ${medals[i]}&nbsp;&nbsp;${escapeHtml(g.game.name)}
+              </td>
+              <td align="right" style="padding: 10px 0 10px 16px; color: #f59e0b; font-weight: bold; font-size: 15px; white-space: nowrap; ${borderStyle}">
+                ${g.score} pts
+              </td>
+            </tr>`;
+            })
+            .join("")}
+        </table>
       </div>`
     : "";
 
