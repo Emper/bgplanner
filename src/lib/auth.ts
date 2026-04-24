@@ -54,6 +54,19 @@ export async function getSuperadminEmails(): Promise<string[]> {
   return process.env.SUPERADMIN_EMAIL ? [process.env.SUPERADMIN_EMAIL] : [];
 }
 
+export async function isSuperadmin(
+  session: { userId: string; email: string } | null
+): Promise<boolean> {
+  if (!session) return false;
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { role: true },
+  });
+  if (user?.role === "superadmin") return true;
+  const fallback = process.env.SUPERADMIN_EMAIL;
+  return !!fallback && fallback.toLowerCase() === session.email.toLowerCase();
+}
+
 export function sessionCookieOptions(token: string) {
   return {
     name: "session",

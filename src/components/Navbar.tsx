@@ -12,13 +12,17 @@ export default function Navbar() {
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
   // null = loading, "" = no username, string = username
   const [bggUsername, setBggUsername] = useState<string | null>(null);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     fetch("/api/profile")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setBggUsername(data?.bggUsername || ""))
+      .then((data) => {
+        setBggUsername(data?.bggUsername || "");
+        setIsSuperadmin(!!data?.isSuperadmin);
+      })
       .catch(() => setBggUsername(""));
   }, []);
 
@@ -103,6 +107,19 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {isSuperadmin && (
+            <Link
+              href="/admin"
+              prefetch={false}
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300 hover:border-purple-500/60 hover:bg-purple-500/20 transition-all duration-200 text-[11px] font-medium leading-none whitespace-nowrap"
+              title="Entrar en modo administrador"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+              </svg>
+              Admin
+            </Link>
+          )}
           <button
             onClick={toggleTheme}
             className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"

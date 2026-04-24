@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperadmin } from "@/lib/auth";
 import { profileSchema } from "@/lib/validations";
 import { validateBggUsername } from "@/lib/bgg";
 
@@ -21,10 +21,13 @@ export async function GET(request: NextRequest) {
       bggUsername: true,
       avatarUrl: true,
       displayName: true,
+      role: true,
     },
   });
 
-  return NextResponse.json(user);
+  const superadmin = await isSuperadmin(session);
+
+  return NextResponse.json({ ...user, isSuperadmin: superadmin });
 }
 
 export async function PUT(request: NextRequest) {

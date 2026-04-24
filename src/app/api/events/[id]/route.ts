@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateEventSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
@@ -91,7 +91,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
-  if (event.createdById !== session.userId) {
+  const admin = await isSuperadmin(session);
+  if (!admin && event.createdById !== session.userId) {
     return NextResponse.json({ error: "Solo el gestor puede editar el evento" }, { status: 403 });
   }
 
@@ -113,7 +114,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const updated = await prisma.event.update({ where: { id }, data });
 
-  logActivity("event_updated", session.userId, { eventId: id, eventName: updated.name });
+  logActivity("event_updated", session.userId, {
+    eventId: id,
+    eventName: updated.name,
+    ...(admin && event.createdById !== session.userId ? { actorRole: "superadmin" } : {}),
+  });
 
   return NextResponse.json(updated);
 }
@@ -131,7 +136,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
-  if (event.createdById !== session.userId) {
+  const admin = await isSuperadmin(session);
+  if (!admin && event.createdById !== session.userId) {
     return NextResponse.json({ error: "Solo el gestor puede eliminar el evento" }, { status: 403 });
   }
 

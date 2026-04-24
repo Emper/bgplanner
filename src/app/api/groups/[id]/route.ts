@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperadmin } from "@/lib/auth";
 import { groupSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
@@ -68,11 +68,14 @@ export async function PUT(
 
   const { id } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId: id, userId: session.userId } },
-  });
+  const admin = await isSuperadmin(session);
+  const membership = admin
+    ? null
+    : await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: id, userId: session.userId } },
+      });
 
-  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
+  if (!admin && (!membership || (membership.role !== "admin" && membership.role !== "owner"))) {
     return NextResponse.json({ error: "Solo el admin puede editar" }, { status: 403 });
   }
 
@@ -105,14 +108,17 @@ export async function DELETE(
 
   const { id } = await params;
 
+  const admin = await isSuperadmin(session);
   const [membership, group] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId: id, userId: session.userId } },
-    }),
+    admin
+      ? Promise.resolve(null)
+      : prisma.groupMember.findUnique({
+          where: { groupId_userId: { groupId: id, userId: session.userId } },
+        }),
     prisma.group.findUnique({ where: { id }, select: { name: true } }),
   ]);
 
-  if (!membership || membership.role !== "owner") {
+  if (!admin && (!membership || membership.role !== "owner")) {
     return NextResponse.json({ error: "Solo el propietario puede eliminar el grupo" }, { status: 403 });
   }
 
@@ -124,7 +130,10 @@ export async function DELETE(
 
   // Activity log: groupId queda colgando porque el grupo ya no existe; lo
   // registramos sin groupId para que la entrada sobreviva al borrado en cascada.
-  logActivity("group_deleted", session.userId, { groupName: group.name });
+  logActivity("group_deleted", session.userId, {
+    groupName: group.name,
+    ...(admin ? { actorRole: "superadmin" } : {}),
+  });
 
   return NextResponse.json({ success: true });
 }
