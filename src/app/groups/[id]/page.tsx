@@ -188,6 +188,7 @@ function GroupDashboardPage() {
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
   const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
+  const [openKebabMenu, setOpenKebabMenu] = useState<string | null>(null);
 
   // Group activity feed (restore from cache if available)
   const feedCacheKey = `group:${groupId}`;
@@ -320,6 +321,14 @@ function GroupDashboardPage() {
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
   }, [openVoteTooltip]);
+
+  // Close kebab menu when tapping outside
+  useEffect(() => {
+    if (!openKebabMenu) return;
+    const handleClick = () => setOpenKebabMenu(null);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [openKebabMenu]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -1170,8 +1179,8 @@ function GroupDashboardPage() {
                                   </div>
                                 );
                               })()}
-                              {/* Thumbnail: 130px for top 3, 100px for rest on desktop */}
-                              <div className={`w-11 h-11 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
+                              {/* Thumbnail: 64px en móvil, 130px top 3 / 100px resto en desktop */}
+                              <div className={`w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
                                 {item.game.thumbnail ? (
                                   <Image src={item.game.thumbnail} alt={item.game.name} width={130} height={130} className="w-full h-full object-contain" />
                                 ) : (
@@ -1192,25 +1201,25 @@ function GroupDashboardPage() {
                                     <span className="text-[var(--text-muted)] font-normal ml-1 text-xs">({item.game.yearPublished})</span>
                                   )}
                                 </div>
-                                {/* Badges inline on desktop */}
-                                <div className="hidden sm:flex flex-wrap gap-1.5 mt-2">
+                                {/* Badges inline (debajo del título, en ambos breakpoints) */}
+                                <div className="flex flex-wrap gap-1 sm:gap-1.5 mt-1.5 sm:mt-2">
                                   {item.game.bggRating && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
+                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-blue-500/20 text-blue-300">
                                       ★ {item.game.bggRating.toFixed(1)}
                                     </span>
                                   )}
                                   {item.game.playingTime && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
+                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-emerald-500/20 text-emerald-300">
                                       ⏱ {formatDuration(item.game.playingTime)}
                                     </span>
                                   )}
                                   {item.game.weight && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
+                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-purple-500/20 text-purple-300">
                                       ⚖️ {item.game.weight.toFixed(1)}
                                     </span>
                                   )}
                                   {(item.game.minPlayers || item.game.maxPlayers) && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
+                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                                       {item.game.minPlayers === item.game.maxPlayers
                                         ? `${item.game.minPlayers}p`
                                         : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
@@ -1294,33 +1303,55 @@ function GroupDashboardPage() {
                               </div>
                             </div>
 
-                            {/* Row 2 mobile only: Badges + Vote buttons en una misma línea */}
-                            <div className="flex sm:hidden items-center justify-between gap-2 mt-2 pl-8">
-                              <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                                {item.game.bggRating && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
-                                    ★ {item.game.bggRating.toFixed(1)}
-                                  </span>
-                                )}
-                                {item.game.playingTime && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300">
-                                    ⏱ {formatDuration(item.game.playingTime)}
-                                  </span>
-                                )}
-                                {item.game.weight && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
-                                    ⚖️ {item.game.weight.toFixed(1)}
-                                  </span>
-                                )}
-                                {(item.game.minPlayers || item.game.maxPlayers) && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                                    {item.game.minPlayers === item.game.maxPlayers
-                                      ? `${item.game.minPlayers}p`
-                                      : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex shrink-0 gap-1 items-center">
+                            {/* Row 2 mobile only: Kebab admin (izquierda) + Vote buttons (derecha) */}
+                            <div className="flex sm:hidden items-center justify-between gap-2 mt-2.5">
+                              {isAdmin ? (
+                                <div className="relative">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenKebabMenu(openKebabMenu === item.groupGameId ? null : item.groupGameId);
+                                    }}
+                                    aria-label="Más acciones"
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
+                                  >
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                      <circle cx="12" cy="5" r="1.6" />
+                                      <circle cx="12" cy="12" r="1.6" />
+                                      <circle cx="12" cy="19" r="1.6" />
+                                    </svg>
+                                  </button>
+                                  {openKebabMenu === item.groupGameId && (
+                                    <div
+                                      className="absolute top-full left-0 mt-1 z-50 bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl shadow-xl py-1 min-w-[160px]"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        onClick={() => {
+                                          setOpenKebabMenu(null);
+                                          handleMarkPlayed(item.game.id, item.game.name, true);
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                                      >
+                                        Marcar jugado
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setOpenKebabMenu(null);
+                                          handleRemoveGame(item.game.id, item.game.name);
+                                        }}
+                                        disabled={removingGame === item.game.id}
+                                        className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span />
+                              )}
+                              <div className="flex shrink-0 items-center gap-1">
                                 {voteOptions.map((opt) => (
                                   <VoteButton
                                     key={opt.value}
@@ -1332,9 +1363,9 @@ function GroupDashboardPage() {
                                 ))}
                               </div>
                             </div>
-                            {/* Admin actions — debajo a la izquierda en móvil, abajo derecha en desktop */}
+                            {/* Admin actions — desktop only, esquina inferior derecha */}
                             {isAdmin && (
-                              <div className="flex gap-3 text-[11px] mt-3 pl-8 sm:mt-0 sm:pl-0 sm:absolute sm:bottom-2 sm:right-3 sm:justify-end">
+                              <div className="hidden sm:flex absolute bottom-2 right-3 gap-3 text-[11px] justify-end">
                                 <button
                                   onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
                                   className="text-[var(--text-muted)] hover:text-emerald-400 transition-colors"
