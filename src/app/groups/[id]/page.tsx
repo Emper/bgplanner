@@ -1103,7 +1103,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-6 transition-all duration-200"
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-10 sm:pb-6 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -1319,8 +1319,8 @@ function GroupDashboardPage() {
                                 </span>
                               )}
                             </div>
-                            {/* Row 3 mobile only: Vote buttons (full width, distribuidos) */}
-                            <div className="flex sm:hidden justify-between items-end mt-2.5 pl-8 gap-1">
+                            {/* Row 3 mobile only: Vote buttons agrupados a la derecha */}
+                            <div className="flex sm:hidden justify-end items-end mt-2.5 pl-8 gap-1">
                               {voteOptions.map((opt) => (
                                 <VoteButton
                                   key={opt.value}
