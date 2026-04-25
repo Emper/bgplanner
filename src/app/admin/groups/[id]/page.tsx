@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
+import { findVoteOption } from "@/lib/groupTypes";
 
 interface AdminGroupDetail {
   id: string;
@@ -25,15 +26,14 @@ interface AdminGroupDetail {
     gameName: string;
     thumbnail: string | null;
     score: number;
-    upVotes: number;
-    superVotes: number;
-    downVotes: number;
     playCount: number;
+    breakdown: { value: number; count: number }[];
   }[];
   votes: {
     id: string;
     value: number;
     createdAt: string;
+    groupGameId: string;
     gameName: string;
     user: { id: string; name: string; email: string };
   }[];
@@ -49,10 +49,17 @@ interface AdminGroupDetail {
   }[];
 }
 
-function voteLabel(value: number): { text: string; color: string } {
-  if (value >= 3) return { text: "🔥 super", color: "text-amber-600 dark:text-amber-400" };
-  if (value > 0) return { text: "👍 a favor", color: "text-emerald-600 dark:text-emerald-400" };
-  return { text: "👎 en contra", color: "text-rose-600 dark:text-rose-400" };
+function voteLabel(typeId: string, value: number): { text: string; color: string } {
+  const opt = findVoteOption(typeId, value);
+  const sign = value > 0 ? "+" : "";
+  if (opt) {
+    const text = `${opt.emoji} ${opt.label} (${sign}${value})`;
+    if (opt.tone === "super") return { text, color: "text-amber-600 dark:text-amber-400" };
+    if (opt.tone === "negative") return { text, color: "text-rose-600 dark:text-rose-400" };
+    if (opt.tone === "positive") return { text, color: "text-emerald-600 dark:text-emerald-400" };
+    return { text, color: "text-[var(--text-secondary)]" };
+  }
+  return { text: `${sign}${value}`, color: "text-[var(--text-secondary)]" };
 }
 
 export default function AdminGroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -196,8 +203,20 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
                     <span className="text-[var(--text-muted)] w-5 text-right">{i + 1}</span>
                     <span className="truncate">{r.gameName}</span>
                   </div>
-                  <span className="text-xs font-mono text-[var(--text-secondary)] whitespace-nowrap">
-                    {r.score} pts · {r.superVotes}🔥 {r.upVotes}👍 {r.downVotes}👎
+                  <span className="text-xs font-mono text-[var(--text-secondary)] whitespace-nowrap flex items-center gap-1.5">
+                    <span>{r.score} pts</span>
+                    {r.breakdown.length > 0 && <span className="text-[var(--text-muted)]">·</span>}
+                    {r.breakdown.map((b) => {
+                      const opt = findVoteOption(data.type, b.value);
+                      return (
+                        <span
+                          key={b.value}
+                          title={opt ? `${opt.label} (${b.value > 0 ? "+" : ""}${b.value})` : `${b.value}`}
+                        >
+                          {b.count}{opt?.emoji || (b.value > 0 ? "👍" : "👎")}
+                        </span>
+                      );
+                    })}
                   </span>
                 </li>
               ))}
@@ -243,7 +262,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
           <div className="max-h-96 overflow-y-auto">
             <ul className="divide-y divide-[var(--border)] text-sm">
               {data.votes.map((v) => {
-                const label = voteLabel(v.value);
+                const label = voteLabel(data.type, v.value);
                 return (
                   <li key={v.id} className="py-2 flex items-center justify-between gap-3">
                     <div className="min-w-0">

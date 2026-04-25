@@ -85,21 +85,30 @@ export async function GET(
         bggUsername: m.user.bggUsername,
       },
     })),
-    ranking: ranking.map((r) => ({
-      groupGameId: r.groupGameId,
-      gameId: r.game.id,
-      gameName: r.game.name,
-      thumbnail: r.game.thumbnail,
-      score: r.score,
-      upVotes: r.upVotes,
-      superVotes: r.superVotes,
-      downVotes: r.downVotes,
-      playCount: r.playCount,
-    })),
+    ranking: ranking.map((r) => {
+      const breakdown = new Map<number, number>();
+      for (const v of votes) {
+        if (v.groupGameId === r.groupGameId) {
+          breakdown.set(v.value, (breakdown.get(v.value) || 0) + 1);
+        }
+      }
+      return {
+        groupGameId: r.groupGameId,
+        gameId: r.game.id,
+        gameName: r.game.name,
+        thumbnail: r.game.thumbnail,
+        score: r.score,
+        playCount: r.playCount,
+        breakdown: Array.from(breakdown.entries())
+          .sort((a, b) => b[0] - a[0])
+          .map(([value, count]) => ({ value, count })),
+      };
+    }),
     votes: votes.map((v) => ({
       id: v.id,
       value: v.value,
       createdAt: v.createdAt,
+      groupGameId: v.groupGameId,
       gameName: v.groupGame.game.name,
       thumbnail: v.groupGame.game.thumbnail,
       user: {

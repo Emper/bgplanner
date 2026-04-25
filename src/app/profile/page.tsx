@@ -32,7 +32,6 @@ function ProfileForm() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -270,23 +269,6 @@ function ProfileForm() {
               </button>
             </form>
           </div>
-
-          {/* Cerrar sesión */}
-          <button
-            onClick={async () => {
-              setLoggingOut(true);
-              try {
-                await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-                router.push("/");
-              } catch {
-                setLoggingOut(false);
-              }
-            }}
-            disabled={loggingOut}
-            className="w-full mt-6 px-4 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] rounded-xl hover:text-red-400 hover:border-red-500/50 transition-all duration-200 disabled:opacity-50 text-sm"
-          >
-            {loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
-          </button>
         </div>
       </div>
       <Footer />

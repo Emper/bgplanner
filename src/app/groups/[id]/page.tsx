@@ -136,15 +136,30 @@ function VoteButton({
       : option.tone === "negative"
         ? "bg-red-500/20 border-red-500 text-red-400"
         : "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]";
+  const labelColor =
+    option.tone === "super"
+      ? "text-orange-400/90"
+      : option.tone === "negative"
+        ? "text-red-400/90"
+        : active
+          ? "text-[var(--primary)]/90"
+          : "text-[var(--text-muted)]";
   return (
     <button
       onClick={onClick}
-      className={`${dims} flex items-center justify-center rounded-lg border transition-colors ${
-        active ? activeClass : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-      }`}
+      className="flex flex-col items-center gap-0.5 group/vote"
       title={`${option.shortLabel} · ${option.label}`}
     >
-      {option.emoji}
+      <span
+        className={`${dims} flex items-center justify-center rounded-lg border transition-colors ${
+          active ? activeClass : "border-[var(--border)] text-[var(--text-muted)] group-hover/vote:bg-[var(--surface-hover)]"
+        }`}
+      >
+        {option.emoji}
+      </span>
+      <span className={`text-[9px] font-mono leading-none tabular-nums ${labelColor}`}>
+        {option.shortLabel}
+      </span>
     </button>
   );
 }
@@ -1279,43 +1294,42 @@ function GroupDashboardPage() {
                               </div>
                             </div>
 
-                            {/* Row 2 mobile only: Badges + Vote buttons */}
-                            <div className="flex sm:hidden items-center justify-between mt-2 gap-2 pl-8">
-                              <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                                {item.game.bggRating && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
-                                    ★ {item.game.bggRating.toFixed(1)}
-                                  </span>
-                                )}
-                                {item.game.playingTime && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300">
-                                    ⏱ {formatDuration(item.game.playingTime)}
-                                  </span>
-                                )}
-                                {item.game.weight && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
-                                    ⚖️ {item.game.weight.toFixed(1)}
-                                  </span>
-                                )}
-                                {(item.game.minPlayers || item.game.maxPlayers) && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                                    {item.game.minPlayers === item.game.maxPlayers
-                                      ? `${item.game.minPlayers}p`
-                                      : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[200px]">
-                                {voteOptions.map((opt) => (
-                                  <VoteButton
-                                    key={opt.value}
-                                    option={opt}
-                                    active={item.userVoteValue === opt.value}
-                                    onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
-                                    size="sm"
-                                  />
-                                ))}
-                              </div>
+                            {/* Row 2 mobile only: Badges */}
+                            <div className="flex sm:hidden flex-wrap gap-1 mt-2 pl-8">
+                              {item.game.bggRating && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
+                                  ★ {item.game.bggRating.toFixed(1)}
+                                </span>
+                              )}
+                              {item.game.playingTime && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300">
+                                  ⏱ {formatDuration(item.game.playingTime)}
+                                </span>
+                              )}
+                              {item.game.weight && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
+                                  ⚖️ {item.game.weight.toFixed(1)}
+                                </span>
+                              )}
+                              {(item.game.minPlayers || item.game.maxPlayers) && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
+                                  {item.game.minPlayers === item.game.maxPlayers
+                                    ? `${item.game.minPlayers}p`
+                                    : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
+                                </span>
+                              )}
+                            </div>
+                            {/* Row 3 mobile only: Vote buttons (full width, distribuidos) */}
+                            <div className="flex sm:hidden justify-between items-end mt-2.5 pl-8 gap-1">
+                              {voteOptions.map((opt) => (
+                                <VoteButton
+                                  key={opt.value}
+                                  option={opt}
+                                  active={item.userVoteValue === opt.value}
+                                  onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
+                                  size="sm"
+                                />
+                              ))}
                             </div>
                             {/* Admin actions — absolute bottom-right */}
                             {isAdmin && (
