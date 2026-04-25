@@ -1313,13 +1313,14 @@ function GroupDashboardPage() {
                                       setOpenKebabMenu(openKebabMenu === item.groupGameId ? null : item.groupGameId);
                                     }}
                                     aria-label="Más acciones"
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
+                                    className="inline-flex items-center gap-0 h-8 pl-1 pr-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
                                   >
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                       <circle cx="12" cy="5" r="1.6" />
                                       <circle cx="12" cy="12" r="1.6" />
                                       <circle cx="12" cy="19" r="1.6" />
                                     </svg>
+                                    <span className="text-[11px] font-medium whitespace-nowrap">Más</span>
                                   </button>
                                   {openKebabMenu === item.groupGameId && (
                                     <div
