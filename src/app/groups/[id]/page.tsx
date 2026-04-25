@@ -1304,7 +1304,7 @@ function GroupDashboardPage() {
                             </div>
 
                             {/* Row 2 mobile only: Kebab admin (izquierda) + Vote buttons (derecha) */}
-                            <div className="flex sm:hidden items-center justify-between gap-2 mt-2.5">
+                            <div className="flex sm:hidden items-center justify-between gap-2 mt-2.5 pl-9">
                               {isAdmin ? (
                                 <div className="relative">
                                   <button
