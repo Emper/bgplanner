@@ -1103,7 +1103,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-10 sm:pb-6 transition-all duration-200"
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-7 sm:pb-6 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -1294,42 +1294,43 @@ function GroupDashboardPage() {
                               </div>
                             </div>
 
-                            {/* Row 2 mobile only: Badges */}
-                            <div className="flex sm:hidden flex-wrap gap-1 mt-2 pl-8">
-                              {item.game.bggRating && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
-                                  ★ {item.game.bggRating.toFixed(1)}
-                                </span>
-                              )}
-                              {item.game.playingTime && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300">
-                                  ⏱ {formatDuration(item.game.playingTime)}
-                                </span>
-                              )}
-                              {item.game.weight && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
-                                  ⚖️ {item.game.weight.toFixed(1)}
-                                </span>
-                              )}
-                              {(item.game.minPlayers || item.game.maxPlayers) && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                                  {item.game.minPlayers === item.game.maxPlayers
-                                    ? `${item.game.minPlayers}p`
-                                    : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
-                                </span>
-                              )}
-                            </div>
-                            {/* Row 3 mobile only: Vote buttons agrupados a la derecha */}
-                            <div className="flex sm:hidden justify-end items-end mt-2.5 pl-8 gap-1">
-                              {voteOptions.map((opt) => (
-                                <VoteButton
-                                  key={opt.value}
-                                  option={opt}
-                                  active={item.userVoteValue === opt.value}
-                                  onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
-                                  size="sm"
-                                />
-                              ))}
+                            {/* Row 2 mobile only: Badges + Vote buttons en una misma línea */}
+                            <div className="flex sm:hidden items-end justify-between gap-2 mt-2 pl-8">
+                              <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                                {item.game.bggRating && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
+                                    ★ {item.game.bggRating.toFixed(1)}
+                                  </span>
+                                )}
+                                {item.game.playingTime && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300">
+                                    ⏱ {formatDuration(item.game.playingTime)}
+                                  </span>
+                                )}
+                                {item.game.weight && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
+                                    ⚖️ {item.game.weight.toFixed(1)}
+                                  </span>
+                                )}
+                                {(item.game.minPlayers || item.game.maxPlayers) && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
+                                    {item.game.minPlayers === item.game.maxPlayers
+                                      ? `${item.game.minPlayers}p`
+                                      : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex shrink-0 gap-1 items-end">
+                                {voteOptions.map((opt) => (
+                                  <VoteButton
+                                    key={opt.value}
+                                    option={opt}
+                                    active={item.userVoteValue === opt.value}
+                                    onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
+                                    size="sm"
+                                  />
+                                ))}
+                              </div>
                             </div>
                             {/* Admin actions — absolute bottom-right */}
                             {isAdmin && (
