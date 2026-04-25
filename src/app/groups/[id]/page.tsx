@@ -1103,7 +1103,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-7 sm:pb-6 transition-all duration-200"
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-3 sm:pb-6 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -1295,7 +1295,7 @@ function GroupDashboardPage() {
                             </div>
 
                             {/* Row 2 mobile only: Badges + Vote buttons en una misma línea */}
-                            <div className="flex sm:hidden items-end justify-between gap-2 mt-2 pl-8">
+                            <div className="flex sm:hidden items-center justify-between gap-2 mt-2 pl-8">
                               <div className="flex flex-wrap gap-1 flex-1 min-w-0">
                                 {item.game.bggRating && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">
@@ -1320,7 +1320,7 @@ function GroupDashboardPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex shrink-0 gap-1 items-end">
+                              <div className="flex shrink-0 gap-1 items-center">
                                 {voteOptions.map((opt) => (
                                   <VoteButton
                                     key={opt.value}
@@ -1332,9 +1332,9 @@ function GroupDashboardPage() {
                                 ))}
                               </div>
                             </div>
-                            {/* Admin actions — absolute bottom-right */}
+                            {/* Admin actions — debajo a la izquierda en móvil, abajo derecha en desktop */}
                             {isAdmin && (
-                              <div className="absolute bottom-2 right-3 flex gap-3 text-[11px]">
+                              <div className="flex gap-3 text-[11px] mt-3 pl-8 sm:mt-0 sm:pl-0 sm:absolute sm:bottom-2 sm:right-3 sm:justify-end">
                                 <button
                                   onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
                                   className="text-[var(--text-muted)] hover:text-emerald-400 transition-colors"
