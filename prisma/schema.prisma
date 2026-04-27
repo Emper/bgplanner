@@ -23,6 +23,7 @@ model User {
 
   groupMemberships GroupMember[]
   votes            Vote[]
+  gameComments     GameComment[]
   addedGames       GroupGame[]
   createdGroups    Group[]        @relation("GroupCreator")
   createdSessions  GameSession[]  @relation("SessionCreator")
@@ -150,10 +151,11 @@ model GroupGame {
   playedAt   DateTime?
   archivedAt DateTime?
 
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  game    Game  @relation(fields: [gameId], references: [id])
-  addedBy User  @relation(fields: [addedById], references: [id])
-  votes   Vote[]
+  group    Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  game     Game          @relation(fields: [gameId], references: [id])
+  addedBy  User          @relation(fields: [addedById], references: [id])
+  votes    Vote[]
+  comments GameComment[]
 
   @@unique([groupId, gameId])
   @@index([groupId])
@@ -187,6 +189,22 @@ model CollectionGame {
   @@index([numPlays])
   @@index([dateAdded])
   @@index([subtype])
+}
+
+model GameComment {
+  id          String   @id @default(cuid())
+  groupGameId String
+  userId      String
+  text        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groupGame GroupGame @relation(fields: [groupGameId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([groupGameId, userId])
+  @@index([groupGameId])
+  @@index([userId])
 }
 
 model Vote {

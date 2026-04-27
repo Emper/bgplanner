@@ -30,6 +30,7 @@ interface Voter {
   userId: string;
   name: string;
   value: number;
+  comment: string | null;
 }
 
 interface RankedGame {
@@ -189,6 +190,10 @@ function GroupDashboardPage() {
   const [removingGame, setRemovingGame] = useState<string | null>(null);
   const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
   const [openKebabMenu, setOpenKebabMenu] = useState<string | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [openCommentEditors, setOpenCommentEditors] = useState<Set<string>>(new Set());
+  const [commentToast, setCommentToast] = useState("");
+  const [commentError, setCommentError] = useState("");
 
   // Group activity feed (restore from cache if available)
   const feedCacheKey = `group:${groupId}`;
@@ -497,6 +502,8 @@ function GroupDashboardPage() {
         .map((item) => {
           if (item.groupGameId !== targetGameDbId) return item;
           let { score } = item;
+          const previousMe = item.voters.find((v) => v.userId === currentUserId);
+          const myComment = previousMe?.comment ?? null;
           let voters = item.voters;
           if (oldValue !== null) {
             score -= oldValue;
@@ -504,9 +511,18 @@ function GroupDashboardPage() {
           }
           if (newValue !== null) {
             score += newValue;
-            const me = item.voters.find((v) => v.userId === currentUserId);
-            const myName = me?.name || "Tú";
-            voters = [...voters, { userId: currentUserId, name: myName, value: newValue }];
+            const myName = previousMe?.name || "Tú";
+            voters = [
+              ...voters,
+              { userId: currentUserId, name: myName, value: newValue, comment: myComment },
+            ];
+          } else if (myComment) {
+            // El voto se va pero el comentario sigue: voter "virtual" con value=0.
+            const myName = previousMe?.name || "Tú";
+            voters = [
+              ...voters,
+              { userId: currentUserId, name: myName, value: 0, comment: myComment },
+            ];
           }
           return { ...item, score, voters, userVoteValue: newValue };
         })
@@ -548,6 +564,12 @@ function GroupDashboardPage() {
         next = applyVoteLocally(next, gameDbId, value, currentValue, group.currentUserId);
         return next;
       });
+      setOpenCommentEditors((prev) => {
+        if (prev.has(gameDbId)) return prev;
+        const next = new Set(prev);
+        next.add(gameDbId);
+        return next;
+      });
 
       try {
         const downgradeRes = await fetch(
@@ -579,6 +601,16 @@ function GroupDashboardPage() {
 
     setRanking((prev) => applyVoteLocally(prev, gameDbId, newValue, currentValue, group.currentUserId));
 
+    // Al votar (no al retirar), abrimos el editor de comentario para invitar a comentar.
+    if (!isRemove) {
+      setOpenCommentEditors((prev) => {
+        if (prev.has(gameDbId)) return prev;
+        const next = new Set(prev);
+        next.add(gameDbId);
+        return next;
+      });
+    }
+
     try {
       if (isRemove) {
         const res = await fetch(
@@ -601,6 +633,98 @@ function GroupDashboardPage() {
     } catch {
       setRanking(snapshot);
       alert("Error al procesar el voto");
+    }
+  };
+
+  const toggleCommentEditor = (gameDbId: string) => {
+    setOpenCommentEditors((prev) => {
+      const next = new Set(prev);
+      if (next.has(gameDbId)) next.delete(gameDbId);
+      else next.add(gameDbId);
+      return next;
+    });
+  };
+
+  const handleSaveComment = async (
+    gameId: string,
+    gameDbId: string,
+    draft: string
+  ) => {
+    if (!group) return;
+    const currentUserId = group.currentUserId;
+    const item = ranking.find((r) => r.groupGameId === gameDbId);
+    if (!item) return;
+
+    const me = item.voters.find((v) => v.userId === currentUserId);
+    const current = me?.comment ?? null;
+    const next = draft.trim() === "" ? null : draft.trim();
+
+    if (next === current) {
+      // Sin cambios reales; descartamos el draft para que vuelva al valor del servidor.
+      setCommentDrafts((prev) => {
+        const { [gameDbId]: _omit, ...rest } = prev;
+        void _omit;
+        return rest;
+      });
+      return;
+    }
+
+    const snapshot = ranking;
+
+    // Optimista: actualizamos el voter del usuario actual con el nuevo comentario.
+    setRanking((prev) =>
+      prev.map((r) => {
+        if (r.groupGameId !== gameDbId) return r;
+        const existing = r.voters.find((v) => v.userId === currentUserId);
+        let voters: Voter[];
+        if (existing) {
+          if (next === null && existing.value === 0) {
+            // Voter "virtual" sin voto y sin comentario → se va.
+            voters = r.voters.filter((v) => v.userId !== currentUserId);
+          } else {
+            voters = r.voters.map((v) =>
+              v.userId === currentUserId ? { ...v, comment: next } : v
+            );
+          }
+        } else {
+          // No existía voter; si hay comentario, creamos uno virtual.
+          voters = next
+            ? [...r.voters, { userId: currentUserId, name: "Tú", value: r.userVoteValue ?? 0, comment: next }]
+            : r.voters;
+        }
+        return { ...r, voters };
+      })
+    );
+
+    try {
+      const res = await fetch(
+        `/api/groups/${groupId}/games/${gameId}/comment`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ text: draft.trim() }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al guardar el comentario");
+      }
+      setCommentDrafts((prev) => {
+        const { [gameDbId]: _omit, ...rest } = prev;
+        void _omit;
+        return rest;
+      });
+      if (next) {
+        setCommentToast("💬 Comentario guardado");
+        setTimeout(() => setCommentToast(""), 3000);
+      }
+    } catch (err) {
+      setRanking(snapshot);
+      setCommentError(
+        err instanceof Error ? err.message : "Error al guardar el comentario"
+      );
+      setTimeout(() => setCommentError(""), 4000);
     }
   };
 
@@ -1112,7 +1236,7 @@ function GroupDashboardPage() {
                         {pendingGames.map((item, index) => (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 pb-3 sm:pb-6 transition-all duration-200"
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -1244,12 +1368,12 @@ function GroupDashboardPage() {
                                   <div className="text-xl font-bold text-[var(--text)]">{item.score}</div>
                                   <div className="text-xs text-[var(--text-muted)]">pts</div>
                                   {/* Tooltip with voter breakdown */}
-                                  {item.voters.length > 0 && (
+                                  {item.voters.some((v) => v.value !== 0) && (
                                     <div className="absolute bottom-full right-0 mb-2 hidden group-hover/score:block z-50">
                                       <div className="bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-3 min-w-[180px] text-left">
                                         <div className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Votos</div>
                                         <div className="space-y-1.5">
-                                          {item.voters.map((voter, vi) => (
+                                          {item.voters.filter((v) => v.value !== 0).map((voter, vi) => (
                                             <div key={vi} className="flex items-center justify-between gap-3 text-xs">
                                               <span className="text-[var(--text-secondary)] truncate max-w-[120px]">{voter.name}</span>
                                               <span className={`font-bold whitespace-nowrap ${voter.value >= 3 ? 'text-orange-400' : voter.value < 0 ? 'text-red-400' : 'text-[var(--primary)]'}`}>
@@ -1279,12 +1403,12 @@ function GroupDashboardPage() {
                                   <div className="text-lg font-bold text-[var(--text)]">{item.score}</div>
                                   <div className="text-[10px] text-[var(--text-muted)]">pts</div>
                                 </div>
-                                {item.voters.length > 0 && openVoteTooltip === item.groupGameId && (
+                                {item.voters.some((v) => v.value !== 0) && openVoteTooltip === item.groupGameId && (
                                   <div className="absolute bottom-full right-0 mb-2 z-50">
                                     <div className="bg-[var(--bg)] border border-[var(--border-strong)] rounded-lg shadow-xl p-3 min-w-[160px] text-left">
                                       <div className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Votos</div>
                                       <div className="space-y-1.5">
-                                        {item.voters.map((voter, vi) => (
+                                        {item.voters.filter((v) => v.value !== 0).map((voter, vi) => (
                                           <div key={vi} className="flex items-center justify-between gap-3 text-xs">
                                             <span className="text-[var(--text-secondary)] truncate max-w-[100px]">{voter.name}</span>
                                             <span className={`font-bold whitespace-nowrap ${voter.value >= 3 ? 'text-orange-400' : voter.value < 0 ? 'text-red-400' : 'text-[var(--primary)]'}`}>
@@ -1303,55 +1427,65 @@ function GroupDashboardPage() {
                               </div>
                             </div>
 
-                            {/* Row 2 mobile only: Kebab admin (izquierda) + Vote buttons (derecha) */}
+                            {/* Row 2 mobile only: Kebab admin + Comenta (izquierda) + Vote buttons (derecha) */}
                             <div className="flex sm:hidden items-center justify-between gap-2 mt-2.5 pl-9">
-                              {isAdmin ? (
-                                <div className="relative">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenKebabMenu(openKebabMenu === item.groupGameId ? null : item.groupGameId);
-                                    }}
-                                    aria-label="Más acciones"
-                                    className="inline-flex items-center gap-0 h-8 pl-1 pr-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
-                                  >
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                      <circle cx="12" cy="5" r="1.6" />
-                                      <circle cx="12" cy="12" r="1.6" />
-                                      <circle cx="12" cy="19" r="1.6" />
-                                    </svg>
-                                    <span className="text-[11px] font-medium whitespace-nowrap">Más</span>
-                                  </button>
-                                  {openKebabMenu === item.groupGameId && (
-                                    <div
-                                      className="absolute top-full left-0 mt-1 z-50 bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl shadow-xl py-1 min-w-[160px]"
-                                      onClick={(e) => e.stopPropagation()}
+                              <div className="flex items-center gap-1">
+                                {isAdmin && (
+                                  <div className="relative">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenKebabMenu(openKebabMenu === item.groupGameId ? null : item.groupGameId);
+                                      }}
+                                      aria-label="Más acciones"
+                                      className="inline-flex items-center gap-0 h-8 pl-1 pr-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
                                     >
-                                      <button
-                                        onClick={() => {
-                                          setOpenKebabMenu(null);
-                                          handleMarkPlayed(item.game.id, item.game.name, true);
-                                        }}
-                                        className="w-full text-left px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="5" r="1.6" />
+                                        <circle cx="12" cy="12" r="1.6" />
+                                        <circle cx="12" cy="19" r="1.6" />
+                                      </svg>
+                                      <span className="text-[11px] font-medium whitespace-nowrap">Más</span>
+                                    </button>
+                                    {openKebabMenu === item.groupGameId && (
+                                      <div
+                                        className="absolute top-full left-0 mt-1 z-50 bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl shadow-xl py-1 min-w-[160px]"
+                                        onClick={(e) => e.stopPropagation()}
                                       >
-                                        Marcar jugado
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setOpenKebabMenu(null);
-                                          handleRemoveGame(item.game.id, item.game.name);
-                                        }}
-                                        disabled={removingGame === item.game.id}
-                                        className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span />
-                              )}
+                                        <button
+                                          onClick={() => {
+                                            setOpenKebabMenu(null);
+                                            handleMarkPlayed(item.game.id, item.game.name, true);
+                                          }}
+                                          className="w-full text-left px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                                        >
+                                          Marcar jugado
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setOpenKebabMenu(null);
+                                            handleRemoveGame(item.game.id, item.game.name);
+                                          }}
+                                          disabled={removingGame === item.game.id}
+                                          className="w-full text-left px-3 py-2 text-sm text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleCommentEditor(item.groupGameId);
+                                  }}
+                                  className="inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] text-[11px] font-medium transition-colors"
+                                >
+                                  <span aria-hidden>💬</span>
+                                  <span>Comenta</span>
+                                </button>
+                              </div>
                               <div className="flex shrink-0 items-center gap-1">
                                 {voteOptions.map((opt) => (
                                   <VoteButton
@@ -1364,24 +1498,83 @@ function GroupDashboardPage() {
                                 ))}
                               </div>
                             </div>
-                            {/* Admin actions — desktop only, esquina inferior derecha */}
-                            {isAdmin && (
-                              <div className="hidden sm:flex absolute bottom-2 right-3 gap-3 text-[11px] justify-end">
-                                <button
-                                  onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
-                                  className="text-[var(--text-muted)] hover:text-emerald-400 transition-colors"
-                                >
-                                  Marcar jugado
-                                </button>
-                                <button
-                                  onClick={() => handleRemoveGame(item.game.id, item.game.name)}
-                                  disabled={removingGame === item.game.id}
-                                  className="text-[var(--text-muted)] hover:text-red-400 transition-colors disabled:opacity-50"
-                                >
-                                  Quitar
-                                </button>
-                              </div>
-                            )}
+                            {/* Comentarios: input (cuando el editor está abierto) + lista del resto */}
+                            {(() => {
+                              const isEditorOpen = openCommentEditors.has(item.groupGameId);
+                              const me = item.voters.find((v) => v.userId === group?.currentUserId);
+                              const myComment = me?.comment ?? null;
+                              const visibleComments = item.voters.filter(
+                                (v) =>
+                                  v.comment &&
+                                  v.comment.trim() !== "" &&
+                                  (!isEditorOpen || v.userId !== group?.currentUserId)
+                              );
+                              if (!isEditorOpen && visibleComments.length === 0) return null;
+                              const draftValue = commentDrafts[item.groupGameId] ?? myComment ?? "";
+                              return (
+                                <div className="mt-3 space-y-2">
+                                  {isEditorOpen && (
+                                    <textarea
+                                      autoFocus
+                                      rows={1}
+                                      maxLength={500}
+                                      value={draftValue}
+                                      onChange={(e) =>
+                                        setCommentDrafts((prev) => ({
+                                          ...prev,
+                                          [item.groupGameId]: e.target.value,
+                                        }))
+                                      }
+                                      onBlur={(e) =>
+                                        handleSaveComment(item.game.id, item.groupGameId, e.target.value)
+                                      }
+                                      placeholder="Deja un comentario (opcional)"
+                                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all resize-none"
+                                    />
+                                  )}
+                                  {visibleComments.length > 0 && (
+                                    <div className="space-y-1.5 pt-1">
+                                      {visibleComments.map((v) => (
+                                        <div key={v.userId} className="text-xs leading-relaxed">
+                                          <span className="font-semibold text-[var(--text-secondary)]">
+                                            {v.name}:
+                                          </span>{" "}
+                                          <span className="text-[var(--text)] italic">
+                                            “{v.comment}”
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            {/* Acciones inferiores — desktop: Comenta + (admin) Marcar/Quitar */}
+                            <div className="hidden sm:flex justify-end gap-3 mt-3 text-[11px]">
+                              <button
+                                onClick={() => toggleCommentEditor(item.groupGameId)}
+                                className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                              >
+                                💬 Comenta
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, true)}
+                                    className="text-[var(--text-muted)] hover:text-emerald-400 transition-colors"
+                                  >
+                                    Marcar jugado
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemoveGame(item.game.id, item.game.name)}
+                                    disabled={removingGame === item.game.id}
+                                    className="text-[var(--text-muted)] hover:text-red-400 transition-colors disabled:opacity-50"
+                                  >
+                                    Quitar
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1678,6 +1871,18 @@ function GroupDashboardPage() {
           {pingToast && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {pingToast}
+            </div>
+          )}
+
+          {/* Comment toasts */}
+          {commentToast && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+              {commentToast}
+            </div>
+          )}
+          {commentError && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+              {commentError}
             </div>
           )}
 

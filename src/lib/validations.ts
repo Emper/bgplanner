@@ -39,6 +39,10 @@ export const voteSchema = z.object({
   value: z.number().int().min(-10).max(10),
 });
 
+export const gameCommentSchema = z.object({
+  text: z.string().trim().max(500, "Máximo 500 caracteres"),
+});
+
 export const createEventSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(200),
   description: z.string().max(2000).optional(),

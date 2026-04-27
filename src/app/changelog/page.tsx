@@ -12,6 +12,14 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "28 abril 2026",
+    version: "1.8",
+    title: "Comentarios en el ranking",
+    changes: [
+      { type: "new", text: "Después de votar un juego puedes dejar un comentario para tu grupo. Aparecerá en su tarjeta del ranking junto a los del resto, para defender tus picks o avisar de que ese sólo se juega con cinco copas encima" },
+    ],
+  },
+  {
     date: "24 abril 2026",
     version: "1.7",
     title: "Salta al grupo o evento desde el feed",

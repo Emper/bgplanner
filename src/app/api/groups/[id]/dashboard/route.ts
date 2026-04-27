@@ -52,6 +52,7 @@ export async function GET(
           game: true,
           addedBy: { select: { name: true, displayName: true } },
           votes: { select: { userId: true, value: true, user: { select: { name: true, displayName: true, email: true } } } },
+          comments: { select: { userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
         },
       }),
       prisma.gameSession.findMany({
@@ -131,11 +132,29 @@ export async function GET(
       const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
 
       const userVote = gg.votes.find((v) => v.userId === session.userId);
+
+      // Mergeamos votos y comentarios por userId. Un voter "virtual"
+      // (value = 0) representa a alguien que comentó pero retiró su voto.
+      const commentByUserId = new Map(
+        gg.comments.map((c) => [c.userId, c.text])
+      );
       const voters = gg.votes.map((v) => ({
         userId: v.userId,
         name: v.user.displayName || v.user.name || v.user.email,
         value: v.value,
+        comment: commentByUserId.get(v.userId) ?? null,
       }));
+      const voterIds = new Set(voters.map((v) => v.userId));
+      for (const c of gg.comments) {
+        if (!voterIds.has(c.userId)) {
+          voters.push({
+            userId: c.userId,
+            name: c.user.displayName || c.user.name || c.user.email,
+            value: 0,
+            comment: c.text,
+          });
+        }
+      }
 
       const playCount = playCountByGameId.get(gg.game.id) || 0;
       const lastSessionDate = lastSessionDateByGameId.get(gg.game.id) || null;

@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 export type ActivityType =
   | "group_created" | "group_joined" | "group_deleted" | "group_pinged" | "member_promoted" | "member_demoted"
   | "game_added" | "game_removed" | "game_marked_played" | "game_returned_pending" | "game_archived"
-  | "vote_cast" | "vote_changed" | "vote_removed"
+  | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
   | "event_game_added" | "event_interest_set";
@@ -77,6 +77,7 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   vote_cast: (m) => `votó ${voteEmoji(m)} por "${m.gameName || "un juego"}"`,
   vote_changed: (m) => `cambió su voto en "${m.gameName || "un juego"}" a ${voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType })}`,
   vote_removed: (m) => `quitó su voto en "${m.gameName || "un juego"}"`,
+  vote_commented: (m) => `comentó "${m.comment || ""}" en "${m.gameName || "un juego"}"`,
   session_created: (m) => `creó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
   session_updated: (m) => `actualizó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
   session_deleted: () => "eliminó una sesión",
@@ -112,6 +113,7 @@ const GROUP_FORMATS: Record<string, { verb: string; extract: (m: Meta) => GroupP
   vote_cast: { verb: "votó por", extract: (m) => m.gameName ? { name: m.gameName, affix: voteEmoji(m) } : null },
   vote_changed: { verb: "cambió su voto en", extract: (m) => m.gameName ? { name: m.gameName, affix: voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType }) } : null },
   vote_removed: { verb: "quitó su voto en", extract: (m) => m.gameName ? { name: m.gameName } : null },
+  vote_commented: { verb: "comentó", extract: (m) => m.gameName ? { name: m.gameName, affix: "💬" } : null },
   session_game_completed: { verb: "completó", extract: (m) => m.gameName ? { name: m.gameName } : null },
   event_game_added: { verb: "añadió al evento", extract: (m) => m.gameName ? { name: m.gameName } : null },
   event_interest_set: { verb: "marcó interés en", extract: (m) => m.gameName ? { name: m.gameName } : null },
