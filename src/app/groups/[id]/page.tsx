@@ -1512,7 +1512,7 @@ function GroupDashboardPage() {
                               if (!isEditorOpen && visibleComments.length === 0) return null;
                               const draftValue = commentDrafts[item.groupGameId] ?? myComment ?? "";
                               return (
-                                <div className="mt-3 space-y-2">
+                                <div className="mt-3 pl-9 sm:pl-14 space-y-2">
                                   {isEditorOpen && (
                                     <textarea
                                       autoFocus
@@ -1528,6 +1528,12 @@ function GroupDashboardPage() {
                                       onBlur={(e) =>
                                         handleSaveComment(item.game.id, item.groupGameId, e.target.value)
                                       }
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                          e.preventDefault();
+                                          e.currentTarget.blur();
+                                        }
+                                      }}
                                       placeholder="Deja un comentario (opcional)"
                                       className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all resize-none"
                                     />
@@ -1535,13 +1541,16 @@ function GroupDashboardPage() {
                                   {visibleComments.length > 0 && (
                                     <div className="space-y-1.5 pt-1">
                                       {visibleComments.map((v) => (
-                                        <div key={v.userId} className="text-xs leading-relaxed">
-                                          <span className="font-semibold text-[var(--text-secondary)]">
-                                            {v.name}:
-                                          </span>{" "}
-                                          <span className="text-[var(--text)] italic">
-                                            “{v.comment}”
-                                          </span>
+                                        <div key={v.userId} className="flex items-start gap-1.5 text-xs leading-relaxed">
+                                          <span aria-hidden className="shrink-0 leading-none mt-px">💬</span>
+                                          <div className="min-w-0">
+                                            <span className="font-semibold text-[var(--text-secondary)]">
+                                              {v.name}:
+                                            </span>{" "}
+                                            <span className="text-[var(--text)] italic">
+                                              “{v.comment}”
+                                            </span>
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
@@ -1555,7 +1564,7 @@ function GroupDashboardPage() {
                                 onClick={() => toggleCommentEditor(item.groupGameId)}
                                 className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                               >
-                                💬 Comenta
+                                Deja un comentario
                               </button>
                               {isAdmin && (
                                 <>
