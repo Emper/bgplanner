@@ -659,6 +659,14 @@ function GroupDashboardPage() {
     const current = me?.comment ?? null;
     const next = draft.trim() === "" ? null : draft.trim();
 
+    // Cerramos el editor en cualquier caso (al perder foco volvemos al display).
+    setOpenCommentEditors((prev) => {
+      if (!prev.has(gameDbId)) return prev;
+      const next = new Set(prev);
+      next.delete(gameDbId);
+      return next;
+    });
+
     if (next === current) {
       // Sin cambios reales; descartamos el draft para que vuelva al valor del servidor.
       setCommentDrafts((prev) => {
@@ -1483,7 +1491,11 @@ function GroupDashboardPage() {
                                   className="inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] text-[11px] font-medium transition-colors"
                                 >
                                   <span aria-hidden>💬</span>
-                                  <span>Comenta</span>
+                                  <span>
+                                    {item.voters.find((v) => v.userId === group?.currentUserId)?.comment
+                                      ? "Edita"
+                                      : "Comenta"}
+                                  </span>
                                 </button>
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
@@ -1564,7 +1576,9 @@ function GroupDashboardPage() {
                                 onClick={() => toggleCommentEditor(item.groupGameId)}
                                 className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                               >
-                                Deja un comentario
+                                {item.voters.find((v) => v.userId === group?.currentUserId)?.comment
+                                  ? "Edita tu comentario"
+                                  : "Deja un comentario"}
                               </button>
                               {isAdmin && (
                                 <>
