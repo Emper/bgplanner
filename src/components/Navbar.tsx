@@ -155,7 +155,7 @@ export default function Navbar() {
             <button
               onClick={toggleTheme}
               className="hidden sm:flex w-9 h-9 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
-              title={resolvedTheme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              title={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
             >
               {!mounted ? (
                 <span className="w-[18px] h-[18px]" />
@@ -281,7 +281,7 @@ export default function Navbar() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 )}
-                {resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
+                {!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
               </button>
             </div>
 

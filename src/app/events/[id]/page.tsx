@@ -134,7 +134,8 @@ export default function EventDetailPage() {
         const data = await res.json();
         if (cursor) {
           setFeedItems((prev) => {
-            const merged = [...prev, ...data.items];
+            const seen = new Set(prev.map((i: { id: string }) => i.id));
+            const merged = [...prev, ...data.items.filter((i: { id: string }) => !seen.has(i.id))];
             setCachedFeed(`event:${eventId}`, merged, data.nextCursor);
             return merged;
           });

@@ -153,7 +153,7 @@ function LandingPage() {
             <button
               onClick={toggleTheme}
               className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
-              title={resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
+              title={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
             >
               {!mounted ? (
                 <span className="w-[18px] h-[18px]" />

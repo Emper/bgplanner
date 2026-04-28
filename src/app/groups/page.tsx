@@ -99,7 +99,12 @@ export default function GroupsPage() {
       const res = await fetch(`/api/feed?limit=10&cursor=${encodeURIComponent(feedCursor)}`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setFeedItems((prev) => [...prev, ...data.items]);
+        // Deduplicamos por id: en dev (Strict Mode) y bajo razas el efecto
+        // de auto-carga puede disparar la misma página dos veces.
+        setFeedItems((prev) => {
+          const seen = new Set(prev.map((i: { id: string }) => i.id));
+          return [...prev, ...data.items.filter((i: { id: string }) => !seen.has(i.id))];
+        });
         setFeedCursor(data.nextCursor);
         setFeedHasMore(!!data.nextCursor);
       }

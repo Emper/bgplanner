@@ -187,7 +187,13 @@ export default function ActivityFeed({
   loading?: boolean;
   minBlocks?: number;
 }) {
-  const groups = items.length ? groupItems(items) : [];
+  // Deduplicamos por id como red de seguridad: si por una carrera entre
+  // cargas consecutivas o por el mismo render bajo Strict Mode llega un
+  // item dos veces, evitamos que React tire warnings de keys duplicadas.
+  const dedupedItems = items.length
+    ? Array.from(new Map(items.map((i) => [i.id, i])).values())
+    : items;
+  const groups = dedupedItems.length ? groupItems(dedupedItems) : [];
 
   // Auto-cargar páginas adicionales si tras agrupar quedan menos bloques
   // de los esperados. Limitado para evitar bucles si el feed real es corto.

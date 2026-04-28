@@ -63,7 +63,7 @@ export default function AdminNavbar() {
             <button
               onClick={toggleTheme}
               className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-purple-600 hover:bg-purple-500/10 transition-all duration-200"
-              title={resolvedTheme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              title={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
             >
               {!mounted ? (
                 <span className="w-[18px] h-[18px]" />
