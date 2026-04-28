@@ -13,6 +13,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "28 abril 2026",
+    version: "1.9",
+    title: "Podio del grupo",
+    changes: [
+      { type: "new", text: "En la portada del grupo aparece un podio con los tres juegos más votados ahora mismo, con oro, plata y bronce. Click en cualquiera para saltar al ranking" },
+    ],
+  },
+  {
+    date: "28 abril 2026",
     version: "1.8",
     title: "Comentarios en el ranking",
     changes: [

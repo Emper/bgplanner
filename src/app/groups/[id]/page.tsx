@@ -2661,6 +2661,85 @@ function GroupDashboardPage() {
           {/* ═══════════ Activity Tab ═══════════ */}
           {activeTab === "activity" && (
             <div className="space-y-4">
+              {/* Podio: 3 juegos más votados ahora mismo (entre los pendientes) */}
+              {(() => {
+                const topThree = pendingGames.filter((g) => g.score > 0).slice(0, 3);
+                if (topThree.length === 0) return null;
+                const order: { rank: 1 | 2 | 3; game: RankedGame | undefined }[] = [
+                  { rank: 2, game: topThree[1] },
+                  { rank: 1, game: topThree[0] },
+                  { rank: 3, game: topThree[2] },
+                ];
+                return (
+                  <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 sm:p-5">
+                    <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+                      🏆 Podio del grupo
+                    </h2>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end">
+                      {order.map(({ rank, game }) => {
+                        if (!game) {
+                          return <div key={`empty-${rank}`} aria-hidden />;
+                        }
+                        const stepHeight =
+                          rank === 1
+                            ? "h-14 sm:h-16"
+                            : rank === 2
+                              ? "h-10 sm:h-12"
+                              : "h-7 sm:h-9";
+                        const gradient =
+                          rank === 1
+                            ? "from-amber-300 via-yellow-400 to-amber-600"
+                            : rank === 2
+                              ? "from-slate-200 via-slate-400 to-slate-500"
+                              : "from-amber-600 via-amber-700 to-amber-900";
+                        const ring =
+                          rank === 1
+                            ? "ring-yellow-400/60"
+                            : rank === 2
+                              ? "ring-slate-400/60"
+                              : "ring-amber-700/60";
+                        const thumbDim = rank === 1 ? "w-16 h-16 sm:w-20 sm:h-20" : "w-12 h-12 sm:w-16 sm:h-16";
+                        return (
+                          <button
+                            key={game.groupGameId}
+                            onClick={() => switchTab("ranking")}
+                            className="group/podium flex flex-col items-center text-center min-w-0 cursor-pointer"
+                            title={`${game.game.name} · ${game.score} pts`}
+                          >
+                            <span className="h-6 mb-1 text-xl sm:text-2xl leading-none" aria-hidden>
+                              {rank === 1 ? "👑" : ""}
+                            </span>
+                            <div className={`${thumbDim} rounded-lg overflow-hidden ring-2 ${ring} bg-[var(--surface-hover)] mb-2 transition-transform group-hover/podium:scale-105`}>
+                              {game.game.thumbnail ? (
+                                <Image
+                                  src={game.game.thumbnail}
+                                  alt=""
+                                  width={80}
+                                  height={80}
+                                  className="w-full h-full object-cover"
+                                  unoptimized
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
+                              )}
+                            </div>
+                            <div className="text-[11px] sm:text-sm font-semibold text-[var(--text)] leading-tight line-clamp-2 w-full px-0.5">
+                              {game.game.name}
+                            </div>
+                            <div className="text-[10px] sm:text-xs text-[var(--text-muted)] mt-0.5 mb-2">
+                              {game.score} pts
+                            </div>
+                            <div className={`w-full ${stepHeight} rounded-t-xl bg-gradient-to-b ${gradient} flex items-start justify-center pt-1 sm:pt-1.5`}>
+                              <span className="text-white text-base sm:text-lg font-bold drop-shadow">{rank}º</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {stats && (
                 <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 sm:p-5">
                   <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
