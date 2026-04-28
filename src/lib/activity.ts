@@ -137,7 +137,16 @@ export function getGroupedActivity(type: string, metadatas: Meta[]): GroupedActi
   if (metadatas.length === 1 || !grouper) {
     return { prefix: formatActivity(type, metadatas[0]), visible: [], hidden: [] };
   }
-  const parts = metadatas.map(grouper.extract).filter((p): p is GroupPart => !!p);
+  const rawParts = metadatas.map(grouper.extract).filter((p): p is GroupPart => !!p);
+  // Deduplicamos por nombre para que la misma entidad (juego, miembro…) no
+  // se repita dentro del mismo grupo de actividades.
+  const seen = new Set<string>();
+  const parts: GroupPart[] = [];
+  for (const p of rawParts) {
+    if (seen.has(p.name)) continue;
+    seen.add(p.name);
+    parts.push(p);
+  }
   if (parts.length === 0) {
     return { prefix: formatActivity(type, metadatas[0]), visible: [], hidden: [] };
   }

@@ -75,13 +75,25 @@ export async function PUT(
     update: { text },
   });
 
-  // Solo loguear la primera vez que se crea (no en ediciones).
+  // Solo loguear si nunca antes hemos registrado un vote_commented para este
+  // usuario+grupo+juego. Así si borra y vuelve a comentar no spammeamos el feed.
   if (!existingComment) {
-    logActivity("vote_commented", session.userId, {
-      groupId,
-      gameName: groupGame.game.name,
-      comment: text.slice(0, 80),
+    const previousLog = await prisma.activityLog.findFirst({
+      where: {
+        type: "vote_commented",
+        userId: session.userId,
+        groupId,
+        metadata: { path: ["gameName"], equals: groupGame.game.name },
+      },
+      select: { id: true },
     });
+    if (!previousLog) {
+      logActivity("vote_commented", session.userId, {
+        groupId,
+        gameName: groupGame.game.name,
+        comment: text.slice(0, 80),
+      });
+    }
   }
 
   return NextResponse.json({
