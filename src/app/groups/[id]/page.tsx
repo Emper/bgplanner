@@ -1259,7 +1259,7 @@ function GroupDashboardPage() {
                           return (
                           <div
                             key={item.groupGameId}
-                            className={`relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200 ${compact ? "sm:pb-7" : ""}`}
+                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
