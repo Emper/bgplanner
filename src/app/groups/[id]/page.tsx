@@ -1241,10 +1241,25 @@ function GroupDashboardPage() {
                         );
                       })()}
                       <div className="space-y-3">
-                        {pendingGames.map((item, index) => (
+                        {pendingGames.map((item, index) => {
+                          const isEditorOpen = openCommentEditors.has(item.groupGameId);
+                          const hasOtherComments = item.voters.some(
+                            (v) =>
+                              v.comment &&
+                              v.comment.trim() !== "" &&
+                              v.userId !== group?.currentUserId
+                          );
+                          const myCommentExists = !!item.voters.find(
+                            (v) => v.userId === group?.currentUserId
+                          )?.comment;
+                          // Cuando NO hay nada que mostrar (ni editor abierto ni comentarios)
+                          // recuperamos la versión compacta: acciones absolutas en la esquina
+                          // inferior derecha y un poco de padding extra para que no pisen.
+                          const compact = !isEditorOpen && !hasOtherComments && !myCommentExists;
+                          return (
                           <div
                             key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
+                            className={`relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200 ${compact ? "sm:pb-7" : ""}`}
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
@@ -1568,15 +1583,15 @@ function GroupDashboardPage() {
                                 </div>
                               );
                             })()}
-                            {/* Acciones inferiores — desktop: Comenta + (admin) Marcar/Quitar */}
-                            <div className="hidden sm:flex justify-end gap-3 mt-3 text-[11px]">
+                            {/* Acciones inferiores — desktop: Comenta + (admin) Marcar/Quitar.
+                                Si la tarjeta es compacta (sin comentarios ni editor) flotan en la
+                                esquina inferior derecha; si hay comentarios, en flujo bajo el bloque. */}
+                            <div className={`hidden sm:flex justify-end gap-3 text-[11px] ${compact ? "absolute bottom-2 right-3" : "mt-3"}`}>
                               <button
                                 onClick={() => toggleCommentEditor(item.groupGameId)}
                                 className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                               >
-                                {item.voters.find((v) => v.userId === group?.currentUserId)?.comment
-                                  ? "Edita tu comentario"
-                                  : "Deja un comentario"}
+                                {myCommentExists ? "Edita tu comentario" : "Deja un comentario"}
                               </button>
                               {isAdmin && (
                                 <>
@@ -1597,7 +1612,8 @@ function GroupDashboardPage() {
                               )}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
