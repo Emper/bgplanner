@@ -1435,31 +1435,43 @@ function GroupDashboardPage() {
                               </div>
                             </div>
 
-                            {/* Row 2 mobile only: Kebab admin + Comenta (izquierda) + Vote buttons (derecha) */}
+                            {/* Row 2 mobile only: Kebab "Más" (izquierda) + Vote buttons (derecha) */}
                             <div className="flex sm:hidden items-center justify-between gap-2 mt-2.5 pl-9">
-                              <div className="flex items-center gap-1">
-                                {isAdmin && (
-                                  <div className="relative">
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenKebabMenu(openKebabMenu === item.groupGameId ? null : item.groupGameId);
+                                  }}
+                                  aria-label="Más acciones"
+                                  className="inline-flex items-center gap-0 h-8 pl-1 pr-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
+                                >
+                                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="5" r="1.6" />
+                                    <circle cx="12" cy="12" r="1.6" />
+                                    <circle cx="12" cy="19" r="1.6" />
+                                  </svg>
+                                  <span className="text-[11px] font-medium whitespace-nowrap">Más</span>
+                                </button>
+                                {openKebabMenu === item.groupGameId && (
+                                  <div
+                                    className="absolute top-full left-0 mt-1 z-50 bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl shadow-xl py-1 min-w-[180px]"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenKebabMenu(openKebabMenu === item.groupGameId ? null : item.groupGameId);
+                                      onClick={() => {
+                                        setOpenKebabMenu(null);
+                                        toggleCommentEditor(item.groupGameId);
                                       }}
-                                      aria-label="Más acciones"
-                                      className="inline-flex items-center gap-0 h-8 pl-1 pr-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
+                                      className="w-full text-left px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                                     >
-                                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <circle cx="12" cy="5" r="1.6" />
-                                        <circle cx="12" cy="12" r="1.6" />
-                                        <circle cx="12" cy="19" r="1.6" />
-                                      </svg>
-                                      <span className="text-[11px] font-medium whitespace-nowrap">Más</span>
+                                      💬{" "}
+                                      {item.voters.find((v) => v.userId === group?.currentUserId)?.comment
+                                        ? "Edita tu comentario"
+                                        : "Deja un comentario"}
                                     </button>
-                                    {openKebabMenu === item.groupGameId && (
-                                      <div
-                                        className="absolute top-full left-0 mt-1 z-50 bg-[var(--surface)] border border-[var(--border-strong)] rounded-xl shadow-xl py-1 min-w-[160px]"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
+                                    {isAdmin && (
+                                      <>
                                         <button
                                           onClick={() => {
                                             setOpenKebabMenu(null);
@@ -1479,24 +1491,10 @@ function GroupDashboardPage() {
                                         >
                                           Quitar
                                         </button>
-                                      </div>
+                                      </>
                                     )}
                                   </div>
                                 )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleCommentEditor(item.groupGameId);
-                                  }}
-                                  className="inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] text-[11px] font-medium transition-colors"
-                                >
-                                  <span aria-hidden>💬</span>
-                                  <span>
-                                    {item.voters.find((v) => v.userId === group?.currentUserId)?.comment
-                                      ? "Edita"
-                                      : "Comenta"}
-                                  </span>
-                                </button>
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
                                 {voteOptions.map((opt) => (
