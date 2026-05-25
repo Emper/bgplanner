@@ -46,12 +46,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className="overflow-x-hidden">
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
-        className={`${bricolage.variable} ${dmSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${bricolage.variable} ${dmSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
         {children}
