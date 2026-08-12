@@ -96,7 +96,20 @@ export default function FeedbackPage() {
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-6 text-center">
             <div className="text-2xl mb-2">&#x2705;</div>
             <h2 className="text-lg font-semibold text-emerald-400 mb-1">Feedback enviado</h2>
-            <p className="text-sm text-[var(--text-secondary)]">Gracias por tu aportación. Lo revisaremos lo antes posible.</p>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">Gracias por tu aportación. Lo revisaremos lo antes posible.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSent(false);
+                setSubject("");
+                setMessage("");
+                setImages([]);
+                setError("");
+              }}
+              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              Enviar otro
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
