@@ -43,6 +43,7 @@ interface GlobalResult {
   bggId: number;
   name: string;
   yearPublished: number | null;
+  thumbnail?: string | null;
   owners: string[];
 }
 
@@ -929,6 +930,21 @@ export default function AddGamesPage() {
                                   key={game.bggId}
                                   className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 flex items-center gap-3"
                                 >
+                                  <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
+                                    {game.thumbnail ? (
+                                      <Image
+                                        src={game.thumbnail}
+                                        alt={game.name}
+                                        width={56}
+                                        height={56}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
+                                        ?
+                                      </div>
+                                    )}
+                                  </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="font-medium text-[var(--text)] text-sm truncate">
                                       <a

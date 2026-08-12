@@ -44,6 +44,7 @@ export type BggSearchResult = {
   bggId: number;
   name: string;
   yearPublished: number | null;
+  thumbnail?: string | null;
 };
 
 // ── BGG Search cache (bounded to 200 entries) ──────────────────────────
@@ -584,6 +585,71 @@ function rankSearchResults(
     .slice(0, SEARCH_RESULT_LIMIT);
 }
 
+// Cuántos de los primeros resultados enriquecemos con imagen.
+const SEARCH_THUMBNAIL_COUNT = 20;
+
+// Trae thumbnails de BGG con una sola llamada `thing` (máx. 20 IDs, sin stats).
+async function fetchBggThumbnails(bggIds: number[]): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  if (bggIds.length === 0) return map;
+
+  const url = `https://boardgamegeek.com/xmlapi2/thing?id=${bggIds.slice(0, 20).join(",")}`;
+  const response = await fetchWithRetry(url);
+  if (!response.ok) return map;
+
+  const xml = await response.text();
+  const parsed = await parseStringPromise(xml, { explicitArray: false });
+  if (!parsed.items?.item) return map;
+
+  const items = Array.isArray(parsed.items.item)
+    ? parsed.items.item
+    : [parsed.items.item];
+  for (const item of items) {
+    const id = parseInt(item.$.id, 10);
+    if (item.thumbnail) map.set(id, item.thumbnail);
+  }
+  return map;
+}
+
+// Adjunta imagen a los primeros resultados. Primero mira nuestras tablas
+// (gratis); solo para los que falten hace UNA llamada a BGG.
+async function attachThumbnails(
+  results: BggSearchResult[]
+): Promise<BggSearchResult[]> {
+  const ids = results.slice(0, SEARCH_THUMBNAIL_COUNT).map((r) => r.bggId);
+  if (ids.length === 0) return results;
+
+  const thumbById = new Map<number, string>();
+
+  // 1. Cache local (Game + CollectionGame) — sin tocar BGG.
+  const [games, colGames] = await Promise.all([
+    prisma.game.findMany({
+      where: { bggId: { in: ids }, thumbnail: { not: null } },
+      select: { bggId: true, thumbnail: true },
+    }),
+    prisma.collectionGame.findMany({
+      where: { bggId: { in: ids }, thumbnail: { not: null } },
+      select: { bggId: true, thumbnail: true },
+    }),
+  ]);
+  for (const g of games) if (g.thumbnail) thumbById.set(g.bggId, g.thumbnail);
+  for (const g of colGames)
+    if (g.thumbnail && !thumbById.has(g.bggId)) thumbById.set(g.bggId, g.thumbnail);
+
+  // 2. Los que falten: una sola llamada a BGG (best-effort).
+  const missing = ids.filter((id) => !thumbById.has(id));
+  if (missing.length > 0) {
+    try {
+      const fetched = await fetchBggThumbnails(missing);
+      for (const [id, t] of fetched) thumbById.set(id, t);
+    } catch (err) {
+      console.log("[BGG Search] thumbnails no disponibles:", err);
+    }
+  }
+
+  return results.map((r) => ({ ...r, thumbnail: thumbById.get(r.bggId) ?? null }));
+}
+
 export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
   const normalizedQuery = query.trim().toLowerCase();
   if (normalizedQuery.length < 2) return [];
@@ -648,6 +714,9 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
 
   // Reordenar por relevancia (exacto/prefijo primero) y limitar.
   results = rankSearchResults(results, normalizedQuery);
+
+  // Enriquecer los primeros con imagen (cache local + 1 llamada a BGG).
+  results = await attachThumbnails(results);
 
   if (results.length > 0) {
     searchCacheSet(normalizedQuery, results);

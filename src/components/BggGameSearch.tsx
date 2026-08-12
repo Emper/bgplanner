@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 
 interface SearchResult {
   bggId: number;
   name: string;
   yearPublished: number | null;
+  thumbnail?: string | null;
 }
 
 interface GameDetails {
@@ -132,17 +134,34 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
               key={r.bggId}
               onClick={() => handleSelect(r)}
               disabled={loadingGame === r.bggId}
-              className="w-full text-left px-3 py-2.5 hover:bg-[var(--surface-hover)] transition-colors border-b border-[var(--border)]/50 last:border-0 disabled:opacity-50"
+              className="w-full text-left px-3 py-2.5 hover:bg-[var(--surface-hover)] transition-colors border-b border-[var(--border)]/50 last:border-0 disabled:opacity-50 flex items-center gap-3"
             >
-              <div className="text-sm text-[var(--text)]">
-                {r.name}
-                {r.yearPublished && (
-                  <span className="text-[var(--text-muted)] ml-1">({r.yearPublished})</span>
+              <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-[var(--surface-hover)]">
+                {r.thumbnail ? (
+                  <Image
+                    src={r.thumbnail}
+                    alt={r.name}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
+                    ?
+                  </div>
                 )}
               </div>
-              {loadingGame === r.bggId && (
-                <div className="text-xs text-[var(--primary)] mt-0.5 animate-pulse">Añadiendo juego...</div>
-              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-[var(--text)] truncate">
+                  {r.name}
+                  {r.yearPublished && (
+                    <span className="text-[var(--text-muted)] ml-1">({r.yearPublished})</span>
+                  )}
+                </div>
+                {loadingGame === r.bggId && (
+                  <div className="text-xs text-[var(--primary)] mt-0.5 animate-pulse">Añadiendo juego...</div>
+                )}
+              </div>
             </button>
           ))}
         </div>
