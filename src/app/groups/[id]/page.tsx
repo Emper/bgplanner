@@ -400,10 +400,10 @@ function GroupDashboardPage() {
   // Filter ranking for "tonight" mode
   // Split into pending (not yet played) and played
   const isPlayed = (item: RankedGame) => item.playCount > 0 || item.playedAt !== null;
-  // Pendientes: no jugados y no archivados. Histórico: todos los jugados
-  // (incluidos los que se ocultaron en su día).
+  // Pendientes: no jugados y no archivados. Histórico: todos los jugados y
+  // también los que se ocultaron en su día (archivados), jugados o no.
   const pendingGames = ranking.filter((item) => !item.archivedAt && !isPlayed(item));
-  const playedGames = ranking.filter(isPlayed);
+  const playedGames = ranking.filter((item) => isPlayed(item) || item.archivedAt !== null);
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
   const groupTypeCfg = getGroupType(group?.type);

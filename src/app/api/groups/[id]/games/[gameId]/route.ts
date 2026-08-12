@@ -101,10 +101,13 @@ export async function PATCH(
     return NextResponse.json({ success: true });
   }
 
-  // Update playedAt
+  // Update playedAt. "Devolver al ranking" (played: false) también desarchiva,
+  // para que el juego vuelva de verdad al listado de pendientes.
   await prisma.groupGame.update({
     where: { id: groupGame.id },
-    data: { playedAt: played ? new Date() : null },
+    data: played
+      ? { playedAt: new Date() }
+      : { playedAt: null, archivedAt: null },
   });
 
   // When marking as played, free up votes that are slot-limited by the group type
