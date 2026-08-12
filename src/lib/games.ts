@@ -15,9 +15,15 @@ type GameRecord = {
   weight: number | null;
 };
 
+// Cuánto tiempo consideramos "fresco" el dato cacheado de un juego antes de
+// intentar refrescarlo desde BGG (rating/rank/peso cambian con el tiempo).
+const GAME_DATA_TTL = 30 * 24 * 60 * 60 * 1000; // 30 días
+
 /**
  * Find or create a Game record by bggId.
  * Tries: 1) existing Game, 2) CollectionGame cache, 3) BGG API, 4) fallback name.
+ * Si el Game cacheado está caducado (> GAME_DATA_TTL) intenta refrescarlo
+ * desde BGG; si BGG falla, devuelve el dato cacheado sin romper el flujo.
  * Returns null only if all strategies fail and no fallbackName provided.
  */
 export async function findOrCreateGame(
@@ -26,7 +32,33 @@ export async function findOrCreateGame(
 ): Promise<GameRecord | null> {
   // 1. Check if game already exists
   const existing = await prisma.game.findUnique({ where: { bggId } });
-  if (existing) return existing;
+  if (existing) {
+    const isStale = Date.now() - existing.updatedAt.getTime() > GAME_DATA_TTL;
+    if (!isStale) return existing;
+
+    // Refresco best-effort: si BGG no responde, seguimos con la caché.
+    try {
+      const [details] = await fetchBggGameDetails([bggId]);
+      if (details) {
+        return await prisma.game.update({
+          where: { bggId },
+          data: {
+            name: details.name,
+            thumbnail: details.thumbnail,
+            yearPublished: details.yearPublished,
+            minPlayers: details.minPlayers,
+            maxPlayers: details.maxPlayers,
+            bggRating: details.bggRating,
+            bggRank: details.bggRank,
+            weight: details.weight,
+          },
+        });
+      }
+    } catch (err) {
+      console.log("[findOrCreateGame] refresco fallido, uso caché:", err);
+    }
+    return existing;
+  }
 
   // 2. Try CollectionGame cache
   const cachedItem = await prisma.collectionGame.findFirst({

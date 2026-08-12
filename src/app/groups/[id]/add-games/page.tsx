@@ -37,6 +37,15 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
+// Resultado de búsqueda en todo BGG (fuera de la colección). `owners` son
+// los nombres de los miembros del grupo que lo tienen; vacío = nadie lo tiene.
+interface GlobalResult {
+  bggId: number;
+  name: string;
+  yearPublished: number | null;
+  owners: string[];
+}
+
 interface Member {
   role: string;
   user: {
@@ -89,6 +98,10 @@ export default function AddGamesPage() {
   const [searchDebounced, setSearchDebounced] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Búsqueda en todo BGG (fuera de la colección). null = aún no buscada.
+  const [globalResults, setGlobalResults] = useState<GlobalResult[] | null>(null);
+  const [globalLoading, setGlobalLoading] = useState(false);
+
   // Filters
   const [showFilters, setShowFilters] = useState(false);
   const [minPlayers, setMinPlayers] = useState("");
@@ -105,6 +118,7 @@ export default function AddGamesPage() {
     searchTimer.current = setTimeout(() => {
       setSearchDebounced(search);
       setPage(1);
+      setGlobalResults(null); // invalida resultados globales de la búsqueda anterior
     }, 350);
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -201,6 +215,29 @@ export default function AddGamesPage() {
     loadCollection();
   }, [loadCollection]);
 
+  // Lanza una búsqueda en todo BGG (endpoint que anota qué miembros lo tienen).
+  const searchAllBgg = useCallback(async () => {
+    if (searchDebounced.trim().length < 2) return;
+    setGlobalLoading(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/groups/${groupId}/games/search?q=${encodeURIComponent(searchDebounced)}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Error al buscar en BGG");
+      }
+      const data: GlobalResult[] = await res.json();
+      setGlobalResults(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setGlobalLoading(false);
+    }
+  }, [groupId, searchDebounced]);
+
   const handleAdd = async (bggId: number) => {
     setAddingGame(bggId);
     try {
@@ -217,8 +254,9 @@ export default function AddGamesPage() {
       }
 
       setAddedGameIds((prev) => new Set(prev).add(bggId));
-      // Remove from visible items immediately
+      // Remove from visible items immediately (colección y resultados globales)
       setItems((prev) => prev.filter((g) => g.bggId !== bggId));
+      setGlobalResults((prev) => (prev ? prev.filter((g) => g.bggId !== bggId) : prev));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -817,6 +855,108 @@ export default function AddGamesPage() {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* ── Buscar en todo BGG (fuera de la colección) ── */}
+              {searchDebounced.trim().length >= 2 && (
+                <div className="mt-6 pt-6 border-t border-[var(--border)]">
+                  {globalResults === null ? (
+                    <div className="text-center">
+                      <p className="text-sm text-[var(--text-secondary)] mb-3">
+                        ¿No encuentras{" "}
+                        <span className="font-medium text-[var(--text)]">
+                          &ldquo;{searchDebounced}&rdquo;
+                        </span>{" "}
+                        en la colección?
+                      </p>
+                      <button
+                        onClick={searchAllBgg}
+                        disabled={globalLoading}
+                        className="px-4 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm font-semibold text-[var(--primary)] hover:border-[var(--primary)]/40 hover:shadow-[var(--card-shadow)] disabled:opacity-50 transition-all duration-200"
+                      >
+                        {globalLoading ? "Buscando…" : "🔎 Buscar en todo BGG"}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                          Resultados en todo BGG
+                        </h3>
+                        <button
+                          onClick={() => setGlobalResults(null)}
+                          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                        >
+                          ✕ Cerrar
+                        </button>
+                      </div>
+                      {globalResults.filter((g) => !addedGameIds.has(g.bggId)).length === 0 ? (
+                        <p className="text-sm text-[var(--text-muted)] text-center py-6">
+                          No hay resultados nuevos en BGG para esta búsqueda.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {globalResults
+                            .filter((g) => !addedGameIds.has(g.bggId))
+                            .map((game) => {
+                              const isAdding = addingGame === game.bggId;
+                              const nobodyHasIt = game.owners.length === 0;
+                              return (
+                                <div
+                                  key={game.bggId}
+                                  className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 flex items-center gap-3"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-[var(--text)] text-sm truncate">
+                                      <a
+                                        href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="hover:text-[var(--primary)] transition-colors"
+                                        title="Ver en BGG"
+                                      >
+                                        {game.name}
+                                        <span className="inline-block ml-1 text-[var(--text-muted)] text-xs align-middle">↗</span>
+                                      </a>
+                                      {game.yearPublished && (
+                                        <span className="text-[var(--text-muted)] font-normal ml-1">
+                                          ({game.yearPublished})
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="mt-1.5">
+                                      {nobodyHasIt ? (
+                                        <span className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full">
+                                          ⚠️ Nadie del grupo lo tiene
+                                        </span>
+                                      ) : (
+                                        <span
+                                          className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-300 px-2 py-0.5 rounded-full"
+                                          title={game.owners.join(", ")}
+                                        >
+                                          ✓{" "}
+                                          {game.owners.length === 1
+                                            ? `En la colección de ${game.owners[0]}`
+                                            : `Lo tienen ${game.owners.length} miembros`}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleAdd(game.bggId)}
+                                    disabled={isAdding}
+                                    className="px-4 py-2 rounded-xl text-sm font-semibold shrink-0 transition-all duration-200 shadow-sm hover:shadow-md bg-[var(--primary)] text-[var(--primary-text)] hover:bg-[var(--primary-hover)] disabled:opacity-50"
+                                  >
+                                    {isAdding ? "..." : "Añadir"}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </>
           )}

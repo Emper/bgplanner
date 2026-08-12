@@ -12,6 +12,14 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "12 agosto 2026",
+    version: "1.10",
+    title: "Añade al ranking juegos que nadie tiene",
+    changes: [
+      { type: "new", text: "Si buscas un juego en el ranking y no está en la colección de ningún miembro, ahora puedes buscarlo en todo BoardGameGeek y añadirlo igualmente. Te avisamos con una etiqueta cuando nadie del grupo lo tiene, para que lo sepas antes de sumarlo" },
+    ],
+  },
+  {
     date: "28 abril 2026",
     version: "1.9",
     title: "Podio del grupo",
