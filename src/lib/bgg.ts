@@ -549,6 +549,41 @@ export function getRecommendationForPlayerCount(
 // 1. XML API v2 oficial (con token Bearer)
 // 2. Fallback a nuestras tablas locales Game + CollectionGame
 
+const SEARCH_RESULT_LIMIT = 40;
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// El endpoint oficial no ordena por relevancia (devuelve tipo A-Z), así que
+// reordenamos: coincidencia exacta → empieza por → palabra que empieza por →
+// contiene. Dentro de cada grupo: nombre más corto y más reciente primero.
+function relevanceTier(name: string, q: string): number {
+  const n = name.toLowerCase().trim();
+  if (n === q) return 0;
+  if (n.startsWith(q)) return 1;
+  if (new RegExp(`\\b${escapeRegExp(q)}`).test(n)) return 2;
+  return 3;
+}
+
+function rankSearchResults(
+  results: BggSearchResult[],
+  q: string
+): BggSearchResult[] {
+  return [...results]
+    .sort((a, b) => {
+      const ta = relevanceTier(a.name, q);
+      const tb = relevanceTier(b.name, q);
+      if (ta !== tb) return ta - tb;
+      if (a.name.length !== b.name.length) return a.name.length - b.name.length;
+      const ya = a.yearPublished ?? 0;
+      const yb = b.yearPublished ?? 0;
+      if (yb !== ya) return yb - ya;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, SEARCH_RESULT_LIMIT);
+}
+
 export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
   const normalizedQuery = query.trim().toLowerCase();
   if (normalizedQuery.length < 2) return [];
@@ -610,6 +645,9 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
       yearPublished: g.yearPublished,
     }));
   }
+
+  // Reordenar por relevancia (exacto/prefijo primero) y limitar.
+  results = rankSearchResults(results, normalizedQuery);
 
   if (results.length > 0) {
     searchCacheSet(normalizedQuery, results);
