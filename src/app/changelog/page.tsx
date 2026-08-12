@@ -16,8 +16,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.16",
     title: "Fotos y opiniones en el feed de actividad",
     changes: [
-      { type: "improved", text: "Las fotos que subís a la galería, tanto del grupo como de los eventos, aparecen ahora también en el feed de actividad general" },
-      { type: "improved", text: "Las opiniones y valoraciones de juegos y eventos asoman también en el feed general, para no perderte lo que opina tu gente" },
+      { type: "new", text: "El feed de actividad muestra ahora las fotos en miniatura: las de la galería del grupo y del evento y las de las opiniones, con un toque para verlas a tamaño completo" },
+      { type: "improved", text: "Esas fotos y opiniones aparecen también en el feed general, para no perderte lo que sube y opina tu gente" },
     ],
   },
   {

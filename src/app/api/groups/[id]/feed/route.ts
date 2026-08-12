@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { attachFeedPhotos } from "@/lib/feedPhotos";
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +43,8 @@ export async function GET(
   const hasMore = activities.length > limit;
   const items = activities.slice(0, limit);
   const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
+
+  await attachFeedPhotos(items);
 
   return NextResponse.json({ items, nextCursor });
 }

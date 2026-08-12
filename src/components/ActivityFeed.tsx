@@ -2,8 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Avatar from "./Avatar";
 import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
+
+interface FeedPhoto {
+  id: string;
+  url: string;
+}
 
 interface ActivityItem {
   id: string;
@@ -12,6 +18,7 @@ interface ActivityItem {
   userId: string;
   metadata: Record<string, unknown>;
   createdAt: string;
+  photos?: FeedPhoto[];
   user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null };
   group?: { id: string; name: string } | null;
   event?: { id: string; name: string } | null;
@@ -169,6 +176,57 @@ function GroupedLine({ data }: { data: GroupedActivity }) {
   );
 }
 
+const MAX_STRIP_PHOTOS = 6;
+
+// Tira de miniaturas de las fotos asociadas a un bloque de actividad (fotos de
+// galería u opiniones con foto). Cada una abre la imagen completa en otra
+// pestaña; sin visor propio para mantener el feed ligero.
+function PhotoStrip({ photos }: { photos: FeedPhoto[] }) {
+  const shown = photos.slice(0, MAX_STRIP_PHOTOS);
+  const extra = photos.length - shown.length;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
+      {shown.map((p, i) => (
+        <a
+          key={p.id}
+          href={p.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative block w-14 h-14 rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface-hover)] hover:opacity-90 transition-opacity"
+        >
+          <Image
+            src={p.url}
+            alt="Foto"
+            width={56}
+            height={56}
+            className="w-full h-full object-cover"
+            unoptimized
+          />
+          {i === shown.length - 1 && extra > 0 && (
+            <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-white text-xs font-semibold">
+              +{extra}
+            </span>
+          )}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+// Junta las fotos de todos los ítems de un bloque, sin repetir por id.
+function collectRunPhotos(items: ActivityItem[]): FeedPhoto[] {
+  const seen = new Set<string>();
+  const out: FeedPhoto[] = [];
+  for (const item of items) {
+    for (const p of item.photos ?? []) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
 const MIN_VISIBLE_BLOCKS = 5;
 const MAX_AUTOLOAD_ATTEMPTS = 3;
 
@@ -253,37 +311,38 @@ export default function ActivityFeed({
                         : null
                     : null;
                   const appendContext = APPEND_CONTEXT_TYPES.has(run.type);
+                  const runPhotos = collectRunPhotos(run.items);
                   return (
-                    <p
-                      key={run.items[0].id}
-                      className="text-sm text-[var(--text-secondary)] leading-snug"
-                    >
-                      <GroupedLine data={data} />
-                      {ctx && appendContext && (
-                        <>
-                          {" "}
-                          <Link
-                            href={ctx.href}
-                            prefetch={false}
-                            className="text-[var(--text)] hover:text-[var(--primary)] transition-colors"
-                          >
-                            {ctx.name}
-                          </Link>
-                        </>
-                      )}
-                      {ctx && !appendContext && (
-                        <>
-                          <span className="text-[var(--text-muted)]"> en </span>
-                          <Link
-                            href={ctx.href}
-                            prefetch={false}
-                            className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                          >
-                            {ctx.name}
-                          </Link>
-                        </>
-                      )}
-                    </p>
+                    <div key={run.items[0].id}>
+                      <p className="text-sm text-[var(--text-secondary)] leading-snug">
+                        <GroupedLine data={data} />
+                        {ctx && appendContext && (
+                          <>
+                            {" "}
+                            <Link
+                              href={ctx.href}
+                              prefetch={false}
+                              className="text-[var(--text)] hover:text-[var(--primary)] transition-colors"
+                            >
+                              {ctx.name}
+                            </Link>
+                          </>
+                        )}
+                        {ctx && !appendContext && (
+                          <>
+                            <span className="text-[var(--text-muted)]"> en </span>
+                            <Link
+                              href={ctx.href}
+                              prefetch={false}
+                              className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                            >
+                              {ctx.name}
+                            </Link>
+                          </>
+                        )}
+                      </p>
+                      {runPhotos.length > 0 && <PhotoStrip photos={runPhotos} />}
+                    </div>
                   );
                 })}
               </div>
