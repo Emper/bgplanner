@@ -63,135 +63,26 @@ function searchCacheSet(key: string, results: BggSearchResult[]) {
 // DB-backed collection cache — refreshes once per day or on demand
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-// ── BGG Session Management ──────────────────────────────────────────────
-// BGG now requires authentication for API access. We log in with a BGG
-// account and use the session cookie for all subsequent requests.
-// This avoids needing a registered application + Bearer token.
+// ── BGG API Authentication ──────────────────────────────────────────────
+// BGG requires authentication for API access. Nos autenticamos con un token
+// de API personal (Bearer) obtenido en https://boardgamegeek.com/applications.
+// Configúralo en la variable de entorno BGG_API_TOKEN.
 
-let bggCookieString: string | null = null;
-let bggSessionExpiry = 0;
-const BGG_SESSION_TTL = 50 * 60 * 1000; // Refresh session every 50 min (BGG sets 1h expiry)
-
-async function loginToBgg(): Promise<string> {
-  const username = process.env.BGG_USERNAME;
-  const password = process.env.BGG_PASSWORD;
-
-  if (!username || !password) {
-    throw new Error(
-      "Configura BGG_USERNAME y BGG_PASSWORD en las variables de entorno para acceder a la API de BGG."
-    );
-  }
-
-  const payload = JSON.stringify({
-    credentials: { username, password },
-  });
-
-  console.log(`[BGG Login] Attempting login for user: ${username}`);
-
-  const response = await fetch("https://boardgamegeek.com/login/api/v1", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: payload,
-    redirect: "manual", // Don't follow redirects, we just need the cookie
-  });
-
-  console.log(`[BGG Login] Response status: ${response.status}`);
-
-  // BGG returns 200 or 302 on success, 400/401 on failure
-  if (response.status >= 400) {
-    const body = await response.text();
-    console.log(`[BGG Login] Error body: ${body}`);
-    let errorMsg = "Error al iniciar sesión en BGG.";
-    try {
-      const parsed = JSON.parse(body);
-      if (parsed.errors?.message) errorMsg = parsed.errors.message;
-    } catch {
-      // ignore parse error
-    }
-    throw new Error(`Login BGG fallido (${response.status}): ${errorMsg}`);
-  }
-
-  // Extract ALL cookies from response — BGG needs all of them, not just SessionID
-  const cookiePairs: string[] = [];
-
-  if (typeof response.headers.getSetCookie === "function") {
-    const setCookies = response.headers.getSetCookie();
-    console.log(`[BGG Login] getSetCookie returned ${setCookies.length} cookies`);
-    for (const cookie of setCookies) {
-      // Extract "name=value" from "name=value; path=/; ..."
-      const nameValue = cookie.split(";")[0].trim();
-      if (nameValue && nameValue.includes("=")) {
-        cookiePairs.push(nameValue);
-      }
-    }
-  } else {
-    // Fallback: raw header
-    const rawCookie = response.headers.get("set-cookie") || "";
-    console.log(`[BGG Login] Raw set-cookie length: ${rawCookie.length}`);
-    // Split by comma but not within expires dates
-    const parts = rawCookie.split(/,(?=\s*(?:\w+=))/);
-    for (const part of parts) {
-      const nameValue = part.split(";")[0].trim();
-      if (nameValue && nameValue.includes("=")) {
-        cookiePairs.push(nameValue);
-      }
-    }
-  }
-
-  if (cookiePairs.length === 0) {
-    const headerEntries: string[] = [];
-    response.headers.forEach((value, key) => {
-      headerEntries.push(`${key}: ${value.substring(0, 100)}`);
-    });
-    console.log(`[BGG Login] All response headers: ${headerEntries.join(" | ")}`);
-    throw new Error(
-      "No se pudo obtener cookies de sesión de BGG. Verifica las credenciales."
-    );
-  }
-
-  const cookieString = cookiePairs.join("; ");
-  console.log(`[BGG Login] Success! ${cookiePairs.length} cookies captured. Names: ${cookiePairs.map(c => c.split("=")[0]).join(", ")}`);
-  return cookieString;
-}
-
-async function getBggCookies(): Promise<string> {
-  // Also support Bearer token as alternative
+function getBggApiToken(): string {
   const token = process.env.BGG_API_TOKEN;
-  if (token) {
-    return `__bearer__${token}`;
+  if (!token) {
+    throw new Error(
+      "Configura BGG_API_TOKEN en las variables de entorno para acceder a la API de BGG."
+    );
   }
-
-  if (bggCookieString && Date.now() < bggSessionExpiry) {
-    return bggCookieString;
-  }
-
-  const cookies = await loginToBgg();
-  bggCookieString = cookies;
-  bggSessionExpiry = Date.now() + BGG_SESSION_TTL;
-  return cookies;
+  return token;
 }
 
-async function getBggFetchOptions(): Promise<RequestInit> {
-  const cookies = await getBggCookies();
-
-  // If using Bearer token
-  if (cookies.startsWith("__bearer__")) {
-    return {
-      headers: {
-        Accept: "application/xml",
-        Authorization: `Bearer ${cookies.slice("__bearer__".length)}`,
-      },
-    };
-  }
-
-  // Using all session cookies
+function getBggFetchOptions(): RequestInit {
   return {
     headers: {
       Accept: "application/xml",
-      Cookie: cookies,
+      Authorization: `Bearer ${getBggApiToken()}`,
     },
   };
 }
@@ -202,36 +93,16 @@ async function fetchWithRetry(
   url: string,
   maxRetries = 6
 ): Promise<Response> {
-  const fetchOptions = await getBggFetchOptions();
+  const fetchOptions = getBggFetchOptions();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     console.log(`[BGG Fetch] Attempt ${attempt + 1}: ${url.substring(0, 80)}...`);
     const response = await fetch(url, fetchOptions);
     console.log(`[BGG Fetch] Response: ${response.status}`);
 
-    if (response.status === 401) {
-      if (attempt === 0) {
-        // Try re-authenticating
-        console.log("[BGG Fetch] Got 401, re-authenticating...");
-        bggCookieString = null;
-        bggSessionExpiry = 0;
-        const newOptions = await getBggFetchOptions();
-        const retryResponse = await fetch(url, newOptions);
-        console.log(`[BGG Fetch] Retry after re-auth: ${retryResponse.status}`);
-        if (retryResponse.status !== 401) return retryResponse;
-
-        // Fallback: try without auth (some BGG endpoints are public)
-        console.log("[BGG Fetch] Auth failed, trying without auth...");
-        const publicResponse = await fetch(url, {
-          headers: { Accept: "application/xml" },
-        });
-        console.log(`[BGG Fetch] Public response: ${publicResponse.status}`);
-        if (publicResponse.ok || publicResponse.status === 202) {
-          return publicResponse;
-        }
-      }
+    if (response.status === 401 || response.status === 403) {
       throw new Error(
-        "No se pudo autenticar con BGG. Verifica las credenciales en BGG_USERNAME y BGG_PASSWORD."
+        "No se pudo autenticar con BGG. Verifica que BGG_API_TOKEN es válido y no ha caducado."
       );
     }
 
@@ -259,7 +130,7 @@ export async function validateBggUsername(
   try {
     const normalizedUsername = username.toLowerCase().trim();
     const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&subtype=boardgame&page=1`;
-    const fetchOptions = await getBggFetchOptions();
+    const fetchOptions = getBggFetchOptions();
     const response = await fetch(url, fetchOptions);
 
     // 202 = BGG is preparing data, which means the user exists
@@ -267,7 +138,7 @@ export async function validateBggUsername(
       return { valid: true };
     }
     // If we can't authenticate to BGG, don't block the user
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403) {
       return { valid: true };
     }
     if (response.status === 404) {
@@ -631,7 +502,7 @@ export function getRecommendationForPlayerCount(
 // BGG's XML API2 search requires auth that doesn't work reliably from
 // server-side. We use multiple strategies in order:
 // 1. Geekdo JSON API (internal, no auth)
-// 2. XML API v2 with auth cookies
+// 2. XML API v2 with the Bearer API token
 // 3. Fallback to our local Game + CollectionGame tables
 
 export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
