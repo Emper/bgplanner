@@ -101,6 +101,8 @@ export default function AddGamesPage() {
   // Búsqueda en todo BGG (fuera de la colección). null = aún no buscada.
   const [globalResults, setGlobalResults] = useState<GlobalResult[] | null>(null);
   const [globalLoading, setGlobalLoading] = useState(false);
+  // Última query ya buscada en global, para no repetir ni reintentar en bucle.
+  const globalSearchedRef = useRef<string>("");
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
@@ -218,6 +220,7 @@ export default function AddGamesPage() {
   // Lanza una búsqueda en todo BGG (endpoint que anota qué miembros lo tienen).
   const searchAllBgg = useCallback(async () => {
     if (searchDebounced.trim().length < 2) return;
+    globalSearchedRef.current = searchDebounced;
     setGlobalLoading(true);
     setError("");
     try {
@@ -237,6 +240,22 @@ export default function AddGamesPage() {
       setGlobalLoading(false);
     }
   }, [groupId, searchDebounced]);
+
+  // Typeahead: si la colección no tiene resultados para lo que escribes,
+  // lanzamos la búsqueda en todo BGG automáticamente (con ≥3 caracteres).
+  // El ref evita repetir la misma query o reintentar en bucle ante un error.
+  useEffect(() => {
+    if (
+      searchDebounced.trim().length >= 3 &&
+      !loadingCollection &&
+      !globalLoading &&
+      globalResults === null &&
+      globalSearchedRef.current !== searchDebounced &&
+      items.filter((g) => !addedGameIds.has(g.bggId)).length === 0
+    ) {
+      searchAllBgg();
+    }
+  }, [searchDebounced, loadingCollection, globalLoading, globalResults, items, addedGameIds, searchAllBgg]);
 
   const handleAdd = async (bggId: number) => {
     setAddingGame(bggId);
@@ -860,7 +879,12 @@ export default function AddGamesPage() {
               {/* ── Buscar en todo BGG (fuera de la colección) ── */}
               {searchDebounced.trim().length >= 2 && (
                 <div className="mt-6 pt-6 border-t border-[var(--border)]">
-                  {globalResults === null ? (
+                  {globalLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-[var(--text-secondary)]">
+                      <span className="animate-spin inline-block">↻</span>
+                      Buscando en todo BGG…
+                    </div>
+                  ) : globalResults === null ? (
                     <div className="text-center">
                       <p className="text-sm text-[var(--text-secondary)] mb-3">
                         ¿No encuentras{" "}
@@ -871,10 +895,9 @@ export default function AddGamesPage() {
                       </p>
                       <button
                         onClick={searchAllBgg}
-                        disabled={globalLoading}
-                        className="px-4 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm font-semibold text-[var(--primary)] hover:border-[var(--primary)]/40 hover:shadow-[var(--card-shadow)] disabled:opacity-50 transition-all duration-200"
+                        className="px-4 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm font-semibold text-[var(--primary)] hover:border-[var(--primary)]/40 hover:shadow-[var(--card-shadow)] transition-all duration-200"
                       >
-                        {globalLoading ? "Buscando…" : "🔎 Buscar en todo BGG"}
+                        🔎 Buscar en todo BGG
                       </button>
                     </div>
                   ) : (
