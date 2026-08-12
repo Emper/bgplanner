@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 
 // Cliente de Supabase Storage con service role (solo servidor). Se usa para
 // subir fotos de las opiniones de partida al bucket `game-photos`.
@@ -54,10 +55,9 @@ export async function uploadPhoto(
   if (!ext) {
     throw new Error("Formato de imagen no soportado");
   }
-  // Nombre único sin depender de Date.now()/Math.random() (no disponibles en
-  // algunos entornos): usamos un cuid vía prisma no aplica aquí, así que
-  // combinamos crypto.randomUUID (disponible en el runtime de Node/Edge).
-  const name = `${crypto.randomUUID()}.${ext}`;
+  // Nombre único con randomUUID del módulo crypto de Node (evita depender del
+  // global `crypto`, que no siempre está según la versión del runtime).
+  const name = `${randomUUID()}.${ext}`;
   const path = `${keyPrefix}/${name}`.replace(/\/+/g, "/");
 
   const { error } = await client.storage

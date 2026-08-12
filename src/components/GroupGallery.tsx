@@ -321,10 +321,17 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
     <div>
       <div className="flex justify-end gap-2 mb-4">
         <label
-          className="px-4 py-2 rounded-xl text-sm font-medium cursor-pointer"
+          className={`px-4 py-2 rounded-xl text-sm font-medium inline-flex items-center gap-2 ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
           style={{ border: "1px solid var(--border)", color: "var(--text)" }}
         >
-          {uploading ? "Subiendo…" : "📷 Subir foto"}
+          {uploading ? (
+            <>
+              <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+              Subiendo…
+            </>
+          ) : (
+            "📷 Subir foto"
+          )}
           <input
             type="file"
             accept="image/*"
@@ -339,12 +346,23 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
         </label>
         <button
           onClick={openPicker}
-          className="px-4 py-2 rounded-xl text-sm font-semibold"
+          disabled={uploading}
+          className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
           style={{ background: "#f59e0b", color: "#0f172a" }}
         >
           ✍️ Añadir opinión
         </button>
       </div>
+
+      {uploading && (
+        <div
+          className="flex items-center justify-center gap-2 mb-4 py-3 rounded-xl text-sm"
+          style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
+        >
+          <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          Subiendo fotos…
+        </div>
+      )}
 
       {body}
 

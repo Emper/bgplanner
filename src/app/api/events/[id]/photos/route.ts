@@ -71,8 +71,12 @@ export async function POST(
   }
 
   const created = [];
+  let lastError = "";
   for (const file of files) {
-    if (file.size > MAX_BYTES) continue; // saltar la que exceda, subir el resto
+    if (file.size > MAX_BYTES) {
+      lastError = "Alguna imagen supera los 5 MB";
+      continue;
+    }
     try {
       const buffer = Buffer.from(await file.arrayBuffer());
       const { url } = await uploadPhoto(buffer, file.type, `events/${eventId}`);
@@ -83,13 +87,17 @@ export async function POST(
         },
       });
       created.push(photo);
-    } catch {
-      // Ignorar la que falle; devolvemos las que sí se subieron.
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "Error desconocido al subir";
+      console.error("[event photos] fallo al subir foto de evento:", e);
     }
   }
 
   if (created.length === 0) {
-    return NextResponse.json({ error: "No se pudo subir ninguna imagen" }, { status: 400 });
+    return NextResponse.json(
+      { error: lastError || "No se pudo subir ninguna imagen" },
+      { status: 400 }
+    );
   }
 
   logActivity("event_photo_added", session.userId, {

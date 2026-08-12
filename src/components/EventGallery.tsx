@@ -274,10 +274,17 @@ export default function EventGallery({
           </h3>
           {canParticipate && (
             <label
-              className="px-4 py-2 rounded-xl text-sm font-medium cursor-pointer"
+              className={`px-4 py-2 rounded-xl text-sm font-medium inline-flex items-center gap-2 ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
               style={{ border: "1px solid var(--border)", color: "var(--text)" }}
             >
-              {uploading ? "Subiendo…" : "＋ Subir fotos"}
+              {uploading ? (
+                <>
+                  <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  Subiendo…
+                </>
+              ) : (
+                "＋ Subir fotos"
+              )}
               <input
                 type="file"
                 accept="image/*"
