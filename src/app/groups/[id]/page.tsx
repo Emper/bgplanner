@@ -194,6 +194,8 @@ function GroupDashboardPage() {
   // Opinión post-partida: juego cuyo modal está abierto + modo (marcar / solo reseña)
   const [reviewModal, setReviewModal] = useState<{ gameId: string; gameName: string; mode: "mark" | "review" } | null>(null);
   const [galleryReloadKey, setGalleryReloadKey] = useState(0);
+  // Subsección dentro de la pestaña "Juegos": ranking (pendientes) o jugados
+  const [gamesSubTab, setGamesSubTab] = useState<"ranking" | "played">("ranking");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
@@ -1180,13 +1182,34 @@ function GroupDashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* ── Pending games (not yet played) ── */}
-                  {pendingGames.length > 0 && (
+                  {/* Conmutador de subsección: Ranking (pendientes) / Ya jugados */}
+                  <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "var(--surface)" }}>
+                    {([
+                      { key: "ranking" as const, label: `Ranking (${pendingGames.length})` },
+                      { key: "played" as const, label: `Ya jugados (${playedGames.length})` },
+                    ]).map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setGamesSubTab(s.key)}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                        style={
+                          gamesSubTab === s.key
+                            ? { background: "var(--primary)", color: "var(--primary-text)" }
+                            : { color: "var(--text-secondary)" }
+                        }
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Ranking: juegos pendientes de jugar ── */}
+                  {gamesSubTab === "ranking" && (pendingGames.length > 0 ? (
                     <div>
                       <div className="sticky top-[61px] z-10 bg-[var(--bg)] py-2 -mx-1 px-1">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                            Ranking ({pendingGames.length})
+                            Pendientes de jugar ({pendingGames.length})
                           </h3>
                           {quickSelectIds.size > 0 ? (
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -1653,10 +1676,14 @@ function GroupDashboardPage() {
                         })}
                       </div>
                     </div>
-                  )}
+                  ) : (
+                    <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>
+                      No hay juegos pendientes de jugar.
+                    </p>
+                  ))}
 
-                  {/* ── Ya jugados (subsección dentro de Juegos) ── */}
-                  {playedGames.length > 0 && (
+                  {/* ── Ya jugados ── */}
+                  {gamesSubTab === "played" && (
                     <GroupPlayedGames
                       games={playedGames}
                       isAdmin={isAdmin}
