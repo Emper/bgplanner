@@ -15,8 +15,10 @@ export const PHOTOS_BUCKET = "game-photos";
 let cached: SupabaseClient | null = null;
 
 export function getStorageClient(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Quitar barras finales evita URLs con `//` que Supabase rechaza con
+  // "Invalid path specified in request URL".
+  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
   if (!cached) {
     cached = createClient(url, key, {
@@ -58,13 +60,15 @@ export async function uploadPhoto(
   // Nombre único con randomUUID del módulo crypto de Node (evita depender del
   // global `crypto`, que no siempre está según la versión del runtime).
   const name = `${randomUUID()}.${ext}`;
-  const path = `${keyPrefix}/${name}`.replace(/\/+/g, "/");
+  // Clave del objeto: sin barra inicial y sin barras duplicadas (Supabase
+  // rechaza rutas mal formadas con "Invalid path specified in request URL").
+  const path = `${keyPrefix}/${name}`.replace(/\/+/g, "/").replace(/^\/+/, "");
 
   const { error } = await client.storage
     .from(PHOTOS_BUCKET)
     .upload(path, buffer, { contentType, upsert: false });
   if (error) {
-    throw new Error(`Error al subir la imagen: ${error.message}`);
+    throw new Error(`Error al subir la imagen (ruta "${path}"): ${error.message}`);
   }
 
   const { data } = client.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
