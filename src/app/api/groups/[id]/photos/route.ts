@@ -6,7 +6,7 @@ import { uploadPhoto, getStorageClient } from "@/lib/supabaseStorage";
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB por foto (ya se redimensiona en cliente)
 
 // Sube una foto al bucket de Storage y devuelve su URL pública. La foto se
-// vincula a una crónica al crear/editar la GameReview con `photoUrls`.
+// vincula a una opinión al crear/editar la GameReview con `photoUrls`.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

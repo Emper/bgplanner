@@ -4,7 +4,6 @@ import { getSession } from "@/lib/auth";
 import { resend } from "@/lib/resend";
 import { logActivity } from "@/lib/activity";
 import { getGroupType } from "@/lib/groupTypes";
-import { escapeHtml } from "@/lib/html";
 
 export async function DELETE(
   request: NextRequest,
@@ -155,6 +154,8 @@ export async function PATCH(
     }
 
     // Solo en la transición pendiente → jugado (evita re-disparar al re-marcar).
+    // La invitación a opinar NO se manda aquí: la envía el digest diario
+    // ("valora los juegos de ayer") para no saturar con un correo por juego.
     if (!groupGame.playedAt) {
       // Las notas de ranking ("por qué propongo este juego") pierden sentido
       // una vez jugado: soft-delete de TODAS las del juego en el grupo.
@@ -162,37 +163,6 @@ export async function PATCH(
         where: { groupGameId: groupGame.id, deletedAt: null },
         data: { deletedAt: new Date() },
       });
-
-      // Mini-encuesta por email al resto del grupo para que suban su crónica.
-      const members = await prisma.groupMember.findMany({
-        where: { groupId, userId: { not: session.userId } },
-        select: { user: { select: { email: true, displayName: true, name: true } } },
-      });
-      const gameNameSafe = escapeHtml(groupGame.game.name);
-      const groupNameSafe = escapeHtml(group?.name || "tu grupo");
-      const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app"}/groups/${groupId}?review=${gameId}`;
-      for (const m of members) {
-        const hi = escapeHtml(m.user.displayName || m.user.name || "jugador");
-        resend.emails
-          .send({
-            from: "BG Planner <cesar@tiradacritica.es>",
-            to: m.user.email,
-            subject: `¿Qué tal "${groupGame.game.name}"? Cuéntanoslo 🎲`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-                <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-                <p>¡Hola, ${hi}! 🎲</p>
-                <p>Se ha jugado a <strong style="color: #f59e0b;">"${gameNameSafe}"</strong> en <strong>"${groupNameSafe}"</strong>.</p>
-                <p>¿Qué te pareció? Deja tu <strong>valoración</strong>, un <strong>comentario</strong> y hasta <strong>fotos de la partida</strong> para la galería del grupo.</p>
-                <a href="${reviewUrl}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-                  Escribir mi crónica
-                </a>
-                <p style="color: #94a3b8; font-size: 13px;">Si no jugaste esta partida, puedes ignorar este correo.</p>
-              </div>
-            `,
-          })
-          .catch(() => {}); // Don't fail if email fails
-      }
     }
   }
 

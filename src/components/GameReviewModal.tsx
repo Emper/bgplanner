@@ -9,7 +9,7 @@ interface Props {
   gameId: string;
   gameName: string;
   // "mark": el juego se marca como jugado al guardar (flujo desde el ranking).
-  // "review": el juego ya está jugado, solo se añade la crónica.
+  // "review": el juego ya está jugado, solo se añade la opinión.
   mode: "mark" | "review";
   onClose: () => void;
   onDone: () => void;
@@ -41,7 +41,7 @@ export default function GameReviewModal({
     const room = MAX_PHOTOS - photos.length;
     const toProcess = Array.from(files).slice(0, room);
     if (toProcess.length === 0) {
-      setError(`Máximo ${MAX_PHOTOS} fotos por crónica`);
+      setError(`Máximo ${MAX_PHOTOS} fotos por opinión`);
       return;
     }
     setUploading((n) => n + toProcess.length);
@@ -96,7 +96,7 @@ export default function GameReviewModal({
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Error al guardar la crónica");
+      throw new Error(data.error || "Error al guardar la opinión");
     }
   };
 
@@ -275,7 +275,7 @@ export default function GameReviewModal({
             className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
             style={{ background: "#f59e0b", color: "#0f172a" }}
           >
-            {saving ? "Guardando…" : "Guardar crónica"}
+            {saving ? "Guardando…" : "Guardar opinión"}
           </button>
         </div>
       </div>

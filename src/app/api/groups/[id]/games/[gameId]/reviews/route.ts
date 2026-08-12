@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { gameReviewSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
-// Lista las crónicas de un juego concreto dentro del grupo.
+// Lista las opiniones de un juego concreto dentro del grupo.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; gameId: string }> }
@@ -44,7 +44,7 @@ export async function GET(
   return NextResponse.json({ reviews });
 }
 
-// Crea una crónica post-partida para un juego del grupo.
+// Crea una opinión post-partida para un juego del grupo.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; gameId: string }> }
@@ -107,7 +107,7 @@ export async function POST(
     },
   });
 
-  // Una crónica implica que el juego se ha jugado: marcar playedAt si no lo estaba.
+  // Una opinión implica que el juego se ha jugado: marcar playedAt si no lo estaba.
   if (!groupGame.playedAt) {
     await prisma.groupGame
       .update({ where: { id: groupGame.id }, data: { playedAt: new Date() } })

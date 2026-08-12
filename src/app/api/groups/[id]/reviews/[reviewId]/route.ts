@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { deletePhotos, pathFromPublicUrl } from "@/lib/supabaseStorage";
 
-// Borra una crónica. Solo el autor o un admin/owner del grupo pueden hacerlo.
+// Borra una opinión. Solo el autor o un admin/owner del grupo pueden hacerlo.
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; reviewId: string }> }
@@ -27,13 +27,13 @@ export async function DELETE(
     include: { photos: { select: { url: true } } },
   });
   if (!review) {
-    return NextResponse.json({ error: "Crónica no encontrada" }, { status: 404 });
+    return NextResponse.json({ error: "Opinión no encontrada" }, { status: 404 });
   }
 
   const isAdmin = membership.role === "admin" || membership.role === "owner";
   if (review.userId !== session.userId && !isAdmin) {
     return NextResponse.json(
-      { error: "Solo el autor o un admin pueden borrar la crónica" },
+      { error: "Solo el autor o un admin pueden borrar la opinión" },
       { status: 403 }
     );
   }

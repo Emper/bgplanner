@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Cliente de Supabase Storage con service role (solo servidor). Se usa para
-// subir fotos de las crónicas de partida al bucket `game-photos`.
+// subir fotos de las opiniones de partida al bucket `game-photos`.
 //
 // Requiere en el entorno (Vercel):
 //   - SUPABASE_URL                  → URL del proyecto (https://xxxx.supabase.co)

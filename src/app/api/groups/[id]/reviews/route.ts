@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-// Lista todas las crónicas del grupo (para la galería y el feed enriquecido).
+// Lista todas las opiniones del grupo (para la galería y el feed enriquecido).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

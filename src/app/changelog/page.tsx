@@ -14,12 +14,12 @@ const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
     version: "1.12",
-    title: "Crónicas de partida y galería del grupo",
+    title: "Opiniones de partida y galería del grupo",
     changes: [
-      { type: "new", text: "Cuando marcas un juego como jugado puedes dejar tu crónica: una valoración con estrellas, un comentario y las fotos de la partida" },
-      { type: "new", text: "Nueva pestaña Galería en cada grupo donde se juntan todas las crónicas y fotos de vuestras partidas, con visor a pantalla completa" },
-      { type: "new", text: "Cuando alguien marca una partida, el resto del grupo recibe un email para animarle a dejar su valoración y sus fotos" },
-      { type: "improved", text: "Las notas de por qué se propuso un juego se retiran automáticamente al jugarlo, para dejar sitio a las crónicas de la partida" },
+      { type: "new", text: "Cuando marcas un juego como jugado puedes dejar tu opinión: una valoración con estrellas, un comentario y las fotos de la partida" },
+      { type: "new", text: "Nueva pestaña Galería en cada grupo donde se juntan todas las opiniones y fotos de vuestras partidas, con visor a pantalla completa" },
+      { type: "new", text: "Cada día recibes un email para valorar los juegos que jugasteis el día anterior, con acceso directo para dejar tu opinión" },
+      { type: "improved", text: "Las notas de por qué se propuso un juego se retiran automáticamente al jugarlo, para dejar sitio a las opiniones de la partida" },
     ],
   },
   {

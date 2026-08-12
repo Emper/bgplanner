@@ -62,7 +62,7 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   }, [load, reloadKey]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Borrar esta crónica y sus fotos?")) return;
+    if (!confirm("¿Borrar esta opinión y sus fotos?")) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/groups/${groupId}/reviews/${id}`, { method: "DELETE" });
@@ -96,7 +96,7 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
       <div className="text-center py-16">
         <p className="text-4xl mb-3">📷</p>
         <p className="font-medium mb-1" style={{ color: "var(--text)" }}>
-          Aún no hay crónicas
+          Aún no hay opiniones
         </p>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Marca un juego como jugado y cuéntanos qué tal: nota, comentario y fotos.

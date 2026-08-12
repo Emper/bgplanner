@@ -190,7 +190,7 @@ function GroupDashboardPage() {
       ? tab
       : "activity";
   });
-  // Crónica post-partida: juego cuyo modal está abierto + modo (marcar / solo reseña)
+  // Opinión post-partida: juego cuyo modal está abierto + modo (marcar / solo reseña)
   const [reviewModal, setReviewModal] = useState<{ gameId: string; gameName: string; mode: "mark" | "review" } | null>(null);
   const [galleryReloadKey, setGalleryReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -478,7 +478,7 @@ function GroupDashboardPage() {
   };
 
   const handleMarkPlayed = async (gameId: string, gameName: string, played: boolean) => {
-    // Marcar como jugado abre el modal de crónica (nota + comentario + fotos).
+    // Marcar como jugado abre el modal de opinión (nota + comentario + fotos).
     // Devolver a pendientes es una acción directa sin modal.
     if (played) {
       setReviewModal({ gameId, gameName, mode: "mark" });
@@ -502,14 +502,14 @@ function GroupDashboardPage() {
     }
   };
 
-  // Callback cuando se guarda/marca desde el modal de crónica.
+  // Callback cuando se guarda/marca desde el modal de opinión.
   const handleReviewDone = useCallback(() => {
     fetchData();
     setGalleryReloadKey((k) => k + 1);
   }, [fetchData]);
 
   // Deep-link ?review=<gameId> (desde el email de encuesta): abre el modal de
-  // crónica en modo "review" y limpia el parámetro para no reabrirlo.
+  // opinión en modo "review" y limpia el parámetro para no reabrirlo.
   useEffect(() => {
     const reviewGameId = searchParams.get("review");
     if (!reviewGameId || ranking.length === 0) return;
@@ -1712,7 +1712,7 @@ function GroupDashboardPage() {
                                 onClick={() => setReviewModal({ gameId: item.game.id, gameName: item.game.name, mode: "review" })}
                                 className="text-[var(--primary)] hover:opacity-80 transition-colors font-medium"
                               >
-                                ✍️ Crónica
+                                ✍️ Opinión
                               </button>
                               {isAdmin && (
                                 <>
