@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -9,6 +9,7 @@ import BggGameSearch from "@/components/BggGameSearch";
 import BggRating from "@/components/BggRating";
 import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
+import EventGallery from "@/components/EventGallery";
 import { formatDateFull, formatDuration } from "@/lib/format";
 import { resizeImage } from "@/lib/image";
 
@@ -72,7 +73,7 @@ interface EventData {
   currentAttendeeId: string | null;
 }
 
-type Tab = "activity" | "games" | "mylist" | "attendees";
+type Tab = "activity" | "games" | "mylist" | "attendees" | "gallery";
 
 const INTENSITY_LABELS: Record<number, string> = {
   5: "Máxima prioridad",
@@ -92,12 +93,15 @@ const INTENSITY_COLORS: Record<number, string> = {
 
 const formatDate = formatDateFull;
 
-export default function EventDetailPage() {
+function EventDetailPageInner() {
   const { id: eventId } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("activity");
+  const [openReviewSignal, setOpenReviewSignal] = useState(0);
+  const reviewDeepLinkHandled = useRef(false);
   const [addingGame, setAddingGame] = useState(false);
   const [joiningEvent, setJoiningEvent] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -178,6 +182,17 @@ export default function EventDetailPage() {
   useEffect(() => {
     if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
   }, [activeTab, feedLoaded, fetchEventFeed]);
+
+  // Deep-link ?review=1 (desde el email de "valora el evento"): abre la galería
+  // y hace scroll al formulario de valoración.
+  useEffect(() => {
+    if (reviewDeepLinkHandled.current || !event) return;
+    if (searchParams.get("review")) {
+      reviewDeepLinkHandled.current = true;
+      setActiveTab("gallery");
+      setOpenReviewSignal((n) => n + 1);
+    }
+  }, [event, searchParams]);
 
   const openEditModal = () => {
     if (!event) return;
@@ -556,7 +571,7 @@ export default function EventDetailPage() {
 
         {/* Tabs */}
         <div className="flex gap-6 border-b border-[var(--border)] mb-4">
-          {(["activity", "games", "mylist", "attendees"] as Tab[]).map((tab) => (
+          {(["activity", "games", "mylist", "attendees", "gallery"] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => {
@@ -569,7 +584,7 @@ export default function EventDetailPage() {
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]"
               }`}
             >
-              {tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : `Asistentes (${event.attendees.length})`}
+              {tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
             </button>
           ))}
         </div>
@@ -605,6 +620,15 @@ export default function EventDetailPage() {
         )}
         {activeTab === "attendees" && (
           <AttendeesTab event={event} />
+        )}
+        {activeTab === "gallery" && (
+          <EventGallery
+            eventId={eventId}
+            currentUserId={event.currentUserId}
+            canParticipate={event.isCreator || event.currentAttendeeId != null}
+            isCreator={event.isCreator}
+            openReviewSignal={openReviewSignal}
+          />
         )}
       </div>
 
@@ -713,6 +737,14 @@ export default function EventDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function EventDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)]" />}>
+      <EventDetailPageInner />
+    </Suspense>
   );
 }
 

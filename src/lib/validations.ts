@@ -62,6 +62,13 @@ export const gameReviewSchema = z
     { message: "Añade una nota, un comentario o al menos una foto" }
   );
 
+// Valoración de un evento. rating/text ambos opcionales; si llegan vacíos se
+// interpreta como borrar la valoración propia.
+export const eventReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5).nullable().optional(),
+  text: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
+});
+
 export const createEventSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(200),
   description: z.string().max(2000).optional(),

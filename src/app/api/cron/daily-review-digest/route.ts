@@ -213,10 +213,81 @@ export async function GET(request: NextRequest) {
     emailsSent += 1;
   }
 
+  // ── Eventos terminados ayer: pedir valoración a los asistentes ──────────
+  // "Terminado" = endDate en la ventana, o si no hay endDate, la fecha del evento.
+  const endedEvents = await prisma.event.findMany({
+    where: {
+      OR: [
+        { endDate: { gte: yesterdayStart, lt: todayStart } },
+        { endDate: null, date: { gte: yesterdayStart, lt: todayStart } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      createdById: true,
+      createdBy: { select: { email: true, name: true, displayName: true } },
+      reviews: { select: { userId: true } },
+      attendees: {
+        where: { status: { not: "cancelled" } },
+        select: {
+          userId: true,
+          user: { select: { email: true, name: true, displayName: true } },
+        },
+      },
+    },
+  });
+
+  let eventEmailsSent = 0;
+  for (const ev of endedEvents) {
+    const reviewers = new Set(ev.reviews.map((r) => r.userId));
+    // Destinatarios: creador + asistentes (no cancelados) que aún no han valorado.
+    const recipients = new Map<string, { email: string; name: string }>();
+    if (ev.createdBy.email && !reviewers.has(ev.createdById)) {
+      recipients.set(ev.createdById, {
+        email: ev.createdBy.email,
+        name: ev.createdBy.displayName || ev.createdBy.name || "organizador",
+      });
+    }
+    for (const a of ev.attendees) {
+      if (reviewers.has(a.userId) || !a.user.email) continue;
+      recipients.set(a.userId, {
+        email: a.user.email,
+        name: a.user.displayName || a.user.name || "asistente",
+      });
+    }
+
+    const eventNameSafe = escapeHtml(ev.name);
+    const url = `${APP_URL}/events/${ev.id}?review=1`;
+    for (const { email, name } of recipients.values()) {
+      resend.emails
+        .send({
+          from: "BG Planner <cesar@tiradacritica.es>",
+          to: email,
+          subject: `¿Qué tal "${ev.name}"? Valora el evento 🎉`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
+              <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
+              <p>¡Hola, ${escapeHtml(name)}! 🎉</p>
+              <p>El evento <strong style="color: #f59e0b;">"${eventNameSafe}"</strong> ya ha terminado. ¿Qué tal fue?</p>
+              <p>Deja tu valoración y súbele fotos a la galería del evento para que quede el recuerdo.</p>
+              <a href="${url}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+                Valorar el evento
+              </a>
+            </div>
+          `,
+        })
+        .catch(() => {}); // Nunca fallar por un email
+      eventEmailsSent += 1;
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     window: { from: yesterdayStart.toISOString(), to: todayStart.toISOString() },
     gamesPlayed: playedGames.length,
     emailsSent,
+    eventsEnded: endedEvents.length,
+    eventEmailsSent,
   });
 }

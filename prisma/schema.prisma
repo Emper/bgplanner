@@ -31,6 +31,8 @@ model User {
   createdEvents    Event[]        @relation("EventCreator")
   eventAttendances EventAttendee[]
   addedEventGames  EventGame[]    @relation("EventGameAdder")
+  eventReviews     EventReview[]
+  eventPhotos      EventPhoto[]
   activityLogs     ActivityLog[]
 }
 
@@ -279,6 +281,8 @@ model Event {
 
   createdBy User            @relation("EventCreator", fields: [createdById], references: [id])
   games     EventGame[]
+  reviews   EventReview[]
+  photos    EventPhoto[]
   attendees    EventAttendee[]
   activityLogs ActivityLog[]
 
@@ -333,6 +337,42 @@ model EventGameInterest {
   @@unique([eventGameId, attendeeId])
   @@index([eventGameId])
   @@index([attendeeId])
+}
+
+// Valoración de un evento por un asistente (nota + comentario). Una por
+// usuario y evento. Se pide por email cuando el evento acaba.
+model EventReview {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  rating    Int?     // 1-5, opcional
+  text      String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Foto de la galería de un evento. Cualquier participante (creador o
+// asistente) puede subir; no va atada a una valoración.
+model EventPhoto {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  url       String   @db.Text // URL pública en Supabase Storage
+  caption   String?
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([eventId])
+  @@index([userId])
 }
 
 model ActivityLog {

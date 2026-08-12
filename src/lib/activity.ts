@@ -7,7 +7,8 @@ export type ActivityType =
   | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
-  | "event_game_added" | "event_interest_set";
+  | "event_game_added" | "event_interest_set"
+  | "event_reviewed" | "event_photo_added";
 
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
@@ -94,6 +95,14 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   event_left: (m) => `se desapuntó del evento "${m.eventName || ""}"`,
   event_game_added: (m) => `añadió "${m.gameName || "un juego"}" al evento`,
   event_interest_set: (m) => `marcó interés en "${m.gameName || "un juego"}"`,
+  event_reviewed: (m) => {
+    const stars = typeof m.rating === "number" && m.rating > 0 ? ` ${"★".repeat(m.rating)}` : "";
+    return `valoró el evento${stars}`;
+  },
+  event_photo_added: (m) => {
+    const n = typeof m.photoCount === "number" && m.photoCount > 1 ? ` (${m.photoCount})` : "";
+    return `subió ${m.photoCount && m.photoCount > 1 ? "fotos" : "una foto"} a la galería${n}`;
+  },
 };
 
 export function formatActivity(type: string, metadata: Meta): string {

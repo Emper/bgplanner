@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
+    version: "1.13",
+    title: "Galería y valoraciones de los eventos",
+    changes: [
+      { type: "new", text: "Cada evento tiene ahora su galería: cualquier asistente puede subir fotos para dejar el recuerdo de la quedada" },
+      { type: "new", text: "Al terminar un evento puedes valorarlo con estrellas y un comentario, y ver las valoraciones del resto de asistentes" },
+      { type: "new", text: "Cuando un evento acaba, sus asistentes reciben un email para valorarlo y subir sus fotos" },
+    ],
+  },
+  {
+    date: "12 agosto 2026",
     version: "1.12",
     title: "Opiniones de partida y galería del grupo",
     changes: [
