@@ -10,6 +10,14 @@ export type ActivityType =
   | "event_game_added" | "event_interest_set"
   | "event_reviewed" | "event_photo_added";
 
+// Tipos que aparecen en el feed GENERAL (global del usuario). El feed de
+// grupo y el de evento muestran TODA la actividad de su ámbito; el general
+// solo estos. Criterio: en los feeds queremos incluir todo lo que aporte
+// contexto o sea entretenido cuando tenga sentido, pero el feed general
+// reserva su espacio a lo especialmente relevante o "destacable" —hitos
+// sociales, fotos y opiniones—, dejando fuera el ruido de bajo nivel
+// (votos sueltos, cambios de estado, ediciones menores). Al añadir un
+// ActivityType nuevo, plantéate si merece salir también aquí.
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
   "group_joined",
@@ -18,6 +26,11 @@ const PUBLIC_TYPES = new Set<ActivityType>([
   "event_left",
   "session_created",
   "game_added",
+  // Contenido destacable: fotos de galería y opiniones/valoraciones.
+  "group_photo_added",
+  "event_photo_added",
+  "game_reviewed",
+  "event_reviewed",
 ]);
 
 export function logActivity(

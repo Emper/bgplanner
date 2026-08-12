@@ -13,6 +13,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
+    version: "1.16",
+    title: "Fotos y opiniones en el feed de actividad",
+    changes: [
+      { type: "improved", text: "Las fotos que subís a la galería, tanto del grupo como de los eventos, aparecen ahora también en el feed de actividad general" },
+      { type: "improved", text: "Las opiniones y valoraciones de juegos y eventos asoman también en el feed general, para no perderte lo que opina tu gente" },
+    ],
+  },
+  {
+    date: "12 agosto 2026",
     version: "1.15",
     title: "Fotos sueltas en la galería del grupo",
     changes: [
