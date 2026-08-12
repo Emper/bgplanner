@@ -570,7 +570,7 @@ function EventDetailPageInner() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 border-b border-[var(--border)] mb-4">
+        <div className="flex gap-6 border-b border-[var(--border)] mb-4 overflow-x-auto no-scrollbar">
           {(["activity", "games", "mylist", "attendees", "gallery"] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -578,7 +578,7 @@ function EventDetailPageInner() {
                 setActiveTab(tab);
                 if (tab === "activity") fetchEventFeed();
               }}
-              className={`pb-2 text-sm font-medium transition-colors ${
+              className={`pb-2 text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
                 activeTab === tab
                   ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]"

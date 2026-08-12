@@ -211,3 +211,12 @@ summary:focus-visible {
 .delay-600 { animation-delay: 600ms; }
 .delay-700 { animation-delay: 700ms; }
 .delay-800 { animation-delay: 800ms; }
+
+/* Scroll horizontal sin barra visible (para las pestañas en móvil) */
+.no-scrollbar {
+  -ms-overflow-style: none;   /* IE y Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;              /* Chrome, Safari */
+}
