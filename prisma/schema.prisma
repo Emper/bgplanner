@@ -313,3 +313,11 @@ model ActivityLog {
   @@index([groupId, createdAt])
   @@index([eventId, createdAt])
 }
+
+// Caché durable de imágenes de juegos de BGG (por bggId), para no volver a
+// pedir a BGG las fotos de resultados de búsqueda ya vistos. Solo positivos.
+model BggThumbnail {
+  bggId     Int      @id
+  thumbnail String?
+  fetchedAt DateTime @default(now())
+}

@@ -62,7 +62,7 @@ function searchCacheSet(key: string, results: BggSearchResult[]) {
 }
 
 // DB-backed collection cache — refreshes once per day or on demand
-const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const COLLECTION_CACHE_TTL = 3 * 24 * 60 * 60 * 1000; // 3 días (refresco manual con ↻)
 
 // ── BGG API Authentication ──────────────────────────────────────────────
 // La XML API2 exige registro de aplicación + token de autorización (desde
@@ -620,7 +620,7 @@ async function attachDbThumbnails(
   if (ids.length === 0) return results;
 
   const thumbById = new Map<number, string>();
-  const [games, colGames] = await Promise.all([
+  const [games, colGames, cached] = await Promise.all([
     prisma.game.findMany({
       where: { bggId: { in: ids }, thumbnail: { not: null } },
       select: { bggId: true, thumbnail: true },
@@ -629,15 +629,27 @@ async function attachDbThumbnails(
       where: { bggId: { in: ids }, thumbnail: { not: null } },
       select: { bggId: true, thumbnail: true },
     }),
+    // Caché durable de thumbnails; si la tabla aún no existe, degradamos.
+    prisma.bggThumbnail
+      .findMany({
+        where: { bggId: { in: ids }, thumbnail: { not: null } },
+        select: { bggId: true, thumbnail: true },
+      })
+      .catch(() => [] as { bggId: number; thumbnail: string | null }[]),
   ]);
   for (const g of games) if (g.thumbnail) thumbById.set(g.bggId, g.thumbnail);
   for (const g of colGames)
+    if (g.thumbnail && !thumbById.has(g.bggId)) thumbById.set(g.bggId, g.thumbnail);
+  for (const g of cached)
     if (g.thumbnail && !thumbById.has(g.bggId)) thumbById.set(g.bggId, g.thumbnail);
 
   return results.map((r) => ({ ...r, thumbnail: thumbById.get(r.bggId) ?? null }));
 }
 
-// ── Caché en memoria de thumbnails (para no repetir llamadas a BGG) ──────
+// ── Caché en memoria de thumbnails (L1, para evitar ir a la BD/BGG) ──────
+// L1 = memoria (rápida, por instancia); L2 = tabla BggThumbnail (durable,
+// compartida). Los "sin imagen" solo se cachean en memoria (1h) para no
+// envenenar la caché durable si BGG falla de forma transitoria.
 const thumbCache = new Map<number, { url: string | null; fetchedAt: number }>();
 const THUMB_CACHE_TTL = 60 * 60 * 1000; // 1 hora
 const THUMB_CACHE_MAX = 3000;
@@ -650,32 +662,69 @@ function thumbCacheSet(id: number, url: string | null) {
   thumbCache.set(id, { url, fetchedAt: Date.now() });
 }
 
-// Fase 2: resuelve thumbnails que faltan. Usa la caché en memoria y, para lo
-// que no esté cacheado, una sola llamada a BGG. Cachea también los "sin
-// imagen" para no volver a pedirlos. Devuelve solo los que tienen imagen.
+// Fase 2: resuelve thumbnails que faltan. Orden: memoria → tabla durable →
+// BGG (una llamada). Persiste en la tabla los que tengan imagen. Solo
+// devuelve los que tienen imagen.
 export async function getBggThumbnails(
   bggIds: number[]
 ): Promise<Record<number, string>> {
   const result: Record<number, string> = {};
   const now = Date.now();
-  const uncached: number[] = [];
+  const ids = bggIds.slice(0, 20).filter((n) => Number.isInteger(n) && n > 0);
+  if (ids.length === 0) return result;
 
-  for (const id of bggIds.slice(0, 20)) {
+  // 1. L1: memoria.
+  let pending: number[] = [];
+  for (const id of ids) {
     const cached = thumbCache.get(id);
     if (cached && now - cached.fetchedAt < THUMB_CACHE_TTL) {
       if (cached.url) result[id] = cached.url;
     } else {
-      uncached.push(id);
+      pending.push(id);
     }
   }
 
-  if (uncached.length > 0) {
+  // 2. L2: tabla durable (si existe). Los que estén, no van a BGG.
+  if (pending.length > 0) {
     try {
-      const fetched = await fetchBggThumbnails(uncached);
-      for (const id of uncached) {
+      const rows = await prisma.bggThumbnail.findMany({
+        where: { bggId: { in: pending } },
+        select: { bggId: true, thumbnail: true },
+      });
+      const found = new Set<number>();
+      for (const r of rows) {
+        found.add(r.bggId);
+        thumbCacheSet(r.bggId, r.thumbnail);
+        if (r.thumbnail) result[r.bggId] = r.thumbnail;
+      }
+      pending = pending.filter((id) => !found.has(id));
+    } catch {
+      // La tabla aún no existe: seguimos con BGG.
+    }
+  }
+
+  // 3. BGG (una sola llamada) + persistir positivos en la tabla durable.
+  if (pending.length > 0) {
+    try {
+      const fetched = await fetchBggThumbnails(pending);
+      const toPersist: { bggId: number; thumbnail: string }[] = [];
+      for (const id of pending) {
         const url = fetched.get(id) ?? null;
-        thumbCacheSet(id, url);
-        if (url) result[id] = url;
+        thumbCacheSet(id, url); // negativos solo en memoria
+        if (url) {
+          result[id] = url;
+          toPersist.push({ bggId: id, thumbnail: url });
+        }
+      }
+      if (toPersist.length > 0) {
+        try {
+          await prisma.bggThumbnail.createMany({
+            data: toPersist,
+            skipDuplicates: true,
+          });
+        } catch {
+          // La tabla aún no existe: seguimos sin persistir.
+        }
       }
     } catch (err) {
       console.log("[BGG Thumbnails] no disponibles:", err);
