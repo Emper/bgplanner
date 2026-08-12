@@ -67,10 +67,47 @@ export async function GET(request: NextRequest) {
   const yp = madridParts(yestUTC);
   const yesterdayStart = madridMidnightUTC(yp.y, yp.mo, yp.d);
 
-  const playedGames = await prisma.groupGame.findMany({
-    where: { playedAt: { gte: yesterdayStart, lt: todayStart } },
+  // Fuentes de "jugado ayer":
+  //  1) GroupGame.playedAt dentro de la ventana (marcar como jugado).
+  //  2) Juegos completados en sesiones cuya fecha cae en ayer.
+  // Recolectamos primero los pares (grupo, juego) de las sesiones de ayer.
+  const yestSessions = await prisma.gameSession.findMany({
+    where: { date: { gte: yesterdayStart, lt: todayStart } },
+    select: {
+      groupId: true,
+      games: { where: { status: "completed" }, select: { gameId: true } },
+    },
+  });
+  const sessionPairs = new Set<string>(); // `${groupId}:${gameId}`
+  const sessionGroupIds = new Set<string>();
+  const sessionGameIds = new Set<string>();
+  for (const s of yestSessions) {
+    for (const sg of s.games) {
+      sessionPairs.add(`${s.groupId}:${sg.gameId}`);
+      sessionGroupIds.add(s.groupId);
+      sessionGameIds.add(sg.gameId);
+    }
+  }
+
+  // GroupGames que califican por cualquiera de las dos vías. El segundo OR es
+  // un superconjunto (grupos × juegos de las sesiones) que afinamos luego a los
+  // pares exactos, porque Prisma no puede correlacionar groupId+gameId en un IN.
+  const candidateGames = await prisma.groupGame.findMany({
+    where: {
+      OR: [
+        { playedAt: { gte: yesterdayStart, lt: todayStart } },
+        sessionPairs.size > 0
+          ? {
+              groupId: { in: Array.from(sessionGroupIds) },
+              gameId: { in: Array.from(sessionGameIds) },
+            }
+          : { id: "__no-match__" },
+      ],
+    },
     select: {
       gameId: true,
+      groupId: true,
+      playedAt: true,
       game: { select: { name: true } },
       reviews: { select: { userId: true } },
       group: {
@@ -87,6 +124,11 @@ export async function GET(request: NextRequest) {
       },
     },
   });
+
+  const inWindow = (d: Date | null) => !!d && d >= yesterdayStart && d < todayStart;
+  const playedGames = candidateGames.filter(
+    (gg) => inWindow(gg.playedAt) || sessionPairs.has(`${gg.groupId}:${gg.gameId}`)
+  );
 
   // Por usuario: qué juegos de ayer le faltan por valorar (agrupados por grupo).
   interface Item {
