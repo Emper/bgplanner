@@ -121,7 +121,7 @@ interface GameSessionData {
   games: SessionGame[];
 }
 
-type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery" | "jugados";
+type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery";
 
 function VoteButton({
   option,
@@ -187,7 +187,7 @@ function GroupDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery" || tab === "jugados"
+    return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery"
       ? tab
       : "activity";
   });
@@ -1142,7 +1142,7 @@ function GroupDashboardPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 mb-6 border-b border-[var(--border)] overflow-x-auto no-scrollbar">
-            {(["activity", "ranking", "jugados", "sessions", "gallery", "members"] as Tab[]).map((tab) => (
+            {(["activity", "ranking", "sessions", "gallery", "members"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => switchTab(tab)}
@@ -1152,7 +1152,7 @@ function GroupDashboardPage() {
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]"
                 }`}
               >
-                {tab === "ranking" ? "Ranking" : tab === "jugados" ? "Jugados" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : tab === "gallery" ? "Galería" : "Actividad"}
+                {tab === "ranking" ? "Juegos" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : tab === "gallery" ? "Galería" : "Actividad"}
               </button>
             ))}
           </div>
@@ -1186,7 +1186,7 @@ function GroupDashboardPage() {
                       <div className="sticky top-[61px] z-10 bg-[var(--bg)] py-2 -mx-1 px-1">
                         <div className="flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                            Pendientes de jugar ({pendingGames.length})
+                            Ranking ({pendingGames.length})
                           </h3>
                           {quickSelectIds.size > 0 ? (
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -1655,21 +1655,20 @@ function GroupDashboardPage() {
                     </div>
                   )}
 
+                  {/* ── Ya jugados (subsección dentro de Juegos) ── */}
+                  {playedGames.length > 0 && (
+                    <GroupPlayedGames
+                      games={playedGames}
+                      isAdmin={isAdmin}
+                      onArchiveAll={handleArchiveAllPlayed}
+                      onOpinion={(gameId, gameName) => setReviewModal({ gameId, gameName, mode: "review" })}
+                      onReturn={(gameId, gameName) => handleMarkPlayed(gameId, gameName, false)}
+                      onArchive={handleArchiveGame}
+                    />
+                  )}
                 </div>
               )}
             </div>
-          )}
-
-          {/* ═══════════ Jugados Tab ═══════════ */}
-          {activeTab === "jugados" && (
-            <GroupPlayedGames
-              games={playedGames}
-              isAdmin={isAdmin}
-              onArchiveAll={handleArchiveAllPlayed}
-              onOpinion={(gameId, gameName) => setReviewModal({ gameId, gameName, mode: "review" })}
-              onReturn={(gameId, gameName) => handleMarkPlayed(gameId, gameName, false)}
-              onArchive={handleArchiveGame}
-            />
           )}
 
           {/* Quick session modal */}
