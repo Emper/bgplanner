@@ -1,15 +1,14 @@
-// Hexágono de valoración estilo BGG. El color sigue una escala aproximada a
-// la de BoardGameGeek (verde alto → ámbar medio → rojo bajo). La escala vive
-// aquí centralizada para poder ajustarla en un único sitio.
+// Hexágono de valoración estilo BGG. Colores oficiales de BoardGameGeek por
+// nota (se toma la parte entera, igual que BGG: 8.1 usa el color del 8).
+// Fuente: hilo oficial de BGG con los códigos de color de las valoraciones.
 export function bggRatingColor(rating: number): string {
-  if (rating >= 9) return "#186b40"; // verde oscuro
-  if (rating >= 8) return "#1e9e57"; // verde
-  if (rating >= 7) return "#4e9f37"; // verde-lima
-  if (rating >= 6) return "#a0891e"; // oliva
-  if (rating >= 5) return "#b5721f"; // ámbar
-  if (rating >= 4) return "#bb4d2c"; // naranja
-  if (rating >= 3) return "#b23330"; // rojo
-  return "#8f2622"; // rojo oscuro
+  const n = Math.max(1, Math.min(10, Math.floor(rating)));
+  if (n <= 2) return "#db303b"; // rojo
+  if (n <= 4) return "#df4751"; // rojo claro
+  if (n <= 6) return "#5369a2"; // azul-morado
+  if (n === 7) return "#1d8acd"; // azul
+  if (n === 8) return "#2fc482"; // verde
+  return "#249563"; // 9-10 verde oscuro
 }
 
 export default function BggRating({
