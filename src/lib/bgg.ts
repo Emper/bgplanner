@@ -611,17 +611,15 @@ async function fetchBggThumbnails(bggIds: number[]): Promise<Map<number, string>
   return map;
 }
 
-// Adjunta imagen a los primeros resultados. Primero mira nuestras tablas
-// (gratis); solo para los que falten hace UNA llamada a BGG.
-async function attachThumbnails(
+// Adjunta imagen a los primeros resultados SOLO desde nuestras tablas
+// (rápido, sin tocar BGG). Las que falten se piden aparte (getBggThumbnails).
+async function attachDbThumbnails(
   results: BggSearchResult[]
 ): Promise<BggSearchResult[]> {
   const ids = results.slice(0, SEARCH_THUMBNAIL_COUNT).map((r) => r.bggId);
   if (ids.length === 0) return results;
 
   const thumbById = new Map<number, string>();
-
-  // 1. Cache local (Game + CollectionGame) — sin tocar BGG.
   const [games, colGames] = await Promise.all([
     prisma.game.findMany({
       where: { bggId: { in: ids }, thumbnail: { not: null } },
@@ -636,18 +634,55 @@ async function attachThumbnails(
   for (const g of colGames)
     if (g.thumbnail && !thumbById.has(g.bggId)) thumbById.set(g.bggId, g.thumbnail);
 
-  // 2. Los que falten: una sola llamada a BGG (best-effort).
-  const missing = ids.filter((id) => !thumbById.has(id));
-  if (missing.length > 0) {
-    try {
-      const fetched = await fetchBggThumbnails(missing);
-      for (const [id, t] of fetched) thumbById.set(id, t);
-    } catch (err) {
-      console.log("[BGG Search] thumbnails no disponibles:", err);
+  return results.map((r) => ({ ...r, thumbnail: thumbById.get(r.bggId) ?? null }));
+}
+
+// ── Caché en memoria de thumbnails (para no repetir llamadas a BGG) ──────
+const thumbCache = new Map<number, { url: string | null; fetchedAt: number }>();
+const THUMB_CACHE_TTL = 60 * 60 * 1000; // 1 hora
+const THUMB_CACHE_MAX = 3000;
+
+function thumbCacheSet(id: number, url: string | null) {
+  if (thumbCache.size >= THUMB_CACHE_MAX) {
+    const firstKey = thumbCache.keys().next().value;
+    if (firstKey !== undefined) thumbCache.delete(firstKey);
+  }
+  thumbCache.set(id, { url, fetchedAt: Date.now() });
+}
+
+// Fase 2: resuelve thumbnails que faltan. Usa la caché en memoria y, para lo
+// que no esté cacheado, una sola llamada a BGG. Cachea también los "sin
+// imagen" para no volver a pedirlos. Devuelve solo los que tienen imagen.
+export async function getBggThumbnails(
+  bggIds: number[]
+): Promise<Record<number, string>> {
+  const result: Record<number, string> = {};
+  const now = Date.now();
+  const uncached: number[] = [];
+
+  for (const id of bggIds.slice(0, 20)) {
+    const cached = thumbCache.get(id);
+    if (cached && now - cached.fetchedAt < THUMB_CACHE_TTL) {
+      if (cached.url) result[id] = cached.url;
+    } else {
+      uncached.push(id);
     }
   }
 
-  return results.map((r) => ({ ...r, thumbnail: thumbById.get(r.bggId) ?? null }));
+  if (uncached.length > 0) {
+    try {
+      const fetched = await fetchBggThumbnails(uncached);
+      for (const id of uncached) {
+        const url = fetched.get(id) ?? null;
+        thumbCacheSet(id, url);
+        if (url) result[id] = url;
+      }
+    } catch (err) {
+      console.log("[BGG Thumbnails] no disponibles:", err);
+    }
+  }
+
+  return result;
 }
 
 export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
@@ -715,8 +750,8 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
   // Reordenar por relevancia (exacto/prefijo primero) y limitar.
   results = rankSearchResults(results, normalizedQuery);
 
-  // Enriquecer los primeros con imagen (cache local + 1 llamada a BGG).
-  results = await attachThumbnails(results);
+  // Fase 1: imagen solo desde nuestra BD (rápido). El resto se pide aparte.
+  results = await attachDbThumbnails(results);
 
   if (results.length > 0) {
     searchCacheSet(normalizedQuery, results);

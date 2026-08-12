@@ -235,6 +235,28 @@ export default function AddGamesPage() {
       }
       const data: GlobalResult[] = await res.json();
       setGlobalResults(data);
+
+      // Fase 2: pedir las imágenes que falten y rellenarlas al llegar.
+      const missing = data
+        .filter((g) => !g.thumbnail)
+        .map((g) => g.bggId)
+        .slice(0, 20);
+      if (missing.length > 0) {
+        fetch(`/api/bgg/thumbnails?ids=${missing.join(",")}`, { credentials: "include" })
+          .then((r) => (r.ok ? r.json() : {}))
+          .then((thumbs: Record<number, string>) => {
+            setGlobalResults((prev) =>
+              prev
+                ? prev.map((g) =>
+                    thumbs[g.bggId] ? { ...g, thumbnail: thumbs[g.bggId] } : g
+                  )
+                : prev
+            );
+          })
+          .catch(() => {
+            /* ignore */
+          });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {

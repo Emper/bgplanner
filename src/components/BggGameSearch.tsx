@@ -54,9 +54,29 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
           signal: abortController.signal,
         });
         if (res.ok) {
-          const data = await res.json();
-          setResults(data.slice(0, 20));
+          const data: SearchResult[] = await res.json();
+          const top = data.slice(0, 20);
+          setResults(top);
           setIsOpen(true);
+
+          // Fase 2: pedir las imágenes que falten y rellenarlas al llegar.
+          const missing = top.filter((r) => !r.thumbnail).map((r) => r.bggId);
+          if (missing.length > 0) {
+            fetch(`/api/bgg/thumbnails?ids=${missing.join(",")}`, {
+              signal: abortController.signal,
+            })
+              .then((r) => (r.ok ? r.json() : {}))
+              .then((thumbs: Record<number, string>) => {
+                setResults((prev) =>
+                  prev.map((r) =>
+                    thumbs[r.bggId] ? { ...r, thumbnail: thumbs[r.bggId] } : r
+                  )
+                );
+              })
+              .catch(() => {
+                /* ignore (incluye AbortError) */
+              });
+          }
         }
       } catch {
         // ignore (includes AbortError)
