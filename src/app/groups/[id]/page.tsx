@@ -10,6 +10,8 @@ import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/Activit
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
+import GameReviewModal from "@/components/GameReviewModal";
+import GroupGallery from "@/components/GroupGallery";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 
@@ -118,7 +120,7 @@ interface GameSessionData {
   games: SessionGame[];
 }
 
-type Tab = "ranking" | "sessions" | "members" | "activity";
+type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery";
 
 function VoteButton({
   option,
@@ -184,8 +186,13 @@ function GroupDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    return tab === "ranking" || tab === "sessions" || tab === "members" ? tab : "activity";
+    return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery"
+      ? tab
+      : "activity";
   });
+  // Crónica post-partida: juego cuyo modal está abierto + modo (marcar / solo reseña)
+  const [reviewModal, setReviewModal] = useState<{ gameId: string; gameName: string; mode: "mark" | "review" } | null>(null);
+  const [galleryReloadKey, setGalleryReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
@@ -471,24 +478,49 @@ function GroupDashboardPage() {
   };
 
   const handleMarkPlayed = async (gameId: string, gameName: string, played: boolean) => {
-    const action = played ? "marcar como jugado" : "devolver a pendientes";
-    if (!confirm(`¿${played ? "Marcar" : "Devolver"} "${gameName}" ${played ? "como ya jugado" : "a pendientes"}?`)) return;
+    // Marcar como jugado abre el modal de crónica (nota + comentario + fotos).
+    // Devolver a pendientes es una acción directa sin modal.
+    if (played) {
+      setReviewModal({ gameId, gameName, mode: "mark" });
+      return;
+    }
+    if (!confirm(`¿Devolver "${gameName}" a pendientes?`)) return;
     try {
       const res = await fetch(`/api/groups/${groupId}/games/${gameId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ played }),
+        body: JSON.stringify({ played: false }),
       });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || `Error al ${action}`);
+        alert(data.error || "Error al devolver a pendientes");
         return;
       }
       fetchData();
     } catch {
-      alert(`Error al ${action}`);
+      alert("Error al devolver a pendientes");
     }
   };
+
+  // Callback cuando se guarda/marca desde el modal de crónica.
+  const handleReviewDone = useCallback(() => {
+    fetchData();
+    setGalleryReloadKey((k) => k + 1);
+  }, [fetchData]);
+
+  // Deep-link ?review=<gameId> (desde el email de encuesta): abre el modal de
+  // crónica en modo "review" y limpia el parámetro para no reabrirlo.
+  useEffect(() => {
+    const reviewGameId = searchParams.get("review");
+    if (!reviewGameId || ranking.length === 0) return;
+    const match = ranking.find((r) => r.game.id === reviewGameId);
+    if (match) {
+      setReviewModal({ gameId: match.game.id, gameName: match.game.name, mode: "review" });
+      setActiveTab("gallery");
+      updateUrl("gallery", null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ranking, searchParams]);
 
   // Helper: recompute ranking scores & sort after a local vote change
   const applyVoteLocally = useCallback(
@@ -1109,7 +1141,7 @@ function GroupDashboardPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 mb-6 border-b border-[var(--border)]">
-            {(["activity", "ranking", "sessions", "members"] as Tab[]).map((tab) => (
+            {(["activity", "ranking", "sessions", "gallery", "members"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => switchTab(tab)}
@@ -1119,7 +1151,7 @@ function GroupDashboardPage() {
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]"
                 }`}
               >
-                {tab === "ranking" ? "Ranking" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : "Actividad"}
+                {tab === "ranking" ? "Ranking" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : tab === "gallery" ? "Galería" : "Actividad"}
               </button>
             ))}
           </div>
@@ -1674,23 +1706,31 @@ function GroupDashboardPage() {
                                 )}
                               </div>
                             </div>
-                            {/* Admin actions */}
-                            {isAdmin && (
-                              <div className="flex justify-end gap-3 mt-1.5 text-[11px]">
-                                <button
-                                  onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
-                                  className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                                >
-                                  Devolver al ranking
-                                </button>
-                                <button
-                                  onClick={() => handleArchiveGame(item.game.id, item.game.name)}
-                                  className="text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                                >
-                                  Ocultar
-                                </button>
-                              </div>
-                            )}
+                            {/* Actions */}
+                            <div className="flex justify-end gap-3 mt-1.5 text-[11px]">
+                              <button
+                                onClick={() => setReviewModal({ gameId: item.game.id, gameName: item.game.name, mode: "review" })}
+                                className="text-[var(--primary)] hover:opacity-80 transition-colors font-medium"
+                              >
+                                ✍️ Crónica
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
+                                    className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                                  >
+                                    Devolver al ranking
+                                  </button>
+                                  <button
+                                    onClick={() => handleArchiveGame(item.game.id, item.game.name)}
+                                    className="text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                                  >
+                                    Ocultar
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -2663,6 +2703,16 @@ function GroupDashboardPage() {
           )}
 
           {/* ═══════════ Activity Tab ═══════════ */}
+          {/* ═══════════ Galería Tab ═══════════ */}
+          {activeTab === "gallery" && group && (
+            <GroupGallery
+              groupId={groupId}
+              currentUserId={group.currentUserId}
+              isAdmin={group.currentUserRole === "admin" || group.currentUserRole === "owner"}
+              reloadKey={galleryReloadKey}
+            />
+          )}
+
           {activeTab === "activity" && (
             <div className="space-y-4">
               {/* Podio: 3 juegos más votados ahora mismo (entre los pendientes) */}
@@ -2802,6 +2852,18 @@ function GroupDashboardPage() {
           )}
         </div>
       </div>
+
+      {reviewModal && (
+        <GameReviewModal
+          groupId={groupId}
+          gameId={reviewModal.gameId}
+          gameName={reviewModal.gameName}
+          mode={reviewModal.mode}
+          onClose={() => setReviewModal(null)}
+          onDone={handleReviewDone}
+        />
+      )}
+
       <Footer />
     </>
   );

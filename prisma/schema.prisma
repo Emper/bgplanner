@@ -24,6 +24,7 @@ model User {
   groupMemberships GroupMember[]
   votes            Vote[]
   gameComments     GameComment[]
+  gameReviews      GameReview[]
   addedGames       GroupGame[]
   createdGroups    Group[]        @relation("GroupCreator")
   createdSessions  GameSession[]  @relation("SessionCreator")
@@ -124,6 +125,7 @@ model GameSession {
   group     Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   createdBy User              @relation("SessionCreator", fields: [createdById], references: [id])
   games     GameSessionGame[]
+  reviews   GameReview[]
 
   @@index([groupId])
   @@index([date])
@@ -156,6 +158,7 @@ model GroupGame {
   addedBy  User          @relation(fields: [addedById], references: [id])
   votes    Vote[]
   comments GameComment[]
+  reviews  GameReview[]
 
   @@unique([groupId, gameId])
   @@index([groupId])
@@ -192,12 +195,13 @@ model CollectionGame {
 }
 
 model GameComment {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   groupGameId String
   userId      String
   text        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
   groupGame GroupGame @relation(fields: [groupGameId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id])
@@ -205,6 +209,42 @@ model GameComment {
   @@unique([groupGameId, userId])
   @@index([groupGameId])
   @@index([userId])
+}
+
+// Crónica / reseña post-partida: opinión de un usuario sobre un juego del
+// grupo DESPUÉS de jugarlo. A diferencia de GameComment (nota de por qué se
+// propone, 1 por usuario/juego), aquí puede haber varias por usuario/juego
+// (una por partida) y llevan nota y fotos. Alimenta el feed y la galería.
+model GameReview {
+  id          String   @id @default(cuid())
+  groupGameId String
+  userId      String
+  sessionId   String?  // enlace opcional a una partida concreta
+  rating      Int?     // 1-5, opcional
+  text        String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groupGame GroupGame         @relation(fields: [groupGameId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id])
+  session   GameSession?      @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  photos    GameReviewPhoto[]
+
+  @@index([groupGameId])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model GameReviewPhoto {
+  id        String   @id @default(cuid())
+  reviewId  String
+  url       String   @db.Text // URL pública en Supabase Storage
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  review GameReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
 }
 
 model Vote {

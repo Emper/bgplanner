@@ -52,7 +52,7 @@ export async function GET(
           game: true,
           addedBy: { select: { name: true, displayName: true } },
           votes: { select: { userId: true, value: true, user: { select: { name: true, displayName: true, email: true } } } },
-          comments: { select: { userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
+          comments: { where: { deletedAt: null }, select: { userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
         },
       }),
       prisma.gameSession.findMany({

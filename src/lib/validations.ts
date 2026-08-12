@@ -43,6 +43,25 @@ export const gameCommentSchema = z.object({
   text: z.string().trim().max(500, "Máximo 500 caracteres"),
 });
 
+// Crónica post-partida. Al menos uno de nota / texto / fotos debe venir.
+export const gameReviewSchema = z
+  .object({
+    rating: z.number().int().min(1).max(5).nullable().optional(),
+    text: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
+    sessionId: z.string().min(1).nullable().optional(),
+    photoUrls: z
+      .array(z.string().url("URL de foto no válida"))
+      .max(8, "Máximo 8 fotos por crónica")
+      .optional(),
+  })
+  .refine(
+    (d) =>
+      (d.rating != null) ||
+      (!!d.text && d.text.length > 0) ||
+      (!!d.photoUrls && d.photoUrls.length > 0),
+    { message: "Añade una nota, un comentario o al menos una foto" }
+  );
+
 export const createEventSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(200),
   description: z.string().max(2000).optional(),

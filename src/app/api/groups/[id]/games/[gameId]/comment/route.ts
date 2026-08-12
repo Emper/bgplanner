@@ -72,12 +72,14 @@ export async function PUT(
       userId: session.userId,
       text,
     },
-    update: { text },
+    // Si la nota estaba soft-borrada (p.ej. tras marcar jugado), reactivarla.
+    update: { text, deletedAt: null },
   });
 
-  // Solo loguear si nunca antes hemos registrado un vote_commented para este
-  // usuario+grupo+juego. Así si borra y vuelve a comentar no spammeamos el feed.
-  if (!existingComment) {
+  // Solo loguear si no había una nota activa previa. Así si borra y vuelve a
+  // comentar (o si estaba soft-borrada) no spammeamos el feed de más.
+  const hadActiveComment = existingComment && existingComment.deletedAt === null;
+  if (!hadActiveComment) {
     const previousLog = await prisma.activityLog.findFirst({
       where: {
         type: "vote_commented",
