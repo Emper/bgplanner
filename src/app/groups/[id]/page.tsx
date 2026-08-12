@@ -12,6 +12,7 @@ import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
 import GameReviewModal from "@/components/GameReviewModal";
 import GroupGallery from "@/components/GroupGallery";
+import GroupPlayedGames from "@/components/GroupPlayedGames";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 
@@ -120,7 +121,7 @@ interface GameSessionData {
   games: SessionGame[];
 }
 
-type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery";
+type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery" | "jugados";
 
 function VoteButton({
   option,
@@ -186,7 +187,7 @@ function GroupDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery"
+    return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery" || tab === "jugados"
       ? tab
       : "activity";
   });
@@ -1141,7 +1142,7 @@ function GroupDashboardPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 mb-6 border-b border-[var(--border)]">
-            {(["activity", "ranking", "sessions", "gallery", "members"] as Tab[]).map((tab) => (
+            {(["activity", "ranking", "jugados", "sessions", "gallery", "members"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => switchTab(tab)}
@@ -1151,7 +1152,7 @@ function GroupDashboardPage() {
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text)]"
                 }`}
               >
-                {tab === "ranking" ? "Ranking" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : tab === "gallery" ? "Galería" : "Actividad"}
+                {tab === "ranking" ? "Ranking" : tab === "jugados" ? "Jugados" : tab === "sessions" ? "Sesiones" : tab === "members" ? "Miembros" : tab === "gallery" ? "Galería" : "Actividad"}
               </button>
             ))}
           </div>
@@ -1654,91 +1655,21 @@ function GroupDashboardPage() {
                     </div>
                   )}
 
-                  {/* ── Already played games ── */}
-                  {playedGames.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                          Ya jugados ({playedGames.length})
-                        </h3>
-                        {isAdmin && (
-                          <button
-                            onClick={handleArchiveAllPlayed}
-                            className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                          >
-                            Ocultar todo
-                          </button>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {playedGames.map((item) => (
-                          <div
-                            key={item.groupGameId}
-                            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
-                                {item.game.thumbnail ? (
-                                  <Image src={item.game.thumbnail} alt={item.game.name} width={40} height={40} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-[var(--text-secondary)] text-sm leading-tight">
-                                  <a
-                                    href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:text-[var(--primary)] transition-colors"
-                                  >
-                                    {item.game.name}
-                                  </a>
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                {item.lastPlayedDate ? (
-                                  <div className="text-xs text-[var(--text-muted)]">
-                                    {new Date(item.lastPlayedDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-[var(--text-muted)]">—</div>
-                                )}
-                              </div>
-                            </div>
-                            {/* Actions */}
-                            <div className="flex justify-end gap-3 mt-1.5 text-[11px]">
-                              <button
-                                onClick={() => setReviewModal({ gameId: item.game.id, gameName: item.game.name, mode: "review" })}
-                                className="text-[var(--primary)] hover:opacity-80 transition-colors font-medium"
-                              >
-                                ✍️ Opinión
-                              </button>
-                              {isAdmin && (
-                                <>
-                                  <button
-                                    onClick={() => handleMarkPlayed(item.game.id, item.game.name, false)}
-                                    className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                                  >
-                                    Devolver al ranking
-                                  </button>
-                                  <button
-                                    onClick={() => handleArchiveGame(item.game.id, item.game.name)}
-                                    className="text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                                  >
-                                    Ocultar
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
+          )}
+
+          {/* ═══════════ Jugados Tab ═══════════ */}
+          {activeTab === "jugados" && (
+            <GroupPlayedGames
+              games={playedGames}
+              isAdmin={isAdmin}
+              onArchiveAll={handleArchiveAllPlayed}
+              onOpinion={(gameId, gameName) => setReviewModal({ gameId, gameName, mode: "review" })}
+              onReturn={(gameId, gameName) => handleMarkPlayed(gameId, gameName, false)}
+              onArchive={handleArchiveGame}
+            />
           )}
 
           {/* Quick session modal */}
@@ -2710,6 +2641,7 @@ function GroupDashboardPage() {
               currentUserId={group.currentUserId}
               isAdmin={group.currentUserRole === "admin" || group.currentUserRole === "owner"}
               reloadKey={galleryReloadKey}
+              onAddOpinion={(gameId, gameName) => setReviewModal({ gameId, gameName, mode: "review" })}
             />
           )}
 

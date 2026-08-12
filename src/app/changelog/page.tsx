@@ -13,6 +13,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
+    version: "1.14",
+    title: "Opinar desde la galería y pestaña de Jugados",
+    changes: [
+      { type: "new", text: "Desde la galería del grupo puedes opinar sobre cualquier juego, incluidos los que has ocultado, con el botón «Añadir opinión»" },
+      { type: "improved", text: "Los juegos ya jugados tienen ahora su propia pestaña «Jugados» en el grupo, en vez de ir debajo del ranking" },
+    ],
+  },
+  {
+    date: "12 agosto 2026",
     version: "1.13",
     title: "Galería y valoraciones de los eventos",
     changes: [
