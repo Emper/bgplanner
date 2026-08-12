@@ -2,7 +2,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 
 // Cliente de Supabase Storage con service role (solo servidor). Se usa para
-// subir fotos de las opiniones de partida al bucket `game-photos`.
+// subir fotos (opiniones de partida y galerías de grupo/evento) al bucket
+// `game-photos`.
 //
 // Requiere en el entorno (Vercel):
 //   - SUPABASE_URL                  → URL del proyecto (https://xxxx.supabase.co)
@@ -72,11 +73,9 @@ export async function uploadPhoto(
     .from(PHOTOS_BUCKET)
     .upload(path, buffer, { contentType, upsert: false });
   if (error) {
-    // Base incluida para diagnóstico (la URL del proyecto no es secreta).
-    const base = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "") || "(sin definir)";
-    throw new Error(
-      `Error al subir la imagen (base "${base}", bucket "${PHOTOS_BUCKET}", ruta "${path}"): ${error.message}`
-    );
+    // El detalle real va a los logs; al usuario un mensaje limpio.
+    console.error("[storage] fallo al subir imagen:", { path, message: error.message });
+    throw new Error("No se pudo subir la imagen");
   }
 
   const { data } = client.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
