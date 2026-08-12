@@ -15,9 +15,13 @@ export const PHOTOS_BUCKET = "game-photos";
 let cached: SupabaseClient | null = null;
 
 export function getStorageClient(): SupabaseClient | null {
-  // Quitar barras finales evita URLs con `//` que Supabase rechaza con
-  // "Invalid path specified in request URL".
-  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+  // Normalizar la URL del proyecto: hay que pasar solo la raíz
+  // (https://xxxx.supabase.co). Un sufijo típico mal copiado como
+  // /rest/v1 o /storage/v1 —o una barra final— provoca
+  // "Invalid path specified in request URL" al subir. Los quitamos.
+  const url = process.env.SUPABASE_URL?.trim()
+    .replace(/\/(rest|storage|auth|realtime)\/v\d+\/?$/i, "")
+    .replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
   if (!cached) {
