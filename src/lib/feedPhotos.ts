@@ -1,187 +1,259 @@
 import { prisma } from "./prisma";
 
-// Resuelve las fotos reales asociadas a los ítems de actividad de tipo foto u
-// opinión y se las adjunta, leyéndolas en el momento desde las tablas de fotos
-// (GroupPhoto / EventPhoto / GameReviewPhoto). Ventajas de resolver en lectura
-// en vez de guardar las URLs en la metadata de la actividad:
-//   - Retroactivo: funciona con fotos y opiniones ya existentes, sin migrar.
-//   - Correcto: si una foto se borra, desaparece del feed automáticamente.
-//   - Sin cambios de esquema ni escrituras en la BD.
+// ── Fotos de galería en el feed ─────────────────────────────────────────────
 //
-// El enlace actividad→fotos se hace por (ámbito + usuario + cercanía temporal),
-// porque la actividad se registra en la misma petición justo después de crear
-// las fotos/opinión (sus createdAt quedan a pocos ms/seg). Las actividades de
-// un mismo bucket (mismo grupo/evento y usuario) se reparten las fotos en orden
-// cronológico, acotando cada una por su `photoCount`, de modo que subidas
-// secuenciales no se mezclan.
+// Las fotos sueltas de galería (de grupo y de evento) NO se sirven a partir de
+// su registro de actividad, sino leyéndolas directamente de las tablas
+// GroupPhoto / EventPhoto. Motivo: logActivity es fire-and-forget y en
+// serverless la escritura puede perderse si la función se congela tras
+// responder, dejando fotos que existen pero sin entrada de actividad. Leer de
+// la tabla viva garantiza que toda foto aparece (retroactivo, sin migrar) y que
+// una foto borrada deja de mostrarse. Los feeds excluyen los tipos
+// group_photo_added / event_photo_added del activity log para no duplicar.
+//
+// Las opiniones (game_reviewed) sí siguen viniendo del activity log; sus fotos
+// se resuelven con attachReviewPhotos. (A futuro, si hiciera falta, se podrían
+// servir también desde GameReview por el mismo motivo de fiabilidad.)
 
 export interface FeedPhoto {
   id: string;
   url: string;
 }
 
-export interface PhotoEnrichable {
+interface FeedUser {
+  id: string;
+  name: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+// Ítem de feed sintético para una tanda de fotos de galería.
+export interface GalleryFeedItem {
+  id: string;
+  type: "group_photo_added" | "event_photo_added";
+  scope: "public";
+  userId: string;
+  metadata: { photoCount: number };
+  createdAt: Date;
+  photos: FeedPhoto[];
+  user: FeedUser;
+  group?: { id: string; name: string } | null;
+  event?: { id: string; name: string } | null;
+}
+
+const USER_SELECT = { id: true, name: true, displayName: true, avatarUrl: true } as const;
+
+// Máximo de fotos a traer por ámbito (grupo/evento) al construir el feed.
+const GALLERY_FETCH_CAP = 500;
+// Fotos mostradas por ítem (tanda). La galería completa está en su pestaña.
+const MAX_PHOTOS_PER_ITEM = 8;
+// Ventana para agrupar en una sola tanda las fotos que un usuario sube juntas.
+const BUCKET_MS = 10 * 60 * 1000;
+
+interface RawPhoto {
+  id: string;
+  url: string;
+  userId: string;
+  createdAt: Date;
+  user: FeedUser;
+  scopeId: string;
+  context?: { id: string; name: string } | null;
+}
+
+// Agrupa las fotos de un mismo usuario y ámbito subidas en la misma ventana
+// temporal en un único ítem de feed (bucket alineado al reloj, determinista).
+function bucketize(
+  photos: RawPhoto[],
+  type: GalleryFeedItem["type"],
+  withContext: boolean
+): GalleryFeedItem[] {
+  const groups = new Map<string, RawPhoto[]>();
+  for (const p of photos) {
+    const bucket = Math.floor(p.createdAt.getTime() / BUCKET_MS);
+    const key = `${p.scopeId}:${p.userId}:${bucket}`;
+    const arr = groups.get(key);
+    if (arr) arr.push(p);
+    else groups.set(key, [p]);
+  }
+
+  const items: GalleryFeedItem[] = [];
+  for (const [key, arr] of groups) {
+    arr.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const first = arr[0];
+    const ctx = withContext ? first.context ?? null : null;
+    items.push({
+      id: `gphoto-${type === "group_photo_added" ? "g" : "e"}-${key}`,
+      type,
+      scope: "public",
+      userId: first.userId,
+      metadata: { photoCount: arr.length },
+      createdAt: first.createdAt,
+      photos: arr.slice(0, MAX_PHOTOS_PER_ITEM).map((p) => ({ id: p.id, url: p.url })),
+      user: first.user,
+      group: type === "group_photo_added" ? ctx : null,
+      event: type === "event_photo_added" ? ctx : null,
+    });
+  }
+  return items;
+}
+
+// Construye los ítems de feed de fotos de galería para los grupos y/o eventos
+// indicados. `withContext` incluye el grupo/evento de origen (para el feed
+// general, que mezcla ámbitos). Devuelve ordenado por fecha descendente.
+export async function buildGalleryPhotoItems(opts: {
+  groupIds?: string[];
+  eventIds?: string[];
+  withContext?: boolean;
+}): Promise<GalleryFeedItem[]> {
+  const { groupIds = [], eventIds = [], withContext = false } = opts;
+  const items: GalleryFeedItem[] = [];
+
+  await Promise.all([
+    (async () => {
+      if (groupIds.length === 0) return;
+      const rows = await prisma.groupPhoto.findMany({
+        where: { groupId: { in: groupIds } },
+        orderBy: { createdAt: "desc" },
+        take: GALLERY_FETCH_CAP,
+        select: {
+          id: true,
+          url: true,
+          userId: true,
+          createdAt: true,
+          groupId: true,
+          user: { select: USER_SELECT },
+          group: { select: { id: true, name: true } },
+        },
+      });
+      const raw: RawPhoto[] = rows.map((r) => ({
+        id: r.id,
+        url: r.url,
+        userId: r.userId,
+        createdAt: r.createdAt,
+        user: r.user,
+        scopeId: r.groupId,
+        context: r.group,
+      }));
+      items.push(...bucketize(raw, "group_photo_added", withContext));
+    })(),
+    (async () => {
+      if (eventIds.length === 0) return;
+      const rows = await prisma.eventPhoto.findMany({
+        where: { eventId: { in: eventIds } },
+        orderBy: { createdAt: "desc" },
+        take: GALLERY_FETCH_CAP,
+        select: {
+          id: true,
+          url: true,
+          userId: true,
+          createdAt: true,
+          eventId: true,
+          user: { select: USER_SELECT },
+          event: { select: { id: true, name: true } },
+        },
+      });
+      const raw: RawPhoto[] = rows.map((r) => ({
+        id: r.id,
+        url: r.url,
+        userId: r.userId,
+        createdAt: r.createdAt,
+        user: r.user,
+        scopeId: r.eventId,
+        context: r.event,
+      }));
+      items.push(...bucketize(raw, "event_photo_added", withContext));
+    })(),
+  ]);
+
+  items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return items;
+}
+
+// ── Fusión con el activity log + paginación por cursor ──────────────────────
+
+interface Timestamped {
+  createdAt: Date;
+}
+
+// Fusiona ítems de actividad y de galería (ambos ordenados desc por fecha),
+// aplica el cursor (createdAt < cursor) y devuelve una página de `limit`
+// elementos junto al cursor siguiente. Se sobre-lee limit+1 de la actividad y
+// todas las fotos, así que el corte global es correcto.
+export function mergeFeed<A extends Timestamped, G extends Timestamped>(
+  activities: A[],
+  gallery: G[],
+  cursor: string | null,
+  limit: number
+): { items: (A | G)[]; nextCursor: string | null } {
+  const cutoff = cursor ? new Date(cursor).getTime() : null;
+  const pool: (A | G)[] = [...activities, ...gallery].filter(
+    (i) => cutoff === null || i.createdAt.getTime() < cutoff
+  );
+  pool.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  const hasMore = pool.length > limit;
+  const items = pool.slice(0, limit);
+  const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
+  return { items, nextCursor };
+}
+
+// ── Enriquecer opiniones (game_reviewed) con sus fotos ──────────────────────
+
+export interface ReviewEnrichable {
   id: string;
   type: string;
   userId: string;
   groupId?: string | null;
-  eventId?: string | null;
   createdAt: Date;
-  metadata: unknown;
   photos?: FeedPhoto[];
 }
 
-// Cuántas miniaturas resolvemos como máximo por actividad (el feed además
-// recorta lo que muestra). Evita traer galerías enteras a un solo ítem.
-const MAX_PHOTOS_PER_ITEM = 8;
-
-// Holgura para el "created antes que la actividad": la actividad se escribe tras
-// las fotos, así que sus createdAt son <= el de la actividad. Un pequeño margen
-// cubre el redondeo y cualquier desfase de reloj.
 const EPSILON_MS = 3000;
 
-function photoCountOf(metadata: unknown): number {
-  if (metadata && typeof metadata === "object") {
-    const c = (metadata as Record<string, unknown>).photoCount;
-    if (typeof c === "number" && c > 0) return c;
-  }
-  return 1;
-}
+// Adjunta a cada actividad game_reviewed las fotos de su opinión, resueltas en
+// lectura desde GameReview (retroactivo, y una foto borrada desaparece). El
+// enlace es por (grupo + usuario + cercanía temporal), emparejando 1-a-1 en
+// orden cronológico, porque la actividad se registra junto a la opinión.
+export async function attachReviewPhotos<T extends ReviewEnrichable>(items: T[]): Promise<T[]> {
+  const reviewActs = items.filter((i) => i.type === "game_reviewed" && i.groupId);
+  if (reviewActs.length === 0) return items;
 
-interface PhotoRow {
-  id: string;
-  url: string;
-  scopeKey: string; // `${scopeId}:${userId}`
-  createdAt: Date;
-}
+  const groupIds = [...new Set(reviewActs.map((i) => i.groupId as string))];
+  const userIds = [...new Set(reviewActs.map((i) => i.userId))];
+  const reviews = await prisma.gameReview.findMany({
+    where: { userId: { in: userIds }, groupGame: { groupId: { in: groupIds } } },
+    select: {
+      userId: true,
+      createdAt: true,
+      groupGame: { select: { groupId: true } },
+      photos: { orderBy: { order: "asc" }, select: { id: true, url: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-// Reparte, dentro de un bucket (mismo grupo/evento + usuario), las fotos entre
-// sus actividades en orden cronológico descendente: la actividad más reciente
-// toma las fotos más recientes (acotada por su photoCount), y así hacia atrás.
-function assignByBucket(
-  acts: PhotoEnrichable[],
-  photos: PhotoRow[],
-  countFor: (a: PhotoEnrichable) => number
-) {
-  const byBucket = new Map<string, { acts: PhotoEnrichable[]; photos: PhotoRow[] }>();
-  const keyOf = (a: PhotoEnrichable) => `${a.groupId || a.eventId || ""}:${a.userId}`;
-
-  for (const a of acts) {
-    const k = keyOf(a);
+  const byBucket = new Map<string, { acts: T[]; reviews: typeof reviews }>();
+  for (const a of reviewActs) {
+    const k = `${a.groupId}:${a.userId}`;
     let b = byBucket.get(k);
-    if (!b) { b = { acts: [], photos: [] }; byBucket.set(k, b); }
+    if (!b) { b = { acts: [], reviews: [] }; byBucket.set(k, b); }
     b.acts.push(a);
   }
-  for (const p of photos) {
-    const b = byBucket.get(p.scopeKey);
-    if (b) b.photos.push(p);
+  for (const r of reviews) {
+    byBucket.get(`${r.groupGame.groupId}:${r.userId}`)?.reviews.push(r);
   }
-
-  for (const { acts: bucketActs, photos: bucketPhotos } of byBucket.values()) {
-    bucketActs.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
-    bucketPhotos.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
+  for (const { acts, reviews: revs } of byBucket.values()) {
+    acts.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
+    const sortedRevs = [...revs].sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
     let ptr = 0;
-    for (const a of bucketActs) {
-      const limit = Math.min(countFor(a), MAX_PHOTOS_PER_ITEM);
+    for (const a of acts) {
       const cutoff = a.createdAt.getTime() + EPSILON_MS;
-      const assigned: FeedPhoto[] = [];
-      while (ptr < bucketPhotos.length && assigned.length < limit) {
-        const p = bucketPhotos[ptr];
+      while (ptr < sortedRevs.length && sortedRevs[ptr].createdAt.getTime() > cutoff) ptr++;
+      const r = sortedRevs[ptr];
+      if (r) {
         ptr++;
-        if (p.createdAt.getTime() <= cutoff) assigned.push({ id: p.id, url: p.url });
+        if (r.photos.length) a.photos = r.photos.slice(0, MAX_PHOTOS_PER_ITEM);
       }
-      if (assigned.length) a.photos = assigned;
     }
   }
-}
-
-export async function attachFeedPhotos<T extends PhotoEnrichable>(items: T[]): Promise<T[]> {
-  if (items.length === 0) return items;
-
-  const groupPhotoActs = items.filter((i) => i.type === "group_photo_added" && i.groupId);
-  const eventPhotoActs = items.filter((i) => i.type === "event_photo_added" && i.eventId);
-  const reviewActs = items.filter((i) => i.type === "game_reviewed" && i.groupId);
-
-  await Promise.all([
-    // ── Fotos sueltas de galería de grupo ────────────────────────────────
-    (async () => {
-      if (groupPhotoActs.length === 0) return;
-      const groupIds = [...new Set(groupPhotoActs.map((i) => i.groupId as string))];
-      const userIds = [...new Set(groupPhotoActs.map((i) => i.userId))];
-      const rows = await prisma.groupPhoto.findMany({
-        where: { groupId: { in: groupIds }, userId: { in: userIds } },
-        select: { id: true, url: true, groupId: true, userId: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-      });
-      assignByBucket(
-        groupPhotoActs,
-        rows.map((r) => ({ id: r.id, url: r.url, scopeKey: `${r.groupId}:${r.userId}`, createdAt: r.createdAt })),
-        (a) => photoCountOf(a.metadata)
-      );
-    })(),
-    // ── Fotos sueltas de galería de evento ───────────────────────────────
-    (async () => {
-      if (eventPhotoActs.length === 0) return;
-      const eventIds = [...new Set(eventPhotoActs.map((i) => i.eventId as string))];
-      const userIds = [...new Set(eventPhotoActs.map((i) => i.userId))];
-      const rows = await prisma.eventPhoto.findMany({
-        where: { eventId: { in: eventIds }, userId: { in: userIds } },
-        select: { id: true, url: true, eventId: true, userId: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-      });
-      assignByBucket(
-        eventPhotoActs,
-        rows.map((r) => ({ id: r.id, url: r.url, scopeKey: `${r.eventId}:${r.userId}`, createdAt: r.createdAt })),
-        (a) => photoCountOf(a.metadata)
-      );
-    })(),
-    // ── Fotos adjuntas a una opinión de juego ────────────────────────────
-    (async () => {
-      if (reviewActs.length === 0) return;
-      const groupIds = [...new Set(reviewActs.map((i) => i.groupId as string))];
-      const userIds = [...new Set(reviewActs.map((i) => i.userId))];
-      const reviews = await prisma.gameReview.findMany({
-        where: { userId: { in: userIds }, groupGame: { groupId: { in: groupIds } } },
-        select: {
-          userId: true,
-          createdAt: true,
-          groupGame: { select: { groupId: true } },
-          photos: { orderBy: { order: "asc" }, select: { id: true, url: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      // Empareja cada actividad con la opinión del mismo bucket más cercana en
-      // el tiempo (una opinión por creación → createdAt ≈ el de la actividad),
-      // y usa sus fotos. Se empareja 1-a-1 en orden cronológico.
-      const byBucket = new Map<string, { acts: PhotoEnrichable[]; reviews: typeof reviews }>();
-      for (const a of reviewActs) {
-        const k = `${a.groupId}:${a.userId}`;
-        let b = byBucket.get(k);
-        if (!b) { b = { acts: [], reviews: [] }; byBucket.set(k, b); }
-        b.acts.push(a);
-      }
-      for (const r of reviews) {
-        const k = `${r.groupGame.groupId}:${r.userId}`;
-        byBucket.get(k)?.reviews.push(r);
-      }
-      for (const { acts, reviews: revs } of byBucket.values()) {
-        acts.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
-        const sortedRevs = [...revs].sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
-        // Recorre en orden descendente: cada actividad toma la siguiente opinión
-        // creada en su mismo momento o antes (createdAt <= actividad), 1-a-1.
-        let ptr = 0;
-        for (const a of acts) {
-          const cutoff = a.createdAt.getTime() + EPSILON_MS;
-          while (ptr < sortedRevs.length && sortedRevs[ptr].createdAt.getTime() > cutoff) ptr++;
-          const r = sortedRevs[ptr];
-          if (r) {
-            ptr++;
-            if (r.photos.length) a.photos = r.photos.slice(0, MAX_PHOTOS_PER_ITEM);
-          }
-        }
-      }
-    })(),
-  ]);
-
   return items;
 }

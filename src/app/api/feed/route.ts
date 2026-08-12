@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { attachFeedPhotos } from "@/lib/feedPhotos";
+import { attachReviewPhotos, buildGalleryPhotoItems, mergeFeed } from "@/lib/feedPhotos";
 
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
@@ -28,30 +28,33 @@ export async function GET(request: NextRequest) {
   const groupIds = memberships.map((m) => m.groupId);
   const eventIds = attendances.map((a) => a.eventId);
 
-  // Fetch public activity from user's groups and events
-  const activities = await prisma.activityLog.findMany({
-    where: {
-      scope: "public",
-      OR: [
-        { groupId: { in: groupIds } },
-        { eventId: { in: eventIds } },
-      ],
-      ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit + 1, // +1 to know if there are more
-    include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
-      group: { select: { id: true, name: true } },
-      event: { select: { id: true, name: true } },
-    },
-  });
+  // Actividad pública de los grupos y eventos del usuario. Las fotos de galería
+  // se sirven aparte desde su tabla (ver feedPhotos), así que se excluyen aquí.
+  const [activities, gallery] = await Promise.all([
+    prisma.activityLog.findMany({
+      where: {
+        scope: "public",
+        type: { notIn: ["group_photo_added", "event_photo_added"] },
+        OR: [
+          { groupId: { in: groupIds } },
+          { eventId: { in: eventIds } },
+        ],
+        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1, // +1 to know if there are more
+      include: {
+        user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
+        group: { select: { id: true, name: true } },
+        event: { select: { id: true, name: true } },
+      },
+    }),
+    buildGalleryPhotoItems({ groupIds, eventIds, withContext: true }),
+  ]);
 
-  const hasMore = activities.length > limit;
-  const items = activities.slice(0, limit);
-  const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
+  await attachReviewPhotos(activities);
 
-  await attachFeedPhotos(items);
+  const { items, nextCursor } = mergeFeed(activities, gallery, cursor, limit);
 
   return NextResponse.json({ items, nextCursor });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { attachFeedPhotos } from "@/lib/feedPhotos";
+import { attachReviewPhotos, buildGalleryPhotoItems, mergeFeed } from "@/lib/feedPhotos";
 
 export async function GET(
   request: NextRequest,
@@ -27,24 +27,27 @@ export async function GET(
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "30"), 50);
   const cursor = url.searchParams.get("cursor");
 
-  // All activity (public + internal) for this group
-  const activities = await prisma.activityLog.findMany({
-    where: {
-      groupId,
-      ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit + 1,
-    include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
-    },
-  });
+  // All activity (public + internal) for this group. Las fotos de galería se
+  // sirven aparte desde su tabla (ver feedPhotos), así que se excluyen aquí.
+  const [activities, gallery] = await Promise.all([
+    prisma.activityLog.findMany({
+      where: {
+        groupId,
+        type: { not: "group_photo_added" },
+        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      include: {
+        user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
+      },
+    }),
+    buildGalleryPhotoItems({ groupIds: [groupId] }),
+  ]);
 
-  const hasMore = activities.length > limit;
-  const items = activities.slice(0, limit);
-  const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
+  await attachReviewPhotos(activities);
 
-  await attachFeedPhotos(items);
+  const { items, nextCursor } = mergeFeed(activities, gallery, cursor, limit);
 
   return NextResponse.json({ items, nextCursor });
 }

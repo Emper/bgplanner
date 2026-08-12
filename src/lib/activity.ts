@@ -18,6 +18,11 @@ export type ActivityType =
 // sociales, fotos y opiniones—, dejando fuera el ruido de bajo nivel
 // (votos sueltos, cambios de estado, ediciones menores). Al añadir un
 // ActivityType nuevo, plantéate si merece salir también aquí.
+//
+// Nota: las fotos de galería (group_photo_added / event_photo_added) NO se
+// sirven desde el activity log, sino directamente desde las tablas de fotos
+// (ver src/lib/feedPhotos.ts), por fiabilidad. Por eso no están en esta lista
+// aunque sí aparezcan —destacadas— en el feed general.
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
   "group_joined",
@@ -26,9 +31,7 @@ const PUBLIC_TYPES = new Set<ActivityType>([
   "event_left",
   "session_created",
   "game_added",
-  // Contenido destacable: fotos de galería y opiniones/valoraciones.
-  "group_photo_added",
-  "event_photo_added",
+  // Contenido destacable: opiniones/valoraciones.
   "game_reviewed",
   "event_reviewed",
 ]);
