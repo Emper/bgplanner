@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 export type ActivityType =
   | "group_created" | "group_joined" | "group_deleted" | "group_pinged" | "member_promoted" | "member_demoted"
   | "game_added" | "game_removed" | "game_marked_played" | "game_returned_pending" | "game_archived"
-  | "game_reviewed"
+  | "game_reviewed" | "group_photo_added"
   | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
@@ -80,6 +80,11 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
     const stars = typeof m.rating === "number" && m.rating > 0 ? ` ${"★".repeat(m.rating)}` : "";
     const photos = typeof m.photoCount === "number" && m.photoCount > 0 ? ` 📷${m.photoCount}` : "";
     return `opinó sobre "${m.gameName || "un juego"}"${stars}${photos}`;
+  },
+  group_photo_added: (m) => {
+    const many = typeof m.photoCount === "number" && m.photoCount > 1;
+    const n = many ? ` (${m.photoCount})` : "";
+    return `subió ${many ? "fotos" : "una foto"} a la galería${n}`;
   },
   vote_cast: (m) => `votó ${voteEmoji(m)} por "${m.gameName || "un juego"}"`,
   vote_changed: (m) => `cambió su voto en "${m.gameName || "un juego"}" a ${voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType })}`,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Avatar from "./Avatar";
+import { resizeImageToBlob } from "@/lib/image";
 
 interface Photo {
   id: string;
@@ -18,6 +19,12 @@ interface Review {
   photos: Photo[];
   session: { id: string; name: string | null; date: string } | null;
   game: { gameId: string; bggId: number; name: string; thumbnail: string | null };
+}
+interface GalleryPhoto {
+  id: string;
+  url: string;
+  userId: string;
+  user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null };
 }
 
 interface Props {
@@ -41,11 +48,16 @@ function fmtDate(iso: string) {
   });
 }
 
+const MAX_PER_UPLOAD = 10;
+
 export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKey, onAddOpinion }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ photos: Photo[]; index: number } | null>(null);
 
   // Selector de juego para "Añadir opinión"
@@ -58,10 +70,15 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/groups/${groupId}/reviews`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al cargar la galería");
-      setReviews(data.reviews);
+      const [rv, ph] = await Promise.all([
+        fetch(`/api/groups/${groupId}/reviews`),
+        fetch(`/api/groups/${groupId}/gallery-photos`),
+      ]);
+      const rd = await rv.json();
+      if (!rv.ok) throw new Error(rd.error || "Error al cargar la galería");
+      setReviews(rd.reviews);
+      const pd = await ph.json();
+      if (ph.ok) setPhotos(pd.photos);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -93,7 +110,44 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
     onAddOpinion(g.game.id, g.game.name);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      for (const f of Array.from(files).slice(0, MAX_PER_UPLOAD)) {
+        const blob = await resizeImageToBlob(f, 1600, 0.82);
+        fd.append("file", blob, "foto.jpg");
+      }
+      const res = await fetch(`/api/groups/${groupId}/gallery-photos`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || "Error al subir las fotos");
+      else setPhotos((prev) => [...data.photos, ...prev]);
+    } catch {
+      setError("Error al procesar las fotos");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deletePhoto = async (id: string) => {
+    if (!confirm("¿Borrar esta foto?")) return;
+    setDeletingPhoto(id);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/gallery-photos/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Error al borrar");
+      } else {
+        setPhotos((prev) => prev.filter((p) => p.id !== id));
+      }
+    } finally {
+      setDeletingPhoto(null);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
     if (!confirm("¿Borrar esta opinión y sus fotos?")) return;
     setDeleting(id);
     try {
@@ -112,6 +166,7 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   const filteredGames = games.filter((g) =>
     g.game.name.toLowerCase().includes(gameSearch.trim().toLowerCase())
   );
+  const photoList: Photo[] = photos.map((p) => ({ id: p.id, url: p.url }));
 
   let body: ReactNode;
   if (loading) {
@@ -126,97 +181,162 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
         {error}
       </p>
     );
-  } else if (reviews.length === 0) {
+  } else if (reviews.length === 0 && photos.length === 0) {
     body = (
       <div className="text-center py-16">
         <p className="text-4xl mb-3">📷</p>
         <p className="font-medium mb-1" style={{ color: "var(--text)" }}>
-          Aún no hay opiniones
+          Aún no hay nada en la galería
         </p>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Añade una opinión de cualquier juego: nota, comentario y fotos.
+          Sube una foto suelta o añade una opinión de cualquier juego.
         </p>
       </div>
     );
   } else {
     body = (
-      <div className="space-y-4">
-        {reviews.map((r) => {
-          const authorName = r.user.displayName || r.user.name || "Alguien";
-          const canDelete = r.userId === currentUserId || isAdmin;
-          return (
-            <div
-              key={r.id}
-              className="rounded-2xl p-4"
-              style={{ background: "var(--surface)", boxShadow: "var(--card-shadow)" }}
-            >
-              <div className="flex items-start gap-3">
-                <Avatar name={authorName} avatarUrl={r.user.avatarUrl} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm" style={{ color: "var(--text)" }}>
-                      <span className="font-semibold">{authorName}</span>{" "}
-                      <span style={{ color: "var(--text-secondary)" }}>
-                        en <span className="font-medium">{r.game.name}</span>
-                      </span>
-                    </p>
+      <div className="space-y-8">
+        {/* Fotos sueltas */}
+        {photos.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
+              Fotos del grupo
+            </h3>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {photos.map((p, i) => {
+                const canDelete = p.userId === currentUserId || isAdmin;
+                return (
+                  <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden group">
+                    <button onClick={() => setLightbox({ photos: photoList, index: i })} className="absolute inset-0">
+                      <Image
+                        src={p.url}
+                        alt="Foto del grupo"
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="(max-width: 640px) 33vw, 160px"
+                      />
+                    </button>
                     {canDelete && (
                       <button
-                        onClick={() => handleDelete(r.id)}
-                        disabled={deleting === r.id}
-                        className="text-xs shrink-0"
-                        style={{ color: "var(--text-muted)" }}
+                        onClick={() => deletePhoto(p.id)}
+                        disabled={deletingPhoto === p.id}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="Borrar foto"
                       >
-                        {deleting === r.id ? "…" : "Borrar"}
+                        ×
                       </button>
                     )}
                   </div>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {fmtDate(r.createdAt)}
-                  </p>
-                  {r.rating != null && r.rating > 0 && (
-                    <p className="text-base mt-1" style={{ color: "#f59e0b" }}>
-                      {"★".repeat(r.rating)}
-                      <span style={{ color: "var(--border)" }}>{"★".repeat(5 - r.rating)}</span>
-                    </p>
-                  )}
-                  {r.text && (
-                    <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: "var(--text)" }}>
-                      {r.text}
-                    </p>
-                  )}
-                  {r.photos.length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
-                      {r.photos.map((p, i) => (
-                        <button
-                          key={p.id}
-                          onClick={() => setLightbox({ photos: r.photos, index: i })}
-                          className="relative aspect-square rounded-xl overflow-hidden"
-                        >
-                          <Image
-                            src={p.url}
-                            alt="Foto de la partida"
-                            fill
-                            unoptimized
-                            className="object-cover"
-                            sizes="(max-width: 640px) 33vw, 160px"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </section>
+        )}
+
+        {/* Opiniones */}
+        {reviews.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
+              Opiniones
+            </h3>
+            <div className="space-y-4">
+              {reviews.map((r) => {
+                const authorName = r.user.displayName || r.user.name || "Alguien";
+                const canDelete = r.userId === currentUserId || isAdmin;
+                return (
+                  <div
+                    key={r.id}
+                    className="rounded-2xl p-4"
+                    style={{ background: "var(--surface)", boxShadow: "var(--card-shadow)" }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar name={authorName} avatarUrl={r.user.avatarUrl} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm" style={{ color: "var(--text)" }}>
+                            <span className="font-semibold">{authorName}</span>{" "}
+                            <span style={{ color: "var(--text-secondary)" }}>
+                              en <span className="font-medium">{r.game.name}</span>
+                            </span>
+                          </p>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteReview(r.id)}
+                              disabled={deleting === r.id}
+                              className="text-xs shrink-0"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {deleting === r.id ? "…" : "Borrar"}
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          {fmtDate(r.createdAt)}
+                        </p>
+                        {r.rating != null && r.rating > 0 && (
+                          <p className="text-base mt-1" style={{ color: "#f59e0b" }}>
+                            {"★".repeat(r.rating)}
+                            <span style={{ color: "var(--border)" }}>{"★".repeat(5 - r.rating)}</span>
+                          </p>
+                        )}
+                        {r.text && (
+                          <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: "var(--text)" }}>
+                            {r.text}
+                          </p>
+                        )}
+                        {r.photos.length > 0 && (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
+                            {r.photos.map((p, i) => (
+                              <button
+                                key={p.id}
+                                onClick={() => setLightbox({ photos: r.photos, index: i })}
+                                className="relative aspect-square rounded-xl overflow-hidden"
+                              >
+                                <Image
+                                  src={p.url}
+                                  alt="Foto de la partida"
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                  sizes="(max-width: 640px) 33vw, 160px"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <label
+          className="px-4 py-2 rounded-xl text-sm font-medium cursor-pointer"
+          style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+        >
+          {uploading ? "Subiendo…" : "📷 Subir foto"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              handleUpload(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
         <button
           onClick={openPicker}
           className="px-4 py-2 rounded-xl text-sm font-semibold"
@@ -318,7 +438,7 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
           >
             <Image
               src={lightbox.photos[lightbox.index].url}
-              alt="Foto de la partida"
+              alt="Foto"
               fill
               unoptimized
               className="object-contain"

@@ -33,6 +33,7 @@ model User {
   addedEventGames  EventGame[]    @relation("EventGameAdder")
   eventReviews     EventReview[]
   eventPhotos      EventPhoto[]
+  groupPhotos      GroupPhoto[]
   activityLogs     ActivityLog[]
 }
 
@@ -62,6 +63,7 @@ model Group {
   games       GroupGame[]
   sessions      GameSession[]
   activityLogs  ActivityLog[]
+  photos        GroupPhoto[]
 }
 
 model GroupMember {
@@ -247,6 +249,23 @@ model GameReviewPhoto {
   review GameReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@index([reviewId])
+}
+
+// Foto suelta de la galería de un grupo, no atada a ninguna opinión. La sube
+// cualquier miembro.
+model GroupPhoto {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  url       String   @db.Text // URL pública en Supabase Storage
+  caption   String?
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([groupId])
+  @@index([userId])
 }
 
 model Vote {

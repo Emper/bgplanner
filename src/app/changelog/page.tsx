@@ -13,6 +13,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
+    version: "1.15",
+    title: "Fotos sueltas en la galería del grupo",
+    changes: [
+      { type: "new", text: "Ya puedes subir fotos sueltas a la galería del grupo, sin tener que asociarlas a la opinión de un juego" },
+    ],
+  },
+  {
+    date: "12 agosto 2026",
     version: "1.14",
     title: "Opinar desde la galería y pestaña de Jugados",
     changes: [
