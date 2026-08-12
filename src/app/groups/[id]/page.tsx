@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
+import BggRating from "@/components/BggRating";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 
@@ -1349,10 +1350,13 @@ function GroupDashboardPage() {
                                   )}
                                 </div>
                                 {/* Badges inline (debajo del título, en ambos breakpoints) */}
-                                <div className="flex flex-wrap gap-1 sm:gap-1.5 mt-1.5 sm:mt-2">
+                                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-1.5 sm:mt-2">
                                   {item.game.bggRating && (
-                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-blue-500/20 text-blue-300">
-                                      ★ {item.game.bggRating.toFixed(1)}
+                                    <BggRating rating={item.game.bggRating} size={30} />
+                                  )}
+                                  {item.game.bggRank && (
+                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-amber-500/20 text-amber-300" title="Puesto en el ranking global de BGG">
+                                      🏆 BGG #{item.game.bggRank.toLocaleString("es-ES")}
                                     </span>
                                   )}
                                   {item.game.playingTime && (
