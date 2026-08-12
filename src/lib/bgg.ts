@@ -64,9 +64,33 @@ function searchCacheSet(key: string, results: BggSearchResult[]) {
 const COLLECTION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // ── BGG API Authentication ──────────────────────────────────────────────
-// BGG requires authentication for API access. Nos autenticamos con un token
-// de API personal (Bearer) obtenido en https://boardgamegeek.com/applications.
-// Configúralo en la variable de entorno BGG_API_TOKEN.
+// La XML API2 exige registro de aplicación + token de autorización (desde
+// 2025-07). Nos autenticamos con un token Bearer obtenido en
+// https://boardgamegeek.com/applications (pestaña "Tokens"). Configúralo en
+// la variable de entorno BGG_API_TOKEN. Requisitos de la doc oficial:
+//   - Dominio boardgamegeek.com SIN www (el www interfiere con la auth).
+//   - Cabecera exacta: "Authorization: Bearer <token>" (espacio, sin ":").
+//   - Los tokens no requieren refresco (de momento).
+const BGG_USER_AGENT = "BGPlanner/1.0 (+https://bgplanner.app)";
+
+// BGG limita el ritmo: si pides demasiado rápido responde 500/503 y sugiere
+// ~5 s entre peticiones. Con app registrada el límite es más laxo, así que
+// serializamos las llamadas con un espaciado educado.
+const BGG_MIN_REQUEST_GAP_MS = 2000;
+let bggLastRequestAt = 0;
+let bggRequestChain: Promise<void> = Promise.resolve();
+
+// Serializa las peticiones a BGG y garantiza un hueco mínimo entre ellas.
+async function throttleBgg(): Promise<void> {
+  const prev = bggRequestChain;
+  let release!: () => void;
+  bggRequestChain = new Promise<void>((r) => (release = r));
+  await prev;
+  const wait = BGG_MIN_REQUEST_GAP_MS - (Date.now() - bggLastRequestAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  bggLastRequestAt = Date.now();
+  release();
+}
 
 function getBggApiToken(): string {
   const token = process.env.BGG_API_TOKEN;
@@ -78,26 +102,27 @@ function getBggApiToken(): string {
   return token;
 }
 
-function getBggFetchOptions(): RequestInit {
-  return {
+// Petición base a BGG: throttle + cabeceras obligatorias (auth + User-Agent).
+async function bggFetch(url: string): Promise<Response> {
+  await throttleBgg();
+  return fetch(url, {
     headers: {
       Accept: "application/xml",
+      "User-Agent": BGG_USER_AGENT,
       Authorization: `Bearer ${getBggApiToken()}`,
     },
-  };
+  });
 }
 
-// ── Fetch with retry (handles BGG 202 "processing" responses) ───────────
+// ── Fetch with retry (maneja 202 "processing" y 429/500/503 "too busy") ──
 
 async function fetchWithRetry(
   url: string,
   maxRetries = 6
 ): Promise<Response> {
-  const fetchOptions = getBggFetchOptions();
-
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     console.log(`[BGG Fetch] Attempt ${attempt + 1}: ${url.substring(0, 80)}...`);
-    const response = await fetch(url, fetchOptions);
+    const response = await bggFetch(url);
     console.log(`[BGG Fetch] Response: ${response.status}`);
 
     if (response.status === 401 || response.status === 403) {
@@ -106,16 +131,24 @@ async function fetchWithRetry(
       );
     }
 
-    if (response.status === 202) {
-      // BGG is preparing the data, wait with exponential backoff
-      const delay = Math.min(3000 * Math.pow(1.5, attempt), 15000);
+    // 202 = preparando datos; 429/500/503 = throttling/servidor ocupado.
+    // En ambos casos reintentamos con backoff exponencial.
+    if (
+      response.status === 202 ||
+      response.status === 429 ||
+      response.status === 500 ||
+      response.status === 503
+    ) {
+      const retryAfter = parseInt(response.headers.get("retry-after") || "", 10);
+      const backoff = Math.min(3000 * Math.pow(1.5, attempt), 15000);
+      const delay = !isNaN(retryAfter) ? Math.min(retryAfter * 1000, 30000) : backoff;
       await new Promise((resolve) => setTimeout(resolve, delay));
       continue;
     }
     return response;
   }
   throw new Error(
-    "BGG está procesando tu colección. Espera unos segundos e inténtalo de nuevo."
+    "BGG está ocupado o procesando tu colección. Espera unos segundos e inténtalo de nuevo."
   );
 }
 
@@ -130,8 +163,7 @@ export async function validateBggUsername(
   try {
     const normalizedUsername = username.toLowerCase().trim();
     const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&subtype=boardgame&page=1`;
-    const fetchOptions = getBggFetchOptions();
-    const response = await fetch(url, fetchOptions);
+    const response = await bggFetch(url);
 
     // 202 = BGG is preparing data, which means the user exists
     if (response.status === 202 || response.ok) {
@@ -371,21 +403,32 @@ export async function fetchBggGameDetails(
 ): Promise<BggGameDetails[]> {
   if (bggIds.length === 0) return [];
 
-  const url = `https://boardgamegeek.com/xmlapi2/thing?id=${bggIds.join(",")}&stats=1`;
-  const response = await fetchWithRetry(url);
-
-  if (!response.ok) {
-    throw new Error(`Error al obtener detalles de BGG: ${response.status}`);
+  // La API 'thing' admite un máximo de 20 IDs por llamada. Troceamos.
+  const CHUNK_SIZE = 20;
+  const chunks: number[][] = [];
+  for (let i = 0; i < bggIds.length; i += CHUNK_SIZE) {
+    chunks.push(bggIds.slice(i, i + CHUNK_SIZE));
   }
 
-  const xml = await response.text();
-  const parsed = await parseStringPromise(xml, { explicitArray: false });
+  const items: any[] = [];
+  for (const chunk of chunks) {
+    const url = `https://boardgamegeek.com/xmlapi2/thing?id=${chunk.join(",")}&stats=1`;
+    const response = await fetchWithRetry(url);
 
-  if (!parsed.items?.item) return [];
+    if (!response.ok) {
+      throw new Error(`Error al obtener detalles de BGG: ${response.status}`);
+    }
 
-  const items = Array.isArray(parsed.items.item)
-    ? parsed.items.item
-    : [parsed.items.item];
+    const xml = await response.text();
+    const parsed = await parseStringPromise(xml, { explicitArray: false });
+
+    if (!parsed.items?.item) continue;
+
+    const chunkItems = Array.isArray(parsed.items.item)
+      ? parsed.items.item
+      : [parsed.items.item];
+    items.push(...chunkItems);
+  }
 
   return items.map((item: any) => {
     const stats = item.statistics;
@@ -499,11 +542,12 @@ export function getRecommendationForPlayerCount(
 }
 
 // ── BGG Search ──────────────────────────────────────────────────────────
-// BGG's XML API2 search requires auth that doesn't work reliably from
-// server-side. We use multiple strategies in order:
-// 1. Geekdo JSON API (internal, no auth)
-// 2. XML API v2 with the Bearer API token
-// 3. Fallback to our local Game + CollectionGame tables
+// Usamos solo endpoints licenciados. Los términos de uso de BGG prohíben las
+// APIs privadas (p.ej. api.geekdo.com), así que la búsqueda va contra la
+// XML API2 oficial y, si no responde, caemos a nuestras tablas locales.
+// Estrategias en orden:
+// 1. XML API v2 oficial (con token Bearer)
+// 2. Fallback a nuestras tablas locales Game + CollectionGame
 
 export async function searchBggGames(query: string): Promise<BggSearchResult[]> {
   const normalizedQuery = query.trim().toLowerCase();
@@ -517,54 +561,33 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
 
   let results: BggSearchResult[] = [];
 
-  // Strategy 1: Geekdo JSON search API (no auth needed)
+  // Strategy 1: XML API v2 oficial (con token Bearer)
   try {
-    const geekdoUrl = `https://api.geekdo.com/api/geeksearch?objecttype=thing&subtype=boardgame&q=${encodeURIComponent(normalizedQuery)}`;
-    const geekdoRes = await fetch(geekdoUrl, {
-      headers: { "User-Agent": "BGPlanner/1.0" },
-    });
-    if (geekdoRes.ok) {
+    const url = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(normalizedQuery)}&type=boardgame`;
+    const response = await fetchWithRetry(url);
+    if (response.ok) {
+      const xml = await response.text();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await geekdoRes.json();
-      if (data.items && Array.isArray(data.items)) {
+      const parsed: any = await parseStringPromise(xml);
+      if (parsed.items?.item) {
+        const rawItems = Array.isArray(parsed.items.item)
+          ? parsed.items.item
+          : [parsed.items.item];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        results = data.items.slice(0, 30).map((item: any) => ({
-          bggId: item.objectid || item.id,
-          name: item.name || item.primaryname || "Unknown",
-          yearPublished: item.yearpublished ? parseInt(item.yearpublished, 10) : null,
+        results = rawItems.map((item: any) => ({
+          bggId: parseInt(item.$.id, 10),
+          name: item.name?.[0]?.$.value || "Unknown",
+          yearPublished: item.yearpublished?.[0]?.$.value
+            ? parseInt(item.yearpublished[0].$.value, 10)
+            : null,
         }));
       }
     }
   } catch (err) {
-    console.log("[BGG Search] Geekdo API failed, trying XML API...", err);
+    console.log("[BGG Search] XML API failed, using local DB...", err);
   }
 
-  // Strategy 2: XML API v2 with auth
-  if (results.length === 0) {
-    try {
-      const url = `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(normalizedQuery)}&type=boardgame`;
-      const response = await fetchWithRetry(url);
-      if (response.ok) {
-        const xml = await response.text();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const parsed: any = await parseStringPromise(xml);
-        if (parsed.items?.item) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          results = parsed.items.item.map((item: any) => ({
-            bggId: parseInt(item.$.id, 10),
-            name: item.name?.[0]?.$.value || "Unknown",
-            yearPublished: item.yearpublished?.[0]?.$.value
-              ? parseInt(item.yearpublished[0].$.value, 10)
-              : null,
-          }));
-        }
-      }
-    } catch (err) {
-      console.log("[BGG Search] XML API failed, using local DB...", err);
-    }
-  }
-
-  // Strategy 3: Search our local Game + CollectionGame tables
+  // Strategy 2: Search our local Game + CollectionGame tables
   if (results.length === 0) {
     const localGames = await prisma.game.findMany({
       where: { name: { contains: normalizedQuery, mode: "insensitive" } },
