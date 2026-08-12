@@ -14,9 +14,12 @@ const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
     version: "1.10",
-    title: "Añade al ranking juegos que nadie tiene",
+    title: "Buscar juegos, mejor",
     changes: [
       { type: "new", text: "Si buscas un juego en el ranking y no está en la colección de ningún miembro, ahora puedes buscarlo en todo BoardGameGeek y añadirlo igualmente. Te avisamos con una etiqueta cuando nadie del grupo lo tiene, para que lo sepas antes de sumarlo" },
+      { type: "new", text: "Los resultados de búsqueda ahora salen con la foto del juego" },
+      { type: "improved", text: "Al buscar por nombre, las coincidencias exactas aparecen primero: buscar «Ra» o «Recall» ya te muestra ese juego arriba del todo" },
+      { type: "improved", text: "Los juegos que ya están en el ranking se quedan visibles en la lista, marcados, en vez de desaparecer al añadirlos" },
     ],
   },
   {
