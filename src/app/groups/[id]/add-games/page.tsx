@@ -295,10 +295,9 @@ export default function AddGamesPage() {
         throw new Error(data.error || "Error al añadir juego");
       }
 
+      // No lo quitamos de la lista: se queda visible marcado como añadido
+      // (así la paginación no "salta" elementos y se ve que ya está).
       setAddedGameIds((prev) => new Set(prev).add(bggId));
-      // Remove from visible items immediately (colección y resultados globales)
-      setItems((prev) => prev.filter((g) => g.bggId !== bggId));
-      setGlobalResults((prev) => (prev ? prev.filter((g) => g.bggId !== bggId) : prev));
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -344,8 +343,8 @@ export default function AddGamesPage() {
   const membersWithBgg =
     group?.members.filter((m) => m.user.bggUsername) || [];
 
-  // Filter out games already added to the group
-  const availableItems = items.filter((g) => !addedGameIds.has(g.bggId));
+  // Cuántos de los juegos visibles ya están en el ranking (para el contador).
+  const addedCount = items.filter((g) => addedGameIds.has(g.bggId)).length;
 
   const weightLabel = (w: number) => {
     if (w < 1.5) return "Ligero";
@@ -663,9 +662,13 @@ export default function AddGamesPage() {
               {!loadingCollection && (
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {availableItems.length < total
-                      ? `${availableItems.length} disponible${availableItems.length !== 1 ? "s" : ""} de ${total}`
-                      : `${total} juego${total !== 1 ? "s" : ""}`}
+                    {`${total} juego${total !== 1 ? "s" : ""}`}
+                    {addedCount > 0 && (
+                      <span className="text-[var(--text-muted)]">
+                        {" "}
+                        ({addedCount} en el ranking)
+                      </span>
+                    )}
                     {searchDebounced && (
                       <span>
                         {" "}
@@ -686,7 +689,7 @@ export default function AddGamesPage() {
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
                 </div>
-              ) : availableItems.length === 0 ? (
+              ) : items.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-[var(--text-muted)] text-lg">
                     No se encontraron juegos
@@ -700,8 +703,46 @@ export default function AddGamesPage() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    {availableItems.map((game) => {
+                    {items.map((game) => {
                       const isAdding = addingGame === game.bggId;
+                      const isAdded = addedGameIds.has(game.bggId);
+
+                      // Ya en el ranking: card slim y degradada, sin botón.
+                      if (isAdded) {
+                        return (
+                          <div
+                            key={game.bggId}
+                            className="bg-[var(--surface)] rounded-xl border border-[var(--border)] opacity-60 flex items-center gap-3 p-2"
+                          >
+                            <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-[var(--surface-hover)]">
+                              {game.thumbnail ? (
+                                <Image
+                                  src={game.thumbnail}
+                                  alt={game.name}
+                                  width={40}
+                                  height={40}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
+                                  ?
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 text-sm text-[var(--text-secondary)] truncate">
+                              {game.name}
+                              {game.yearPublished && (
+                                <span className="text-[var(--text-muted)] ml-1">
+                                  ({game.yearPublished})
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-[var(--text-muted)] shrink-0 flex items-center gap-1">
+                              ✓ En el ranking
+                            </span>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div key={game.bggId} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 overflow-hidden">
@@ -936,17 +977,54 @@ export default function AddGamesPage() {
                           ✕ Cerrar
                         </button>
                       </div>
-                      {globalResults.filter((g) => !addedGameIds.has(g.bggId)).length === 0 ? (
+                      {globalResults.length === 0 ? (
                         <p className="text-sm text-[var(--text-muted)] text-center py-6">
-                          No hay resultados nuevos en BGG para esta búsqueda.
+                          No hay resultados en BGG para esta búsqueda.
                         </p>
                       ) : (
                         <div className="space-y-2">
-                          {globalResults
-                            .filter((g) => !addedGameIds.has(g.bggId))
-                            .map((game) => {
+                          {globalResults.map((game) => {
                               const isAdding = addingGame === game.bggId;
+                              const isAdded = addedGameIds.has(game.bggId);
                               const nobodyHasIt = game.owners.length === 0;
+
+                              // Ya en el ranking: card slim y degradada.
+                              if (isAdded) {
+                                return (
+                                  <div
+                                    key={game.bggId}
+                                    className="bg-[var(--surface)] rounded-xl border border-[var(--border)] opacity-60 flex items-center gap-3 p-2"
+                                  >
+                                    <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-[var(--surface-hover)]">
+                                      {game.thumbnail ? (
+                                        <Image
+                                          src={game.thumbnail}
+                                          alt={game.name}
+                                          width={40}
+                                          height={40}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
+                                          ?
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0 text-sm text-[var(--text-secondary)] truncate">
+                                      {game.name}
+                                      {game.yearPublished && (
+                                        <span className="text-[var(--text-muted)] ml-1">
+                                          ({game.yearPublished})
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-[var(--text-muted)] shrink-0">
+                                      ✓ En el ranking
+                                    </span>
+                                  </div>
+                                );
+                              }
+
                               return (
                                 <div
                                   key={game.bggId}
