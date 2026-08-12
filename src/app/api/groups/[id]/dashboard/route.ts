@@ -47,7 +47,9 @@ export async function GET(
       }),
       prisma.groupMember.count({ where: { groupId } }),
       prisma.groupGame.findMany({
-        where: { groupId, archivedAt: null },
+        // Incluimos archivados: los que se hayan jugado aparecen en el
+        // histórico. El cliente excluye los archivados del ranking de pendientes.
+        where: { groupId },
         include: {
           game: true,
           addedBy: { select: { name: true, displayName: true } },
@@ -173,6 +175,7 @@ export async function GET(
         userVoteValue: userVote?.value ?? null,
         playCount,
         playedAt: gg.playedAt,
+        archivedAt: gg.archivedAt,
         lastPlayedDate,
       };
     })
@@ -198,7 +201,7 @@ export async function GET(
   }
 
   const stats = {
-    gamesCount: groupGames.length,
+    gamesCount: groupGames.filter((gg) => !gg.archivedAt).length,
     playsCount: totalSessionPlays + totalManualPlays,
     totalMinutes: totalSessionMinutes,
     lastPlayedAt,

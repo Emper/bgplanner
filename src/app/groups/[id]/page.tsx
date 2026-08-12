@@ -47,6 +47,7 @@ interface RankedGame {
   userVoteValue: number | null;
   playCount: number;
   playedAt: string | null;
+  archivedAt: string | null;
   lastPlayedDate: string | null;
 }
 
@@ -399,7 +400,9 @@ function GroupDashboardPage() {
   // Filter ranking for "tonight" mode
   // Split into pending (not yet played) and played
   const isPlayed = (item: RankedGame) => item.playCount > 0 || item.playedAt !== null;
-  const pendingGames = ranking.filter((item) => !isPlayed(item));
+  // Pendientes: no jugados y no archivados. Histórico: todos los jugados
+  // (incluidos los que se ocultaron en su día).
+  const pendingGames = ranking.filter((item) => !item.archivedAt && !isPlayed(item));
   const playedGames = ranking.filter(isPlayed);
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
@@ -414,20 +417,6 @@ function GroupDashboardPage() {
       )
     : null;
   const canPing = !pingAvailableAt || pingAvailableAt.getTime() <= Date.now();
-
-  const handleArchiveAllPlayed = async () => {
-    if (!confirm(`¿Ocultar todos los juegos ya jugados? Se podrán volver a añadir desde "Añadir juegos".`)) return;
-    try {
-      const res = await fetch(`/api/groups/${groupId}/games`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "archivePlayed" }),
-      });
-      if (res.ok) fetchData();
-    } catch {
-      alert("Error al archivar");
-    }
-  };
 
   const toggleQuickSelect = (gameId: string) => {
     setQuickSelectIds((prev) => {
@@ -463,20 +452,6 @@ function GroupDashboardPage() {
       }
     } finally {
       setSavingSession(false);
-    }
-  };
-
-  const handleArchiveGame = async (gameId: string, gameName: string) => {
-    if (!confirm(`¿Ocultar "${gameName}"? Se podrá volver a añadir desde "Añadir juegos".`)) return;
-    try {
-      const res = await fetch(`/api/groups/${groupId}/games/${gameId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: true }),
-      });
-      if (res.ok) fetchData();
-    } catch {
-      alert("Error al archivar");
     }
   };
 
@@ -1186,7 +1161,7 @@ function GroupDashboardPage() {
                   <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "var(--surface)" }}>
                     {([
                       { key: "ranking" as const, label: `Ranking (${pendingGames.length})` },
-                      { key: "played" as const, label: `Ya jugados (${playedGames.length})` },
+                      { key: "played" as const, label: `Histórico (${playedGames.length})` },
                     ]).map((s) => (
                       <button
                         key={s.key}
@@ -1682,15 +1657,13 @@ function GroupDashboardPage() {
                     </p>
                   ))}
 
-                  {/* ── Ya jugados ── */}
+                  {/* ── Histórico de partidas ── */}
                   {gamesSubTab === "played" && (
                     <GroupPlayedGames
                       games={playedGames}
                       isAdmin={isAdmin}
-                      onArchiveAll={handleArchiveAllPlayed}
                       onOpinion={(gameId, gameName) => setReviewModal({ gameId, gameName, mode: "review" })}
                       onReturn={(gameId, gameName) => handleMarkPlayed(gameId, gameName, false)}
-                      onArchive={handleArchiveGame}
                     />
                   )}
                 </div>

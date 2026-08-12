@@ -11,19 +11,15 @@ interface PlayedItem {
 interface Props {
   games: PlayedItem[];
   isAdmin: boolean;
-  onArchiveAll: () => void;
   onOpinion: (gameId: string, gameName: string) => void;
   onReturn: (gameId: string, gameName: string) => void;
-  onArchive: (gameId: string, gameName: string) => void;
 }
 
 export default function GroupPlayedGames({
   games,
   isAdmin,
-  onArchiveAll,
   onOpinion,
   onReturn,
-  onArchive,
 }: Props) {
   if (games.length === 0) {
     return (
@@ -41,18 +37,10 @@ export default function GroupPlayedGames({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3">
         <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-          Ya jugados ({games.length})
+          Histórico de partidas ({games.length})
         </h3>
-        {isAdmin && (
-          <button
-            onClick={onArchiveAll}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-          >
-            Ocultar todo
-          </button>
-        )}
       </div>
       <div className="space-y-2">
         {games.map((item) => (
@@ -99,20 +87,12 @@ export default function GroupPlayedGames({
                 ✍️ Opinión
               </button>
               {isAdmin && (
-                <>
-                  <button
-                    onClick={() => onReturn(item.game.id, item.game.name)}
-                    className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                  >
-                    Devolver al ranking
-                  </button>
-                  <button
-                    onClick={() => onArchive(item.game.id, item.game.name)}
-                    className="text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  >
-                    Ocultar
-                  </button>
-                </>
+                <button
+                  onClick={() => onReturn(item.game.id, item.game.name)}
+                  className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                >
+                  Devolver al ranking
+                </button>
               )}
             </div>
           </div>
