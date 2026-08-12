@@ -68,7 +68,11 @@ export async function uploadPhoto(
     .from(PHOTOS_BUCKET)
     .upload(path, buffer, { contentType, upsert: false });
   if (error) {
-    throw new Error(`Error al subir la imagen (ruta "${path}"): ${error.message}`);
+    // Base incluida para diagnóstico (la URL del proyecto no es secreta).
+    const base = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "") || "(sin definir)";
+    throw new Error(
+      `Error al subir la imagen (base "${base}", bucket "${PHOTOS_BUCKET}", ruta "${path}"): ${error.message}`
+    );
   }
 
   const { data } = client.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
