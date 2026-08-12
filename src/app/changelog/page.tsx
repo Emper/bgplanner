@@ -13,6 +13,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 agosto 2026",
+    version: "1.11",
+    title: "La valoración de BGG, a todo color",
+    changes: [
+      { type: "new", text: "La valoración de BoardGameGeek de cada juego se muestra ahora en un hexágono con el color oficial de BGG según la nota, para verla de un vistazo" },
+      { type: "new", text: "Cada juego muestra también su puesto en el ranking global de BoardGameGeek" },
+    ],
+  },
+  {
+    date: "12 agosto 2026",
     version: "1.10",
     title: "Buscar juegos, mejor",
     changes: [

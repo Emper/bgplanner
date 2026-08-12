@@ -6,6 +6,7 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggGameSearch from "@/components/BggGameSearch";
+import BggRating from "@/components/BggRating";
 import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import { formatDateFull, formatDuration } from "@/lib/format";
@@ -21,6 +22,7 @@ interface Game {
   maxPlayers: number | null;
   playingTime: number | null;
   bggRating: number | null;
+  bggRank: number | null;
   weight: number | null;
 }
 
@@ -787,10 +789,13 @@ function GamesTab({
                         <span className="text-[var(--text-muted)] font-normal ml-1 text-xs">({eg.game.yearPublished})</span>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {eg.game.bggRating && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
-                          ★ {eg.game.bggRating.toFixed(1)}
+                        <BggRating rating={eg.game.bggRating} size={30} />
+                      )}
+                      {eg.game.bggRank && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300" title="Puesto en el ranking global de BGG">
+                          🏆 BGG #{eg.game.bggRank.toLocaleString("es-ES")}
                         </span>
                       )}
                       {eg.game.playingTime && (

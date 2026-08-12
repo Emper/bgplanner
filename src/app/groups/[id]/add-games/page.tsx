@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import BggRating from "@/components/BggRating";
 
 interface ExpansionItem {
   bggId: number;
@@ -783,15 +784,13 @@ export default function AddGamesPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                {game.bggRank && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-[var(--accent-soft)] text-[var(--primary)] px-2 py-0.5 rounded-full">
-                                    #{game.bggRank}
-                                  </span>
-                                )}
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                 {game.bggRating && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded-full">
-                                    ★ {game.bggRating.toFixed(1)}
+                                  <BggRating rating={game.bggRating} size={28} />
+                                )}
+                                {game.bggRank && (
+                                  <span className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full" title="Puesto en el ranking global de BGG">
+                                    🏆 BGG #{game.bggRank.toLocaleString("es-ES")}
                                   </span>
                                 )}
                                 {(game.minPlayers || game.maxPlayers) && (
