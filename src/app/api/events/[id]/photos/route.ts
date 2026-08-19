@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/moderation";
 import { getEventParticipation } from "@/lib/events";
 import { uploadPhoto, getStorageClient } from "@/lib/supabaseStorage";
 import { logActivity } from "@/lib/activity";
+import { notifyEventPhotosAdded } from "@/lib/notificationEmitters";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_PER_REQUEST = 10;
@@ -112,6 +113,15 @@ export async function POST(
     eventName: p.event.name,
     photoCount: created.length,
   });
+
+  after(() =>
+    notifyEventPhotosAdded({
+      eventId,
+      eventName: p.event.name,
+      actorUserId: session.userId,
+      photoCount: created.length,
+    })
+  );
 
   return NextResponse.json({ photos: created }, { status: 201 });
 }

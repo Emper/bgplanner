@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { notifySessionCreated } from "@/lib/notificationEmitters";
 
 export async function GET(
   request: NextRequest,
@@ -115,6 +116,18 @@ export async function POST(
   });
 
   logActivity("session_created", session.userId, { groupId, sessionName: name || null, gameCount: (gameIds || []).length });
+
+  // Aviso al resto del grupo. Va en after() para no hacer esperar a quien crea
+  // la sesión, pero sin que el runtime corte el envío a medias.
+  after(() =>
+    notifySessionCreated({
+      groupId,
+      actorUserId: session.userId,
+      sessionName: name || null,
+      date: gameSession.date,
+      gameNames: gameSession.games.map((g) => g.game.name),
+    })
+  );
 
   return NextResponse.json(gameSession, { status: 201 });
 }

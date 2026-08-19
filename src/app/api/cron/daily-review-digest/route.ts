@@ -2,43 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resend } from "@/lib/resend";
 import { escapeHtml } from "@/lib/html";
+import { madridParts, madridMidnightUTC } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const TZ = "Europe/Madrid";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
-
-interface MadridParts {
-  y: number;
-  mo: number; // 1-12
-  d: number;
-  h: number;
-}
-
-function madridParts(date: Date): MadridParts {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-  }).formatToParts(date);
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-  // "24" a medianoche en algunos runtimes → normalizar a 0.
-  const h = get("hour") % 24;
-  return { y: get("year"), mo: get("month"), d: get("day"), h };
-}
-
-// Instante UTC correspondiente a la medianoche local de Madrid de (y, mo, d).
-function madridMidnightUTC(y: number, mo: number, d: number): Date {
-  const guess = Date.UTC(y, mo - 1, d, 0, 0, 0);
-  const p = madridParts(new Date(guess));
-  const asIfUTC = Date.UTC(p.y, p.mo - 1, p.d, p.h, 0, 0);
-  const offset = asIfUTC - guess; // ms que hay que restar para pasar de local a UTC
-  return new Date(guess - offset);
-}
 
 export async function GET(request: NextRequest) {
   // Protección: Vercel Cron manda Authorization: Bearer <CRON_SECRET>.

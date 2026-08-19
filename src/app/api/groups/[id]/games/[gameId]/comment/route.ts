@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { gameCommentSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { notifyGameActivity } from "@/lib/notificationEmitters";
 
 export async function PUT(
   request: NextRequest,
@@ -95,6 +96,17 @@ export async function PUT(
         gameName: groupGame.game.name,
         comment: text.slice(0, 80),
       });
+      // Mismo criterio que el feed: solo al estrenar nota, no en cada retoque.
+      after(() =>
+        notifyGameActivity({
+          groupId,
+          groupGameId: groupGame.id,
+          gameName: groupGame.game.name,
+          actorUserId: session.userId,
+          kind: "comment",
+          comment: text.slice(0, 120),
+        })
+      );
     }
   }
 

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { voteSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { notifyGameActivity } from "@/lib/notificationEmitters";
 import { getGroupType, isVoteValueAllowed } from "@/lib/groupTypes";
 
 export async function POST(
@@ -112,6 +113,17 @@ export async function POST(
 
   if (!existingVote) {
     logActivity("vote_cast", session.userId, { groupId, gameName: groupGame.game.name, voteValue: value });
+    // Solo en el primer voto: avisar de cada cambio de voto sería insufrible
+    // para quien añadió el juego.
+    after(() =>
+      notifyGameActivity({
+        groupId,
+        groupGameId: groupGame.id,
+        gameName: groupGame.game.name,
+        actorUserId: session.userId,
+        kind: "vote",
+      })
+    );
   } else if (existingVote.value !== value) {
     logActivity("vote_changed", session.userId, { groupId, gameName: groupGame.game.name, fromValue: existingVote.value, toValue: value });
   }

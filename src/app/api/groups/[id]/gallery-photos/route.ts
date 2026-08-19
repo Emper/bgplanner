@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/moderation";
 import { uploadPhoto, getStorageClient } from "@/lib/supabaseStorage";
 import { logActivity } from "@/lib/activity";
+import { notifyGroupPhotosAdded } from "@/lib/notificationEmitters";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_PER_REQUEST = 10;
@@ -109,6 +110,14 @@ export async function POST(
     groupId,
     photoCount: created.length,
   });
+
+  after(() =>
+    notifyGroupPhotosAdded({
+      groupId,
+      actorUserId: session.userId,
+      photoCount: created.length,
+    })
+  );
 
   return NextResponse.json({ photos: created }, { status: 201 });
 }

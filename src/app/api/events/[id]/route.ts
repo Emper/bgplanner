@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateEventSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { notifyEventChanged } from "@/lib/notificationEmitters";
 
 // Get event detail with games, attendees, and current user's interests
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -113,6 +114,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (parsed.data.imageUrl !== undefined) data.imageUrl = parsed.data.imageUrl;
 
   const updated = await prisma.event.update({ where: { id }, data });
+
+  // Solo se avisa si ha cambiado el cuándo o el dónde: renombrar el evento o
+  // retocar la descripción no merece sacarle el móvil a nadie del bolsillo.
+  const dateChanged = updated.date.getTime() !== event.date.getTime();
+  const locationChanged = (updated.location || "") !== (event.location || "");
+  if (dateChanged || locationChanged) {
+    after(() =>
+      notifyEventChanged({
+        eventId: id,
+        actorUserId: session.userId,
+        eventName: updated.name,
+        dateChanged,
+        locationChanged,
+        date: updated.date,
+        location: updated.location,
+      })
+    );
+  }
 
   logActivity("event_updated", session.userId, {
     eventId: id,

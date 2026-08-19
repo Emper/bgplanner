@@ -239,7 +239,8 @@ export async function notifyGroupInvitation(opts: {
   inviterName: string;
   subject: string;
   html: string;
-  inviteUrl: string;
+  /** Token de la invitación: la push lleva a /invite/<token>. */
+  inviteToken: string;
 }): Promise<NotifyResult> {
   try {
     return await notifyMany([opts.userId], "group_invitation", {
@@ -247,8 +248,8 @@ export async function notifyGroupInvitation(opts: {
       push: {
         title: `✉️ ${opts.inviterName} te invita a un grupo`,
         body: `Únete a "${opts.groupName}" en BG Planner.`,
-        // Quien ya tiene cuenta puede ir directo al grupo desde la app.
-        data: { url: `/invite/${opts.inviteUrl}`, groupId: opts.groupId },
+        // Quien ya tiene cuenta acepta la invitación desde la propia app.
+        data: { url: `/invite/${opts.inviteToken}`, groupId: opts.groupId },
       },
     });
   } catch {
@@ -418,6 +419,57 @@ export async function notifyGameActivity(opts: {
         title: `🎲 ${actorName} ${action} "${opts.gameName}"`,
         body: quoted || `Un juego que añadiste tú a ${group.name}.`,
         data: { url, groupId: opts.groupId },
+      },
+    });
+  } catch {
+    return EMPTY;
+  }
+}
+
+/* ── event_reminder ───────────────────────────────────────────────────── */
+
+/**
+ * Recordatorio de un evento que es mañana. Lo dispara el cron
+ * `/api/cron/event-reminders`, no una acción de usuario, así que aquí no hay
+ * actor al que excluir: va a todos los asistentes que sigan apuntados.
+ */
+export async function notifyEventReminder(opts: {
+  eventId: string;
+  eventName: string;
+  date: Date;
+  location: string | null;
+}): Promise<NotifyResult> {
+  try {
+    const attendees = await prisma.eventAttendee.findMany({
+      where: { eventId: opts.eventId, status: { not: "cancelled" } },
+      select: { userId: true },
+    });
+    const recipientIds = attendees.map((a) => a.userId);
+    if (recipientIds.length === 0) return EMPTY;
+
+    const url = `/events/${opts.eventId}`;
+    const when = formatDate(opts.date);
+    const locationHtml = opts.location
+      ? `<p style="margin: 8px 0 0;">Dónde: <strong>${escapeHtml(opts.location)}</strong></p>`
+      : "";
+
+    return await notifyMany(recipientIds, "event_reminder", {
+      email: {
+        subject: `Mañana: ${opts.eventName}`,
+        html: buildEmailHtml({
+          bodyHtml: `
+            <p style="margin: 0 0 12px; font-size: 18px;"><strong>Mañana toca</strong> 📅</p>
+            <p><strong style="color: #f59e0b;">${escapeHtml(opts.eventName)}</strong></p>
+            <p style="margin: 8px 0 0;">Cuándo: <strong>${escapeHtml(when)}</strong></p>
+            ${locationHtml}`,
+          ctaLabel: "Ver el evento",
+          ctaUrl: `${APP_URL}${url}`,
+        }),
+      },
+      push: {
+        title: `📅 Mañana: ${opts.eventName}`,
+        body: opts.location ? `${when} · ${opts.location}` : when,
+        data: { url, eventId: opts.eventId },
       },
     });
   } catch {

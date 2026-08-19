@@ -2,6 +2,8 @@
   "regions": ["cdg1"],
   "crons": [
     { "path": "/api/cron/daily-review-digest", "schedule": "0 12 * * *" },
-    { "path": "/api/cron/daily-review-digest", "schedule": "0 13 * * *" }
+    { "path": "/api/cron/daily-review-digest", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/event-reminders", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/event-reminders", "schedule": "0 9 * * *" }
   ]
 }
