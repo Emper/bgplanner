@@ -5,6 +5,57 @@ según se cierren decisiones y fases, actualizarlo aquí.
 
 ---
 
+## Estado actual (19 agosto 2026)
+
+Rama `claude/bg-planner-mobile-app-78n3fa`, sin desplegar.
+
+**Hecho y en la rama**
+- Fase 0 completa: viewport, áreas seguras, manifiesto PWA, iconos generados a partir
+  del dado de la marca, capa táctil (sin destello de toque, sin rebote, inputs a 16 px,
+  zonas de 44 px). De paso: `favicon.svg` y `logo.svg` seguían siendo los de "WeBoard".
+- Fase 1 salvo el modo votación: barra inferior, pantalla de Inicio con su endpoint
+  agregado, gesto de retroceso propio, transiciones de navegación, botón atrás de
+  Android, modales como hojas inferiores, pull to refresh.
+- Fase 2 completa por el lado del repo: `capacitor.config.ts`, cáscara con pantalla
+  offline, rutas `.well-known`, helper `src/lib/native.ts`, guía en `docs/capacitor.md`.
+  Falta lo que solo se puede hacer en el Mac.
+- Fase 4: borrado de cuenta con traspaso de grupos y partidas, y páginas de privacidad,
+  términos y soporte.
+
+**Pendiente**
+- Denunciar y bloquear, y el panel de notificaciones con push: código escrito, pero
+  **necesitan tablas nuevas en la base de datos**. El esquema está preparado y validado;
+  el `db push` está sin ejecutar a la espera de confirmación.
+- Modo votación por deslizamiento.
+- Pestañas como rutas reales (`/groups/[id]/juegos`, …). No se ha hecho: es el cambio
+  más invasivo y conviene aislarlo. Mientras tanto el gesto de retroceso funciona
+  entre pantallas, no entre pestañas de un mismo grupo.
+- Todo lo del Mac: `npx cap add ios/android`, iconos nativos, firma, Associated Domains.
+
+**Decisiones cerradas**
+- Publicamos como Gyoza Studio (cuenta de organización) → **exentos** de la prueba
+  cerrada de 12 testers / 14 días de Google Play.
+- Identificador de paquete `app.bgplanner`, nombre "BG Planner". El identificador no se
+  puede cambiar una vez publicado.
+- Capacitor 7.6.8, no 8. El CLI de Capacitor 8 exige Node ≥ 22 y el proyecto está en
+  Node 20.11.1 por Prisma 5.
+- Las push no duplican el email: si tienes la app instalada y el aviso activado para
+  móvil, va por push; si no, por email.
+
+**Avisos nuevos**
+- **Google Play exige `targetSdkVersion` 36 para apps nuevas desde el 31 de agosto de
+  2026.** Capacitor 7 genera 35. Es una línea en `android/variables.gradle` más
+  `npx cap sync android`, pero hay que acordarse.
+- **El bucket de fotos de Supabase es de lectura pública**: cualquiera con la URL exacta
+  abre la imagen sin cuenta. Está declarado en la política de privacidad, pero conviene
+  decidir si se deja así.
+- **Falta el identificador del responsable del tratamiento** (razón social, NIF,
+  domicilio) en la política de privacidad. Sin eso no cumple el RGPD.
+- El `build` del proyecto exige `RESEND_API_KEY` en tiempo de compilación, no solo en
+  ejecución. En Vercel está, pero rompe cualquier build limpio sin ella.
+
+---
+
 ## 1. Empaquetado: Capacitor cargando la web remota
 
 | Opción | Coste | Veredicto |
@@ -175,3 +226,33 @@ web tal cual, sin depender de tiendas ni de un Mac.
 - [ ] ¿Push sustituye al email o convive? Propuesta: push si hay app instalada, email si no;
       requiere preferencia por usuario.
 - [ ] ¿Las dos tiendas a la vez o Android primero?
+
+
+---
+
+## Cambio de esquema pendiente de ejecutar
+
+La rama añade cuatro tablas **nuevas** a `prisma/schema.prisma`: `Report`, `Block`,
+`NotificationPreference` y `DeviceToken`. Son puramente aditivas — no modifican ni
+borran ninguna tabla ni columna existente, y el código desplegado hoy las ignora, así
+que se pueden crear antes de desplegar la rama sin romper nada en vivo.
+
+El `db push` **no se ha ejecutado**: el entorno donde se ha desarrollado esta rama no
+tiene las credenciales de Supabase. Hay que lanzarlo en local, con el `.env` real:
+
+```bash
+git checkout claude/bg-planner-mobile-app-78n3fa
+npm install                 # las dependencias de Capacitor son nuevas
+npm run db:snapshot         # volcado previo en backups/ (requiere pg_dump)
+npx prisma db push
+npx prisma generate
+```
+
+Si algo saliera mal:
+
+```bash
+pg_restore -d "$DIRECT_URL" --clean --no-owner --no-acl backups/<archivo>
+```
+
+Hasta que se ejecute, denunciar/bloquear y el panel de notificaciones fallan en
+tiempo de ejecución (las tablas no existen); el resto de la rama funciona igual.

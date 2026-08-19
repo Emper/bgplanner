@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   const cursor = url.searchParams.get("cursor"); // createdAt ISO string for pagination
 
   // Get user's group IDs and event IDs
-  const [memberships, attendances] = await Promise.all([
+  const [memberships, attendances, blockedIds] = await Promise.all([
     prisma.groupMember.findMany({
       where: { userId: session.userId },
       select: { groupId: true },
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
       where: { userId: session.userId },
       select: { eventId: true },
     }),
+    getBlockedUserIds(session.userId),
   ]);
 
   const groupIds = memberships.map((m) => m.groupId);
@@ -31,6 +33,8 @@ export async function GET(request: NextRequest) {
   const activities = await prisma.activityLog.findMany({
     where: {
       scope: "public",
+      // Contenido de personas bloqueadas: fuera del feed.
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
       OR: [
         { groupId: { in: groupIds } },
         { eventId: { in: eventIds } },

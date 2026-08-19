@@ -9,32 +9,37 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  name       String?
-  surname    String?
-  location   String?
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  surname     String?
+  location    String?
   bggUsername String?
-  avatarUrl    String?
-  displayName  String?
-  role         String   @default("user")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  avatarUrl   String?
+  displayName String?
+  role        String   @default("user")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  groupMemberships GroupMember[]
-  votes            Vote[]
-  gameComments     GameComment[]
-  gameReviews      GameReview[]
-  addedGames       GroupGame[]
-  createdGroups    Group[]        @relation("GroupCreator")
-  createdSessions  GameSession[]  @relation("SessionCreator")
-  createdEvents    Event[]        @relation("EventCreator")
-  eventAttendances EventAttendee[]
-  addedEventGames  EventGame[]    @relation("EventGameAdder")
-  eventReviews     EventReview[]
-  eventPhotos      EventPhoto[]
-  groupPhotos      GroupPhoto[]
-  activityLogs     ActivityLog[]
+  groupMemberships  GroupMember[]
+  votes             Vote[]
+  gameComments      GameComment[]
+  gameReviews       GameReview[]
+  addedGames        GroupGame[]
+  createdGroups     Group[]                  @relation("GroupCreator")
+  createdSessions   GameSession[]            @relation("SessionCreator")
+  createdEvents     Event[]                  @relation("EventCreator")
+  eventAttendances  EventAttendee[]
+  addedEventGames   EventGame[]              @relation("EventGameAdder")
+  eventReviews      EventReview[]
+  eventPhotos       EventPhoto[]
+  groupPhotos       GroupPhoto[]
+  activityLogs      ActivityLog[]
+  reportsMade       Report[]                 @relation("ReportAuthor")
+  blocksMade        Block[]                  @relation("BlocksMade")
+  blocksReceived    Block[]                  @relation("BlocksReceived")
+  notificationPrefs NotificationPreference[]
+  deviceTokens      DeviceToken[]
 }
 
 model OtpCode {
@@ -58,12 +63,12 @@ model Group {
   inviteCode    String?  @unique
   inviteEnabled Boolean  @default(true)
 
-  members     GroupMember[]
-  invitations GroupInvitation[]
-  games       GroupGame[]
-  sessions      GameSession[]
-  activityLogs  ActivityLog[]
-  photos        GroupPhoto[]
+  members      GroupMember[]
+  invitations  GroupInvitation[]
+  games        GroupGame[]
+  sessions     GameSession[]
+  activityLogs ActivityLog[]
+  photos       GroupPhoto[]
 }
 
 model GroupMember {
@@ -149,11 +154,11 @@ model GameSessionGame {
 }
 
 model GroupGame {
-  id        String    @id @default(cuid())
-  groupId   String
-  gameId    String
-  addedById String
-  addedAt   DateTime  @default(now())
+  id         String    @id @default(cuid())
+  groupId    String
+  gameId     String
+  addedById  String
+  addedAt    DateTime  @default(now())
   playedAt   DateTime?
   archivedAt DateTime?
 
@@ -169,7 +174,7 @@ model GroupGame {
 }
 
 model CollectionGame {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   bggUsername   String
   bggId         Int
   name          String
@@ -223,8 +228,8 @@ model GameReview {
   id          String   @id @default(cuid())
   groupGameId String
   userId      String
-  sessionId   String?  // enlace opcional a una partida concreta
-  rating      Int?     // 1-5, opcional
+  sessionId   String? // enlace opcional a una partida concreta
+  rating      Int? // 1-5, opcional
   text        String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -276,7 +281,7 @@ model Vote {
   createdAt   DateTime @default(now())
 
   groupGame GroupGame @relation(fields: [groupGameId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
 
   @@unique([groupGameId, userId])
   @@index([groupGameId])
@@ -298,10 +303,10 @@ model Event {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  createdBy User            @relation("EventCreator", fields: [createdById], references: [id])
-  games     EventGame[]
-  reviews   EventReview[]
-  photos    EventPhoto[]
+  createdBy    User            @relation("EventCreator", fields: [createdById], references: [id])
+  games        EventGame[]
+  reviews      EventReview[]
+  photos       EventPhoto[]
   attendees    EventAttendee[]
   activityLogs ActivityLog[]
 
@@ -345,7 +350,7 @@ model EventGameInterest {
   id          String   @id @default(cuid())
   eventGameId String
   attendeeId  String
-  intensity   Int      // 1-5
+  intensity   Int // 1-5
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -364,7 +369,7 @@ model EventReview {
   id        String   @id @default(cuid())
   eventId   String
   userId    String
-  rating    Int?     // 1-5, opcional
+  rating    Int? // 1-5, opcional
   text      String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -419,4 +424,83 @@ model BggThumbnail {
   bggId     Int      @id
   thumbnail String?
   fetchedAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Moderación de contenido de usuario
+//
+// La directriz 1.2 de Apple exige que una app con contenido generado por
+// usuarios permita denunciar contenido y bloquear personas. Sin estas dos
+// piezas funcionando de verdad, App Store rechaza la app.
+// ─────────────────────────────────────────────────────────────────────────
+
+model Report {
+  id         String    @id @default(cuid())
+  reporterId String
+  // Tipo e id del objeto denunciado. Se guarda así, y no con una clave ajena
+  // por tipo, porque se puede denunciar contenido de tablas muy distintas
+  // (fotos, opiniones, comentarios) y el objeto puede desaparecer después.
+  targetType String // photo | review | comment | user
+  targetId   String
+  reason     String // offensive | sexual | harassment | spam | other
+  detail     String?
+  status     String    @default("pending") // pending | actioned | dismissed
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  reviewNote String?
+
+  reporter User @relation("ReportAuthor", fields: [reporterId], references: [id])
+
+  // Una persona solo puede denunciar una vez el mismo objeto.
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlocksMade", fields: [blockerId], references: [id])
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Notificaciones
+//
+// Cada tipo de aviso se puede recibir por email, por push o por ninguno de
+// los dos. Solo se guardan filas para lo que el usuario cambia respecto al
+// valor por defecto de su tipo (ver src/lib/notifications.ts).
+// ─────────────────────────────────────────────────────────────────────────
+
+model NotificationPreference {
+  id     String  @id @default(cuid())
+  userId String
+  type   String // ping | session_created | event_reminder | new_vote | new_photo | ...
+  email  Boolean @default(true)
+  push   Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+// Token del dispositivo para las push (APNs vía FCM en iOS, FCM en Android).
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  platform   String // ios | android | web
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

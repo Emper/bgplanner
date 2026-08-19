@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 import { getEventParticipation } from "@/lib/events";
 import { uploadPhoto, getStorageClient } from "@/lib/supabaseStorage";
 import { logActivity } from "@/lib/activity";
@@ -23,8 +24,14 @@ export async function GET(
   if (!p) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   if (!p.canView) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
+  // Las fotos de personas bloqueadas no se muestran.
+  const blockedIds = await getBlockedUserIds(session.userId);
+
   const photos = await prisma.eventPhoto.findMany({
-    where: { eventId },
+    where: {
+      eventId,
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 300,
     include: {

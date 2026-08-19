@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Avatar from "./Avatar";
+import ReportModal, { type ReportTargetType } from "./ReportModal";
 import { resizeImageToBlob } from "@/lib/image";
 
 interface Photo {
@@ -59,6 +60,10 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   const [uploading, setUploading] = useState(false);
   const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ photos: Photo[]; index: number } | null>(null);
+  const [report, setReport] = useState<
+    { type: ReportTargetType; id: string; label: string } | null
+  >(null);
+  const [toast, setToast] = useState("");
 
   // Selector de juego para "Añadir opinión"
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -205,6 +210,8 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {photos.map((p, i) => {
                 const canDelete = p.userId === currentUserId || isAdmin;
+                const isMine = p.userId === currentUserId;
+                const photoAuthor = p.user.displayName || p.user.name || "otra persona";
                 return (
                   <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden group">
                     <button onClick={() => setLightbox({ photos: photoList, index: i })} className="absolute inset-0">
@@ -225,6 +232,22 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
                         aria-label="Borrar foto"
                       >
                         ×
+                      </button>
+                    )}
+                    {!isMine && (
+                      <button
+                        onClick={() =>
+                          setReport({
+                            type: "photo",
+                            id: p.id,
+                            label: `la foto de ${photoAuthor}`,
+                          })
+                        }
+                        className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="Denunciar foto"
+                        title="Denunciar foto"
+                      >
+                        🚩
                       </button>
                     )}
                   </div>
@@ -260,16 +283,34 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
                               en <span className="font-medium">{r.game.name}</span>
                             </span>
                           </p>
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDeleteReview(r.id)}
-                              disabled={deleting === r.id}
-                              className="text-xs shrink-0"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {deleting === r.id ? "…" : "Borrar"}
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {r.userId !== currentUserId && (
+                              <button
+                                onClick={() =>
+                                  setReport({
+                                    type: "review",
+                                    id: r.id,
+                                    label: `la opinión de ${authorName}`,
+                                  })
+                                }
+                                className="text-xs"
+                                style={{ color: "var(--text-muted)" }}
+                                title="Denunciar esta opinión"
+                              >
+                                Denunciar
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteReview(r.id)}
+                                disabled={deleting === r.id}
+                                className="text-xs"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                {deleting === r.id ? "…" : "Borrar"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                           {fmtDate(r.createdAt)}
@@ -419,6 +460,27 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {report && (
+        <ReportModal
+          targetType={report.type}
+          targetId={report.id}
+          targetLabel={report.label}
+          onClose={() => setReport(null)}
+          onDone={(msg) => {
+            setToast(msg);
+            setTimeout(() => setToast(""), 4000);
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-xl text-sm shadow-lg"
+          style={{ background: "var(--surface)", color: "var(--text)", boxShadow: "var(--card-shadow)", border: "1px solid var(--border)" }}
+        >
+          {toast}
         </div>
       )}
 

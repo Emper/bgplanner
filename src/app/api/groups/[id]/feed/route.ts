@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 
 export async function GET(
   request: NextRequest,
@@ -26,10 +27,14 @@ export async function GET(
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "30"), 50);
   const cursor = url.searchParams.get("cursor");
 
+  // Contenido de personas bloqueadas: fuera del feed.
+  const blockedIds = await getBlockedUserIds(session.userId);
+
   // All activity (public + internal) for this group
   const activities = await prisma.activityLog.findMany({
     where: {
       groupId,
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
       ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
     },
     orderBy: { createdAt: "desc" },

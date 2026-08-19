@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { resend } from "@/lib/resend";
+import { escapeHtml } from "@/lib/html";
+import { notifyMany } from "@/lib/notifications";
 import { pingSchema } from "@/lib/validations";
 import { computeRanking } from "@/lib/ranking";
 import { logActivity } from "@/lib/activity";
 
 const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 export async function POST(
   request: NextRequest,
@@ -150,22 +142,20 @@ export async function POST(
     </div>
   `;
 
-  const recipients = group.members
-    .map((m) => m.user.email)
-    .filter((e): e is string => Boolean(e));
+  const recipientIds = group.members.map((m) => m.user.id);
 
-  await Promise.all(
-    recipients.map((to) =>
-      resend.emails
-        .send({
-          from: "BG Planner <cesar@tiradacritica.es>",
-          to,
-          subject,
-          html: buildHtml(),
-        })
-        .catch(() => {})
-    )
-  );
+  // El canal (push o email) lo decide notifyMany según las preferencias de cada
+  // uno y si tiene la app instalada. El email es exactamente el de siempre para
+  // quien no la tenga.
+  const delivery = await notifyMany(recipientIds, "group_ping", {
+    email: { subject, html: buildHtml() },
+    push: {
+      title: `🎲 ${senderName} quiere jugar`,
+      body: rawMessage || `Vota tus favoritos en "${group.name}"`,
+      data: { url: `/groups/${groupId}`, groupId },
+    },
+  });
+  const recipientCount = delivery.push + delivery.email;
 
   await prisma.groupMember.update({
     where: { groupId_userId: { groupId, userId: session.userId } },
@@ -174,14 +164,14 @@ export async function POST(
 
   logActivity("group_pinged", session.userId, {
     groupId,
-    recipientCount: recipients.length,
+    recipientCount,
     hasCustomMessage: Boolean(customMessage),
   });
 
   const nextAvailableAt = new Date(Date.now() + PING_COOLDOWN_MS);
   return NextResponse.json({
     success: true,
-    recipientCount: recipients.length,
+    recipientCount,
     nextAvailableAt: nextAvailableAt.toISOString(),
   });
 }

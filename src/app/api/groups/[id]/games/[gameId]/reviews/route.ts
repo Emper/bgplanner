@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 import { gameReviewSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
@@ -31,8 +32,14 @@ export async function GET(
     return NextResponse.json({ error: "Juego no encontrado" }, { status: 404 });
   }
 
+  // Las opiniones de personas bloqueadas no se muestran.
+  const blockedIds = await getBlockedUserIds(session.userId);
+
   const reviews = await prisma.gameReview.findMany({
-    where: { groupGameId: groupGame.id },
+    where: {
+      groupGameId: groupGame.id,
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },

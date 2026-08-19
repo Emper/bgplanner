@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 import { uploadPhoto, getStorageClient } from "@/lib/supabaseStorage";
 import { logActivity } from "@/lib/activity";
 
@@ -25,8 +26,14 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
+  // Las fotos de personas bloqueadas no se muestran.
+  const blockedIds = await getBlockedUserIds(session.userId);
+
   const photos = await prisma.groupPhoto.findMany({
-    where: { groupId },
+    where: {
+      groupId,
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 300,
     include: {

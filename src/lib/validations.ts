@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GROUP_TYPE_IDS } from "./groupTypes";
+import { NOTIFICATION_TYPE_IDS } from "./notifications";
 
 export const emailSchema = z.object({
   email: z.string().email("Email no válido"),
@@ -116,4 +117,62 @@ export const contactSchema = z.object({
 // sesión) se hace en el handler.
 export const deleteAccountSchema = z.object({
   confirmEmail: z.string().min(1, "Escribe tu email para confirmar"),
+});
+
+// ── Moderación ──────────────────────────────────────────────────────────
+
+// Denuncia de contenido. El objeto denunciado se identifica por tipo + id
+// porque puede venir de tablas muy distintas (ver src/lib/moderation.ts).
+export const reportSchema = z.object({
+  targetType: z.enum(["photo", "review", "comment", "user"], {
+    message: "Tipo de contenido no válido",
+  }),
+  targetId: z.string().min(1, "Falta el contenido a denunciar"),
+  reason: z.enum(["offensive", "sexual", "harassment", "spam", "other"], {
+    message: "Elige un motivo",
+  }),
+  detail: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
+});
+
+// Bloquear a una persona.
+export const blockSchema = z.object({
+  userId: z.string().min(1, "Falta la persona a bloquear"),
+});
+
+// Resolución de una denuncia desde el panel de superadmin.
+export const reportReviewSchema = z.object({
+  id: z.string().min(1, "Falta la denuncia"),
+  status: z.enum(["pending", "actioned", "dismissed"], {
+    message: "Estado no válido",
+  }),
+  reviewNote: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
+});
+
+// ── Notificaciones ──────────────────────────────────────────────────────
+// Los tipos de aviso salen del catálogo de src/lib/notifications.ts: añadir uno
+// allí lo habilita aquí automáticamente.
+
+export const notificationPreferenceSchema = z.object({
+  type: z.enum(NOTIFICATION_TYPE_IDS, { error: "Tipo de aviso no válido" }),
+  email: z.boolean({ error: "Valor no válido para el email" }),
+  push: z.boolean({ error: "Valor no válido para el móvil" }),
+});
+
+// Alta o refresco del token de push de un dispositivo.
+export const deviceTokenSchema = z.object({
+  token: z
+    .string()
+    .min(1, "Falta el token del dispositivo")
+    .max(4096, "Token demasiado largo"),
+  platform: z.enum(["ios", "android", "web"], {
+    error: "Plataforma no válida",
+  }),
+});
+
+// Baja del token (al cerrar sesión o al apagar las push).
+export const deviceTokenDeleteSchema = z.object({
+  token: z
+    .string()
+    .min(1, "Falta el token del dispositivo")
+    .max(4096, "Token demasiado largo"),
 });

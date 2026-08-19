@@ -7,6 +7,17 @@ import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
 import { resizeImage } from "@/lib/image";
+import { isNative } from "@/lib/native";
+
+// Un tipo de aviso del catálogo (src/lib/notifications.ts) con los valores
+// efectivos de este usuario, tal como los devuelve la API.
+interface NotificationType {
+  type: string;
+  label: string;
+  description: string;
+  email: boolean;
+  push: boolean;
+}
 
 interface Profile {
   name: string;
@@ -14,6 +25,48 @@ interface Profile {
   displayName: string;
   location: string;
   bggUsername: string;
+}
+
+/** Conmutador de un canal (Email / Móvil) para un tipo de aviso. */
+function ChannelToggle({
+  label,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label
+      className={`flex items-center gap-2 text-xs font-medium ${
+        disabled
+          ? "text-[var(--text-muted)] cursor-not-allowed"
+          : "text-[var(--text-secondary)] cursor-pointer"
+      }`}
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 ${
+          checked ? "bg-[var(--primary)]" : "bg-[var(--input-bg)] border border-[var(--input-border)]"
+        }`}
+      >
+        <span
+          className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white shadow transition-all duration-200 ${
+            checked ? "left-6" : "left-1"
+          }`}
+        />
+      </button>
+      {label}
+    </label>
+  );
 }
 
 function ProfileForm() {
@@ -38,6 +91,13 @@ function ProfileForm() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
+  const [notifTypes, setNotifTypes] = useState<NotificationType[]>([]);
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [notifToast, setNotifToast] = useState("");
+  const [notifError, setNotifError] = useState("");
+  // Solo dentro de la app nativa se pueden recibir push. En el navegador los
+  // conmutadores de móvil se quedan bloqueados con una explicación.
+  const [nativeApp, setNativeApp] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -63,6 +123,70 @@ function ProfileForm() {
     };
     fetchProfile();
   }, []);
+
+  // isNative() depende de window: se resuelve tras montar para no romper la
+  // hidratación con un render distinto en servidor y cliente.
+  useEffect(() => {
+    setNativeApp(isNative());
+  }, []);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch("/api/notifications/preferences", {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifTypes(data.types || []);
+        }
+      } catch {
+        // Sin preferencias no pasa nada: se muestra la tarjeta vacía.
+      } finally {
+        setNotifLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const handleChannelChange = async (
+    type: string,
+    channel: "email" | "push",
+    value: boolean
+  ) => {
+    const current = notifTypes.find((t) => t.type === type);
+    if (!current) return;
+    const next = { ...current, [channel]: value };
+
+    // Optimista: el conmutador responde al instante y se revierte si falla.
+    setNotifTypes((types) => types.map((t) => (t.type === type ? next : t)));
+    setNotifError("");
+
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          type,
+          email: next.email,
+          push: next.push,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "No se pudo guardar");
+      }
+      setNotifToast("Preferencias guardadas");
+      setTimeout(() => setNotifToast(""), 4000);
+    } catch (err: unknown) {
+      setNotifTypes((types) => types.map((t) => (t.type === type ? current : t)));
+      setNotifError(
+        err instanceof Error ? err.message : "No se pudo guardar"
+      );
+      setTimeout(() => setNotifError(""), 4000);
+    }
+  };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

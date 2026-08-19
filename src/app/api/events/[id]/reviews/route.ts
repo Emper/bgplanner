@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 import { getEventParticipation } from "@/lib/events";
 import { eventReviewSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
@@ -20,8 +21,14 @@ export async function GET(
   if (!p) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   if (!p.canView) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
+  // Las valoraciones de personas bloqueadas no se muestran.
+  const blockedIds = await getBlockedUserIds(session.userId);
+
   const reviews = await prisma.eventReview.findMany({
-    where: { eventId },
+    where: {
+      eventId,
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
+    },
     orderBy: { updatedAt: "desc" },
     include: {
       user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },

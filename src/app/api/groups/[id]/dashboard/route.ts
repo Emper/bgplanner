@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +15,7 @@ export async function GET(
   const { id: groupId } = await params;
 
   // Run ALL queries in parallel — single cold start, single DB connection
-  const [membership, group, memberCount, groupGames, sessions, manualPlaysLog] =
+  const [membership, group, memberCount, groupGames, sessions, manualPlaysLog, blockedIds] =
     await Promise.all([
       prisma.groupMember.findUnique({
         where: { groupId_userId: { groupId, userId: session.userId } },
@@ -54,7 +55,7 @@ export async function GET(
           game: true,
           addedBy: { select: { name: true, displayName: true } },
           votes: { select: { userId: true, value: true, user: { select: { name: true, displayName: true, email: true } } } },
-          comments: { where: { deletedAt: null }, select: { userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
+          comments: { where: { deletedAt: null }, select: { id: true, userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
         },
       }),
       prisma.gameSession.findMany({
@@ -85,11 +86,14 @@ export async function GET(
         where: { groupId, type: "game_marked_played" },
         select: { metadata: true, createdAt: true },
       }),
+      getBlockedUserIds(session.userId),
     ]);
 
   if (!membership) {
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
+
+  const blockedSet = new Set(blockedIds);
 
   // Count completed plays per game and track last played date from sessions
   const playCountByGameId = new Map<string, number>();
@@ -137,23 +141,35 @@ export async function GET(
 
       // Mergeamos votos y comentarios por userId. Un voter "virtual"
       // (value = 0) representa a alguien que comentó pero retiró su voto.
-      const commentByUserId = new Map(
-        gg.comments.map((c) => [c.userId, c.text])
+      //
+      // Los comentarios de personas bloqueadas se descartan aquí. Los votos
+      // sí se mantienen: son un número sin contenido y quitarlos falsearía el
+      // ranking y el aviso de "quién tiene su super voto libre".
+      const visibleComments = gg.comments.filter(
+        (c) => !blockedSet.has(c.userId)
       );
-      const voters = gg.votes.map((v) => ({
-        userId: v.userId,
-        name: v.user.displayName || v.user.name || v.user.email,
-        value: v.value,
-        comment: commentByUserId.get(v.userId) ?? null,
-      }));
+      const commentByUserId = new Map(
+        visibleComments.map((c) => [c.userId, { id: c.id, text: c.text }])
+      );
+      const voters = gg.votes.map((v) => {
+        const c = commentByUserId.get(v.userId);
+        return {
+          userId: v.userId,
+          name: v.user.displayName || v.user.name || v.user.email,
+          value: v.value,
+          comment: c?.text ?? null,
+          commentId: c?.id ?? null,
+        };
+      });
       const voterIds = new Set(voters.map((v) => v.userId));
-      for (const c of gg.comments) {
+      for (const c of visibleComments) {
         if (!voterIds.has(c.userId)) {
           voters.push({
             userId: c.userId,
             name: c.user.displayName || c.user.name || c.user.email,
             value: 0,
             comment: c.text,
+            commentId: c.id,
           });
         }
       }

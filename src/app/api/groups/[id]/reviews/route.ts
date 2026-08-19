@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getBlockedUserIds } from "@/lib/moderation";
 
 // Lista todas las opiniones del grupo (para la galería y el feed enriquecido).
 export async function GET(
@@ -21,8 +22,14 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
+  // Las opiniones de personas bloqueadas no se muestran.
+  const blockedIds = await getBlockedUserIds(session.userId);
+
   const reviews = await prisma.gameReview.findMany({
-    where: { groupGame: { groupId } },
+    where: {
+      groupGame: { groupId },
+      ...(blockedIds.length ? { userId: { notIn: blockedIds } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: {
