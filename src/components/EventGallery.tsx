@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Avatar from "./Avatar";
+import ReportModal, { type ReportTargetType } from "./ReportModal";
 import { resizeImageToBlob } from "@/lib/image";
 
 interface EventPhoto {
@@ -45,6 +46,10 @@ export default function EventGallery({
   const [uploading, setUploading] = useState(false);
   const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [report, setReport] = useState<
+    { type: ReportTargetType; id: string; label: string } | null
+  >(null);
+  const [toast, setToast] = useState("");
 
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -244,9 +249,27 @@ export default function EventGallery({
                 <div key={r.id} className="flex items-start gap-3">
                   <Avatar name={authorName} avatarUrl={r.user.avatarUrl} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                      {authorName}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                        {authorName}
+                      </p>
+                      {r.userId !== currentUserId && (
+                        <button
+                          onClick={() =>
+                            setReport({
+                              type: "review",
+                              id: r.id,
+                              label: `la valoración de ${authorName}`,
+                            })
+                          }
+                          className="text-xs shrink-0"
+                          style={{ color: "var(--text-muted)" }}
+                          title="Denunciar esta valoración"
+                        >
+                          Denunciar
+                        </button>
+                      )}
+                    </div>
                     {r.rating != null && r.rating > 0 && (
                       <p className="text-sm" style={{ color: "#f59e0b" }}>
                         {"★".repeat(r.rating)}
@@ -311,6 +334,8 @@ export default function EventGallery({
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {photos.map((p, i) => {
               const canDelete = p.userId === currentUserId || isCreator;
+              const isMine = p.userId === currentUserId;
+              const photoAuthor = p.user.displayName || p.user.name || "otra persona";
               return (
                 <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden group">
                   <button onClick={() => setLightbox(i)} className="absolute inset-0">
@@ -333,12 +358,49 @@ export default function EventGallery({
                       ×
                     </button>
                   )}
+                  {!isMine && (
+                    <button
+                      onClick={() =>
+                        setReport({
+                          type: "photo",
+                          id: p.id,
+                          label: `la foto de ${photoAuthor}`,
+                        })
+                      }
+                      className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Denunciar foto"
+                      title="Denunciar foto"
+                    >
+                      🚩
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </section>
+
+      {report && (
+        <ReportModal
+          targetType={report.type}
+          targetId={report.id}
+          targetLabel={report.label}
+          onClose={() => setReport(null)}
+          onDone={(msg) => {
+            setToast(msg);
+            setTimeout(() => setToast(""), 4000);
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-xl text-sm"
+          style={{ background: "var(--surface)", color: "var(--text)", boxShadow: "var(--card-shadow)", border: "1px solid var(--border)" }}
+        >
+          {toast}
+        </div>
+      )}
 
       {lightbox != null && photos[lightbox] && (
         <div

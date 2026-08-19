@@ -12,6 +12,7 @@ import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
 import GameReviewModal from "@/components/GameReviewModal";
 import GroupGallery from "@/components/GroupGallery";
+import ReportModal, { type ReportTargetType } from "@/components/ReportModal";
 import GroupPlayedGames from "@/components/GroupPlayedGames";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
@@ -35,6 +36,9 @@ interface Voter {
   name: string;
   value: number;
   comment: string | null;
+  // Id del GameComment, necesario para denunciarlo. Ausente en los votos
+  // que pinta el cliente de forma optimista antes de recargar.
+  commentId?: string | null;
 }
 
 interface RankedGame {
@@ -206,6 +210,13 @@ function GroupDashboardPage() {
   const [openCommentEditors, setOpenCommentEditors] = useState<Set<string>>(new Set());
   const [commentToast, setCommentToast] = useState("");
   const [commentError, setCommentError] = useState("");
+  // Moderación: denunciar contenido y bloquear personas.
+  const [reportTarget, setReportTarget] = useState<
+    { type: ReportTargetType; id: string; label: string } | null
+  >(null);
+  const [blockTarget, setBlockTarget] = useState<{ id: string; name: string } | null>(null);
+  const [blocking, setBlocking] = useState(false);
+  const [blockError, setBlockError] = useState("");
 
   // Group activity feed (restore from cache if available)
   const feedCacheKey = `group:${groupId}`;
@@ -1610,6 +1621,21 @@ function GroupDashboardPage() {
                                             <span className="text-[var(--text)] italic">
                                               “{v.comment}”
                                             </span>
+                                            {v.commentId && v.userId !== group?.currentUserId && (
+                                              <button
+                                                onClick={() =>
+                                                  setReportTarget({
+                                                    type: "comment",
+                                                    id: v.commentId as string,
+                                                    label: `el comentario de ${v.name}`,
+                                                  })
+                                                }
+                                                className="ml-2 text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                                                title="Denunciar este comentario"
+                                              >
+                                                Denunciar
+                                              </button>
+                                            )}
                                           </div>
                                         </div>
                                       ))}
@@ -2426,6 +2452,23 @@ function GroupDashboardPage() {
                             Quitar admin
                           </button>
                         )}
+                        {member.user.id !== group.currentUserId && (
+                          <button
+                            onClick={() =>
+                              setBlockTarget({
+                                id: member.user.id,
+                                name:
+                                  member.user.displayName ||
+                                  member.user.name ||
+                                  member.user.email,
+                              })
+                            }
+                            className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                            title="Bloquear a esta persona"
+                          >
+                            Bloquear
+                          </button>
+                        )}
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-medium ${
                             member.role === "owner"
@@ -2783,6 +2826,86 @@ function GroupDashboardPage() {
           )}
         </div>
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          targetLabel={reportTarget.label}
+          onClose={() => setReportTarget(null)}
+          onDone={(msg) => {
+            setCommentToast(msg);
+            setTimeout(() => setCommentToast(""), 4000);
+          }}
+        />
+      )}
+
+      {blockTarget && (
+        <div
+          data-no-swipe className="modal-sheet fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => !blocking && setBlockTarget(null)}
+        >
+          <div
+            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
+              ¿Bloquear a {blockTarget.name}?
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              Dejarás de ver su contenido en BG Planner: sus fotos, sus opiniones,
+              sus comentarios y su actividad en el feed. Esta persona tampoco verá
+              el tuyo.
+            </p>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Seguiréis compartiendo grupo, pero ninguno de los dos verá lo que
+              publica el otro. Puedes deshacerlo cuando quieras desde tu perfil.
+            </p>
+            {blockError && (
+              <p className="text-sm text-red-400 mb-3">{blockError}</p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setBlockTarget(null)}
+                disabled={blocking}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)]"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setBlocking(true);
+                  setBlockError("");
+                  try {
+                    const res = await fetch("/api/blocks", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ userId: blockTarget.id }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      setBlockError(data.error || "No se pudo bloquear");
+                      return;
+                    }
+                    setBlockTarget(null);
+                    setCommentToast(`🚫 Has bloqueado a ${blockTarget.name}`);
+                    setTimeout(() => setCommentToast(""), 4000);
+                    fetchData();
+                  } catch {
+                    setBlockError("No se pudo bloquear");
+                  } finally {
+                    setBlocking(false);
+                  }
+                }}
+                disabled={blocking}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white disabled:opacity-50"
+              >
+                {blocking ? "Bloqueando…" : "Bloquear"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reviewModal && (
         <GameReviewModal

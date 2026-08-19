@@ -434,6 +434,68 @@ function ProfileForm() {
             </form>
           </div>
 
+          {/* Notificaciones — canal por tipo de aviso */}
+          <div className="mt-8 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
+            <h2 className="text-lg font-bold text-[var(--text)] mb-2">
+              Notificaciones
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Elige cómo quieres enterarte de cada cosa. Si tienes la app
+              instalada y el aviso al móvil activado, te llega solo al móvil y
+              no por email.
+            </p>
+
+            {!nativeApp && (
+              <p className="text-xs text-[var(--text-muted)] bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5 mb-4">
+                Los avisos al móvil necesitan la app de BG Planner instalada.
+                Desde el navegador solo puedes ajustar el email.
+              </p>
+            )}
+
+            {notifLoading ? (
+              <p className="text-sm text-[var(--text-muted)]">Cargando…</p>
+            ) : notifTypes.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)]">
+                No se han podido cargar tus preferencias. Prueba a recargar.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[var(--border)]">
+                {notifTypes.map((item) => (
+                  <li
+                    key={item.type}
+                    className="py-4 first:pt-0 last:pb-0 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--text)]">
+                        {item.label}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {item.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <ChannelToggle
+                        label="Email"
+                        checked={item.email}
+                        onChange={(next) =>
+                          handleChannelChange(item.type, "email", next)
+                        }
+                      />
+                      <ChannelToggle
+                        label="Móvil"
+                        checked={item.push}
+                        disabled={!nativeApp}
+                        onChange={(next) =>
+                          handleChannelChange(item.type, "push", next)
+                        }
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* Zona de peligro — borrado de cuenta */}
           <div className="mt-8 bg-[var(--surface)] rounded-2xl border border-red-500/30 p-6 shadow-[var(--card-shadow)]">
             <h2 className="text-lg font-bold text-red-500 dark:text-red-400 mb-2">
@@ -470,6 +532,17 @@ function ProfileForm() {
           </div>
         </div>
       </div>
+
+      {notifToast && (
+        <div className="fixed bottom-safe left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+          {notifToast}
+        </div>
+      )}
+      {notifError && (
+        <div className="fixed bottom-safe left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+          {notifError}
+        </div>
+      )}
 
       {showDeleteModal && (
         <div
