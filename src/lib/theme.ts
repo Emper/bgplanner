@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { setStatusBarTheme } from "./native";
 
 type Theme = "light" | "dark" | "system";
 
@@ -14,6 +15,8 @@ function getSystemTheme(): "light" | "dark" {
 function applyTheme(theme: Theme) {
   const resolved = theme === "system" ? getSystemTheme() : theme;
   document.documentElement.classList.toggle("dark", resolved === "dark");
+  // Dentro de la app nativa, la barra de estado sigue al tema de la app.
+  void setStatusBarTheme(resolved);
 }
 
 function subscribeTheme(callback: () => void) {

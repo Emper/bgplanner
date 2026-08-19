@@ -110,3 +110,10 @@ export const contactSchema = z.object({
   message: z.string().min(1, "El mensaje es obligatorio").max(5000),
   honeypot: z.string().max(0).optional(),
 });
+
+// Borrado de cuenta: el usuario tiene que escribir su email exacto como
+// confirmación. La comparación real (case-insensitive contra el email de la
+// sesión) se hace en el handler.
+export const deleteAccountSchema = z.object({
+  confirmEmail: z.string().min(1, "Escribe tu email para confirmar"),
+});

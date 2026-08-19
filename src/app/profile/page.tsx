@@ -33,6 +33,11 @@ function ProfileForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -48,6 +53,7 @@ function ProfileForm() {
             bggUsername: data.bggUsername || "",
           });
           setAvatarUrl(data.avatarUrl || null);
+          setAccountEmail(data.email || "");
         }
       } catch {
         // New user, empty form is fine
@@ -112,6 +118,40 @@ function ProfileForm() {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setDeleteConfirm("");
+    setDeleteError("");
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError("");
+    setDeleting(true);
+
+    try {
+      const res = await fetch("/api/profile", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ confirmEmail: deleteConfirm }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "No se pudo eliminar la cuenta");
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch (err: unknown) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Error inesperado"
+      );
+      setDeleting(false);
     }
   };
 
@@ -269,8 +309,103 @@ function ProfileForm() {
               </button>
             </form>
           </div>
+
+          {/* Zona de peligro — borrado de cuenta */}
+          <div className="mt-8 bg-[var(--surface)] rounded-2xl border border-red-500/30 p-6 shadow-[var(--card-shadow)]">
+            <h2 className="text-lg font-bold text-red-500 dark:text-red-400 mb-2">
+              Zona de peligro
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              Si eliminas tu cuenta desaparece todo lo tuyo y no hay vuelta
+              atrás.
+            </p>
+            <ul className="text-sm text-[var(--text-secondary)] space-y-1.5 mb-3 list-disc pl-5">
+              <li>
+                <strong className="text-[var(--text)]">Se borra:</strong> tu
+                perfil, tus votos, tus comentarios y opiniones, tus fotos, tus
+                asistencias a eventos y tu actividad.
+              </li>
+              <li>
+                <strong className="text-[var(--text)]">Se conserva:</strong> lo
+                que es del grupo — los juegos que añadiste, las sesiones y los
+                eventos siguen ahí, pero pasan a estar a nombre de otro
+                miembro (el admin más antiguo).
+              </li>
+              <li>
+                <strong className="text-[var(--text)]">Se elimina entero:</strong>{" "}
+                cualquier grupo o evento en el que fueras la única persona.
+              </li>
+            </ul>
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="w-full sm:w-auto px-4 py-3 rounded-xl border border-red-500/40 text-red-500 dark:text-red-400 hover:bg-red-500/10 font-semibold transition-all duration-200"
+            >
+              Eliminar mi cuenta
+            </button>
+          </div>
         </div>
       </div>
+
+      {showDeleteModal && (
+        <div
+          data-no-swipe className="modal-sheet fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={closeDeleteModal}
+        >
+          <div
+            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 w-full max-w-md shadow-[var(--card-shadow)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-[var(--text)] mb-2">
+              Eliminar cuenta
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Esta acción es irreversible. Para confirmar, escribe tu email{" "}
+              <span className="text-[var(--text)] font-medium break-all">
+                {accountEmail}
+              </span>
+              .
+            </p>
+
+            <input
+              type="email"
+              autoComplete="off"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="tu@email.com"
+              className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-red-500/40 focus:border-red-500 focus:outline-none transition-all duration-200"
+            />
+
+            {deleteError && (
+              <p className="text-sm text-red-400 mt-3">{deleteError}</p>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="flex-1 px-4 py-3 rounded-xl border border-[var(--border)] text-[var(--text)] hover:bg-[var(--input-bg)] disabled:opacity-50 font-semibold transition-all duration-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={
+                  deleting ||
+                  deleteConfirm.trim().toLowerCase() !==
+                    accountEmail.toLowerCase() ||
+                  !accountEmail
+                }
+                className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 font-semibold transition-all duration-200"
+              >
+                {deleting ? "Eliminando..." : "Eliminar cuenta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Footer />
     </>
   );

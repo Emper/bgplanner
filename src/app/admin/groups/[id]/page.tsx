@@ -284,7 +284,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          data-no-swipe className="modal-sheet fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={() => !saving && setConfirmDelete(false)}
         >
           <div

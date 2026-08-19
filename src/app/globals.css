@@ -110,17 +110,17 @@ select:disabled {
 }
 
 /* View Transition: theme toggle circular reveal */
-::view-transition-old(root),
-::view-transition-new(root) {
+html:not([data-nav])::view-transition-old(root),
+html:not([data-nav])::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
 
-::view-transition-old(root) {
+html:not([data-nav])::view-transition-old(root) {
   z-index: 1;
 }
 
-::view-transition-new(root) {
+html:not([data-nav])::view-transition-new(root) {
   z-index: 9999;
 }
 
@@ -219,4 +219,204 @@ summary:focus-visible {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;              /* Chrome, Safari */
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CAPA TÁCTIL / APP MÓVIL
+   Todo lo de aquí abajo existe para que la web se comporte como una app
+   nativa dentro del WebView de Capacitor (y de paso mejore en el navegador
+   móvil). Ver docs/app-movil.md.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Áreas seguras del dispositivo: notch e isla arriba, indicador de inicio
+     abajo. En navegador de escritorio valen 0. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Alto de la barra de navegación inferior, sin contar el área segura. */
+  --bottom-nav-h: 3.75rem;
+}
+
+html {
+  /* Evita que iOS reescale el texto al girar el dispositivo. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  /* Sin rebote elástico al llegar al final: es lo que más delata a una web
+     metida en una app. */
+  overscroll-behavior-y: none;
+}
+
+/* ── Comportamiento del dedo ─────────────────────────────────────────────
+   Solo en dispositivos táctiles, para no tocar nada en escritorio. */
+@media (pointer: coarse) {
+  a,
+  button,
+  select,
+  summary,
+  [role="button"] {
+    /* Quita el destello gris del toque y el retardo de 300 ms del doble tap. */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    /* Sin menú contextual ni lupa al mantener pulsado un control. */
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  /* Los controles siguen necesitando 44 px de zona de toque aunque el icono
+     sea más pequeño (mínimo de las guías de Apple y Google). */
+  button,
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Excepción: controles que viven dentro de una fila densa y ya tienen su
+     propia zona de toque calculada. */
+  button.tap-auto,
+  [role="button"].tap-auto {
+    min-height: 0;
+  }
+}
+
+/* iOS hace zoom automático al enfocar un campo con menos de 16 px. Subir el
+   tamaño es preferible a bloquear el zoom, que rompe accesibilidad. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* ── Utilidades de área segura ───────────────────────────────────────────── */
+.pt-safe { padding-top: var(--safe-top); }
+.pb-safe { padding-bottom: var(--safe-bottom); }
+.px-safe { padding-left: var(--safe-left); padding-right: var(--safe-right); }
+.mt-safe { margin-top: var(--safe-top); }
+.mb-safe { margin-bottom: var(--safe-bottom); }
+.top-safe { top: var(--safe-top); }
+
+/* Para elementos flotantes (toasts, botones de acción) que deben quedar por
+   encima de la barra inferior y del indicador de inicio. */
+.bottom-safe {
+  bottom: calc(var(--safe-bottom) + 1.5rem);
+}
+body.has-bottom-nav .bottom-safe {
+  bottom: calc(var(--safe-bottom) + var(--bottom-nav-h) + 1rem);
+}
+
+/* Cuando hay barra inferior, el contenido necesita hueco para no quedar
+   tapado por ella. */
+body.has-bottom-nav {
+  padding-bottom: calc(var(--safe-bottom) + var(--bottom-nav-h));
+}
+
+/* ── Transiciones de navegación ──────────────────────────────────────────
+   Las marca <html data-nav="push|pop"> desde useNav(). Entrar desliza de
+   derecha a izquierda; volver, al revés, con la página saliente arrastrando
+   ligeramente a la anterior (parallax). */
+@keyframes nav-in-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes nav-out-to-left {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-28%); opacity: .6; }
+}
+@keyframes nav-in-from-left {
+  from { transform: translateX(-28%); opacity: .6; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes nav-out-to-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
+html[data-nav]::view-transition-group(root) {
+  animation-duration: 320ms;
+}
+html[data-nav="push"]::view-transition-old(root) {
+  animation: nav-out-to-left 320ms cubic-bezier(.32, .72, 0, 1) both;
+  z-index: 1;
+}
+html[data-nav="push"]::view-transition-new(root) {
+  animation: nav-in-from-right 320ms cubic-bezier(.32, .72, 0, 1) both;
+  z-index: 2;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, .28);
+}
+html[data-nav="pop"]::view-transition-old(root) {
+  animation: nav-out-to-right 320ms cubic-bezier(.32, .72, 0, 1) both;
+  z-index: 2;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, .28);
+}
+html[data-nav="pop"]::view-transition-new(root) {
+  animation: nav-in-from-left 320ms cubic-bezier(.32, .72, 0, 1) both;
+  z-index: 1;
+}
+
+/* ── Gesto de retroceso ──────────────────────────────────────────────────
+   Mientras el dedo arrastra, SwipeBack mueve el documento entero. El fondo
+   sólido evita que se vea a través durante el arrastre. */
+html[data-swiping] {
+  background: var(--bg);
+}
+html[data-swiping] body {
+  will-change: transform;
+}
+html[data-swiping] body::before {
+  /* La textura de ruido es `position: fixed` y se separaría de la página
+     durante el arrastre. */
+  display: none;
+}
+
+/* ── Preferencia de movimiento reducido ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html[data-nav]::view-transition-old(root),
+  html[data-nav]::view-transition-new(root) {
+    animation: none;
+  }
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-float,
+  .animate-float-slow {
+    animation: none;
+  }
+}
+
+/* ── Hoja inferior (bottom sheet) ─────────────────────────────────────────
+   En móvil los modales suben desde abajo en vez de aparecer centrados. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sheet-enter {
+  animation: sheet-up 280ms cubic-bezier(.32, .72, 0, 1) both;
+}
+
+/* ── Modales como hoja inferior en móvil ─────────────────────────────────
+   Los modales del repo comparten un mismo contenedor con un único hijo. En
+   pantallas pequeñas ese hijo sube desde abajo, ocupa el ancho completo y
+   respeta el indicador de inicio; en escritorio se queda como estaba. */
+@media (max-width: 639px) {
+  .modal-sheet > * {
+    width: 100%;
+    max-width: none;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-bottom: calc(var(--safe-bottom) + 1.25rem);
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: sheet-up 280ms cubic-bezier(.32, .72, 0, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-sheet > * {
+      animation: none;
+    }
+  }
 }

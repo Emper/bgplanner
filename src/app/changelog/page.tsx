@@ -12,6 +12,21 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "19 agosto 2026",
+    version: "1.16",
+    title: "BG Planner se maneja como una app",
+    changes: [
+      { type: "new", text: "Nueva pantalla de Inicio: de un vistazo ves las próximas partidas, los eventos a los que vas, dónde te falta votar y lo último que ha hecho tu gente" },
+      { type: "new", text: "En el móvil ahora hay una barra abajo con Inicio, Grupos, Eventos y Perfil, siempre a mano" },
+      { type: "new", text: "Puedes volver atrás deslizando desde el borde izquierdo de la pantalla, como en cualquier app" },
+      { type: "new", text: "Tira hacia abajo en Inicio para actualizar" },
+      { type: "new", text: "Ya puedes eliminar tu cuenta desde tu perfil. Tus grupos y partidas no se pierden: pasan a otro miembro" },
+      { type: "improved", text: "Las ventanas emergentes suben desde abajo en el móvil y se manejan con el pulgar" },
+      { type: "improved", text: "Puedes instalar BG Planner en la pantalla de inicio del móvil, con su icono y a pantalla completa" },
+      { type: "new", text: "Nuevas páginas de privacidad, términos y soporte" },
+    ],
+  },
+  {
     date: "12 agosto 2026",
     version: "1.15",
     title: "Fotos sueltas en la galería del grupo",

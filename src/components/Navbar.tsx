@@ -103,7 +103,7 @@ export default function Navbar() {
     <>
       <nav className="sticky top-0 z-40 bg-[var(--surface)]/80 backdrop-blur-xl border-b border-[var(--border)] px-3 sm:px-6 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/groups" prefetch={false} className="flex items-center">
+          <Link href="/inicio" prefetch={false} className="flex items-center">
             <AnimatedLogo />
           </Link>
           <div className="flex items-center gap-3 sm:gap-5">
@@ -115,7 +115,7 @@ export default function Navbar() {
                   key={item.href}
                   href={item.href}
                   prefetch={false}
-                  className={`relative text-xs sm:text-sm font-medium transition-colors whitespace-nowrap group ${
+                  className={`hidden sm:inline relative text-xs sm:text-sm font-medium transition-colors whitespace-nowrap group ${
                     isActive ? "text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--primary)]"
                   }`}
                 >

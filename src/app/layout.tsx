@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import MobileChrome from "@/components/MobileChrome";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -25,8 +26,34 @@ export const metadata: Metadata = {
   description:
     "Decide qué jugar con tu grupo de amigos votando vuestros juegos de mesa favoritos",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
   },
+  appleWebApp: {
+    capable: true,
+    title: "BG Planner",
+    // La barra de estado se pinta sobre el contenido: el color efectivo lo da
+    // el propio fondo de la página y lo gestionamos con las áreas seguras.
+    statusBarStyle: "black-translucent",
+  },
+  // Los números de teléfono no se autoenlazan: en iOS los detecta dentro de
+  // nombres de juegos y fechas y los pinta en azul.
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // El contenido llega hasta los bordes de la pantalla; las áreas seguras las
+  // gestionamos nosotros con env(safe-area-inset-*) en globals.css.
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf8f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#151118" },
+  ],
 };
 
 // Inline script to prevent flash of wrong theme
@@ -54,7 +81,7 @@ export default function RootLayout({
         className={`${bricolage.variable} ${dmSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
-        {children}
+        <MobileChrome>{children}</MobileChrome>
         <Analytics />
       </body>
     </html>

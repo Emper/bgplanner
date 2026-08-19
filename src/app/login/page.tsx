@@ -23,7 +23,7 @@ function LoginForm() {
       try {
         const res = await fetch("/api/profile", { credentials: "include" });
         if (res.ok) {
-          router.replace(redirect || "/groups");
+          router.replace(redirect || "/inicio");
           return;
         }
       } catch {

@@ -1673,7 +1673,7 @@ function GroupDashboardPage() {
 
           {/* Quick session modal */}
           {showQuickSession && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQuickSession(false)}>
+            <div data-no-swipe className="modal-sheet fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowQuickSession(false)}>
               <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-[var(--text)]">
@@ -1747,7 +1747,7 @@ function GroupDashboardPage() {
           {/* Delete group modal — solo propietario, requiere escribir el nombre */}
           {showDeleteModal && (
             <div
-              className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+              data-no-swipe className="modal-sheet fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
               onClick={() => !deleting && setShowDeleteModal(false)}
             >
               <div
@@ -1819,7 +1819,7 @@ function GroupDashboardPage() {
           {/* Ping modal */}
           {showPingModal && (
             <div
-              className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+              data-no-swipe className="modal-sheet fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
               onClick={() => !pinging && setShowPingModal(false)}
             >
               <div
@@ -1880,19 +1880,19 @@ function GroupDashboardPage() {
 
           {/* Ping success toast */}
           {pingToast && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+            <div className="fixed bottom-safe left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {pingToast}
             </div>
           )}
 
           {/* Comment toasts */}
           {commentToast && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+            <div className="fixed bottom-safe left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {commentToast}
             </div>
           )}
           {commentError && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+            <div className="fixed bottom-safe left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {commentError}
             </div>
           )}
