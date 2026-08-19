@@ -19,17 +19,26 @@ Rama `claude/bg-planner-mobile-app-78n3fa`, sin desplegar.
 - Fase 2 completa por el lado del repo: `capacitor.config.ts`, cáscara con pantalla
   offline, rutas `.well-known`, helper `src/lib/native.ts`, guía en `docs/capacitor.md`.
   Falta lo que solo se puede hacer en el Mac.
-- Fase 4: borrado de cuenta con traspaso de grupos y partidas, y páginas de privacidad,
-  términos y soporte.
+- Fase 3: notificaciones de punta a punta. Panel de preferencias en el perfil con siete
+  tipos de aviso y conmutador de email y de móvil en cada uno, envío por FCM HTTP v1,
+  registro del dispositivo, y emisores enganchados en convocatorias, sesiones, cambios
+  de evento, invitaciones, fotos, votos y comentarios, más un cron de recordatorio el
+  día antes de cada evento. Falta configurar Firebase.
+- Fase 4 completa: borrado de cuenta con traspaso de grupos y partidas, denunciar
+  contenido, bloquear personas con panel de revisión en `/admin/reports`, y páginas de
+  privacidad, términos y soporte.
 
 **Pendiente**
-- Denunciar y bloquear, y el panel de notificaciones con push: código escrito, pero
-  **necesitan tablas nuevas en la base de datos**. El esquema está preparado y validado;
-  el `db push` está sin ejecutar a la espera de confirmación.
+- **`npx prisma db push`**: las cuatro tablas nuevas no existen todavía en la BD, así
+  que denunciar, bloquear y las preferencias de notificación fallan en tiempo de
+  ejecución hasta que se ejecute. Ver la sección del final.
+- Configurar Firebase (proyecto, apps iOS y Android, APNs Auth Key, variables `FCM_*`).
 - Modo votación por deslizamiento.
 - Pestañas como rutas reales (`/groups/[id]/juegos`, …). No se ha hecho: es el cambio
   más invasivo y conviene aislarlo. Mientras tanto el gesto de retroceso funciona
   entre pantallas, no entre pestañas de un mismo grupo.
+- Aviso al crear un evento: `Event` no cuelga de ningún grupo, así que al crearlo no hay
+  a quién avisar sin caer en el spam. Requiere decidir el modelo antes de implementarlo.
 - Todo lo del Mac: `npx cap add ios/android`, iconos nativos, firma, Associated Domains.
 
 **Decisiones cerradas**
