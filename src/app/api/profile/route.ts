@@ -392,7 +392,18 @@ export async function DELETE(request: NextRequest) {
   ops.push(prisma.groupMember.deleteMany({ where: { userId } }));
   ops.push(prisma.eventAttendee.deleteMany({ where: { userId } }));
 
-  // 3.6 Actividad, invitaciones pendientes a su email, códigos OTP, caché de
+  // 3.6 Moderación. `Report` y `Block` apuntan a `User` sin cascada, así que
+  // hay que borrarlos a mano o el `user.delete` final falla por clave ajena.
+  // Los bloqueos se borran en ambos sentidos: los que hizo y los que recibió.
+  // (`NotificationPreference` y `DeviceToken` sí tienen onDelete: Cascade.)
+  ops.push(prisma.report.deleteMany({ where: { reporterId: userId } }));
+  ops.push(
+    prisma.block.deleteMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+    })
+  );
+
+  // 3.7 Actividad, invitaciones pendientes a su email, códigos OTP, caché de
   // su colección de BGG y por fin el usuario.
   ops.push(prisma.activityLog.deleteMany({ where: { userId } }));
   ops.push(

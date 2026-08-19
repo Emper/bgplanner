@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { NavProvider, TAB_ROOTS } from "@/lib/navigation";
 import BottomNav, { shouldShowBottomNav } from "./BottomNav";
 import SwipeBack from "./SwipeBack";
+import PushRegistrar from "./PushRegistrar";
 import { onAndroidBackButton } from "@/lib/native";
 
 /**
@@ -43,6 +44,7 @@ export default function MobileChrome({ children }: { children: ReactNode }) {
   return (
     <NavProvider>
       {children}
+      <PushRegistrar />
       <SwipeBack />
       <BottomNav />
     </NavProvider>

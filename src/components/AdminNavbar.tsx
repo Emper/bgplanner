@@ -8,6 +8,7 @@ const navItems = [
   { href: "/admin", label: "Resumen", match: "/admin", exact: true },
   { href: "/admin/groups", label: "Grupos", match: "/admin/groups" },
   { href: "/admin/events", label: "Eventos", match: "/admin/events" },
+  { href: "/admin/reports", label: "Denuncias", match: "/admin/reports" },
 ];
 
 export default function AdminNavbar() {

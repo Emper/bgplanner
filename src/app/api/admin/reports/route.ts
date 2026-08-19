@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
   const reports = await prisma.report.findMany({
     where: status && status !== "all" ? { status } : undefined,
     orderBy: { createdAt: "desc" },
-    take: 300,
+    // El contenido de cada denuncia se resuelve una a una (viven en tablas
+    // distintas), así que el listado se mantiene corto a propósito.
+    take: 100,
     include: {
       reporter: { select: { id: true, name: true, displayName: true, email: true } },
     },

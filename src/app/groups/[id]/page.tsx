@@ -217,6 +217,8 @@ function GroupDashboardPage() {
   const [blockTarget, setBlockTarget] = useState<{ id: string; name: string } | null>(null);
   const [blocking, setBlocking] = useState(false);
   const [blockError, setBlockError] = useState("");
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const [unblocking, setUnblocking] = useState<string | null>(null);
 
   // Group activity feed (restore from cache if available)
   const feedCacheKey = `group:${groupId}`;
@@ -357,6 +359,25 @@ function GroupDashboardPage() {
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
   }, [openKebabMenu]);
+
+  // Personas bloqueadas, para saber a quién ofrecer "Desbloquear" en la
+  // lista de miembros (es el único sitio donde se gestiona el bloqueo).
+  const fetchBlocks = useCallback(async () => {
+    try {
+      const res = await fetch("/api/blocks", { credentials: "include", cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBlockedIds(
+        new Set((data.blocks as { user: { id: string } }[]).map((b) => b.user.id))
+      );
+    } catch {
+      // Silencioso: sin esta lista la UI simplemente ofrece "Bloquear".
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBlocks();
+  }, [fetchBlocks]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -2452,23 +2473,55 @@ function GroupDashboardPage() {
                             Quitar admin
                           </button>
                         )}
-                        {member.user.id !== group.currentUserId && (
-                          <button
-                            onClick={() =>
-                              setBlockTarget({
-                                id: member.user.id,
-                                name:
-                                  member.user.displayName ||
-                                  member.user.name ||
-                                  member.user.email,
-                              })
-                            }
-                            className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-red-500/20 hover:text-red-400 transition-colors"
-                            title="Bloquear a esta persona"
-                          >
-                            Bloquear
-                          </button>
-                        )}
+                        {member.user.id !== group.currentUserId &&
+                          (blockedIds.has(member.user.id) ? (
+                            <button
+                              onClick={async () => {
+                                setUnblocking(member.user.id);
+                                try {
+                                  const res = await fetch(`/api/blocks/${member.user.id}`, {
+                                    method: "DELETE",
+                                  });
+                                  if (!res.ok) {
+                                    const data = await res.json().catch(() => ({}));
+                                    alert(data.error || "No se pudo desbloquear");
+                                    return;
+                                  }
+                                  setBlockedIds((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(member.user.id);
+                                    return next;
+                                  });
+                                  setCommentToast("✅ Persona desbloqueada");
+                                  setTimeout(() => setCommentToast(""), 4000);
+                                  fetchData();
+                                } finally {
+                                  setUnblocking(null);
+                                }
+                              }}
+                              disabled={unblocking === member.user.id}
+                              className="px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                              title="Desbloquear a esta persona"
+                            >
+                              {unblocking === member.user.id ? "…" : "Bloqueada"}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setBlockTarget({
+                                  id: member.user.id,
+                                  name:
+                                    member.user.displayName ||
+                                    member.user.name ||
+                                    member.user.email,
+                                })
+                              }
+                              className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                              title="Bloquear a esta persona"
+                            >
+                              Bloquear
+                            </button>
+                          ))}
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-medium ${
                             member.role === "owner"
@@ -2859,7 +2912,8 @@ function GroupDashboardPage() {
             </p>
             <p className="text-sm text-[var(--text-secondary)] mb-4">
               Seguiréis compartiendo grupo, pero ninguno de los dos verá lo que
-              publica el otro. Puedes deshacerlo cuando quieras desde tu perfil.
+              publica el otro. Puedes deshacerlo cuando quieras desde esta misma
+              lista de miembros.
             </p>
             {blockError && (
               <p className="text-sm text-red-400 mb-3">{blockError}</p>
@@ -2887,6 +2941,7 @@ function GroupDashboardPage() {
                       setBlockError(data.error || "No se pudo bloquear");
                       return;
                     }
+                    setBlockedIds((prev) => new Set(prev).add(blockTarget.id));
                     setBlockTarget(null);
                     setCommentToast(`🚫 Has bloqueado a ${blockTarget.name}`);
                     setTimeout(() => setCommentToast(""), 4000);
