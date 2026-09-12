@@ -6,7 +6,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
+import ActivityFeed, { getCachedFeed, setCachedFeed, clearCachedFeed } from "@/components/ActivityFeed";
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
@@ -231,6 +231,10 @@ function GroupDashboardPage() {
   const [pinging, setPinging] = useState(false);
   const [pingError, setPingError] = useState("");
   const [pingToast, setPingToast] = useState("");
+  // Variante destructiva: convocar reiniciando los votos (solo admins).
+  // pingConfirmStep = segunda pantalla de reconfirmación del modal.
+  const [pingResetVotes, setPingResetVotes] = useState(false);
+  const [pingConfirmStep, setPingConfirmStep] = useState(false);
 
   // Delete group modal (solo propietario)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -413,6 +417,14 @@ function GroupDashboardPage() {
   const groupTypeCfg = getGroupType(group?.type);
   const voteOptions = groupTypeCfg.allowedVotes;
   const isOwner = group?.currentUserRole === "owner";
+
+  // Votos reales del grupo: los "voters" con value 0 son comentaristas sin
+  // voto, así que no cuentan para lo que se borraría al reiniciar.
+  const totalVotes = ranking.reduce(
+    (acc, item) => acc + item.voters.filter((v) => v.value !== 0).length,
+    0
+  );
+  const podiumBeforeReset = ranking.filter((item) => item.score !== 0).slice(0, 3);
 
   const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
   const pingAvailableAt = group?.currentUserLastPingedAt
@@ -805,17 +817,27 @@ function GroupDashboardPage() {
     }
   };
 
+  const closePingModal = () => {
+    if (pinging) return;
+    setShowPingModal(false);
+    setPingConfirmStep(false);
+    setPingResetVotes(false);
+    setPingError("");
+  };
+
   const handlePing = async () => {
     setPingError("");
     setPinging(true);
+    const resetVotes = pingResetVotes && isAdmin;
     try {
       const res = await fetch(`/api/groups/${groupId}/ping`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(
-          pingMessage.trim() ? { message: pingMessage.trim() } : {}
-        ),
+        body: JSON.stringify({
+          ...(pingMessage.trim() ? { message: pingMessage.trim() } : {}),
+          ...(resetVotes ? { resetVotes: true } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -832,12 +854,24 @@ function GroupDashboardPage() {
         g ? { ...g, currentUserLastPingedAt: new Date().toISOString() } : g
       );
       setShowPingModal(false);
+      setPingConfirmStep(false);
+      setPingResetVotes(false);
       setPingMessage("");
-      setPingToast(
-        `📯 ¡Convocatoria enviada a ${data.recipientCount} jugador${
-          data.recipientCount !== 1 ? "es" : ""
-        }!`
-      );
+      const players = `${data.recipientCount} jugador${
+        data.recipientCount !== 1 ? "es" : ""
+      }`;
+      if (resetVotes) {
+        // El ranking y el feed han cambiado en servidor: recargamos.
+        clearCachedFeed(feedCacheKey);
+        setFeedLoaded(false);
+        await fetchData();
+        if (activeTab === "activity") fetchGroupFeed();
+        setPingToast(
+          `🧹 Votos reiniciados y convocatoria enviada a ${players}`
+        );
+      } else {
+        setPingToast(`📯 ¡Convocatoria enviada a ${players}!`);
+      }
       setTimeout(() => setPingToast(""), 4000);
     } catch (err: unknown) {
       setPingError(err instanceof Error ? err.message : "Error inesperado");
@@ -1838,64 +1872,182 @@ function GroupDashboardPage() {
             </div>
           )}
 
-          {/* Ping modal */}
+          {/* Ping modal — dos pasos cuando se reinician los votos */}
           {showPingModal && (
             <div
               className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-              onClick={() => !pinging && setShowPingModal(false)}
+              onClick={closePingModal}
             >
               <div
-                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-md"
+                className={`bg-[var(--surface)] rounded-2xl border shadow-[var(--card-shadow)] p-5 w-full max-w-md ${
+                  pingConfirmStep ? "border-red-500/40" : "border-[var(--border)]"
+                }`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[var(--text)]">
-                    📯 ¿Convocar a los jugadores?
-                  </h3>
-                  <button
-                    onClick={() => !pinging && setShowPingModal(false)}
-                    className="text-[var(--text-secondary)] hover:text-[var(--text)]"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  Esto enviará un email a los demás miembros del grupo para pedirles que actualicen sus votos en el ranking. Solo puedes hacerlo una vez por semana.
-                </p>
-                <div className="mb-4">
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">
-                    Mensaje personal (opcional)
-                  </label>
-                  <textarea
-                    value={pingMessage}
-                    onChange={(e) => setPingMessage(e.target.value.slice(0, 200))}
-                    placeholder="Ej: vamos el viernes a casa de Ana"
-                    rows={3}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200 resize-none"
-                  />
-                  <div className="text-right text-xs text-[var(--text-muted)] mt-1">
-                    {pingMessage.length}/200
-                  </div>
-                </div>
-                {pingError && (
-                  <p className="text-sm text-red-400 mb-3">{pingError}</p>
+                {pingConfirmStep ? (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-red-400">
+                        ⚠️ ¿Seguro que quieres reiniciar los votos?
+                      </h3>
+                      <button
+                        onClick={closePingModal}
+                        className="text-[var(--text-secondary)] hover:text-[var(--text)]"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="space-y-3 mb-4 text-sm text-[var(--text-secondary)]">
+                      <p>
+                        Se borrarán{" "}
+                        <strong className="text-[var(--text)]">
+                          {totalVotes} voto{totalVotes !== 1 ? "s" : ""}
+                        </strong>{" "}
+                        de todos los miembros del grupo y el ranking se quedará a cero.
+                      </p>
+                      <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-muted)]">
+                        <li>Los juegos <strong className="text-[var(--text-secondary)]">no</strong> se quitan del ranking</li>
+                        <li>Los comentarios de cada juego se mantienen</li>
+                        <li>Se avisará por email a los demás miembros</li>
+                      </ul>
+                      {podiumBeforeReset.length > 0 && (
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
+                          <p className="text-xs text-[var(--text-muted)] mb-2">
+                            Guardaremos este podio en la actividad del grupo:
+                          </p>
+                          <ul className="space-y-1">
+                            {podiumBeforeReset.map((item, i) => (
+                              <li
+                                key={item.groupGameId}
+                                className="flex items-center justify-between gap-3 text-sm text-[var(--text)]"
+                              >
+                                <span className="truncate">
+                                  {["🥇", "🥈", "🥉"][i]} {item.game.name}
+                                </span>
+                                <span className="shrink-0 font-semibold text-[var(--primary)]">
+                                  {item.score} pts
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <p className="text-red-400 font-medium">
+                        Esta acción no se puede deshacer.
+                      </p>
+                    </div>
+                    {pingError && (
+                      <p className="text-sm text-red-400 mb-3">{pingError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPingConfirmStep(false)}
+                        disabled={pinging}
+                        className="flex-1 px-4 py-2.5 bg-[var(--surface-hover)] text-[var(--text)] rounded-xl hover:bg-[var(--border)] disabled:opacity-50 font-semibold text-sm transition-all duration-200"
+                      >
+                        Volver
+                      </button>
+                      <button
+                        onClick={handlePing}
+                        disabled={pinging}
+                        className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-200 shadow-sm"
+                      >
+                        {pinging ? "Reiniciando..." : "Sí, borrar los votos"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-[var(--text)]">
+                        📯 ¿Convocar a los jugadores?
+                      </h3>
+                      <button
+                        onClick={closePingModal}
+                        className="text-[var(--text-secondary)] hover:text-[var(--text)]"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] mb-4">
+                      Esto enviará un email a los demás miembros del grupo para pedirles que actualicen sus votos en el ranking. Solo puedes hacerlo una vez por semana.
+                    </p>
+                    <div className="mb-4">
+                      <label className="block text-xs text-[var(--text-secondary)] mb-1">
+                        Mensaje personal (opcional)
+                      </label>
+                      <textarea
+                        value={pingMessage}
+                        onChange={(e) => setPingMessage(e.target.value.slice(0, 200))}
+                        placeholder="Ej: vamos el viernes a casa de Ana"
+                        rows={3}
+                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200 resize-none"
+                      />
+                      <div className="text-right text-xs text-[var(--text-muted)] mt-1">
+                        {pingMessage.length}/200
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <label
+                        className={`flex items-start gap-3 mb-4 p-3 rounded-xl border cursor-pointer transition-colors duration-200 ${
+                          pingResetVotes
+                            ? "border-red-500/40 bg-red-500/5"
+                            : "border-[var(--border)] hover:border-[var(--border-strong)]"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={pingResetVotes}
+                          onChange={(e) => setPingResetVotes(e.target.checked)}
+                          disabled={pinging}
+                          className="mt-0.5 w-4 h-4 shrink-0 accent-red-500"
+                        />
+                        <span className="text-sm">
+                          <span className="block font-semibold text-[var(--text)]">
+                            🧹 Empezar de cero: borrar los votos actuales
+                          </span>
+                          <span className="block text-xs text-[var(--text-secondary)] mt-0.5">
+                            Se borran los {totalVotes} voto{totalVotes !== 1 ? "s" : ""} del grupo y los juegos se quedan. Solo para admins.
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                    {pingError && (
+                      <p className="text-sm text-red-400 mb-3">{pingError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={closePingModal}
+                        disabled={pinging}
+                        className="flex-1 px-4 py-2.5 bg-transparent border border-[var(--border)] text-[var(--text)] rounded-xl hover:bg-[var(--border)]/30 disabled:opacity-50 font-semibold text-sm transition-all duration-200"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (pingResetVotes) {
+                            setPingError("");
+                            setPingConfirmStep(true);
+                          } else {
+                            handlePing();
+                          }
+                        }}
+                        disabled={pinging}
+                        className={`flex-1 px-4 py-2.5 rounded-xl disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md ${
+                          pingResetVotes
+                            ? "bg-red-500 text-white hover:bg-red-600"
+                            : "bg-[var(--primary)] text-[var(--primary-text)] hover:bg-[var(--primary-hover)]"
+                        }`}
+                      >
+                        {pinging
+                          ? "Enviando..."
+                          : pingResetVotes
+                            ? "Continuar"
+                            : "Convocar 📯"}
+                      </button>
+                    </div>
+                  </>
                 )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowPingModal(false)}
-                    disabled={pinging}
-                    className="flex-1 px-4 py-2.5 bg-transparent border border-[var(--border)] text-[var(--text)] rounded-xl hover:bg-[var(--border)]/30 disabled:opacity-50 font-semibold text-sm transition-all duration-200"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handlePing}
-                    disabled={pinging}
-                    className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    {pinging ? "Enviando..." : "Convocar 📯"}
-                  </button>
-                </div>
               </div>
             </div>
           )}

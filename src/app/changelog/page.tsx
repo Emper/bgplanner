@@ -12,6 +12,16 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "12 septiembre 2026",
+    version: "1.17",
+    title: "Borrón y cuenta nueva en el ranking",
+    changes: [
+      { type: "new", text: "Al convocar al grupo, los admins pueden marcar «Empezar de cero» para dejar el ranking sin votos y que todos vuelvan a elegir sus favoritos desde el principio" },
+      { type: "new", text: "Los juegos siguen todos en su sitio: solo se borran los votos, y el email que reciben los demás avisa de que toca votar de nuevo" },
+      { type: "new", text: "Antes de borrar nada te pedimos confirmación y te enseñamos el podio que se despide, que queda guardado en la actividad del grupo como recuerdo" },
+    ],
+  },
+  {
     date: "22 agosto 2026",
     version: "1.16",
     title: "«Ayúdame a elegir»: sorteo entre vuestros favoritos",

@@ -35,6 +35,12 @@ export function setCachedFeed(key: string, items: ActivityItem[], cursor: string
   feedCache.set(key, { items, cursor, ts: Date.now() });
 }
 
+// Invalida el feed cacheado tras una acción que cambia el historial en
+// servidor (p. ej. reiniciar las votaciones del grupo).
+export function clearCachedFeed(key: string) {
+  feedCache.delete(key);
+}
+
 function timeAgo(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();

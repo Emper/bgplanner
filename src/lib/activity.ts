@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 
 export type ActivityType =
-  | "group_created" | "group_joined" | "group_deleted" | "group_pinged" | "member_promoted" | "member_demoted"
+  | "group_created" | "group_joined" | "group_deleted" | "group_pinged" | "votes_reset" | "member_promoted" | "member_demoted"
   | "game_added" | "game_removed" | "game_marked_played" | "game_returned_pending" | "game_archived"
   | "game_reviewed" | "group_photo_added"
   | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
@@ -69,6 +69,20 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   group_joined: () => "se unió al grupo",
   group_deleted: (m) => `eliminó el grupo "${m.groupName || ""}"`,
   group_pinged: (m) => `convocó al grupo para votar 📯${m.recipientCount ? ` (${m.recipientCount} jugadores)` : ""}`,
+  // Guardamos en metadata la "foto" del podio previo al borrado, para que el
+  // feed siga siendo el histórico de cómo iba el ranking antes de reiniciarlo.
+  votes_reset: (m) => {
+    const n = typeof m.votesDeleted === "number" ? m.votesDeleted : 0;
+    const count = n > 0 ? ` (${n} voto${n === 1 ? "" : "s"} borrado${n === 1 ? "" : "s"})` : "";
+    const top = Array.isArray(m.topBefore) ? m.topBefore.slice(0, 3) : [];
+    const medals = ["🥇", "🥈", "🥉"];
+    const podium = top.length
+      ? ` — el podio era ${top
+          .map((g: Meta, i: number) => `${medals[i]} ${g.name}${typeof g.score === "number" ? ` (${g.score})` : ""}`)
+          .join(", ")}`
+      : "";
+    return `reinició las votaciones del ranking 🧹${count}${podium}`;
+  },
   member_promoted: (m) => `hizo admin a ${m.targetName || "un miembro"}`,
   member_demoted: (m) => `quitó admin a ${m.targetName || "un miembro"}`,
   game_added: (m) => `añadió "${m.gameName || "un juego"}"`,

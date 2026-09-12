@@ -29,6 +29,10 @@ export const inviteSchema = z.object({
 
 export const pingSchema = z.object({
   message: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
+  // Variante destructiva de la convocatoria: además de avisar por email,
+  // borra todos los votos del grupo (los juegos se quedan). Solo admins;
+  // la UI pide reconfirmación antes de enviarlo.
+  resetVotes: z.boolean().optional(),
 });
 
 export const addGameSchema = z.object({
