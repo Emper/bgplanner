@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "14 septiembre 2026",
+    version: "1.19",
+    title: "Vota sin perder el sitio en el ranking",
+    changes: [
+      { type: "improved", text: "Ahora los juegos ya no saltan de posición mientras votas: la lista se queda quieta para que puedas seguir bajando por donde ibas" },
+      { type: "improved", text: "Cada juego que votas te enseña a qué puesto va a subir (o bajar), para que veas el efecto de tu voto al instante" },
+      { type: "new", text: "Cuando quieras ver el ranking actualizado, un botón «Actualizar orden» lo recoloca todo de golpe" },
+    ],
+  },
+  {
+    date: "14 septiembre 2026",
     version: "1.18",
     title: "Cambia tu email sin perder la cuenta",
     changes: [

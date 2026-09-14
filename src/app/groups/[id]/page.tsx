@@ -198,6 +198,9 @@ function GroupDashboardPage() {
   const [galleryReloadKey, setGalleryReloadKey] = useState(0);
   // Subsección dentro de la pestaña "Juegos": ranking (pendientes) o jugados
   const [gamesSubTab, setGamesSubTab] = useState<"ranking" | "played">("ranking");
+  // Orden "congelado" del ranking: al votar la lista no se reordena sola, para
+  // no perder el sitio por el que ibas explorando. null = orden real y vivo.
+  const [frozenOrder, setFrozenOrder] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
@@ -339,6 +342,11 @@ function GroupDashboardPage() {
     if (activeTab === "activity" && !feedLoaded) fetchGroupFeed();
   }, [activeTab, feedLoaded, fetchGroupFeed]);
 
+  // Al cambiar de pestaña/subpestaña descongelamos: se ve el orden real.
+  useEffect(() => {
+    setFrozenOrder(null);
+  }, [activeTab, gamesSubTab]);
+
   // Close mobile vote tooltip when tapping outside
   useEffect(() => {
     if (!openVoteTooltip) return;
@@ -371,6 +379,7 @@ function GroupDashboardPage() {
 
       setGroup(data.group);
       setRanking(data.ranking);
+      setFrozenOrder(null);
       setSessions(data.sessions);
       setStats(data.stats ?? null);
       if (data.group) {
@@ -412,6 +421,30 @@ function GroupDashboardPage() {
   // también los que se ocultaron en su día (archivados), jugados o no.
   const pendingGames = ranking.filter((item) => !item.archivedAt && !isPlayed(item));
   const playedGames = ranking.filter((item) => isPlayed(item) || item.archivedAt !== null);
+
+  // ── Orden congelado ──────────────────────────────────────────────────────
+  // `pendingGames` mantiene el orden real (lo usan el podio, el sorteo, etc.).
+  // La lista se pinta con `displayedGames`, que respeta el orden congelado
+  // mientras votas; `livePositions` dice a qué puesto subirá cada juego.
+  const livePositions = new Map(
+    pendingGames.map((item, i) => [item.groupGameId, i + 1] as const)
+  );
+  const frozenIndexes = frozenOrder
+    ? new Map(frozenOrder.map((id, i) => [id, i] as const))
+    : null;
+  const displayedGames = frozenIndexes
+    ? [...pendingGames].sort(
+        (a, b) =>
+          (frozenIndexes.get(a.groupGameId) ?? Number.MAX_SAFE_INTEGER) -
+          (frozenIndexes.get(b.groupGameId) ?? Number.MAX_SAFE_INTEGER)
+      )
+    : pendingGames;
+  // Cuántos juegos están fuera de su puesto real (para el botón de reordenar).
+  const outOfPlaceCount = frozenIndexes
+    ? displayedGames.filter(
+        (item, i) => (livePositions.get(item.groupGameId) ?? i + 1) !== i + 1
+      ).length
+    : 0;
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
   const groupTypeCfg = getGroupType(group?.type);
@@ -572,6 +605,10 @@ function GroupDashboardPage() {
     const newValue = isRemove ? null : value;
     const snapshot = ranking;
     const groupTypeCfg = getGroupType(group.type);
+
+    // Congelamos el orden que el usuario está viendo: a partir de aquí los votos
+    // cambian la puntuación pero no mueven las tarjetas de sitio.
+    setFrozenOrder((prev) => prev ?? ranking.map((r) => r.groupGameId));
 
     // ── Vote-limit conflict: ask before moving (e.g. super vote in friends) ──
     const limit = !isRemove ? groupTypeCfg.voteLimits.find((l) => l.value === value && l.max <= 1) : null;
@@ -1324,7 +1361,7 @@ function GroupDashboardPage() {
                         );
                       })()}
                       <div className="space-y-3">
-                        {pendingGames.map((item, index) => {
+                        {displayedGames.map((item, index) => {
                           const isEditorOpen = openCommentEditors.has(item.groupGameId);
                           const hasOtherComments = item.voters.some(
                             (v) =>
@@ -1433,6 +1470,24 @@ function GroupDashboardPage() {
                                 </div>
                                 {/* Badges inline (debajo del título, en ambos breakpoints) */}
                                 <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-1.5 sm:mt-2">
+                                  {(() => {
+                                    // Puesto real vs. puesto que ocupa ahora mismo en pantalla.
+                                    const livePos = livePositions.get(item.groupGameId) ?? index + 1;
+                                    if (livePos === index + 1) return null;
+                                    const goesUp = livePos < index + 1;
+                                    return (
+                                      <span
+                                        className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-semibold ${
+                                          goesUp
+                                            ? "bg-[var(--primary)]/20 text-[var(--primary)]"
+                                            : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
+                                        }`}
+                                        title={`Al actualizar el orden pasará al puesto ${livePos}`}
+                                      >
+                                        {goesUp ? "↑" : "↓"} #{livePos}
+                                      </span>
+                                    );
+                                  })()}
                                   {item.game.bggRating && (
                                     <BggRating rating={item.game.bggRating} size={30} />
                                   )}
@@ -2050,6 +2105,19 @@ function GroupDashboardPage() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* Botón flotante: aplica el nuevo orden cuando el usuario quiera */}
+          {activeTab === "ranking" && gamesSubTab === "ranking" && outOfPlaceCount > 0 && (
+            <button
+              onClick={() => setFrozenOrder(null)}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm hover:bg-[var(--primary-hover)] transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Actualizar orden ({outOfPlaceCount} {outOfPlaceCount === 1 ? "cambio" : "cambios"})
+            </button>
           )}
 
           {/* Ping success toast */}
