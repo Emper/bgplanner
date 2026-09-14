@@ -37,6 +37,27 @@ function emailLayout(inner: string): string {
     `;
 }
 
+// Los envíos se esperan (como en la convocatoria de grupo): en serverless,
+// una promesa sin await se pierde al congelarse la instancia en cuanto se
+// devuelve la respuesta. El catch por envío mantiene la regla de que un
+// fallo de email nunca rompe la respuesta, pero deja traza en los logs.
+function sendEmail(
+  to: string,
+  subject: string,
+  inner: string
+): Promise<unknown> {
+  return resend.emails
+    .send({
+      from: "BG Planner <cesar@tiradacritica.es>",
+      to,
+      subject,
+      html: emailLayout(inner),
+    })
+    .catch((err) => {
+      console.error(`[email-change] fallo al enviar "${subject}"`, err);
+    });
+}
+
 // GET — email actual + solicitud de cambio pendiente (si la hay)
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
@@ -155,35 +176,30 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  resend.emails
-    .send({
-      from: "BG Planner <cesar@tiradacritica.es>",
-      to: newEmail,
-      subject: "Confirma tu nuevo email en BG Planner",
-      html: emailLayout(`
+  await Promise.all([
+    sendEmail(
+      newEmail,
+      "Confirma tu nuevo email en BG Planner",
+      `
         <p>Has pedido usar esta dirección como email de tu cuenta de BG Planner. Tu código de confirmación es:</p>
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #1e293b; border-radius: 8px; margin: 20px 0; color: #f59e0b;">
           ${code}
         </div>
         <p style="color: #94a3b8; font-size: 14px;">Este código expira en 10 minutos. Hasta que lo introduzcas, tu cuenta sigue con el email de siempre.</p>
         <p style="color: #94a3b8; font-size: 14px;">Si no has sido tú, ignora este email.</p>
-      `),
-    })
-    .catch(() => {});
-
-  // Aviso al email antiguo: si alguien intenta robar la cuenta, el dueño se entera.
-  resend.emails
-    .send({
-      from: "BG Planner <cesar@tiradacritica.es>",
-      to: user.email,
-      subject: "Se ha pedido cambiar el email de tu cuenta",
-      html: emailLayout(`
+      `
+    ),
+    // Aviso al email antiguo: si alguien intenta robar la cuenta, el dueño se entera.
+    sendEmail(
+      user.email,
+      "Se ha pedido cambiar el email de tu cuenta",
+      `
         <p>Se ha solicitado cambiar el email de tu cuenta de BG Planner a <strong style="color: #f59e0b;">${escapeHtml(newEmail)}</strong>.</p>
         <p>El cambio no se aplicará hasta que se confirme con el código enviado a esa dirección.</p>
         <p style="color: #94a3b8; font-size: 14px;">Si no has sido tú, entra en tu perfil y cancela la solicitud. Tu cuenta sigue asociada a este email.</p>
-      `),
-    })
-    .catch(() => {});
+      `
+    ),
+  ]);
 
   return NextResponse.json({
     success: true,
@@ -296,29 +312,24 @@ export async function PUT(request: NextRequest) {
 
   logActivity("email_changed", user.id, {});
 
-  resend.emails
-    .send({
-      from: "BG Planner <cesar@tiradacritica.es>",
-      to: pending.newEmail,
-      subject: "Tu email de BG Planner ya está actualizado",
-      html: emailLayout(`
+  await Promise.all([
+    sendEmail(
+      pending.newEmail,
+      "Tu email de BG Planner ya está actualizado",
+      `
         <p>Listo: tu cuenta de BG Planner ya usa esta dirección. A partir de ahora recibirás aquí los códigos de acceso y los avisos de tus grupos.</p>
         <p style="color: #94a3b8; font-size: 14px;">El email anterior (${escapeHtml(previousEmail)}) ya no sirve para entrar.</p>
-      `),
-    })
-    .catch(() => {});
-
-  resend.emails
-    .send({
-      from: "BG Planner <cesar@tiradacritica.es>",
-      to: previousEmail,
-      subject: "El email de tu cuenta de BG Planner ha cambiado",
-      html: emailLayout(`
+      `
+    ),
+    sendEmail(
+      previousEmail,
+      "El email de tu cuenta de BG Planner ha cambiado",
+      `
         <p>El email de tu cuenta de BG Planner es ahora <strong style="color: #f59e0b;">${escapeHtml(pending.newEmail)}</strong>. Esta dirección ya no sirve para entrar.</p>
         <p style="color: #94a3b8; font-size: 14px;">Si no has sido tú, escríbenos respondiendo a este email lo antes posible.</p>
-      `),
-    })
-    .catch(() => {});
+      `
+    ),
+  ]);
 
   // El email viaja dentro del JWT de sesión: hay que reemitir la cookie para
   // que la sesión abierta no siga arrastrando el email antiguo.
