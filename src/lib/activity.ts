@@ -8,7 +8,8 @@ export type ActivityType =
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
   | "event_game_added" | "event_interest_set"
-  | "event_reviewed" | "event_photo_added";
+  | "event_reviewed" | "event_photo_added"
+  | "email_changed";
 
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
@@ -118,6 +119,8 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
     const stars = typeof m.rating === "number" && m.rating > 0 ? ` ${"★".repeat(m.rating)}` : "";
     return `valoró el evento${stars}`;
   },
+  // Cambio de email: no guardamos las direcciones en el log, solo la traza.
+  email_changed: () => "cambió el email de su cuenta",
   event_photo_added: (m) => {
     const n = typeof m.photoCount === "number" && m.photoCount > 1 ? ` (${m.photoCount})` : "";
     return `subió ${m.photoCount && m.photoCount > 1 ? "fotos" : "una foto"} a la galería${n}`;

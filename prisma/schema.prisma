@@ -35,6 +35,7 @@ model User {
   eventPhotos      EventPhoto[]
   groupPhotos      GroupPhoto[]
   activityLogs     ActivityLog[]
+  emailChangeRequests EmailChangeRequest[]
 }
 
 model OtpCode {
@@ -46,6 +47,25 @@ model OtpCode {
   createdAt DateTime @default(now())
 
   @@index([email, code])
+}
+
+// Solicitud de cambio de email de un usuario ya logueado. El código se manda
+// al email NUEVO (prueba de que es suyo) y solo se guarda su hash. Se
+// invalidan las solicitudes previas al crear una nueva, y `attempts` corta
+// los intentos a ciegas sobre el código.
+model EmailChangeRequest {
+  id        String    @id @default(cuid())
+  userId    String
+  newEmail  String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Group {

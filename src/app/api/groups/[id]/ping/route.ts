@@ -5,17 +5,9 @@ import { resend } from "@/lib/resend";
 import { pingSchema } from "@/lib/validations";
 import { computeRanking } from "@/lib/ranking";
 import { logActivity } from "@/lib/activity";
+import { escapeHtml } from "@/lib/html";
 
 const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 export async function POST(
   request: NextRequest,

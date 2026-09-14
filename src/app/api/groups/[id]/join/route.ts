@@ -36,7 +36,17 @@ export async function POST(
     );
   }
 
-  if (invitation.email !== session.email) {
+  // El email del JWT puede quedarse viejo (la sesión dura 60 días y el
+  // usuario puede haber cambiado de email), así que se compara con el de BD.
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { email: true },
+  });
+
+  if (
+    !user ||
+    invitation.email.toLowerCase() !== user.email.toLowerCase()
+  ) {
     return NextResponse.json(
       { error: "Esta invitación es para otro email" },
       { status: 403 }

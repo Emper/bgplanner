@@ -10,6 +10,24 @@ export const otpSchema = z.object({
   code: z.string().length(6, "El código debe tener 6 dígitos"),
 });
 
+// Cambio de email del usuario logueado: se pide el nuevo email y luego se
+// confirma con el código de 6 dígitos que le llega a esa dirección.
+export const emailChangeRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Email no válido")
+    .max(255, "Email demasiado largo"),
+});
+
+export const emailChangeConfirmSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "El código debe tener 6 dígitos"),
+});
+
 export const profileSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   surname: z.string().min(1, "Los apellidos son obligatorios"),

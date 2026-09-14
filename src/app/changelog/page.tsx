@@ -12,6 +12,16 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "14 septiembre 2026",
+    version: "1.18",
+    title: "Cambia tu email sin perder la cuenta",
+    changes: [
+      { type: "new", text: "Desde tu perfil puedes cambiar el email de tu cuenta: escribes la nueva dirección y te llega un código de 6 dígitos para confirmarla" },
+      { type: "new", text: "Hasta que introduces el código no cambia nada: sigues entrando con tu email de siempre y puedes cancelar la solicitud cuando quieras" },
+      { type: "new", text: "Avisamos también a tu dirección anterior, para que nadie pueda cambiarte el email sin que te enteres" },
+    ],
+  },
+  {
     date: "12 septiembre 2026",
     version: "1.17",
     title: "Borrón y cuenta nueva en el ranking",
