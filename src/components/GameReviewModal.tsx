@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import EmojiField from "./EmojiField";
 import { resizeImageToBlob } from "@/lib/image";
 
 interface Props {
@@ -177,13 +178,14 @@ export default function GameReviewModal({
         <label className="block text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
           Comentario
         </label>
-        <textarea
+        <EmojiField
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={setText}
           maxLength={1000}
           rows={3}
           placeholder="¿Cómo fue? ¿Quién ganó? La anécdota de la partida…"
-          className="w-full rounded-xl p-3 mb-1 text-sm resize-none"
+          wrapperClassName="mb-1"
+          className="w-full rounded-xl p-3 text-sm resize-none"
           style={{
             background: "var(--input-bg)",
             border: "1px solid var(--input-border)",

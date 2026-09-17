@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
+import EmojiField from "@/components/EmojiField";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -105,9 +106,9 @@ export default function ContactPage() {
 
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mensaje</label>
-              <textarea
+              <EmojiField
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={setMessage}
                 required
                 maxLength={5000}
                 rows={6}

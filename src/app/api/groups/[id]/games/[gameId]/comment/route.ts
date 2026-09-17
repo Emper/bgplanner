@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { gameCommentSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { truncateChars } from "@/lib/text";
 
 export async function PUT(
   request: NextRequest,
@@ -93,7 +94,7 @@ export async function PUT(
       logActivity("vote_commented", session.userId, {
         groupId,
         gameName: groupGame.game.name,
-        comment: text.slice(0, 80),
+        comment: truncateChars(text, 80),
       });
     }
   }

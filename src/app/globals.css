@@ -67,15 +67,20 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Las fuentes de Google solo traen el subset latino: sin este fallback
+   explícito de emoji algunos navegadores pintan tofu (cuadrado) en lugar del
+   emoji dentro de inputs y textareas. */
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, "Apple Color Emoji",
+    "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
 /* ── Display headings ─────────────────────────────────────────── */
 h1, h2, h3 {
-  font-family: var(--font-display), system-ui, sans-serif;
+  font-family: var(--font-display), system-ui, "Apple Color Emoji",
+    "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
 /* ── Subtle noise texture overlay ─────────────────────────────── */

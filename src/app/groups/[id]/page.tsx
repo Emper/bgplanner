@@ -14,6 +14,7 @@ import GameReviewModal from "@/components/GameReviewModal";
 import GroupGallery from "@/components/GroupGallery";
 import GroupPlayedGames from "@/components/GroupPlayedGames";
 import HelpMePickModal from "@/components/HelpMePickModal";
+import EmojiField from "@/components/EmojiField";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 
@@ -1680,15 +1681,15 @@ function GroupDashboardPage() {
                               return (
                                 <div className="mt-3 pl-9 sm:pl-14 space-y-2">
                                   {isEditorOpen && (
-                                    <textarea
+                                    <EmojiField
                                       autoFocus
                                       rows={1}
                                       maxLength={500}
                                       value={draftValue}
-                                      onChange={(e) =>
+                                      onChange={(text) =>
                                         setCommentDrafts((prev) => ({
                                           ...prev,
-                                          [item.groupGameId]: e.target.value,
+                                          [item.groupGameId]: text,
                                         }))
                                       }
                                       onBlur={(e) =>
@@ -2031,9 +2032,10 @@ function GroupDashboardPage() {
                       <label className="block text-xs text-[var(--text-secondary)] mb-1">
                         Mensaje personal (opcional)
                       </label>
-                      <textarea
+                      <EmojiField
                         value={pingMessage}
-                        onChange={(e) => setPingMessage(e.target.value.slice(0, 200))}
+                        onChange={setPingMessage}
+                        maxLength={200}
                         placeholder="Ej: vamos el viernes a casa de Ana"
                         rows={3}
                         className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200 resize-none"

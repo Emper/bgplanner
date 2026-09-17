@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import EmojiField from "@/components/EmojiField";
 import { resizeImage } from "@/lib/image";
 
 export default function NewEventPage() {
@@ -79,10 +80,10 @@ export default function NewEventPage() {
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
               Nombre del evento *
             </label>
-            <input
-              type="text"
+            <EmojiField
+              multiline={false}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
               required
               maxLength={200}
               placeholder="Ej: Jornada de juegos de mesa en Madrid"
@@ -94,9 +95,9 @@ export default function NewEventPage() {
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
               Descripción
             </label>
-            <textarea
+            <EmojiField
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
               maxLength={2000}
               rows={3}
               placeholder="Describe el evento..."

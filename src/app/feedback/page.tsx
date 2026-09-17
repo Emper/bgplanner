@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import EmojiField from "@/components/EmojiField";
 import { resizeImage } from "@/lib/image";
 
 export default function FeedbackPage() {
@@ -128,9 +129,9 @@ export default function FeedbackPage() {
 
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Descripción</label>
-              <textarea
+              <EmojiField
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={setMessage}
                 required
                 maxLength={5000}
                 rows={6}

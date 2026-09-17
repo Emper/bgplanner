@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import EmojiField from "@/components/EmojiField";
 import { GROUP_TYPES, GROUP_TYPE_IDS, type GroupTypeId } from "@/lib/groupTypes";
 
 export default function NewGroupPage() {
@@ -123,11 +124,12 @@ export default function NewGroupPage() {
                 <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
                   Nombre del grupo
                 </label>
-                <input
-                  type="text"
+                <EmojiField
+                  multiline={false}
                   required
+                  maxLength={100}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={setName}
                   placeholder={type === "couple" ? "Ej: Noches en pareja" : "Ej: Noches de juegos"}
                   className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 />

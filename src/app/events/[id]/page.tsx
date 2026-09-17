@@ -10,6 +10,7 @@ import BggRating from "@/components/BggRating";
 import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import EventGallery from "@/components/EventGallery";
+import EmojiField from "@/components/EmojiField";
 import { formatDateFull, formatDuration } from "@/lib/format";
 import { resizeImage } from "@/lib/image";
 
@@ -643,12 +644,12 @@ function EventDetailPageInner() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre del evento *</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                <EmojiField multiline={false} value={editName} onChange={setEditName}
                   className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={200} />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-secondary)] mb-1">Descripción</label>
-                <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3}
+                <EmojiField value={editDescription} onChange={setEditDescription} rows={3}
                   className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-none transition-all duration-200" maxLength={2000} />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -959,13 +960,14 @@ function MyListTab({
           <div className="mt-3">
             {editingNotes === eventGameId ? (
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <EmojiField
+                  multiline={false}
                   value={notesValue}
-                  onChange={(e) => setNotesValue(e.target.value)}
+                  onChange={setNotesValue}
                   maxLength={500}
                   placeholder="Notas privadas..."
-                  className="flex-1 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+                  wrapperClassName="flex-1"
+                  className="w-full px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       onUpdateNotes(eventGameId, myInterest.intensity, notesValue);

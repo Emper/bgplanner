@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Avatar from "./Avatar";
+import EmojiField from "./EmojiField";
 import { resizeImageToBlob } from "@/lib/image";
 
 interface EventPhoto {
@@ -205,9 +206,9 @@ export default function EventGallery({
                 </button>
               ))}
             </div>
-            <textarea
+            <EmojiField
               value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
+              onChange={setReviewText}
               maxLength={1000}
               rows={3}
               placeholder="¿Qué tal el evento? Lo mejor, lo que repetirías…"

@@ -12,6 +12,16 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "17 septiembre 2026",
+    version: "1.20",
+    title: "Emojis por todas partes 🎲🔥",
+    changes: [
+      { type: "new", text: "Botón de emojis en los comentarios del ranking, en las opiniones de las partidas y de los eventos, en la convocatoria del grupo, al crear grupos y eventos y en los formularios de contacto y sugerencias" },
+      { type: "new", text: "El selector tiene buscador en español, categorías (empezando por una de juegos: dados, cartas, dragones y trofeos) y recuerda los que más usas" },
+      { type: "fixed", text: "Los emojis se insertan justo donde tengas el cursor y el comentario ya no se cierra a medias mientras eliges: ahora escribir 😍 en un juego es tan fácil como en cualquier chat" },
+    ],
+  },
+  {
     date: "14 septiembre 2026",
     version: "1.19",
     title: "Vota sin perder el sitio en el ranking",
