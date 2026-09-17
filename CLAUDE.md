@@ -19,19 +19,30 @@ App para que grupos de amigos organicen sus partidas de juegos de mesa: importas
 
 ## Prisma / BD
 
-- **No hay carpeta `prisma/migrations/`**. Flujo: editar `schema.prisma` → `npx prisma db push` → `npx prisma generate`. Adecuado para MVP con un único entorno real; asume riesgo de no tener historial de migraciones.
+- **No hay carpeta `prisma/migrations/`**. Flujo: editar `schema.prisma` → aplicar el cambio en Supabase → `npx prisma generate`. Adecuado para MVP con un único entorno real; asume riesgo de no tener historial de migraciones.
 - `DATABASE_URL` = pooler Supabase; `DIRECT_URL` = conexión directa (necesaria para `prisma generate`).
-- Modelos principales: `User`, `OtpCode`, `Group`, `GroupMember`, `GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameSession`, `GameSessionGame`, `Event`, `EventAttendee`, `EventGame`, `EventGameInterest`, `CollectionGame` (caché por usuario BGG), `ActivityLog`.
+- Modelos principales: `User`, `OtpCode`, `Group`, `GroupMember`, `GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameSession`, `GameSessionGame`, `Event`, `EventAttendee`, `EventGame`, `EventGameInterest`, `CollectionGame` (caché por usuario BGG), `ActivityLog`, `Feedback`, `Feature` (roadmap público), `FeatureVote`.
 
 ### Seguridad con la base de datos — IMPORTANTE
 
-La base de datos de Supabase del proyecto es **producción**, sin entorno de staging. Cualquier `db push`, `UPDATE`/`DELETE` masivo o cambio de esquema afecta a la app en vivo y puede romper la versión desplegada hasta que se publique el código nuevo.
+La base de datos de Supabase del proyecto es **producción**, sin entorno de staging. Cualquier cambio de esquema o `UPDATE`/`DELETE` masivo afecta a la app en vivo y puede romper la versión desplegada hasta que se publique el código nuevo.
 
-**Regla**: nunca tocar la BD (esquema o datos) sin pedir confirmación explícita al usuario justo antes, aunque parezca un cambio menor o esté implícito en una tarea más grande. Esto incluye:
+**Regla**: Claude nunca ejecuta cambios contra la BD. Cuando haga falta tocar el esquema o los datos, **entregar el SQL al usuario para que lo ejecute él en la consola de Supabase**, aunque parezca un cambio menor o esté implícito en una tarea más grande. Esto incluye:
 
-- `npx prisma db push` (incluso para añadir un campo opcional)
+- Cambios de esquema (incluso añadir un campo opcional). Nada de `npx prisma db push`
 - Scripts que escriban con `$executeRaw`, `updateMany`, `deleteMany`, `create*` masivos
 - Cualquier query destructiva manual
+
+Para generar el SQL exacto de un cambio de esquema, sin inventárselo, diferenciar el `schema.prisma` anterior contra el nuevo:
+
+```bash
+git show HEAD:prisma/schema.prisma > /tmp/schema-old.prisma
+npx prisma migrate diff \
+  --from-schema-datamodel /tmp/schema-old.prisma \
+  --to-schema-datamodel prisma/schema.prisma --script
+```
+
+Entregarlo junto con **el orden correcto respecto al deploy** (normalmente: SQL primero, deploy después) y avisando de si hay ventana en la que la web queda rota.
 
 Cuando haya que migrar datos asociados a un cambio de esquema, **plantear al usuario el plan completo y la ventana de incompatibilidad esperada** antes de ejecutar nada. Si la migración requiere varios pasos coordinados con el deploy, avisar de que la web puede quedar parcialmente rota durante el proceso.
 
@@ -126,7 +137,6 @@ npm run dev                      # Next dev (puerto 3000)
 npm run build                    # limpia caché Prisma, genera cliente, build Next
 npm run lint                     # ESLint
 
-npx prisma db push               # sincroniza schema con Supabase
 npx prisma generate              # regenera cliente Prisma
 npx prisma studio                # GUI de la BD
 ```
