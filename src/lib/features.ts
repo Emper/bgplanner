@@ -61,11 +61,3 @@ export function featureStatusAccent(status: string): string {
 export function isVotableStatus(status: string): boolean {
   return status === "proposed" || status === "planned" || status === "in_progress";
 }
-
-export const FEEDBACK_STATUSES = [
-  { id: "pending", label: "Pendientes" },
-  { id: "accepted", label: "Aceptados" },
-  { id: "rejected", label: "Descartados" },
-] as const;
-
-export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number]["id"];

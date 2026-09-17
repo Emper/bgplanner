@@ -51,8 +51,8 @@ export async function PATCH(
   });
 }
 
-// Borra la propuesta y sus votos. Los feedbacks vinculados se quedan (pasan a
-// tener `featureId` null por el onDelete: SetNull del esquema).
+// Borra la propuesta, sus votos y el feedback original que la generó: es lo que
+// se espera al quitar una entrada de la lista, ya implementada o descartada.
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -66,6 +66,9 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.feature.deleteMany({ where: { id } });
+  await prisma.$transaction([
+    prisma.feedback.deleteMany({ where: { featureId: id } }),
+    prisma.feature.deleteMany({ where: { id } }),
+  ]);
   return NextResponse.json({ success: true });
 }

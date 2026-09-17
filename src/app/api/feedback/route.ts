@@ -6,6 +6,7 @@ import { escapeHtml } from "@/lib/html";
 import { logActivity } from "@/lib/activity";
 import { getStorageClient, uploadPhoto } from "@/lib/supabaseStorage";
 import { feedbackSchema } from "@/lib/validations";
+import { truncateChars } from "@/lib/text";
 
 // Convierte un data URL (lo que manda el cliente tras redimensionar) en buffer.
 function parseDataUrl(dataUrl: string): { buffer: Buffer; contentType: string } | null {
@@ -56,17 +57,29 @@ export async function POST(request: NextRequest) {
     imageUrls = uploads.filter((u): u is string => !!u);
   }
 
-  const feedback = await prisma.feedback.create({
+  // Todo lo que se manda se publica al momento en el roadmap para que la gente
+  // lo vote. El texto original (con autor y capturas) queda en el Feedback, que
+  // solo ve el admin; la propuesta pública es editable desde el panel.
+  const feature = await prisma.feature.create({
     data: {
-      userId: session.userId,
-      subject,
-      message,
-      images: imageUrls,
+      title: subject,
+      description: truncateChars(message, 2000),
+      status: "proposed",
+      createdById: session.userId,
+      feedbacks: {
+        create: {
+          userId: session.userId,
+          subject,
+          message,
+          images: imageUrls,
+          status: "published",
+        },
+      },
     },
-    select: { id: true },
+    select: { id: true, title: true, description: true, status: true, createdAt: true },
   });
 
-  logActivity("feedback_sent", session.userId, { feedbackId: feedback.id, subject });
+  logActivity("feedback_sent", session.userId, { featureId: feature.id, subject });
 
   const userName = user?.displayName || user?.name || "Usuario";
   const userEmail = user?.email || session.email;
@@ -93,7 +106,7 @@ export async function POST(request: NextRequest) {
         <div style="background: #1e293b; padding: 16px; border-radius: 8px; color: #e2e8f0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(message)}</div>
         ${attachments.length > 0 ? `<p style="color: #94a3b8; font-size: 12px; margin-top: 12px;">${attachments.length} imagen(es) adjunta(s)</p>` : ""}
         <p style="margin-top: 20px;">
-          <a href="${appUrl}/admin/feedback" style="display: inline-block; background: #f59e0b; color: #0f172a; font-weight: 600; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 14px;">Revisarlo en el panel</a>
+          <a href="${appUrl}/admin/roadmap" style="display: inline-block; background: #f59e0b; color: #0f172a; font-weight: 600; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 14px;">Revisarlo en el panel</a>
         </p>
       </div>
     `,
@@ -102,5 +115,8 @@ export async function POST(request: NextRequest) {
     })
     .catch(() => {});
 
-  return NextResponse.json({ success: true, id: feedback.id });
+  return NextResponse.json({
+    success: true,
+    feature: { ...feature, votes: 0, hasVoted: false },
+  });
 }

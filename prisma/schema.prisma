@@ -445,17 +445,17 @@ model BggThumbnail {
   fetchedAt DateTime @default(now())
 }
 
-// Feedback enviado por un usuario desde /feedback. El superadmin lo triaja
-// desde /admin/feedback: aceptarlo (lo publica como propuesta votable en el
-// roadmap) o descartarlo. `featureId` apunta a la propuesta resultante; varios
-// feedbacks pueden acabar en la misma propuesta si piden lo mismo.
+// Lo que manda un usuario desde /roadmap: una idea o un error. Se publica al
+// momento como propuesta votable (`featureId`), y aquí queda el texto original
+// con su autor y sus capturas, que solo ve el admin. Varios feedbacks pueden
+// apuntar a la misma propuesta si el admin los agrupa.
 model Feedback {
   id           String    @id @default(cuid())
   userId       String
   subject      String
   message      String    @db.Text
   images       String[]  @default([]) // URLs públicas en Supabase Storage
-  status       String    @default("pending") // pending | accepted | rejected
+  status       String    @default("published") // published | hidden
   adminNote    String?   @db.Text
   featureId    String?
   reviewedById String?

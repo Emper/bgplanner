@@ -160,25 +160,6 @@ export const feedbackSchema = z.object({
   images: z.array(z.string()).max(5).optional(),
 });
 
-// Triaje de un feedback desde el panel de admin.
-// - accept: publica una propuesta en el roadmap (nueva o vinculada a una existente)
-// - reject: lo descarta, con nota opcional para el autor
-// - reopen: lo devuelve a pendientes
-export const feedbackReviewSchema = z
-  .object({
-    action: z.enum(["accept", "reject", "reopen"]),
-    title: z.string().min(1, "El título es obligatorio").max(200).transform(clean).optional(),
-    description: z.string().min(1, "La descripción es obligatoria").max(2000).transform(clean).optional(),
-    status: z.enum(FEATURE_STATUS_IDS).optional(),
-    featureId: z.string().min(1).optional(),
-    adminNote: z.string().max(2000).transform(clean).optional(),
-    notify: z.boolean().optional(),
-  })
-  .refine(
-    (d) => d.action !== "accept" || !!d.featureId || (!!d.title && !!d.description),
-    { message: "Hace falta un título y una descripción para publicar la propuesta" }
-  );
-
 export const featureCreateSchema = z.object({
   title: z.string().min(1, "El título es obligatorio").max(200).transform(clean),
   description: z.string().min(1, "La descripción es obligatoria").max(2000).transform(clean),

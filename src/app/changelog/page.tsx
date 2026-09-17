@@ -14,12 +14,12 @@ const CHANGELOG: ChangelogEntry[] = [
   {
     date: "17 septiembre 2026",
     version: "1.21",
-    title: "El roadmap lo decidís vosotros",
+    title: "Las próximas funcionalidades las decidís vosotros",
     changes: [
-      { type: "new", text: "Nueva página de próximas funcionalidades: entra en el Roadmap y vota las ideas que más te interesen, que las más votadas son las primeras en llegar" },
-      { type: "new", text: "Tus propuestas ya no se pierden: cuando mandas feedback, si nos convence lo publicamos en el roadmap para que el resto lo pueda votar" },
-      { type: "improved", text: "Te avisamos por email cuando revisamos tu propuesta, tanto si entra en la lista como si de momento se queda fuera" },
-      { type: "improved", text: "Desde la página de feedback ves de un vistazo lo que más está pidiendo la gente y puedes votarlo ahí mismo" },
+      { type: "new", text: "Nueva página «Ideas y mejoras»: propón lo que echas en falta o cuéntanos un error, y se publica al momento en la lista para que cualquiera pueda votarlo" },
+      { type: "new", text: "Vota las propuestas que más te interesen: cuantas más tenga una idea, antes nos ponemos con ella. Puedes votar todas las que quieras y cambiar de opinión" },
+      { type: "new", text: "La lista va agrupada por estado, así que ves de un vistazo qué estamos haciendo ahora, qué está planificado y qué ya está listo" },
+      { type: "improved", text: "Feedback y roadmap eran lo mismo y ahora están en la misma página, con el formulario arriba y las propuestas debajo" },
     ],
   },
   {

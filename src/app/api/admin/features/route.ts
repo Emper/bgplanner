@@ -20,11 +20,22 @@ export async function GET(request: NextRequest) {
   const features = await prisma.feature.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { votes: true, feedbacks: true } },
+      _count: { select: { votes: true } },
       votes: {
         orderBy: { createdAt: "desc" },
         take: 20,
         select: {
+          user: { select: { id: true, name: true, displayName: true, email: true, avatarUrl: true } },
+        },
+      },
+      // El texto original de quien la propuso, con sus capturas: solo lo ve el
+      // admin (en el roadmap público va la versión editada).
+      feedbacks: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          message: true,
+          images: true,
           createdAt: true,
           user: { select: { id: true, name: true, displayName: true, email: true, avatarUrl: true } },
         },
@@ -40,11 +51,22 @@ export async function GET(request: NextRequest) {
       status: f.status,
       createdAt: f.createdAt,
       votes: f._count.votes,
-      feedbacks: f._count.feedbacks,
       voters: f.votes.map((v) => ({
         id: v.user.id,
         name: v.user.displayName || v.user.name || v.user.email,
         avatarUrl: v.user.avatarUrl,
+      })),
+      origins: f.feedbacks.map((fb) => ({
+        id: fb.id,
+        message: fb.message,
+        images: fb.images,
+        createdAt: fb.createdAt,
+        author: {
+          id: fb.user.id,
+          name: fb.user.displayName || fb.user.name || fb.user.email,
+          email: fb.user.email,
+          avatarUrl: fb.user.avatarUrl,
+        },
       })),
     })),
     NO_STORE
@@ -78,7 +100,7 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json(
-    { ...feature, votes: 0, feedbacks: 0, voters: [] },
+    { ...feature, votes: 0, voters: [], origins: [] },
     { status: 201, ...NO_STORE }
   );
 }
