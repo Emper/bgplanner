@@ -36,6 +36,10 @@ model User {
   groupPhotos      GroupPhoto[]
   activityLogs     ActivityLog[]
   emailChangeRequests EmailChangeRequest[]
+  feedbacks         Feedback[]    @relation("FeedbackAuthor")
+  reviewedFeedbacks Feedback[]    @relation("FeedbackReviewer")
+  createdFeatures   Feature[]     @relation("FeatureCreator")
+  featureVotes      FeatureVote[]
 }
 
 model OtpCode {
@@ -439,4 +443,65 @@ model BggThumbnail {
   bggId     Int      @id
   thumbnail String?
   fetchedAt DateTime @default(now())
+}
+
+// Feedback enviado por un usuario desde /feedback. El superadmin lo triaja
+// desde /admin/feedback: aceptarlo (lo publica como propuesta votable en el
+// roadmap) o descartarlo. `featureId` apunta a la propuesta resultante; varios
+// feedbacks pueden acabar en la misma propuesta si piden lo mismo.
+model Feedback {
+  id           String    @id @default(cuid())
+  userId       String
+  subject      String
+  message      String    @db.Text
+  images       String[]  @default([]) // URLs públicas en Supabase Storage
+  status       String    @default("pending") // pending | accepted | rejected
+  adminNote    String?   @db.Text
+  featureId    String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user       User     @relation("FeedbackAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("FeedbackReviewer", fields: [reviewedById], references: [id])
+  feature    Feature? @relation(fields: [featureId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@index([featureId])
+}
+
+// Propuesta de funcionalidad del roadmap público (/roadmap), votable por
+// cualquier usuario registrado. Nace de un feedback aceptado o la crea el
+// superadmin a mano.
+model Feature {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  status      String   @default("proposed") // proposed | planned | in_progress | done | discarded
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?         @relation("FeatureCreator", fields: [createdById], references: [id])
+  votes     FeatureVote[]
+  feedbacks Feedback[]
+
+  @@index([status, createdAt])
+}
+
+// Un voto por usuario y propuesta: "esta es la que más me interesa".
+model FeatureVote {
+  id        String   @id @default(cuid())
+  featureId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([featureId, userId])
+  @@index([featureId])
+  @@index([userId])
 }

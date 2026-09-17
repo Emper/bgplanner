@@ -3,9 +3,19 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { resizeImage } from "@/lib/image";
+
+interface RoadmapFeature {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  votes: number;
+  hasVoted: boolean;
+}
 
 export default function FeedbackPage() {
   const router = useRouter();
@@ -17,6 +27,8 @@ export default function FeedbackPage() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [features, setFeatures] = useState<RoadmapFeature[]>([]);
+  const [votingId, setVotingId] = useState("");
 
   useEffect(() => {
     fetch("/api/profile").then((res) => {
@@ -27,6 +39,40 @@ export default function FeedbackPage() {
       }
     });
   }, [router]);
+
+  // Las propuestas más votadas del roadmap, para votarlas sin salir de aquí.
+  useEffect(() => {
+    fetch("/api/features")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => setFeatures(data.features.filter((f: RoadmapFeature) => f.status !== "done").slice(0, 5)))
+      .catch(() => {});
+  }, []);
+
+  const toggleVote = async (feature: RoadmapFeature) => {
+    setVotingId(feature.id);
+    const wasVoted = feature.hasVoted;
+    setFeatures((prev) =>
+      prev.map((f) =>
+        f.id === feature.id ? { ...f, hasVoted: !wasVoted, votes: f.votes + (wasVoted ? -1 : 1) } : f
+      )
+    );
+    try {
+      const res = await fetch(`/api/features/${feature.id}/vote`, {
+        method: wasVoted ? "DELETE" : "POST",
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setFeatures((prev) =>
+        prev.map((f) => (f.id === feature.id ? { ...f, votes: data.votes, hasVoted: data.hasVoted } : f))
+      );
+    } catch {
+      setFeatures((prev) =>
+        prev.map((f) => (f.id === feature.id ? { ...f, hasVoted: wasVoted, votes: feature.votes } : f))
+      );
+    } finally {
+      setVotingId("");
+    }
+  };
 
   const handleImageUpload = async (files: FileList) => {
     const remaining = 5 - images.length;
@@ -196,36 +242,50 @@ export default function FeedbackPage() {
           </form>
         )}
 
-        {/* Roadmap */}
-        <section className="mt-12 pt-8 border-t border-[var(--border)]">
-          <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Estamos trabajando en...</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-5">
-            Próximas mejoras en las que estamos trabajando. Si quieres priorizar alguna, mándanos tu feedback.
-          </p>
-          <ul className="space-y-3">
-            {[
-              { text: "Poder añadir juegos que no estén en tu colección a los eventos", status: "in-progress" as const },
-            ].map((item, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-[var(--card-shadow)]"
-              >
-                <span className="shrink-0 mt-0.5">
-                  {item.status === "in-progress" ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
-                      En curso
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--surface-hover)] text-[var(--text-muted)]">
-                      Pendiente
-                    </span>
-                  )}
-                </span>
-                <span className="text-sm text-[var(--text-secondary)]">{item.text}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* Roadmap: lo más votado, votable desde aquí */}
+        {features.length > 0 && (
+          <section className="mt-12 pt-8 border-t border-[var(--border)]">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+              <h2 className="text-lg font-semibold text-[var(--text)]">Lo que más piden los demás</h2>
+              <Link href="/roadmap" className="text-sm text-[var(--primary)] hover:underline">
+                Ver todo el roadmap →
+              </Link>
+            </div>
+            <p className="text-sm text-[var(--text-muted)] mb-5">
+              Vota las que te interesen: cuantos más votos tenga una idea, antes nos ponemos con ella.
+            </p>
+            <ul className="space-y-3">
+              {features.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-start gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-[var(--card-shadow)]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleVote(f)}
+                    disabled={votingId === f.id}
+                    title={f.hasVoted ? "Quitar mi voto" : "Me interesa"}
+                    className={`shrink-0 w-12 rounded-xl border flex flex-col items-center justify-center py-1.5 transition-all duration-200 hover:border-[var(--primary)] ${
+                      f.hasVoted
+                        ? "bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]"
+                        : "bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                    </svg>
+                    <span className="text-xs font-semibold mt-0.5">{f.votes}</span>
+                  </button>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-[var(--text)]">{f.title}</h3>
+                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">{f.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
       </main>
 
       <Footer />

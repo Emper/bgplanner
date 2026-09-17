@@ -9,7 +9,8 @@ export type ActivityType =
   | "event_created" | "event_updated" | "event_joined" | "event_left"
   | "event_game_added" | "event_interest_set"
   | "event_reviewed" | "event_photo_added"
-  | "email_changed";
+  | "email_changed"
+  | "feedback_sent" | "feedback_accepted" | "feedback_rejected" | "feature_voted";
 
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
@@ -121,6 +122,10 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   },
   // Cambio de email: no guardamos las direcciones en el log, solo la traza.
   email_changed: () => "cambió el email de su cuenta",
+  feedback_sent: (m) => `mandó feedback${m.subject ? `: "${m.subject}"` : ""} 💬`,
+  feedback_accepted: (m) => `aceptó el feedback${m.subject ? ` "${m.subject}"` : ""} y lo publicó en el roadmap ✅`,
+  feedback_rejected: (m) => `descartó el feedback${m.subject ? ` "${m.subject}"` : ""}`,
+  feature_voted: (m) => `votó la propuesta "${m.featureTitle || ""}" del roadmap 🗳️`,
   event_photo_added: (m) => {
     const n = typeof m.photoCount === "number" && m.photoCount > 1 ? ` (${m.photoCount})` : "";
     return `subió ${m.photoCount && m.photoCount > 1 ? "fotos" : "una foto"} a la galería${n}`;

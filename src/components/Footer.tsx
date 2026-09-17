@@ -22,6 +22,10 @@ export default function Footer() {
           <Link href="/changelog" className="hover:text-[var(--primary)] transition-colors">
             Changelog
           </Link>
+          <span className="text-[var(--border)]">·</span>
+          <Link href="/roadmap" className="hover:text-[var(--primary)] transition-colors">
+            Roadmap
+          </Link>
           {isLoggedIn && (
             <>
               <span className="text-[var(--border)]">·</span>
