@@ -150,7 +150,7 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-2 pb-3">
         {!results && recents.length > 0 && (
           <>
             <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -225,6 +225,27 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
   );
 }
 
+// Carita monocroma en currentColor. Un emoji de verdad se pintaría siempre
+// amarillo y desentonaría con el resto de iconos de la app.
+function SmileyIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" />
+      <path d="M9 9.5h.01M15 9.5h.01" />
+    </svg>
+  );
+}
+
 type FieldElement = HTMLTextAreaElement | HTMLInputElement;
 
 type EmojiFieldProps = {
@@ -263,6 +284,10 @@ export default function EmojiField({
   onBlur,
   onKeyDown,
 }: EmojiFieldProps) {
+  // En un campo de varias filas el botón va abajo a la derecha; en uno de una
+  // sola línea, centrado verticalmente.
+  const tallField = multiline && (rows ?? 1) > 1;
+
   const fieldRef = useRef<FieldElement>(null);
   // El botón se guarda en estado (no en una ref) porque el panel lo necesita
   // como ancla durante el render.
@@ -314,7 +339,7 @@ export default function EmojiField({
     autoFocus,
     name,
     style,
-    className: `${className} pr-10`,
+    className: `${className} pr-11`,
   };
 
   return (
@@ -349,12 +374,13 @@ export default function EmojiField({
             setAnchorEl(e.currentTarget);
           }
         }}
-        className={`absolute right-1.5 w-7 h-7 flex items-center justify-center rounded-lg text-base leading-none transition-colors disabled:opacity-40 ${
-          anchorEl ? "bg-[var(--primary)]/15" : "hover:bg-[var(--input-bg)]"
-        } ${multiline ? "bottom-1.5" : "top-1/2 -translate-y-1/2"}`}
-        style={{ color: "var(--text-muted)" }}
+        className={`absolute right-2 w-7 h-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${
+          anchorEl
+            ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+            : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border)]/50"
+        } ${tallField ? "bottom-2" : "top-1/2 -translate-y-1/2"}`}
       >
-        <span aria-hidden>😊</span>
+        <SmileyIcon />
       </button>
 
       {anchorEl && (
