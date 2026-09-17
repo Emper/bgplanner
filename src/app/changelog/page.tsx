@@ -13,6 +13,17 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "17 septiembre 2026",
+    version: "1.21",
+    title: "El roadmap lo decidís vosotros",
+    changes: [
+      { type: "new", text: "Nueva página de próximas funcionalidades: entra en el Roadmap y vota las ideas que más te interesen, que las más votadas son las primeras en llegar" },
+      { type: "new", text: "Tus propuestas ya no se pierden: cuando mandas feedback, si nos convence lo publicamos en el roadmap para que el resto lo pueda votar" },
+      { type: "improved", text: "Te avisamos por email cuando revisamos tu propuesta, tanto si entra en la lista como si de momento se queda fuera" },
+      { type: "improved", text: "Desde la página de feedback ves de un vistazo lo que más está pidiendo la gente y puedes votarlo ahí mismo" },
+    ],
+  },
+  {
+    date: "17 septiembre 2026",
     version: "1.20",
     title: "Emojis por todas partes 🎲🔥",
     changes: [
