@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { featureCreateSchema } from "@/lib/validations";
 
+// El panel siempre tiene que ver el estado real, sin cachés por medio.
+const NO_STORE = { headers: { "Cache-Control": "no-store" } };
+
 // Todas las propuestas del roadmap, incluidas las descartadas (que no salen
 // en la vista pública), con sus votos y los feedbacks que las originaron.
 export async function GET(request: NextRequest) {
@@ -30,21 +33,21 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json(
-    features
-      .map((f) => ({
-        id: f.id,
-        title: f.title,
-        description: f.description,
-        status: f.status,
-        createdAt: f.createdAt,
-        votes: f._count.votes,
-        feedbacks: f._count.feedbacks,
-        voters: f.votes.map((v) => ({
-          id: v.user.id,
-          name: v.user.displayName || v.user.name || v.user.email,
-          avatarUrl: v.user.avatarUrl,
-        })),
-      }))
+    features.map((f) => ({
+      id: f.id,
+      title: f.title,
+      description: f.description,
+      status: f.status,
+      createdAt: f.createdAt,
+      votes: f._count.votes,
+      feedbacks: f._count.feedbacks,
+      voters: f.votes.map((v) => ({
+        id: v.user.id,
+        name: v.user.displayName || v.user.name || v.user.email,
+        avatarUrl: v.user.avatarUrl,
+      })),
+    })),
+    NO_STORE
   );
 }
 
@@ -74,5 +77,8 @@ export async function POST(request: NextRequest) {
     select: { id: true, title: true, description: true, status: true, createdAt: true },
   });
 
-  return NextResponse.json({ ...feature, votes: 0, feedbacks: 0, voters: [] }, { status: 201 });
+  return NextResponse.json(
+    { ...feature, votes: 0, feedbacks: 0, voters: [] },
+    { status: 201, ...NO_STORE }
+  );
 }

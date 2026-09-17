@@ -5,6 +5,10 @@ import { PUBLIC_FEATURE_STATUSES } from "@/lib/features";
 
 const PUBLIC_STATUS_IDS = PUBLIC_FEATURE_STATUSES.map((s) => s.id);
 
+// Listado siempre fresco: sin esto, una CDN o el navegador pueden servir una
+// versión anterior y esconder una propuesta recién publicada.
+const NO_STORE = { headers: { "Cache-Control": "no-store" } };
+
 // Roadmap público: propuestas visibles y cuántos votos tiene cada una. Se
 // puede leer sin sesión (para votar sí hace falta), así que nunca devuelve
 // datos del autor del feedback original.
@@ -33,23 +37,26 @@ export async function GET(request: NextRequest) {
 
   const voted = new Set(myVotes.map((v) => v.featureId));
 
-  return NextResponse.json({
-    isLoggedIn: !!session,
-    features: features
-      .map((f) => ({
-        id: f.id,
-        title: f.title,
-        description: f.description,
-        status: f.status,
-        createdAt: f.createdAt,
-        votes: f._count.votes,
-        hasVoted: voted.has(f.id),
-      }))
-      // Más votadas primero; a igualdad de votos, la más reciente arriba.
-      .sort(
-        (a, b) =>
-          b.votes - a.votes ||
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ),
-  });
+  return NextResponse.json(
+    {
+      isLoggedIn: !!session,
+      features: features
+        .map((f) => ({
+          id: f.id,
+          title: f.title,
+          description: f.description,
+          status: f.status,
+          createdAt: f.createdAt,
+          votes: f._count.votes,
+          hasVoted: voted.has(f.id),
+        }))
+        // Más votadas primero; a igualdad de votos, la más reciente arriba.
+        .sort(
+          (a, b) =>
+            b.votes - a.votes ||
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ),
+    },
+    NO_STORE
+  );
 }
