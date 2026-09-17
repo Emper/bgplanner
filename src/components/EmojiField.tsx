@@ -38,8 +38,44 @@ function saveRecents(list: string[]) {
   }
 }
 
-const PANEL_WIDTH = 320;
-const PANEL_HEIGHT = 330;
+const PANEL_WIDTH = 328;
+const PANEL_HEIGHT = 324;
+const COLS = 7;
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-1.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+      {children}
+    </p>
+  );
+}
+
+function EmojiGrid({
+  emojis,
+  titles,
+  onPick,
+}: {
+  emojis: string[];
+  titles?: string[];
+  onPick: (emoji: string) => void;
+}) {
+  return (
+    <div className="grid" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
+      {emojis.map((emoji, i) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => onPick(emoji)}
+          title={titles?.[i]}
+          aria-label={`Insertar ${emoji}`}
+          className="h-10 flex items-center justify-center rounded-lg hover:bg-[var(--surface-hover)] active:scale-95 transition-all"
+        >
+          <span className="text-[22px] leading-none">{emoji}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type PanelProps = {
   anchor: HTMLElement;
@@ -63,7 +99,9 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
     const width = el.offsetWidth || PANEL_WIDTH;
     const spaceAbove = rect.top;
     const spaceBelow = window.innerHeight - rect.bottom;
-    const openUp = spaceAbove > PANEL_HEIGHT + 8 || spaceAbove > spaceBelow;
+    // Abrimos hacia abajo salvo que no quepa: así el panel queda pegado al
+    // campo y no tapa media pantalla por encima.
+    const openUp = spaceBelow < PANEL_HEIGHT + 8 && spaceAbove > spaceBelow;
     const top = openUp
       ? rect.top - PANEL_HEIGHT - 8
       : Math.min(rect.bottom + 8, window.innerHeight - PANEL_HEIGHT - 8);
@@ -127,7 +165,7 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
       aria-label="Selector de emojis"
       // Evita que el campo pierda el foco al interactuar con el panel.
       onMouseDown={(e) => e.preventDefault()}
-      className="fixed z-[100] rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--card-shadow)] overflow-hidden flex flex-col"
+      className="fixed z-[100] rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] shadow-2xl shadow-black/30 overflow-hidden flex flex-col"
       style={{
         top: 0,
         left: 0,
@@ -138,84 +176,63 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
         visibility: "hidden",
       }}
     >
-      <div className="p-2 border-b border-[var(--border)]">
+      <div className="p-2">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar emoji…"
-          className="w-full px-3 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all"
+          className="w-full px-3 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none transition-colors"
           // El input del panel sí necesita poder recibir el foco.
           onMouseDown={(e) => e.stopPropagation()}
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 pb-3">
-        {!results && recents.length > 0 && (
-          <>
-            <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-              Recientes
+      <div className="relative flex-1 min-h-0">
+        <div className="h-full overflow-y-auto px-1.5 pb-4">
+          {!results && recents.length > 0 && (
+            <>
+              <SectionLabel>Recientes</SectionLabel>
+              <EmojiGrid emojis={recents} onPick={handlePick} />
+            </>
+          )}
+
+          {!results && <SectionLabel>{current.label}</SectionLabel>}
+
+          {visible.length === 0 ? (
+            <p className="px-2 py-6 text-center text-sm text-[var(--text-muted)]">
+              Ningún emoji para “{query.trim()}”.
             </p>
-            <div className="grid grid-cols-8 gap-0.5 mb-2">
-              {recents.map((emoji) => (
-                <button
-                  key={`recent-${emoji}`}
-                  type="button"
-                  onClick={() => handlePick(emoji)}
-                  className="h-9 text-xl leading-none rounded-lg hover:bg-[var(--input-bg)] transition-colors"
-                  aria-label={`Insertar ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {!results && (
-          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-            {current.label}
-          </p>
-        )}
-
-        {visible.length === 0 ? (
-          <p className="p-4 text-center text-sm text-[var(--text-muted)]">
-            Ningún emoji para “{query.trim()}”.
-          </p>
-        ) : (
-          <div className="grid grid-cols-8 gap-0.5">
-            {visible.map((emoji) => (
-              <button
-                key={emoji.char}
-                type="button"
-                onClick={() => handlePick(emoji.char)}
-                title={emoji.keywords.split(" ")[0]}
-                className="h-9 text-xl leading-none rounded-lg hover:bg-[var(--input-bg)] transition-colors"
-                aria-label={`Insertar ${emoji.char}`}
-              >
-                {emoji.char}
-              </button>
-            ))}
-          </div>
-        )}
+          ) : (
+            <EmojiGrid
+              emojis={visible.map((e) => e.char)}
+              titles={visible.map((e) => e.keywords.split(" ")[0])}
+              onPick={handlePick}
+            />
+          )}
+        </div>
+        {/* Fundido inferior: sin él la fila que queda a medias parece rota
+            en vez de "sigue habiendo más abajo". */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-[var(--surface)] to-transparent" />
       </div>
 
       {!results && (
-        <div className="flex items-center justify-between gap-0.5 px-1.5 py-1 border-t border-[var(--border)]">
+        <div className="flex items-center gap-0.5 px-1.5 py-1.5 border-t border-[var(--border)] bg-[var(--input-bg)]/40">
           {EMOJI_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => setCategory(cat.id)}
               aria-label={cat.label}
+              aria-pressed={cat.id === category}
               title={cat.label}
-              className={`flex-1 h-8 text-lg leading-none rounded-lg transition-colors ${
+              className={`flex-1 h-8 rounded-lg transition-all ${
                 cat.id === category
-                  ? "bg-[var(--primary)]/15"
-                  : "hover:bg-[var(--input-bg)]"
+                  ? "bg-[var(--primary)]/15 opacity-100"
+                  : "opacity-45 hover:opacity-100 hover:bg-[var(--surface-hover)]"
               }`}
             >
-              {cat.icon}
+              <span className="text-[17px] leading-none">{cat.icon}</span>
             </button>
           ))}
         </div>
