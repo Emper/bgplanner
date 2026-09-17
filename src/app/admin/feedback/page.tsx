@@ -67,14 +67,19 @@ export default function AdminFeedbackPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([
-      fetch("/api/admin/feedback").then((res) => (res.ok ? res.json() : Promise.reject(res))),
-      fetch("/api/admin/features").then((res) => (res.ok ? res.json() : Promise.reject(res))),
-    ])
-      .then(([feedback, feats]) => {
-        setItems(feedback.items);
-        setCounts(feedback.counts);
-        setFeatures(feats);
+    // El listado de propuestas solo alimenta el desplegable de "vincular a una
+    // existente": si falla, la bandeja tiene que verse igual.
+    fetch("/api/admin/features")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setFeatures)
+      .catch(() => setFeatures([]));
+
+    fetch("/api/admin/feedback")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => {
+        setItems(data.items);
+        setCounts(data.counts);
+        setError("");
       })
       .catch(() => setError("No se pudo cargar el feedback"))
       .finally(() => setLoading(false));
@@ -149,13 +154,6 @@ export default function AdminFeedbackPage() {
             Acepta lo que te convenza (se publica en el roadmap para que lo voten) o descártalo.
           </p>
         </div>
-        <Link
-          href="/admin/features"
-          prefetch={false}
-          className="text-sm font-medium text-purple-600 dark:text-purple-300 hover:underline"
-        >
-          Gestionar el roadmap →
-        </Link>
       </header>
 
       <div className="flex gap-2 flex-wrap">

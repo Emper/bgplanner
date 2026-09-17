@@ -82,11 +82,17 @@ export default function AdminFeaturesPage() {
           body: JSON.stringify({ title, description, status }),
         }
       );
+      const saved = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "No se pudo guardar");
+        throw new Error(saved.error || "No se pudo guardar");
       }
-      showToast(editing ? "Propuesta actualizada" : "Propuesta creada");
+      if (editing) {
+        setFeatures((prev) => prev.map((f) => (f.id === saved.id ? { ...f, ...saved } : f)));
+        showToast("Propuesta actualizada");
+      } else {
+        setFeatures((prev) => [{ ...saved, voters: [] }, ...prev]);
+        showToast("Propuesta creada — ya se ve en el roadmap");
+      }
       closeModal();
       load();
     } catch (e) {
@@ -131,28 +137,23 @@ export default function AdminFeaturesPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold">Roadmap</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Las propuestas que ven los usuarios en{" "}
-            <Link href="/roadmap" prefetch={false} className="hover:underline text-purple-600 dark:text-purple-300">
-              /roadmap
+            Lo más reciente primero.{" "}
+            <Link
+              href="/roadmap"
+              prefetch={false}
+              target="_blank"
+              className="hover:underline text-purple-600 dark:text-purple-300"
+            >
+              Ver la página pública ↗
             </Link>
-            , ordenadas por votos.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href="/admin/feedback"
-            prefetch={false}
-            className="px-4 py-2 rounded-xl text-sm font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-          >
-            Ver feedback
-          </Link>
-          <button
-            onClick={openCreate}
-            className="px-4 py-2 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
-          >
-            Nueva propuesta
-          </button>
-        </div>
+        <button
+          onClick={openCreate}
+          className="px-4 py-2 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+        >
+          Nueva propuesta
+        </button>
       </header>
 
       {error && <div className="text-sm text-red-500">{error}</div>}

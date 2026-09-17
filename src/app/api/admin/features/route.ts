@@ -45,11 +45,6 @@ export async function GET(request: NextRequest) {
           avatarUrl: v.user.avatarUrl,
         })),
       }))
-      .sort(
-        (a, b) =>
-          b.votes - a.votes ||
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
   );
 }
 
