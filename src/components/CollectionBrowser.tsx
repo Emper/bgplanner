@@ -276,6 +276,11 @@ export default function CollectionBrowser({
     onScore?.(bggId, value);
   };
 
+  const showcase = (bggId: number) => {
+    setSticky((prev) => new Set(prev).add(bggId));
+    onToggleShowcase?.(bggId);
+  };
+
   const toggleExpanded = (bggId: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -325,21 +330,22 @@ export default function CollectionBrowser({
                   if (tab === "unrated") setTab("own");
                   setKeep((prev) => (prev === String(value) ? "" : String(value)));
                 }}
-                title={KEEP_LABELS[value]}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                   keep === String(value)
                     ? KEEP_CLASSES[value]
                     : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
                 }`}
               >
-                {KEEP_EMOJI[value]} {stats.byScore[value]}
+                <span>{KEEP_EMOJI[value]}</span>
+                <span>{KEEP_LABELS[value]}</span>
+                <span className="opacity-60 tabular-nums">{stats.byScore[value]}</span>
               </button>
             ))}
-            <span className="ml-auto text-xs text-[var(--text-muted)]">
-              {stats.owned} juegos · {stats.expansions} expansiones
-              {fetchedAt && ` · al día de ${formatRelativeShort(fetchedAt)}`}
-            </span>
           </div>
+          <p className="text-xs text-[var(--text-muted)] mt-3">
+            {stats.owned} juegos · {stats.expansions} expansiones
+            {fetchedAt && ` · al día de ${formatRelativeShort(fetchedAt)}`}
+          </p>
         </div>
       )}
 
@@ -593,6 +599,7 @@ export default function CollectionBrowser({
               readOnly={readOnly}
               onOpen={() => setDetailId(item.bggId)}
               onScore={(value) => score(item.bggId, value)}
+              onToggleShowcase={onToggleShowcase ? () => showcase(item.bggId) : undefined}
             />
           ))}
         </div>
@@ -608,6 +615,7 @@ export default function CollectionBrowser({
               onToggleExpanded={() => toggleExpanded(item.bggId)}
               onOpen={() => setDetailId(item.bggId)}
               onScore={(value) => score(item.bggId, value)}
+              onToggleShowcase={onToggleShowcase ? () => showcase(item.bggId) : undefined}
             />
           ))}
         </div>
@@ -644,7 +652,7 @@ export default function CollectionBrowser({
           onClose={() => setDetailId(null)}
           onScore={(value) => score(detail.bggId, value)}
           onExpansionScore={(bggId, value) => score(bggId, value)}
-          onToggleShowcase={() => onToggleShowcase?.(detail.bggId)}
+          onToggleShowcase={() => showcase(detail.bggId)}
         />
       )}
     </>

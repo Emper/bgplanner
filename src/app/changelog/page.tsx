@@ -20,6 +20,8 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Quien lo abra puede mirar, buscar y filtrar con las mismas herramientas que tú, incluida la estantería, pero no puede cambiar ni una puntuación" },
       { type: "new", text: "El enlace es tuyo y lo controlas: se genera cuando quieres, puedes cambiarlo por uno nuevo (y el anterior deja de valer) o dejar de compartir del todo con un clic" },
       { type: "improved", text: "Para abrir una colección compartida hace falta tener cuenta en BG Planner, así que tus puntuaciones no acaban a la vista de cualquiera que pille el enlace de rebote" },
+      { type: "improved", text: "Montar tu vitrina es ahora un clic: la estrella está en cada juego del listado, sin tener que abrir su ficha" },
+      { type: "improved", text: "Los botones de puntuación de la cabecera dicen lo que son («Se queda», «Quiero venderlo»…) en vez de solo el icono" },
     ],
   },
   {

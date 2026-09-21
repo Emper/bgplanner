@@ -92,6 +92,64 @@ export function KeepBadge({
   );
 }
 
+// La estrella de la vitrina del perfil. En la colección de otro no se toca:
+// ahí solo se ve si el dueño lo tiene destacado.
+function ShowcaseStar({
+  showcased,
+  readOnly,
+  onToggle,
+  floating = false,
+}: {
+  showcased: boolean;
+  readOnly: boolean;
+  onToggle?: () => void;
+  floating?: boolean;
+}) {
+  if (readOnly || !onToggle) {
+    if (!showcased) return null;
+    return (
+      <span
+        title="En la vitrina de su perfil"
+        className={
+          floating
+            ? "absolute top-2 right-2 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-sm text-amber-300"
+            : "text-[var(--primary)]"
+        }
+      >
+        ★
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-pressed={showcased}
+      title={
+        showcased
+          ? "Quitar de la vitrina de tu perfil"
+          : "Añadir a la vitrina de tu perfil"
+      }
+      className={
+        floating
+          ? `absolute top-2 right-2 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-sm transition-colors ${
+              showcased ? "text-amber-300" : "text-white/70 hover:text-amber-300"
+            }`
+          : `w-7 h-7 flex items-center justify-center rounded-lg text-base leading-none transition-colors ${
+              showcased
+                ? "text-[var(--primary)]"
+                : "text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--surface-hover)]"
+            }`
+      }
+    >
+      {showcased ? "★" : "☆"}
+    </button>
+  );
+}
+
 function GameMeta({ item }: { item: CollectionItemView }) {
   const players = playersLabel(item.minPlayers, item.maxPlayers);
   return (
@@ -126,6 +184,7 @@ export function ListRow({
   onToggleExpanded,
   onOpen,
   onScore,
+  onToggleShowcase,
   readOnly = false,
   owner,
 }: {
@@ -134,6 +193,7 @@ export function ListRow({
   onToggleExpanded: () => void;
   onOpen: () => void;
   onScore: (score: number | null) => void;
+  onToggleShowcase?: () => void;
   readOnly?: boolean;
   owner?: string;
 }) {
@@ -174,7 +234,11 @@ export function ListRow({
               </h3>
             </button>
             <div className="flex items-center gap-1.5 shrink-0">
-              {item.showcased && <span title="En la vitrina del perfil">⭐</span>}
+              <ShowcaseStar
+                showcased={item.showcased}
+                readOnly={readOnly}
+                onToggle={onToggleShowcase}
+              />
               {item.status === "wishlist" && <Meta title="Está en su wishlist de BGG">Lo quiere</Meta>}
               {item.userRating !== null && (
                 <MyRatingBadge rating={item.userRating} owner={owner} />
@@ -253,39 +317,56 @@ export function GridCard({
   item,
   onOpen,
   onScore,
+  onToggleShowcase,
   readOnly = false,
 }: {
   item: CollectionItemView;
   onOpen: () => void;
   onScore: (score: number | null) => void;
+  onToggleShowcase?: () => void;
   readOnly?: boolean;
 }) {
   const img = cover(item);
   return (
     <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden flex flex-col">
-      <button onClick={onOpen} className="relative aspect-square bg-[var(--surface-hover)]">
-        {img ? (
-          <Image
-            src={img}
-            alt={item.name}
-            fill
-            sizes="(max-width: 640px) 50vw, 25vw"
-            className="object-cover"
-          />
-        ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-3xl">🎲</span>
-        )}
+      {/* La portada es un div y no un botón: dentro va la estrella, y un
+          botón dentro de otro botón no es HTML válido. */}
+      <div className="relative aspect-square bg-[var(--surface-hover)]">
+        <button
+          onClick={onOpen}
+          title="Ver la ficha"
+          className="absolute inset-0 w-full h-full"
+        >
+          {img ? (
+            <Image
+              src={img}
+              alt={item.name}
+              fill
+              sizes="(max-width: 640px) 50vw, 25vw"
+              className="object-cover"
+            />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center text-3xl">
+              🎲
+            </span>
+          )}
+        </button>
         {item.keepScore && (
           <span
-            className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] shadow"
+            className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] shadow pointer-events-none"
             style={{ backgroundColor: KEEP_HEX[item.keepScore] }}
             title={KEEP_LABELS[item.keepScore]}
           >
             {KEEP_EMOJI[item.keepScore]}
           </span>
         )}
-        {item.showcased && <span className="absolute top-2 right-2 text-sm">⭐</span>}
-      </button>
+        <ShowcaseStar
+          showcased={item.showcased}
+          readOnly={readOnly}
+          onToggle={onToggleShowcase}
+          floating
+        />
+      </div>
       <div className="p-2.5 flex-1 flex flex-col gap-1.5">
         <button onClick={onOpen} className="text-left">
           <h3 className="text-xs font-semibold text-[var(--text)] line-clamp-2 hover:text-[var(--primary)] transition-colors">
