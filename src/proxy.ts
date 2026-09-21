@@ -29,6 +29,7 @@ function handleUnauthorized(request: NextRequest) {
 export const config = {
   matcher: [
     "/profile/:path*",
+    "/users/:path*",
     "/groups/:path*",
     "/events/:path*",
     // `:path*` casa también con la ruta sin sufijo, así que esto cubre
@@ -39,6 +40,7 @@ export const config = {
     // tener cuenta para abrirlo.
     "/c/:path*",
     "/api/profile/:path*",
+    "/api/users/:path*",
     "/api/groups/:path*",
     "/api/events/:path*",
     "/api/bgg/:path*",

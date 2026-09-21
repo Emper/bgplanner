@@ -29,7 +29,7 @@ function getInitial(name: string) {
 interface Props {
   name: string;
   avatarUrl?: string | null;
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -38,6 +38,7 @@ const SIZES = {
   sm: { cls: "w-8 h-8 text-xs", px: 32 },
   md: { cls: "w-10 h-10 text-sm", px: 40 },
   lg: { cls: "w-14 h-14 text-lg", px: 56 },
+  xl: { cls: "w-20 h-20 text-3xl", px: 80 },
 };
 
 export default function Avatar({ name, avatarUrl, size = "md", className = "" }: Props) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
@@ -29,6 +30,7 @@ function ProfileForm() {
     location: "",
     bggUsername: "",
   });
+  const [userId, setUserId] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,7 @@ function ProfileForm() {
           });
           setAvatarUrl(data.avatarUrl || null);
           setEmail(data.email || "");
+          setUserId(data.id || "");
         }
         const emailRes = await fetch("/api/profile/email", {
           credentials: "include",
@@ -274,7 +277,17 @@ function ProfileForm() {
       <Navbar />
       <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold text-[var(--text)] mb-6">Mi Perfil</h1>
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <h1 className="text-2xl font-bold text-[var(--text)]">Mi Perfil</h1>
+            {userId && (
+              <Link
+                href={`/users/${userId}`}
+                className="text-xs text-[var(--primary)] hover:underline shrink-0"
+              >
+                Ver mi perfil público &rarr;
+              </Link>
+            )}
+          </div>
 
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
             {/* Avatar section */}

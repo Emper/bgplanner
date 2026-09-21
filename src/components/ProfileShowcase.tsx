@@ -1,21 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
-
-interface ShowcaseGame {
-  bggId: number;
-  name: string;
-  image: string | null;
-  thumbnail: string | null;
-}
+import GameShelf, { type ShelfGame } from "./GameShelf";
 
 // La vitrina del perfil: los juegos que el dueño ha marcado como favoritos
 // desde "Mi colección", apoyados en la misma estantería. No enseña la
 // puntuación de permanencia, que es privada.
 export default function ProfileShowcase() {
-  const [games, setGames] = useState<ShowcaseGame[] | null>(null);
+  const [games, setGames] = useState<ShelfGame[] | null>(null);
   const [connected, setConnected] = useState(true);
 
   useEffect(() => {
@@ -24,8 +17,8 @@ export default function ProfileShowcase() {
       .then((data) => {
         if (!data) return setGames([]);
         setConnected(!!data.connected);
-        const items: ShowcaseGame[] = [...(data.items ?? [])].sort(
-          (a: ShowcaseGame, b: ShowcaseGame) => a.name.localeCompare(b.name)
+        const items: ShelfGame[] = [...(data.items ?? [])].sort(
+          (a: ShelfGame, b: ShelfGame) => a.name.localeCompare(b.name)
         );
         setGames(items);
       })
@@ -61,39 +54,7 @@ export default function ProfileShowcase() {
           y aparecerán aquí.
         </p>
       ) : (
-        <div className="shelf-wrap">
-          <div className="shelf">
-            {games.map((game) => {
-              const img = game.image || game.thumbnail;
-              return (
-                <div key={game.bggId} className="shelf-slot">
-                  <a
-                    href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shelf-item flex items-end justify-center max-w-full"
-                    title={game.name}
-                  >
-                    {img ? (
-                      <Image
-                        src={img}
-                        alt={game.name}
-                        width={220}
-                        height={220}
-                        sizes="(max-width: 640px) 33vw, 120px"
-                        className="shelf-box"
-                      />
-                    ) : (
-                      <span className="shelf-box flex items-end justify-center w-16 h-20 bg-[var(--surface-hover)] text-2xl">
-                        🎲
-                      </span>
-                    )}
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <GameShelf games={games} />
       )}
     </div>
   );

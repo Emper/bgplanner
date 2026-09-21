@@ -3,6 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggGameSearch from "@/components/BggGameSearch";
@@ -1029,14 +1030,22 @@ function AttendeesTab({ event }: { event: EventData }) {
                 className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
               >
                 <div className="flex items-center gap-2">
-                  <Avatar
-                    name={att.user.displayName || att.user.name || att.user.email}
-                    avatarUrl={att.user.avatarUrl}
-                    size="sm"
-                  />
+                  <Link href={`/users/${att.userId}`} prefetch={false}>
+                    <Avatar
+                      name={att.user.displayName || att.user.name || att.user.email}
+                      avatarUrl={att.user.avatarUrl}
+                      size="sm"
+                    />
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[var(--text)] text-sm">
-                      {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
+                      <Link
+                        href={`/users/${att.userId}`}
+                        prefetch={false}
+                        className="hover:text-[var(--primary)] transition-colors"
+                      >
+                        {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
+                      </Link>
                       {att.user.bggUsername && (
                         <a
                           href={`https://boardgamegeek.com/user/${att.user.bggUsername}`}

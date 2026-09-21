@@ -2602,17 +2602,23 @@ function GroupDashboardPage() {
                       className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar
-                          name={member.user.displayName || member.user.name || member.user.email}
-                          avatarUrl={member.user.avatarUrl}
-                          size="sm"
-                        />
+                        <Link href={`/users/${member.user.id}`} prefetch={false}>
+                          <Avatar
+                            name={member.user.displayName || member.user.name || member.user.email}
+                            avatarUrl={member.user.avatarUrl}
+                            size="sm"
+                          />
+                        </Link>
                         <div>
-                          <span className="font-medium text-[var(--text)]">
+                          <Link
+                            href={`/users/${member.user.id}`}
+                            prefetch={false}
+                            className="font-medium text-[var(--text)] hover:text-[var(--primary)] transition-colors"
+                          >
                             {member.user.name
                               ? `${member.user.name} ${member.user.surname || ""}`
                               : member.user.email}
-                          </span>
+                          </Link>
                           {member.user.bggUsername && (
                             <a
                               href={`https://boardgamegeek.com/user/${member.user.bggUsername}`}
