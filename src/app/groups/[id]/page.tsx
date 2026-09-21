@@ -17,6 +17,7 @@ import HelpMePickModal from "@/components/HelpMePickModal";
 import EmojiField from "@/components/EmojiField";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
+import { profileHref } from "@/lib/users";
 
 interface Game {
   id: string;
@@ -2602,7 +2603,7 @@ function GroupDashboardPage() {
                       className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
                     >
                       <div className="flex items-center gap-3">
-                        <Link href={`/users/${member.user.id}`} prefetch={false}>
+                        <Link href={profileHref(member.user)} prefetch={false}>
                           <Avatar
                             name={member.user.displayName || member.user.name || member.user.email}
                             avatarUrl={member.user.avatarUrl}
@@ -2611,7 +2612,7 @@ function GroupDashboardPage() {
                         </Link>
                         <div>
                           <Link
-                            href={`/users/${member.user.id}`}
+                            href={profileHref(member.user)}
                             prefetch={false}
                             className="font-medium text-[var(--text)] hover:text-[var(--primary)] transition-colors"
                           >

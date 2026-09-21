@@ -414,6 +414,24 @@ summary:focus-visible {
   }
 }
 
+/* Variante compacta (vitrina del perfil): la balda reserva menos alto, que
+   con pocas cajas —y más si son apaisadas— el hueco de arriba cantaba. */
+.shelf-wrap--compact {
+  padding: 0.4rem 0.75rem;
+}
+
+.shelf--compact {
+  --shelf-row: 118px;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+}
+
+@media (min-width: 640px) {
+  .shelf--compact {
+    --shelf-row: 146px;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+}
+
 .shelf-slot {
   grid-row: span 1;
   display: flex;

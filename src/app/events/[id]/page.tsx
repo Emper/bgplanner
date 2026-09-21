@@ -14,6 +14,7 @@ import EventGallery from "@/components/EventGallery";
 import EmojiField from "@/components/EmojiField";
 import { formatDateFull, formatDuration } from "@/lib/format";
 import { resizeImage } from "@/lib/image";
+import { profileHref } from "@/lib/users";
 
 interface Game {
   id: string;
@@ -1030,7 +1031,7 @@ function AttendeesTab({ event }: { event: EventData }) {
                 className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
               >
                 <div className="flex items-center gap-2">
-                  <Link href={`/users/${att.userId}`} prefetch={false}>
+                  <Link href={profileHref(att.user)} prefetch={false}>
                     <Avatar
                       name={att.user.displayName || att.user.name || att.user.email}
                       avatarUrl={att.user.avatarUrl}
@@ -1040,7 +1041,7 @@ function AttendeesTab({ event }: { event: EventData }) {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[var(--text)] text-sm">
                       <Link
-                        href={`/users/${att.userId}`}
+                        href={profileHref(att.user)}
                         prefetch={false}
                         className="hover:text-[var(--primary)] transition-colors"
                       >

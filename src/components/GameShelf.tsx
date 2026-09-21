@@ -11,10 +11,17 @@ export interface ShelfGame {
 
 // La estantería de madera: cajas apoyadas en las baldas. La usan la vitrina
 // del perfil propio y la del perfil público de cualquier jugador.
-export default function GameShelf({ games }: { games: ShelfGame[] }) {
+export default function GameShelf({
+  games,
+  compact = false,
+}: {
+  games: ShelfGame[];
+  /** Baldas más bajas y cajas más juntas, para vitrinas de pocos juegos. */
+  compact?: boolean;
+}) {
   return (
-    <div className="shelf-wrap">
-      <div className="shelf">
+    <div className={`shelf-wrap${compact ? " shelf-wrap--compact" : ""}`}>
+      <div className={`shelf${compact ? " shelf--compact" : ""}`}>
         {games.map((game) => {
           const img = game.image || game.thumbnail;
           return (
