@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageLoader from "@/components/PageLoader";
 import BggRating from "@/components/BggRating";
 import KeepScoreSlider from "@/components/KeepScoreSlider";
 import {
@@ -54,8 +56,6 @@ const VIEWS: { value: View; label: string; icon: string }[] = [
   { value: "shelf", label: "Estantería", icon: "🗄" },
 ];
 
-const PAGE_SIZE: Record<View, number> = { list: 24, grid: 36, shelf: 48 };
-
 function playersLabel(min: number | null, max: number | null): string | null {
   if (!min && !max) return null;
   if (min && max && min !== max) return `${min}-${max} jugadores`;
@@ -77,7 +77,19 @@ function cover(item: { image: string | null; thumbnail: string | null }) {
   return item.image || item.thumbnail;
 }
 
-export default function CollectionPage() {
+// Cuántas fichas se añaden cada vez que el scroll llega al final.
+const BATCH: Record<View, number> = { list: 24, grid: 36, shelf: 48 };
+
+function CollectionPageInner() {
+  // Lo que estás mirando viaja en la URL: así puedes recargar, compartir el
+  // enlace o volver atrás sin perder los filtros.
+  const searchParams = useSearchParams();
+  const initialRef = useRef<URLSearchParams | null>(null);
+  if (initialRef.current === null) {
+    initialRef.current = new URLSearchParams(searchParams.toString());
+  }
+  const initial = initialRef.current;
+
   // La colección entera vive aquí; filtrar y ordenar no vuelve al servidor.
   const [all, setAll] = useState<CollectionItemView[] | null>(null);
   const [meta, setMeta] = useState<ApiResponse | null>(null);
@@ -85,22 +97,39 @@ export default function CollectionPage() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
-  const [view, setView] = useState<View>("list");
-  const [tab, setTab] = useState<Tab>("own");
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<CollectionSort>("added");
-  const [order, setOrder] = useState<"" | "asc" | "desc">("");
-  const [page, setPage] = useState(1);
+  const [view, setView] = useState<View>(() => {
+    const v = initial.get("view");
+    return v === "grid" || v === "shelf" || v === "list" ? v : "list";
+  });
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = initial.get("tab");
+    return t === "unrated" || t === "wishlist" || t === "all" ? t : "own";
+  });
+  const [search, setSearch] = useState(() => initial.get("q") ?? "");
+  const [sort, setSort] = useState<CollectionSort>(() => {
+    const value = initial.get("sort");
+    return SORT_OPTIONS.some((o) => o.value === value)
+      ? (value as CollectionSort)
+      : "added";
+  });
+  const [order, setOrder] = useState<"" | "asc" | "desc">(() => {
+    const o = initial.get("order");
+    return o === "asc" || o === "desc" ? o : "";
+  });
+  // Cuántas fichas hay pintadas ahora mismo (scroll infinito).
+  const [limit, setLimit] = useState(24);
 
   const [showFilters, setShowFilters] = useState(false);
-  const [keep, setKeep] = useState("");
-  const [players, setPlayers] = useState("");
-  const [plays, setPlays] = useState("");
-  const [myRating, setMyRating] = useState("");
-  const [maxRank, setMaxRank] = useState("");
-  const [minWeight, setMinWeight] = useState("");
-  const [maxWeight, setMaxWeight] = useState("");
-  const [onlyShowcased, setOnlyShowcased] = useState(false);
+  const [keep, setKeep] = useState(() => initial.get("keep") ?? "");
+  const [players, setPlayers] = useState(() => initial.get("players") ?? "");
+  const [plays, setPlays] = useState(() => initial.get("plays") ?? "");
+  const [myRating, setMyRating] = useState(() => initial.get("mine") ?? "");
+  const [maxRank, setMaxRank] = useState(() => initial.get("rank") ?? "");
+  const [minWeight, setMinWeight] = useState(() => initial.get("wmin") ?? "");
+  const [maxWeight, setMaxWeight] = useState(() => initial.get("wmax") ?? "");
+  const [onlyShowcased, setOnlyShowcased] = useState(
+    () => initial.get("star") === "1"
+  );
 
   const [detail, setDetail] = useState<CollectionItemView | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -118,11 +147,43 @@ export default function CollectionPage() {
   };
 
   // La vista elegida se recuerda entre visitas: es una preferencia estética,
-  // no un filtro, y es molesto volver a ponerla cada vez.
+  // no un filtro, y es molesto volver a ponerla cada vez. Si el enlace trae
+  // una vista concreta, manda el enlace.
   useEffect(() => {
+    if (initial.get("view")) return;
     const saved = localStorage.getItem("collection:view");
     if (saved === "list" || saved === "grid" || saved === "shelf") setView(saved);
-  }, []);
+  }, [initial]);
+
+  // Vuelca el estado a la barra de direcciones. Se usa replaceState en vez
+  // del router para que tocar un filtro no re-renderice el árbol de
+  // servidor ni llene el historial de pasos atrás; solo se escriben los
+  // valores distintos del de por defecto, para que el enlace quede legible.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tab !== "own") params.set("tab", tab);
+    if (view !== "list") params.set("view", view);
+    if (search.trim()) params.set("q", search.trim());
+    if (sort !== "added") params.set("sort", sort);
+    if (order) params.set("order", order);
+    if (keep) params.set("keep", keep);
+    if (players) params.set("players", players);
+    if (plays) params.set("plays", plays);
+    if (myRating) params.set("mine", myRating);
+    if (maxRank) params.set("rank", maxRank);
+    if (minWeight) params.set("wmin", minWeight);
+    if (maxWeight) params.set("wmax", maxWeight);
+    if (onlyShowcased) params.set("star", "1");
+
+    const qs = params.toString();
+    const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    if (url !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", url);
+    }
+  }, [
+    tab, view, search, sort, order, keep, players, plays, myRating,
+    maxRank, minWeight, maxWeight, onlyShowcased,
+  ]);
 
   const changeView = (next: View) => {
     setView(next);
@@ -258,25 +319,33 @@ export default function CollectionPage() {
     return sortItems([...matching, ...kept], sort, order);
   }, [all, filters, sort, order, sticky]);
 
-  const pageSize = PAGE_SIZE[view];
-  const totalPages = Math.ceil(visible.length / pageSize);
-  const pageItems = useMemo(
-    () => visible.slice((page - 1) * pageSize, page * pageSize),
-    [visible, page, pageSize]
-  );
+  const shown = useMemo(() => visible.slice(0, limit), [visible, limit]);
+  const hasMore = limit < visible.length;
 
-  // Al cambiar de filtro se vuelve a la primera página y se sueltan los
-  // juegos que estaban "pegados" por haberlos puntuado hace un momento.
+  // Al cambiar de filtro se vuelve al principio de la lista y se sueltan
+  // los juegos que estaban "pegados" por haberlos puntuado hace un momento.
   useEffect(() => {
-    setPage(1);
+    setLimit(BATCH[view]);
     setSticky(new Set());
   }, [filters, sort, order, view]);
 
-  // Si la lista encoge (al puntuar dentro de una pestaña que filtra) no
-  // puedes quedarte en una página que ya no existe.
+  // Scroll infinito. El observador se vuelve a crear al crecer `limit`, así
+  // que si el centinela sigue a la vista (pantallas altas, tandas cortas)
+  // dispara otra vez hasta llenar la pantalla, y para en cuanto no queda
+  // nada por enseñar.
+  const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (totalPages > 0 && page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setLimit((l) => l + BATCH[view]);
+      },
+      { rootMargin: "600px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, limit, view]);
 
   // ── Guardado ──────────────────────────────────────────────────────────
 
@@ -687,9 +756,9 @@ export default function CollectionPage() {
                 {visible.length} juego{visible.length !== 1 ? "s" : ""}
                 {search && ` para “${search}”`}
               </p>
-              {totalPages > 1 && (
+              {hasMore && (
                 <p className="text-sm text-[var(--text-muted)]">
-                  Página {page} de {totalPages}
+                  Viendo {shown.length}
                 </p>
               )}
             </div>
@@ -698,7 +767,7 @@ export default function CollectionPage() {
           {/* Resultados */}
           {loading || firstSync ? (
             <Skeleton view={view} />
-          ) : pageItems.length === 0 ? (
+          ) : shown.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-[var(--text-muted)]">
                 {tab === "unrated"
@@ -715,10 +784,10 @@ export default function CollectionPage() {
               )}
             </div>
           ) : view === "shelf" ? (
-            <ShelfView items={pageItems} onOpen={setDetail} />
+            <ShelfView items={shown} onOpen={setDetail} />
           ) : view === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {pageItems.map((item) => (
+              {shown.map((item) => (
                 <GridCard
                   key={item.bggId}
                   item={item}
@@ -729,7 +798,7 @@ export default function CollectionPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {pageItems.map((item) => (
+              {shown.map((item) => (
                 <ListRow
                   key={item.bggId}
                   item={item}
@@ -742,33 +811,27 @@ export default function CollectionPage() {
             </div>
           )}
 
-          {/* Paginación */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
+          {/* Final de la lista: el centinela del scroll infinito, con botón
+              por si el navegador no dispara el observador. */}
+          {hasMore && (
+            <div ref={sentinelRef} className="flex flex-col items-center gap-3 mt-6">
+              <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                <span className="w-3.5 h-3.5 rounded-full border-2 border-[var(--text-muted)] border-t-transparent animate-spin" />
+                Cargando más juegos…
+              </div>
               <button
-                onClick={() => {
-                  setPage((p) => Math.max(1, p - 1));
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                disabled={page === 1}
-                className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:text-[var(--text-secondary)] transition-colors"
+                onClick={() => setLimit((l) => l + BATCH[view])}
+                className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
               >
-                Anterior
-              </button>
-              <span className="text-sm text-[var(--text-muted)] px-2">
-                {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => {
-                  setPage((p) => Math.min(totalPages, p + 1));
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                disabled={page === totalPages}
-                className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:text-[var(--text-secondary)] transition-colors"
-              >
-                Siguiente
+                Cargar más
               </button>
             </div>
+          )}
+
+          {!loading && !hasMore && visible.length > BATCH[view] && (
+            <p className="text-center text-xs text-[var(--text-muted)] mt-6">
+              Has llegado al final · {visible.length} juegos
+            </p>
           )}
         </div>
       </div>
@@ -793,6 +856,21 @@ export default function CollectionPage() {
 
       <Footer />
     </>
+  );
+}
+
+export default function CollectionPage() {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <Navbar />
+          <PageLoader withNavbar />
+        </>
+      }
+    >
+      <CollectionPageInner />
+    </Suspense>
   );
 }
 
