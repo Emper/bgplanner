@@ -13,21 +13,22 @@ import {
 } from "@/lib/collection";
 import { formatDateShort, formatDuration } from "@/lib/format";
 
-// Las tres formas de ver la colección (lista, cuadrícula y estantería) más
-// la ficha de un juego. Se usan en "Mi colección" y en la colección que
+// Las tarjetas de la colección (lista y cuadrícula) y la ficha de un juego.
+// La tercera vista, la estantería, es GameShelf, que se comparte con las
+// vitrinas de los perfiles. Se usan en "Mi colección" y en la colección que
 // alguien comparte contigo; ahí van en modo lectura (`readOnly`), donde el
 // slider se sustituye por la puntuación escrita.
 
 export type CollectionView = "list" | "grid" | "shelf";
 
-export function playersLabel(min: number | null, max: number | null): string | null {
+function playersLabel(min: number | null, max: number | null): string | null {
   if (!min && !max) return null;
   if (min && max && min !== max) return `${min}-${max} jugadores`;
   const n = min || max;
   return `${n} jugador${n === 1 ? "" : "es"}`;
 }
 
-export function weightLabel(w: number): string {
+function weightLabel(w: number): string {
   if (w < 1.5) return "Ligero";
   if (w < 2.5) return "Medio-ligero";
   if (w < 3.5) return "Medio";
@@ -37,7 +38,7 @@ export function weightLabel(w: number): string {
 
 // La portada grande solo llega tras resincronizar con BGG; hasta entonces
 // tiramos del thumbnail de siempre.
-export function cover(item: { image: string | null; thumbnail: string | null }) {
+function cover(item: { image: string | null; thumbnail: string | null }) {
   return item.image || item.thumbnail;
 }
 
@@ -66,7 +67,7 @@ function MyRatingBadge({ rating, owner }: { rating: number; owner?: string }) {
 }
 
 // La puntuación de permanencia escrita, para cuando no se puede tocar.
-export function KeepBadge({
+function KeepBadge({
   score,
   inherited = false,
   compact = false,
@@ -387,59 +388,6 @@ export function GridCard({
             <KeepScoreSlider value={item.keepScore} onChange={onScore} compact />
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// La vitrina: las cajas apoyadas en baldas de madera. Aquí no se puntúa, se
-// mira; para puntuar se abre la ficha del juego.
-export function ShelfView({
-  items,
-  onOpen,
-}: {
-  items: CollectionItemView[];
-  onOpen: (item: CollectionItemView) => void;
-}) {
-  return (
-    <div className="shelf-wrap">
-      <div className="shelf">
-        {items.map((item) => {
-          const img = cover(item);
-          return (
-            <div key={item.bggId} className="shelf-slot">
-              <button
-                onClick={() => onOpen(item)}
-                className="shelf-item relative flex items-end justify-center max-w-full focus:outline-none"
-                title={`${item.name}${item.keepScore ? ` — ${KEEP_LABELS[item.keepScore]}` : ""}`}
-              >
-                {img ? (
-                  <Image
-                    src={img}
-                    alt={item.name}
-                    width={220}
-                    height={220}
-                    sizes="(max-width: 640px) 33vw, 120px"
-                    className="shelf-box"
-                  />
-                ) : (
-                  <span className="shelf-box flex items-end justify-center w-16 h-20 bg-[var(--surface-hover)] text-2xl">
-                    🎲
-                  </span>
-                )}
-                {item.keepScore && (
-                  <span
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white/70 shadow"
-                    style={{ backgroundColor: KEEP_HEX[item.keepScore] }}
-                  />
-                )}
-                {item.showcased && (
-                  <span className="absolute -top-2 -left-1 text-xs drop-shadow">⭐</span>
-                )}
-              </button>
-            </div>
-          );
-        })}
       </div>
     </div>
   );

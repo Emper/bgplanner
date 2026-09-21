@@ -20,9 +20,9 @@ import {
   DetailModal,
   GridCard,
   ListRow,
-  ShelfView,
   type CollectionView,
 } from "@/components/CollectionViews";
+import GameShelf from "@/components/GameShelf";
 
 type Tab = "own" | "unrated" | "wishlist" | "all";
 
@@ -589,7 +589,7 @@ export default function CollectionBrowser({
           )}
         </div>
       ) : view === "shelf" ? (
-        <ShelfView items={shown} onOpen={(item) => setDetailId(item.bggId)} />
+        <GameShelf games={shown} onSelect={(game) => setDetailId(game.bggId)} />
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {shown.map((item) => (
