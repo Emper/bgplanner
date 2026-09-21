@@ -20,6 +20,11 @@ model User {
   collectionShareToken String? @unique
   avatarUrl    String?
   displayName  String?
+  // Slug de la URL del perfil público (/users/<slug>). Se reclama solo a
+  // partir del usuario de BGG cuando está libre; si no, el perfil vive en su
+  // id. Va en su propio campo para que sobreviva a un cambio de usuario de
+  // BGG y para poder dejar editarlo a mano más adelante.
+  slug         String?  @unique
   role         String   @default("user")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

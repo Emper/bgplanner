@@ -20,22 +20,21 @@ const PROFILE_SELECT = {
   bggUsername: true,
   avatarUrl: true,
   createdAt: true,
+  slug: true,
 } as const;
 
-// El slug de la URL es el usuario de BGG (/users/emper) y si no lo tiene, su
-// id. El id manda porque es único y no cambia; el usuario de BGG ni es único
-// en la BD ni es inmutable, así que ante un empate gana la cuenta más
-// antigua para que el enlace siempre lleve al mismo sitio.
-async function findProfileUser(slug: string) {
-  const byId = await prisma.user.findUnique({
-    where: { id: slug },
+// La URL admite el slug (/users/emper) o el id, que sigue siendo el enlace
+// permanente de quien no tiene slug — y de quien lo tiene, por si compartió
+// el enlace antiguo.
+async function findProfileUser(param: string) {
+  const bySlug = await prisma.user.findUnique({
+    where: { slug: param.toLowerCase().trim() },
     select: PROFILE_SELECT,
   });
-  if (byId) return byId;
+  if (bySlug) return bySlug;
 
-  return prisma.user.findFirst({
-    where: { bggUsername: slug.toLowerCase().trim() },
-    orderBy: { createdAt: "asc" },
+  return prisma.user.findUnique({
+    where: { id: param },
     select: PROFILE_SELECT,
   });
 }
@@ -197,7 +196,7 @@ export async function GET(
 
   return NextResponse.json({
     id: user.id,
-    slug: user.bggUsername || user.id,
+    slug: user.slug || user.id,
     displayName: user.displayName || user.name || "Jugador",
     location: user.location,
     bggUsername: user.bggUsername,

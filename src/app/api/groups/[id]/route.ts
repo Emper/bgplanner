@@ -32,6 +32,7 @@ export async function GET(
                 surname: true,
                 email: true,
                 bggUsername: true,
+                slug: true,
               },
             },
           },

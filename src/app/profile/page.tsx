@@ -65,7 +65,7 @@ function ProfileForm() {
           });
           setAvatarUrl(data.avatarUrl || null);
           setEmail(data.email || "");
-          setProfileSlug(data.bggUsername || data.id || "");
+          setProfileSlug(data.slug || data.id || "");
         }
         const emailRes = await fetch("/api/profile/email", {
           credentials: "include",
@@ -466,6 +466,14 @@ function ProfileForm() {
                 <p className="text-xs text-[var(--text-muted)] mt-1">
                   Se usará para importar tu colección de juegos. Asegúrate de que tu colección es pública en BGG.
                 </p>
+                {profileSlug && (
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    La dirección de tu perfil público es{" "}
+                    <span className="font-mono text-[var(--text-secondary)] break-all">
+                      bgplanner.app/users/{profileSlug}
+                    </span>
+                  </p>
+                )}
               </div>
 
               {error && <p className="text-sm text-red-400">{error}</p>}
