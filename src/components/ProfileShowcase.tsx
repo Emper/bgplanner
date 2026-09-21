@@ -19,14 +19,15 @@ export default function ProfileShowcase() {
   const [connected, setConnected] = useState(true);
 
   useEffect(() => {
-    fetch("/api/collection?showcased=true&status=all&pageSize=24&sort=name", {
-      credentials: "include",
-    })
+    fetch("/api/collection?showcase=true", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return setGames([]);
-        setConnected(data.connected);
-        setGames(data.items ?? []);
+        setConnected(!!data.connected);
+        const items: ShowcaseGame[] = [...(data.items ?? [])].sort(
+          (a: ShowcaseGame, b: ShowcaseGame) => a.name.localeCompare(b.name)
+        );
+        setGames(items);
       })
       .catch(() => setGames([]));
   }, []);

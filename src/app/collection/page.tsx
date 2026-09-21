@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import PageLoader from "@/components/PageLoader";
 import BggRating from "@/components/BggRating";
 import KeepScoreSlider from "@/components/KeepScoreSlider";
 import {
@@ -14,26 +13,30 @@ import {
   KEEP_HEX,
   KEEP_LABELS,
   KEEP_SCORES,
+  computeStats,
+  filterItems,
+  sortItems,
+  type CollectionFilters,
   type CollectionItemView,
-  type CollectionStats,
+  type CollectionSort,
 } from "@/lib/collection";
-import { formatDateShort, formatDuration } from "@/lib/format";
+import { formatDateShort, formatDuration, formatRelativeShort } from "@/lib/format";
 
 type View = "list" | "grid" | "shelf";
+type Tab = "own" | "unrated" | "wishlist" | "all";
 
 interface ApiResponse {
   connected: boolean;
   bggUsername?: string;
   items: CollectionItemView[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  stats: CollectionStats | null;
   pendingLinks: number;
+  fetchedAt: string | null;
+  empty: boolean;
+  stale: boolean;
+  syncError: string | null;
 }
 
-const SORT_OPTIONS: { value: string; label: string }[] = [
+const SORT_OPTIONS: { value: CollectionSort; label: string }[] = [
   { value: "added", label: "Fecha de alta" },
   { value: "keep", label: "Permanencia" },
   { value: "myRating", label: "Mi nota de BGG" },
@@ -51,7 +54,7 @@ const VIEWS: { value: View; label: string; icon: string }[] = [
   { value: "shelf", label: "Estantería", icon: "🗄" },
 ];
 
-const PAGE_SIZE: Record<View, number> = { list: 24, grid: 36, shelf: 60 };
+const PAGE_SIZE: Record<View, number> = { list: 24, grid: 36, shelf: 48 };
 
 function playersLabel(min: number | null, max: number | null): string | null {
   if (!min && !max) return null;
@@ -75,17 +78,17 @@ function cover(item: { image: string | null; thumbnail: string | null }) {
 }
 
 export default function CollectionPage() {
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [reloading, setReloading] = useState(false);
+  // La colección entera vive aquí; filtrar y ordenar no vuelve al servidor.
+  const [all, setAll] = useState<CollectionItemView[] | null>(null);
+  const [meta, setMeta] = useState<ApiResponse | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
   const [view, setView] = useState<View>("list");
-  const [status, setStatus] = useState<"own" | "wishlist" | "all">("own");
+  const [tab, setTab] = useState<Tab>("own");
   const [search, setSearch] = useState("");
-  const [searchDebounced, setSearchDebounced] = useState("");
-  const [sort, setSort] = useState("added");
+  const [sort, setSort] = useState<CollectionSort>("added");
   const [order, setOrder] = useState<"" | "asc" | "desc">("");
   const [page, setPage] = useState(1);
 
@@ -101,7 +104,12 @@ export default function CollectionPage() {
 
   const [detail, setDetail] = useState<CollectionItemView | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Juegos que acabas de puntuar y que el filtro activo ya no dejaría pasar.
+  // Se quedan a la vista hasta que cambies de filtro: si desaparecieran al
+  // instante, no podrías corregir la puntuación sin ir a buscarlos.
+  const [sticky, setSticky] = useState<Set<number>>(new Set());
+
+  const [linkProgress, setLinkProgress] = useState<{ done: number; total: number } | null>(null);
   const enrichedRef = useRef(false);
 
   const showToast = (message: string) => {
@@ -118,79 +126,78 @@ export default function CollectionPage() {
 
   const changeView = (next: View) => {
     setView(next);
-    setPage(1);
     localStorage.setItem("collection:view", next);
   };
 
-  useEffect(() => {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      setSearchDebounced(search);
-      setPage(1);
-    }, 350);
-    return () => {
-      if (searchTimer.current) clearTimeout(searchTimer.current);
-    };
-  }, [search]);
+  // ── Carga ─────────────────────────────────────────────────────────────
 
-  const load = useCallback(
-    async (refresh = false) => {
-      if (refresh) {
-        setReloading(true);
-        // Tras resincronizar puede haber expansiones nuevas sin emparejar.
-        enrichedRef.current = false;
-      }
+  const fetchCollection = useCallback(
+    async (refresh: boolean): Promise<ApiResponse | null> => {
+      if (refresh) setSyncing(true);
       setError("");
       try {
-        const params = new URLSearchParams({
-          status,
-          sort,
-          page: String(page),
-          pageSize: String(PAGE_SIZE[view]),
-        });
-        if (order) params.set("order", order);
-        if (searchDebounced) params.set("search", searchDebounced);
-        if (keep) params.set("keep", keep);
-        if (players) params.set("players", players);
-        if (plays === "0") params.set("unplayed", "true");
-        else if (plays) params.set("minPlays", plays);
-        if (myRating) params.set("myRating", myRating);
-        if (maxRank) params.set("maxRank", maxRank);
-        if (minWeight) params.set("minWeight", minWeight);
-        if (maxWeight) params.set("maxWeight", maxWeight);
-        if (onlyShowcased) params.set("showcased", "true");
-        if (refresh) params.set("refresh", "true");
-
-        const res = await fetch(`/api/collection?${params}`, {
-          credentials: "include",
-        });
-        const json = await res.json();
+        const res = await fetch(
+          `/api/collection${refresh ? "?refresh=true" : ""}`,
+          { credentials: "include" }
+        );
+        const json: ApiResponse & { error?: string } = await res.json();
         if (!res.ok) throw new Error(json.error || "Error al cargar la colección");
-        setData(json);
+
+        setMeta(json);
+        setAll(json.connected ? json.items : []);
+        if (json.syncError) {
+          showToast(`BGG no ha respondido (${json.syncError}). Te enseñamos lo último que teníamos.`);
+        }
+        return json;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error inesperado");
+        return null;
       } finally {
-        setLoading(false);
-        setReloading(false);
+        if (refresh) setSyncing(false);
       }
     },
-    [
-      status, sort, order, page, view, searchDebounced, keep, players, plays,
-      myRating, maxRank, minWeight, maxWeight, onlyShowcased,
-    ]
+    []
   );
 
+  // Primero lo que hay en caché (rápido) y, si hace falta, la sincronización
+  // con BGG después, sin bloquear la pintada inicial.
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      const first = await fetchCollection(false);
+      if (cancelled || !first?.connected) return;
+      if (first.empty || first.stale) await fetchCollection(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchCollection]);
+
+  const refreshFromBgg = async () => {
+    enrichedRef.current = false;
+    await fetchCollection(true);
+  };
 
   // Las expansiones no dicen de qué juego son hasta que se lo preguntamos a
-  // BGG juego a juego. Se hace aquí, en segundo plano y por lotes, mientras
-  // el usuario ya está viendo su colección.
+  // BGG juego a juego. Se hace en segundo plano y por lotes mientras el
+  // usuario ya está viendo su colección.
   useEffect(() => {
-    if (!data?.connected || !data.pendingLinks || enrichedRef.current) return;
+    // Mientras la colección esté por sincronizar no tiene sentido emparejar
+    // nada: la sincronización puede traer expansiones nuevas, y además así
+    // no competimos con ella por el turno de habla con BGG.
+    if (
+      !meta?.connected ||
+      !meta.pendingLinks ||
+      meta.stale ||
+      meta.empty ||
+      syncing ||
+      enrichedRef.current
+    )
+      return;
     enrichedRef.current = true;
     let cancelled = false;
+    const total = meta.pendingLinks;
+    setLinkProgress({ done: 0, total });
 
     (async () => {
       // Tope de seguridad: 25 lotes de 20 juegos es más que cualquier
@@ -201,24 +208,78 @@ export default function CollectionPage() {
             method: "POST",
             credentials: "include",
           });
-          if (!res.ok) return;
+          if (!res.ok) break;
           const json = await res.json();
+          setLinkProgress({ done: Math.max(0, total - json.remaining), total });
           // Si BGG no ha contestado nada, no tiene sentido insistir.
           if (!json.answered || !json.remaining) break;
         } catch {
-          return;
+          break;
         }
       }
-      if (!cancelled) load();
+      if (!cancelled) {
+        setLinkProgress(null);
+        fetchCollection(false);
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [data?.connected, data?.pendingLinks, load]);
+  }, [meta?.connected, meta?.pendingLinks, meta?.stale, meta?.empty, syncing, fetchCollection]);
 
-  // Guarda la puntuación y actualiza la lista en el momento (incluidas las
-  // expansiones que heredan del juego que acabas de puntuar).
+  // ── Filtro, orden y paginación (todo en local) ────────────────────────
+
+  const filters: CollectionFilters = useMemo(
+    () => ({
+      status: tab === "wishlist" ? "wishlist" : tab === "all" ? "all" : "own",
+      search,
+      keep: tab === "unrated" ? "unrated" : keep,
+      players: players ? Number(players) : undefined,
+      minPlays: plays && plays !== "0" ? Number(plays) : undefined,
+      unplayed: plays === "0",
+      myRating,
+      maxRank: maxRank ? Number(maxRank) : undefined,
+      minWeight: minWeight ? Number(minWeight) : undefined,
+      maxWeight: maxWeight ? Number(maxWeight) : undefined,
+      showcased: onlyShowcased,
+    }),
+    [tab, search, keep, players, plays, myRating, maxRank, minWeight, maxWeight, onlyShowcased]
+  );
+
+  const stats = useMemo(() => (all ? computeStats(all) : null), [all]);
+
+  const visible = useMemo(() => {
+    if (!all) return [];
+    const matching = filterItems(all, filters);
+    if (sticky.size === 0) return sortItems(matching, sort, order);
+    const seen = new Set(matching.map((i) => i.bggId));
+    const kept = all.filter((i) => sticky.has(i.bggId) && !seen.has(i.bggId));
+    return sortItems([...matching, ...kept], sort, order);
+  }, [all, filters, sort, order, sticky]);
+
+  const pageSize = PAGE_SIZE[view];
+  const totalPages = Math.ceil(visible.length / pageSize);
+  const pageItems = useMemo(
+    () => visible.slice((page - 1) * pageSize, page * pageSize),
+    [visible, page, pageSize]
+  );
+
+  // Al cambiar de filtro se vuelve a la primera página y se sueltan los
+  // juegos que estaban "pegados" por haberlos puntuado hace un momento.
+  useEffect(() => {
+    setPage(1);
+    setSticky(new Set());
+  }, [filters, sort, order, view]);
+
+  // Si la lista encoge (al puntuar dentro de una pestaña que filtra) no
+  // puedes quedarte en una página que ya no existe.
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  // ── Guardado ──────────────────────────────────────────────────────────
+
   const saveEntry = async (
     bggId: number,
     patch: { keepScore?: number | null; showcased?: boolean; note?: string | null }
@@ -241,9 +302,10 @@ export default function CollectionPage() {
       return item;
     };
 
-    const previous = data;
-    setData((prev) => (prev ? { ...prev, items: prev.items.map(apply) } : prev));
+    const previous = all;
+    setAll((prev) => (prev ? prev.map(apply) : prev));
     setDetail((prev) => (prev ? apply(prev) : prev));
+    setSticky((prev) => new Set(prev).add(bggId));
 
     try {
       const res = await fetch(`/api/collection/${bggId}`, {
@@ -257,7 +319,7 @@ export default function CollectionPage() {
         throw new Error(json.error || "No se ha podido guardar");
       }
     } catch (err) {
-      setData(previous);
+      setAll(previous);
       showToast(err instanceof Error ? err.message : "No se ha podido guardar");
     }
   };
@@ -280,29 +342,17 @@ export default function CollectionPage() {
     setMinWeight("");
     setMaxWeight("");
     setOnlyShowcased(false);
-    setPage(1);
+    setSearch("");
   };
 
   const hasActiveFilters =
     !!keep || !!players || !!plays || !!myRating || !!maxRank || !!minWeight ||
     !!maxWeight || onlyShowcased;
 
-  const toggleKeepFilter = (value: string) => {
-    setKeep((prev) => (prev === value ? "" : value));
-    setPage(1);
-  };
-
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <PageLoader withNavbar />
-      </>
-    );
-  }
+  const loading = all === null;
 
   // Sin usuario de BGG no hay colección que enseñar.
-  if (data && !data.connected) {
+  if (meta && !meta.connected) {
     return (
       <>
         <Navbar />
@@ -327,9 +377,14 @@ export default function CollectionPage() {
     );
   }
 
-  const stats = data?.stats;
-  const items = data?.items ?? [];
-  const totalPages = data?.totalPages ?? 0;
+  const firstSync = syncing && (!all || all.length === 0);
+
+  const TABS: { value: Tab; label: string; count?: number }[] = [
+    { value: "own", label: "Los que tengo", count: stats?.owned },
+    { value: "unrated", label: "Sin valorar", count: stats?.unrated },
+    { value: "wishlist", label: "Los que quiero", count: stats?.wishlist },
+    { value: "all", label: "Todos", count: stats?.total },
+  ];
 
   return (
     <>
@@ -348,33 +403,58 @@ export default function CollectionPage() {
               </p>
             </div>
             <button
-              onClick={() => load(true)}
-              disabled={reloading}
+              onClick={refreshFromBgg}
+              disabled={syncing}
               title="Volver a traer la colección desde BGG"
               className="shrink-0 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 disabled:opacity-50 transition-all duration-200"
             >
-              <span className={reloading ? "animate-spin inline-block" : ""}>↻</span>
+              <span className={syncing ? "animate-spin inline-block" : ""}>↻</span>
             </button>
           </div>
 
-          {/* Resumen: cuántos hay en cada puntuación, y filtran al pulsarlos */}
+          {/* Qué está pasando ahora mismo */}
+          {syncing && (
+            <Banner
+              title={
+                firstSync
+                  ? "Trayendo tu colección de BoardGameGeek…"
+                  : "Actualizando desde BoardGameGeek…"
+              }
+              text="BGG tarda unos segundos en preparar los datos de una colección. Puedes quedarte mirando o volver luego."
+            />
+          )}
+
+          {linkProgress && (
+            <Banner
+              title={`Colocando las expansiones… ${linkProgress.done} de ${linkProgress.total}`}
+              text="Le estamos preguntando a BGG de qué juego es cada expansión para agruparlas con él. Mientras tanto puedes puntuar con normalidad."
+              progress={
+                linkProgress.total > 0
+                  ? linkProgress.done / linkProgress.total
+                  : 0
+              }
+            />
+          )}
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
+              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
+          {/* Resumen por puntuación, que además filtra al pulsarlo */}
           {stats && (
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 mb-4">
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => toggleKeepFilter("unrated")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                    keep === "unrated"
-                      ? "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]/40"
-                      : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
-                  }`}
-                >
-                  {stats.unrated} sin valorar
-                </button>
                 {KEEP_SCORES.map((score) => (
                   <button
                     key={score}
-                    onClick={() => toggleKeepFilter(String(score))}
+                    onClick={() => {
+                      // Estando en "Sin valorar" la pestaña manda sobre este
+                      // filtro, así que al pulsar una puntuación salimos de ella.
+                      if (tab === "unrated") setTab("own");
+                      setKeep((prev) => (prev === String(score) ? "" : String(score)));
+                    }}
                     title={KEEP_LABELS[score]}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                       keep === String(score)
@@ -387,7 +467,7 @@ export default function CollectionPage() {
                 ))}
                 <span className="ml-auto text-xs text-[var(--text-muted)]">
                   {stats.owned} juegos · {stats.expansions} expansiones
-                  {stats.wishlist > 0 && ` · ${stats.wishlist} en la wishlist`}
+                  {meta?.fetchedAt && ` · al día de ${formatRelativeShort(meta.fetchedAt)}`}
                 </span>
               </div>
             </div>
@@ -395,31 +475,26 @@ export default function CollectionPage() {
 
           {/* Barra de herramientas */}
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 mb-4">
-            {/* Estado + vista */}
             <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex gap-1">
-                {([
-                  { value: "own", label: "Los que tengo" },
-                  { value: "wishlist", label: "Los que quiero" },
-                  { value: "all", label: "Todos" },
-                ] as const).map((tab) => (
+              <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                {TABS.map((t) => (
                   <button
-                    key={tab.value}
-                    onClick={() => {
-                      setStatus(tab.value);
-                      setPage(1);
-                    }}
+                    key={t.value}
+                    onClick={() => setTab(t.value)}
                     className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-medium transition-colors whitespace-nowrap ${
-                      status === tab.value
+                      tab === t.value
                         ? "bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/30"
                         : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-strong)] hover:text-[var(--text)]"
                     }`}
                   >
-                    {tab.label}
+                    {t.label}
+                    {t.count !== undefined && (
+                      <span className="ml-1 opacity-60">{t.count}</span>
+                    )}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 shrink-0">
                 {VIEWS.map((v) => (
                   <button
                     key={v.value}
@@ -439,7 +514,6 @@ export default function CollectionPage() {
               </div>
             </div>
 
-            {/* Búsqueda + orden */}
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
                 <svg
@@ -467,9 +541,8 @@ export default function CollectionPage() {
                 <select
                   value={sort}
                   onChange={(e) => {
-                    setSort(e.target.value);
+                    setSort(e.target.value as CollectionSort);
                     setOrder("");
-                    setPage(1);
                   }}
                   className="flex-1 sm:flex-none px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
                 >
@@ -480,10 +553,7 @@ export default function CollectionPage() {
                   ))}
                 </select>
                 <button
-                  onClick={() => {
-                    setOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-                    setPage(1);
-                  }}
+                  onClick={() => setOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
                   title="Invertir el orden"
                   className="px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
                 >
@@ -516,7 +586,11 @@ export default function CollectionPage() {
               <div className="mt-3 pt-3 border-t border-[var(--border)]">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <Field label="Puntuación">
-                    <Select value={keep} onChange={(v) => { setKeep(v); setPage(1); }}>
+                    <Select
+                      value={tab === "unrated" ? "unrated" : keep}
+                      onChange={setKeep}
+                      disabled={tab === "unrated"}
+                    >
                       <option value="">Todas</option>
                       <option value="unrated">Sin valorar</option>
                       <option value="rated">Ya valoradas</option>
@@ -528,7 +602,7 @@ export default function CollectionPage() {
                     </Select>
                   </Field>
                   <Field label="Jugadores">
-                    <Select value={players} onChange={(v) => { setPlayers(v); setPage(1); }}>
+                    <Select value={players} onChange={setPlayers}>
                       <option value="">Cualquiera</option>
                       {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                         <option key={n} value={n}>
@@ -538,7 +612,7 @@ export default function CollectionPage() {
                     </Select>
                   </Field>
                   <Field label="Partidas">
-                    <Select value={plays} onChange={(v) => { setPlays(v); setPage(1); }}>
+                    <Select value={plays} onChange={setPlays}>
                       <option value="">Cualquiera</option>
                       <option value="0">Sin estrenar</option>
                       <option value="1">1 o más</option>
@@ -548,14 +622,14 @@ export default function CollectionPage() {
                     </Select>
                   </Field>
                   <Field label="Mi nota de BGG">
-                    <Select value={myRating} onChange={(v) => { setMyRating(v); setPage(1); }}>
+                    <Select value={myRating} onChange={setMyRating}>
                       <option value="">Indiferente</option>
                       <option value="yes">Con nota mía</option>
                       <option value="no">Sin nota mía</option>
                     </Select>
                   </Field>
                   <Field label="Rank de BGG">
-                    <Select value={maxRank} onChange={(v) => { setMaxRank(v); setPage(1); }}>
+                    <Select value={maxRank} onChange={setMaxRank}>
                       <option value="">Cualquiera</option>
                       <option value="100">Top 100</option>
                       <option value="250">Top 250</option>
@@ -565,14 +639,14 @@ export default function CollectionPage() {
                   </Field>
                   <Field label="Peso">
                     <div className="flex gap-1">
-                      <Select value={minWeight} onChange={(v) => { setMinWeight(v); setPage(1); }}>
+                      <Select value={minWeight} onChange={setMinWeight}>
                         <option value="">Desde</option>
                         <option value="1">1+</option>
                         <option value="2">2+</option>
                         <option value="3">3+</option>
                         <option value="4">4+</option>
                       </Select>
-                      <Select value={maxWeight} onChange={(v) => { setMaxWeight(v); setPage(1); }}>
+                      <Select value={maxWeight} onChange={setMaxWeight}>
                         <option value="">Hasta</option>
                         <option value="2">2</option>
                         <option value="3">3</option>
@@ -584,10 +658,7 @@ export default function CollectionPage() {
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   <button
-                    onClick={() => {
-                      setOnlyShowcased(!onlyShowcased);
-                      setPage(1);
-                    }}
+                    onClick={() => setOnlyShowcased(!onlyShowcased)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                       onlyShowcased
                         ? "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]/40"
@@ -609,29 +680,32 @@ export default function CollectionPage() {
             )}
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+          {/* Contador */}
+          {!loading && (
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {visible.length} juego{visible.length !== 1 ? "s" : ""}
+                {search && ` para “${search}”`}
+              </p>
+              {totalPages > 1 && (
+                <p className="text-sm text-[var(--text-muted)]">
+                  Página {page} de {totalPages}
+                </p>
+              )}
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-[var(--text-secondary)]">
-              {data?.total ?? 0} juego{(data?.total ?? 0) !== 1 ? "s" : ""}
-              {searchDebounced && ` para “${searchDebounced}”`}
-            </p>
-            {totalPages > 1 && (
-              <p className="text-sm text-[var(--text-muted)]">
-                Página {page} de {totalPages}
-              </p>
-            )}
-          </div>
-
           {/* Resultados */}
-          {items.length === 0 ? (
+          {loading || firstSync ? (
+            <Skeleton view={view} />
+          ) : pageItems.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-[var(--text-muted)]">No hay juegos que encajen</p>
-              {(hasActiveFilters || searchDebounced) && (
+              <p className="text-[var(--text-muted)]">
+                {tab === "unrated"
+                  ? "¡No te queda ninguno por valorar! 🎉"
+                  : "No hay juegos que encajen"}
+              </p>
+              {(hasActiveFilters || search) && (
                 <button
                   onClick={clearFilters}
                   className="mt-2 text-sm text-[var(--primary)] hover:underline"
@@ -641,10 +715,10 @@ export default function CollectionPage() {
               )}
             </div>
           ) : view === "shelf" ? (
-            <ShelfView items={items} onOpen={setDetail} />
+            <ShelfView items={pageItems} onOpen={setDetail} />
           ) : view === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {items.map((item) => (
+              {pageItems.map((item) => (
                 <GridCard
                   key={item.bggId}
                   item={item}
@@ -655,7 +729,7 @@ export default function CollectionPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {items.map((item) => (
+              {pageItems.map((item) => (
                 <ListRow
                   key={item.bggId}
                   item={item}
@@ -672,7 +746,10 @@ export default function CollectionPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-6">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => {
+                  setPage((p) => Math.max(1, p - 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
                 disabled={page === 1}
                 className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:text-[var(--text-secondary)] transition-colors"
               >
@@ -682,7 +759,10 @@ export default function CollectionPage() {
                 {page} / {totalPages}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => {
+                  setPage((p) => Math.min(totalPages, p + 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
                 disabled={page === totalPages}
                 className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:text-[var(--text-secondary)] transition-colors"
               >
@@ -706,7 +786,7 @@ export default function CollectionPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)]">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center">
           {toast}
         </div>
       )}
@@ -717,6 +797,95 @@ export default function CollectionPage() {
 }
 
 // ── Piezas sueltas de la interfaz ───────────────────────────────────────
+
+// Aviso de "esto está pasando ahora", con barra de avance opcional.
+function Banner({
+  title,
+  text,
+  progress,
+}: {
+  title: string;
+  text: string;
+  progress?: number;
+}) {
+  return (
+    <div className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[var(--primary)]">{title}</p>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">{text}</p>
+          {progress !== undefined && (
+            <div className="mt-2 h-1 rounded-full bg-[var(--border)] overflow-hidden">
+              <div
+                className="h-full bg-[var(--primary)] transition-all duration-300"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Esqueleto con la forma de la vista activa: así la página no salta cuando
+// llegan los datos y se entiende de un vistazo qué se está cargando.
+function Skeleton({ view }: { view: View }) {
+  if (view === "shelf") {
+    return (
+      <div className="shelf-wrap">
+        <div className="shelf">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div key={i} className="shelf-slot">
+              <div className="shelf-box w-[72px] h-[92px] bg-black/20 animate-pulse rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "grid") {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden animate-pulse"
+          >
+            <div className="aspect-square bg-[var(--surface-hover)]" />
+            <div className="p-2.5 space-y-2">
+              <div className="h-3 w-3/4 rounded bg-[var(--surface-hover)]" />
+              <div className="h-2 w-1/2 rounded bg-[var(--surface-hover)]" />
+              <div className="h-1.5 w-full rounded bg-[var(--surface-hover)]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 animate-pulse"
+        >
+          <div className="flex gap-3">
+            <div className="w-14 h-14 rounded-xl bg-[var(--surface-hover)] shrink-0" />
+            <div className="flex-1 space-y-2 py-1">
+              <div className="h-3.5 w-1/3 rounded bg-[var(--surface-hover)]" />
+              <div className="h-2.5 w-2/3 rounded bg-[var(--surface-hover)]" />
+            </div>
+            <div className="hidden sm:block w-44 h-6 self-center rounded bg-[var(--surface-hover)]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -732,25 +901,28 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Select({
   value,
   onChange,
+  disabled = false,
   children,
 }: {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <select
       value={value}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
+      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none disabled:opacity-60 transition-all duration-200"
     >
       {children}
     </select>
   );
 }
 
-// Mi nota personal de BGG, con el mismo hexágono que la media pero marcada
-// como propia para no confundirla con la de la comunidad.
+// Mi nota personal de BGG, marcada como propia para no confundirla con la
+// media de la comunidad.
 function MyRatingBadge({ rating }: { rating: number }) {
   return (
     <span
@@ -1018,6 +1190,17 @@ function DetailModal({
   onToggleShowcase: () => void;
 }) {
   const img = cover(item);
+
+  // Cerrar con Escape: la ficha se abre y se cierra muchas veces seguidas
+  // mientras repasas la colección.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"

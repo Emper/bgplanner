@@ -70,6 +70,16 @@ function searchCacheSet(key: string, results: BggSearchResult[]) {
 // DB-backed collection cache — refreshes once per day or on demand
 const COLLECTION_CACHE_TTL = 3 * 24 * 60 * 60 * 1000; // 3 días (refresco manual con ↻)
 
+/**
+ * ¿Toca volver a pedirle la colección a BGG? Lo usa "Mi colección" para
+ * pintar de inmediato lo que hay en caché y lanzar la sincronización aparte,
+ * en vez de dejar al usuario mirando una pantalla en blanco varios segundos.
+ */
+export function isCollectionStale(fetchedAt: Date | null): boolean {
+  if (!fetchedAt) return true;
+  return Date.now() - fetchedAt.getTime() >= COLLECTION_CACHE_TTL;
+}
+
 // ── BGG API Authentication ──────────────────────────────────────────────
 // La XML API2 exige registro de aplicación + token de autorización (desde
 // 2025-07). Nos autenticamos con un token Bearer obtenido en

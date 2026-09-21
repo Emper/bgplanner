@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/prisma";
-import type { CollectionGame } from "@prisma/client";
+// Tipos y lógica de "Mi colección" SIN dependencias de servidor: este módulo
+// lo importa también el navegador, que es quien filtra y ordena. La carga
+// desde la base de datos vive en collectionData.ts.
 
 // ── Puntuación de permanencia ───────────────────────────────────────────
 // Cuánto de seguro está el dueño de que el juego sigue en su estantería
@@ -10,16 +11,16 @@ export const KEEP_SCORES = [1, 2, 3, 4, 5] as const;
 
 export const KEEP_LABELS: Record<number, string> = {
   1: "Quiero venderlo",
-  2: "En duda",
-  3: "Ni sí ni no",
+  2: "Última oportunidad",
+  3: "Pensando en ello",
   4: "Se queda",
   5: "No se irá nunca",
 };
 
 export const KEEP_EMOJI: Record<number, string> = {
   1: "💸",
-  2: "🤔",
-  3: "😐",
+  2: "⏳",
+  3: "🤔",
   4: "🛡️",
   5: "💎",
 };
@@ -42,7 +43,7 @@ export const KEEP_HEX: Record<number, string> = {
   5: "#10b981",
 };
 
-// ── Tipos de la respuesta ───────────────────────────────────────────────
+// ── Tipos ───────────────────────────────────────────────────────────────
 
 export interface CollectionExpansionView {
   bggId: number;
@@ -106,7 +107,7 @@ export type CollectionSort =
   | "weight"
   | "name";
 
-export interface CollectionQuery {
+export interface CollectionFilters {
   status: "own" | "wishlist" | "all";
   search: string;
   /** Puntuación: "" (todas), "unrated", "rated" o "1".."5". */
@@ -121,10 +122,6 @@ export interface CollectionQuery {
   minWeight?: number;
   maxWeight?: number;
   showcased: boolean;
-  sort: CollectionSort;
-  order: "asc" | "desc" | "";
-  page: number;
-  pageSize: number;
 }
 
 export const DEFAULT_SORT_DIR: Record<CollectionSort, "asc" | "desc"> = {
@@ -139,158 +136,29 @@ export const DEFAULT_SORT_DIR: Record<CollectionSort, "asc" | "desc"> = {
   name: "asc",
 };
 
-// ── Emparejado de expansiones ───────────────────────────────────────────
+// ── Recuento ────────────────────────────────────────────────────────────
 
-// Cuando BGG todavía no nos ha dicho de qué juego es una expansión, caemos a
-// la heurística de siempre: el nombre de la expansión empieza por el del
-// juego base. Nos quedamos con la coincidencia más larga (para que "Brass:
-// Birmingham – X" no acabe colgando de "Brass").
-function matchByName(
-  expansionName: string,
-  baseNames: { bggId: number; name: string }[]
-): number | null {
-  const expName = expansionName.toLowerCase();
-  let best: number | null = null;
-  let bestLen = 0;
-
-  for (const base of baseNames) {
-    const baseName = base.name.toLowerCase();
-    if (baseName.length <= bestLen) continue;
-    if (
-      expName.startsWith(baseName + ":") ||
-      expName.startsWith(baseName + " –") ||
-      expName.startsWith(baseName + " -") ||
-      (expName.startsWith(baseName) && expName.length > baseName.length)
-    ) {
-      best = base.bggId;
-      bestLen = baseName.length;
-    }
-  }
-  return best;
-}
-
-// ── Carga y filtrado ────────────────────────────────────────────────────
-
-/**
- * Trae la colección entera del usuario y la devuelve ya agrupada (cada juego
- * base con sus expansiones dentro), filtrada, ordenada y paginada.
- *
- * Se carga completa en memoria a propósito: una colección típica son unos
- * cientos de filas, y tanto el agrupado de expansiones como la puntuación
- * heredada y los filtros por puntuación necesitan cruzar dos tablas que no
- * tienen relación en Prisma (`CollectionGame` va por usuario de BGG y
- * `CollectionEntry` por usuario de BG Planner). Hacerlo aquí sale más barato
- * y mucho más simple que pelearlo a base de SQL.
- */
-export async function loadCollection(
-  userId: string,
-  bggUsername: string,
-  q: CollectionQuery
-): Promise<{ items: CollectionItemView[]; total: number; stats: CollectionStats }> {
-  const [rows, entries] = await Promise.all([
-    prisma.collectionGame.findMany({
-      where: { bggUsername: bggUsername.toLowerCase().trim() },
-    }),
-    prisma.collectionEntry.findMany({ where: { userId } }),
-  ]);
-
-  const entryByBggId = new Map(entries.map((e) => [e.bggId, e]));
-
-  const bases = rows.filter((r) => r.subtype !== "boardgameexpansion");
-  const expansions = rows.filter((r) => r.subtype === "boardgameexpansion");
-  const baseById = new Map(bases.map((b) => [b.bggId, b]));
-  const baseNames = bases.map((b) => ({ bggId: b.bggId, name: b.name }));
-
-  // Expansión → juego base. Primero el enlace real de BGG; si no lo tenemos
-  // (o apunta a un juego que no está en la colección), la heurística.
-  const expansionsByBase = new Map<number, CollectionGame[]>();
-  const orphanExpansions: CollectionGame[] = [];
-  const parentOf = new Map<number, number>();
-
-  for (const exp of expansions) {
-    let baseId =
-      exp.baseBggId && baseById.has(exp.baseBggId) ? exp.baseBggId : null;
-    if (baseId === null) baseId = matchByName(exp.name, baseNames);
-
-    // Una expansión de la wishlist no se cuelga de un juego que ya tienes:
-    // son decisiones distintas ("lo quiero" vs "me lo quedo").
-    if (baseId !== null && baseById.get(baseId)!.status === exp.status) {
-      const list = expansionsByBase.get(baseId);
-      if (list) list.push(exp);
-      else expansionsByBase.set(baseId, [exp]);
-      parentOf.set(exp.bggId, baseId);
-    } else {
-      orphanExpansions.push(exp);
-    }
-  }
-
-  // La puntuación de un juego: la suya, y si no tiene, la del juego base.
-  const keepScoreOf = (row: CollectionGame): number | null => {
-    const own = entryByBggId.get(row.bggId)?.keepScore ?? null;
-    if (own !== null) return own;
-    const parentId = parentOf.get(row.bggId);
-    if (parentId === undefined) return null;
-    return entryByBggId.get(parentId)?.keepScore ?? null;
-  };
-
-  const toView = (row: CollectionGame): CollectionItemView => {
-    const entry = entryByBggId.get(row.bggId);
-    const own = expansionsByBase.get(row.bggId) ?? [];
-    return {
-      bggId: row.bggId,
-      name: row.name,
-      thumbnail: row.thumbnail,
-      image: row.image,
-      yearPublished: row.yearPublished,
-      minPlayers: row.minPlayers,
-      maxPlayers: row.maxPlayers,
-      playingTime: row.playingTime,
-      weight: row.weight,
-      bggRating: row.bggRating,
-      bggRank: row.bggRank,
-      bestWith: row.bestWith,
-      numPlays: row.numPlays,
-      userRating: row.userRating,
-      dateAdded: row.dateAdded ? row.dateAdded.toISOString() : null,
-      status: row.status,
-      wishlistPriority: row.wishlistPriority,
-      isExpansion: row.subtype === "boardgameexpansion",
-      keepScore: keepScoreOf(row),
-      note: entry?.note ?? null,
-      showcased: entry?.showcased ?? false,
-      expansions: own
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((e) => ({
-          bggId: e.bggId,
-          name: e.name,
-          thumbnail: e.thumbnail,
-          yearPublished: e.yearPublished,
-          numPlays: e.numPlays,
-          userRating: e.userRating,
-          status: e.status,
-          ownKeepScore: entryByBggId.get(e.bggId)?.keepScore ?? null,
-        })),
-      expansionPlays: own.reduce((sum, e) => sum + e.numPlays, 0),
-    };
-  };
-
-  // Las expansiones sueltas (sin juego base en la colección) salen como una
-  // ficha más: si no, desaparecerían de la lista sin explicación.
-  const all = [...bases, ...orphanExpansions].map(toView);
-
-  // ── Estadísticas: se calculan sobre todo lo que tiene el usuario, no
-  // sobre el filtro activo, para que la cabecera no baile al filtrar.
+// Se calcula sobre la colección entera, no sobre lo filtrado, para que la
+// cabecera no baile al filtrar. Al vivir en el navegador, los contadores se
+// actualizan en cuanto puntúas, sin esperar al servidor.
+export function computeStats(items: CollectionItemView[]): CollectionStats {
   const stats: CollectionStats = {
-    total: all.length,
-    owned: all.filter((i) => i.status === "own").length,
-    wishlist: all.filter((i) => i.status === "wishlist").length,
+    total: items.length,
+    owned: 0,
+    wishlist: 0,
     rated: 0,
     unrated: 0,
     byScore: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-    expansions: expansions.length,
+    expansions: 0,
   };
-  for (const item of all) {
-    if (item.status !== "own") continue;
+
+  for (const item of items) {
+    stats.expansions += item.expansions.length;
+    if (item.status === "wishlist") {
+      stats.wishlist++;
+      continue;
+    }
+    stats.owned++;
     if (item.keepScore) {
       stats.rated++;
       stats.byScore[item.keepScore]++;
@@ -299,10 +167,19 @@ export async function loadCollection(
     }
   }
 
-  // ── Filtros ───────────────────────────────────────────────────────────
-  const search = q.search.trim().toLowerCase();
-  const filtered = all.filter((item) => {
-    if (q.status !== "all" && item.status !== q.status) return false;
+  return stats;
+}
+
+// ── Filtro y orden ──────────────────────────────────────────────────────
+
+export function filterItems(
+  items: CollectionItemView[],
+  f: CollectionFilters
+): CollectionItemView[] {
+  const search = f.search.trim().toLowerCase();
+
+  return items.filter((item) => {
+    if (f.status !== "all" && item.status !== f.status) return false;
 
     if (search) {
       const hit =
@@ -311,84 +188,75 @@ export async function loadCollection(
       if (!hit) return false;
     }
 
-    if (q.keep === "unrated" && item.keepScore !== null) return false;
-    if (q.keep === "rated" && item.keepScore === null) return false;
-    if (/^[1-5]$/.test(q.keep) && item.keepScore !== Number(q.keep)) return false;
+    if (f.keep === "unrated" && item.keepScore !== null) return false;
+    if (f.keep === "rated" && item.keepScore === null) return false;
+    if (/^[1-5]$/.test(f.keep) && item.keepScore !== Number(f.keep)) return false;
 
-    if (q.players !== undefined) {
+    if (f.players !== undefined) {
       const min = item.minPlayers ?? 0;
       const max = item.maxPlayers ?? 99;
-      if (q.players < min || q.players > max) return false;
+      if (f.players < min || f.players > max) return false;
     }
 
-    if (q.unplayed) {
+    if (f.unplayed) {
       if (item.numPlays + item.expansionPlays > 0) return false;
-    } else if (q.minPlays !== undefined && item.numPlays < q.minPlays) {
+    } else if (f.minPlays !== undefined && item.numPlays < f.minPlays) {
       return false;
     }
 
-    if (q.myRating === "yes" && item.userRating === null) return false;
-    if (q.myRating === "no" && item.userRating !== null) return false;
+    if (f.myRating === "yes" && item.userRating === null) return false;
+    if (f.myRating === "no" && item.userRating !== null) return false;
 
-    if (q.maxRank !== undefined && (item.bggRank === null || item.bggRank > q.maxRank))
+    if (f.maxRank !== undefined && (item.bggRank === null || item.bggRank > f.maxRank))
       return false;
-    if (q.minWeight !== undefined && (item.weight ?? 0) < q.minWeight) return false;
-    if (q.maxWeight !== undefined && (item.weight ?? 99) > q.maxWeight) return false;
+    if (f.minWeight !== undefined && (item.weight ?? 0) < f.minWeight) return false;
+    if (f.maxWeight !== undefined && (item.weight ?? 99) > f.maxWeight) return false;
 
-    if (q.showcased && !item.showcased) return false;
+    if (f.showcased && !item.showcased) return false;
 
     return true;
   });
+}
 
-  // ── Orden ─────────────────────────────────────────────────────────────
-  const dir = q.order || DEFAULT_SORT_DIR[q.sort];
-  const sign = dir === "asc" ? 1 : -1;
+export function sortItems(
+  items: CollectionItemView[],
+  sort: CollectionSort,
+  order: "asc" | "desc" | ""
+): CollectionItemView[] {
+  const sign = (order || DEFAULT_SORT_DIR[sort]) === "asc" ? 1 : -1;
+
+  const pick = (i: CollectionItemView): number | string | null => {
+    switch (sort) {
+      case "added":
+        return i.dateAdded;
+      case "keep":
+        return i.keepScore;
+      case "myRating":
+        return i.userRating;
+      case "rank":
+        return i.bggRank;
+      case "rating":
+        return i.bggRating;
+      case "plays":
+        return i.numPlays + i.expansionPlays;
+      case "year":
+        return i.yearPublished;
+      case "weight":
+        return i.weight;
+      case "name":
+        return i.name.toLowerCase();
+    }
+  };
 
   // Los juegos sin dato (sin rank, sin nota, sin puntuar) van siempre al
   // final, se ordene como se ordene: son ruido, no el resultado buscado.
-  const compare = (a: CollectionItemView, b: CollectionItemView): number => {
-    const pick = (i: CollectionItemView): number | string | null => {
-      switch (q.sort) {
-        case "added":
-          return i.dateAdded;
-        case "keep":
-          return i.keepScore;
-        case "myRating":
-          return i.userRating;
-        case "rank":
-          return i.bggRank;
-        case "rating":
-          return i.bggRating;
-        case "plays":
-          return i.numPlays + i.expansionPlays;
-        case "year":
-          return i.yearPublished;
-        case "weight":
-          return i.weight;
-        case "name":
-          return i.name.toLowerCase();
-      }
-    };
-
+  return [...items].sort((a, b) => {
     const va = pick(a);
     const vb = pick(b);
     if (va === null && vb === null) return a.name.localeCompare(b.name);
     if (va === null) return 1;
     if (vb === null) return -1;
-    if (typeof va === "string" && typeof vb === "string") {
-      const cmp = va.localeCompare(vb);
-      return cmp !== 0 ? cmp * sign : 0;
-    }
     if (va !== vb) return (va < vb ? -1 : 1) * sign;
     return a.name.localeCompare(b.name);
-  };
-
-  filtered.sort(compare);
-
-  const start = (q.page - 1) * q.pageSize;
-  return {
-    items: filtered.slice(start, start + q.pageSize),
-    total: filtered.length,
-    stats,
-  };
+  });
 }

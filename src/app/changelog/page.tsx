@@ -13,6 +13,20 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 septiembre 2026",
+    version: "1.23",
+    title: "Mi colección, ahora al vuelo",
+    changes: [
+      { type: "new", text: "Nueva pestaña «Sin valorar» junto a «Los que tengo» y «Los que quiero», con el número de juegos que te quedan por puntuar. Según los vas puntuando, la cuenta baja sola" },
+      { type: "improved", text: "Cambiar de orden, filtrar o buscar es instantáneo: la colección se carga una vez y a partir de ahí no hay esperas. Buscar ya no tiene ni retardo al teclear" },
+      { type: "improved", text: "La página aparece al momento con lo último que teníamos guardado, y si hace falta actualizar desde BGG te lo cuenta en un aviso mientras sigues usándola, en vez de dejarte esperando" },
+      { type: "improved", text: "Mientras carga ves la forma de la lista en lugar de una pantalla vacía, y cuando estamos colocando tus expansiones te lo decimos con una barra de avance" },
+      { type: "improved", text: "Al puntuar un juego desde «Sin valorar» ya no desaparece de golpe: se queda a la vista por si quieres corregir" },
+      { type: "improved", text: "Las puntuaciones 2 y 3 se llaman ahora «Última oportunidad» y «Pensando en ello», que dice mucho mejor lo que significan" },
+      { type: "improved", text: "La ficha de un juego se cierra con la tecla Escape" },
+    ],
+  },
+  {
+    date: "21 septiembre 2026",
     version: "1.22",
     title: "Mi colección: decide qué juegos se quedan",
     changes: [
