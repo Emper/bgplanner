@@ -185,6 +185,7 @@ export default function ActivityFeed({
   hasMore = false,
   loading = false,
   minBlocks = MIN_VISIBLE_BLOCKS,
+  linkUsers = true,
 }: {
   items: ActivityItem[];
   showContext?: boolean;
@@ -192,6 +193,8 @@ export default function ActivityFeed({
   hasMore?: boolean;
   loading?: boolean;
   minBlocks?: number;
+  /** Enlaza autor y avatar a su perfil público. Se apaga en el propio perfil. */
+  linkUsers?: boolean;
 }) {
   // Deduplicamos por id como red de seguridad: si por una carrera entre
   // cargas consecutivas o por el mismo render bajo Strict Mode llega un
@@ -232,18 +235,38 @@ export default function ActivityFeed({
         return (
           <div key={`${group.userId}-${group.runs[0].items[0].id}`} className="flex gap-3 py-2.5 px-1">
             <div className="flex flex-col items-center shrink-0 w-8">
-              <Avatar
-                name={group.userName}
-                avatarUrl={group.avatarUrl}
-                size="sm"
-              />
+              {linkUsers ? (
+                <Link href={`/users/${group.userId}`} prefetch={false} aria-label={group.userName}>
+                  <Avatar
+                    name={group.userName}
+                    avatarUrl={group.avatarUrl}
+                    size="sm"
+                  />
+                </Link>
+              ) : (
+                <Avatar
+                  name={group.userName}
+                  avatarUrl={group.avatarUrl}
+                  size="sm"
+                />
+              )}
               {hasMultipleRuns && (
                 <div className="flex-1 w-0.5 bg-[var(--border)] mt-2 mb-0.5 rounded-full" />
               )}
             </div>
             <div className="flex-1 min-w-0 pt-1">
               <p className="text-sm text-[var(--text-secondary)] leading-snug">
-                <span className="font-semibold text-[var(--text)]">{group.userName}</span>
+                {linkUsers ? (
+                  <Link
+                    href={`/users/${group.userId}`}
+                    prefetch={false}
+                    className="font-semibold text-[var(--text)] hover:text-[var(--primary)] transition-colors"
+                  >
+                    {group.userName}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-[var(--text)]">{group.userName}</span>
+                )}
               </p>
               <div className="space-y-1 mt-0.5">
                 {group.runs.map((run) => {

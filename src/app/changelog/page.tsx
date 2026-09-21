@@ -13,6 +13,19 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 septiembre 2026",
+    version: "1.24",
+    title: "Cada jugador, con su perfil",
+    changes: [
+      { type: "new", text: "Todos los jugadores tenéis ya un perfil público: foto, nombre, de dónde sois, desde cuándo estáis por aquí y los grupos que tenéis en común con quien os visita" },
+      { type: "new", text: "En el perfil se ve la vitrina montada en su estantería, con los juegos que esa persona ha elegido como imprescindibles" },
+      { type: "new", text: "Debajo, los eventos a los que va (los que vienen y los que ya pasaron) y lo último que ha estado haciendo" },
+      { type: "new", text: "Su usuario de BoardGameGeek, a un clic de su perfil en BGG" },
+      { type: "improved", text: "Toca el nombre o la foto de cualquiera en la lista de miembros de un grupo, en los asistentes a un evento o en el muro de actividad y vas directo a su perfil" },
+      { type: "improved", text: "Nadie ve de más: los eventos privados y lo que pasa en grupos a los que no perteneces no aparecen en el perfil de nadie" },
+    ],
+  },
+  {
+    date: "21 septiembre 2026",
     version: "1.23",
     title: "Mi colección, ahora al vuelo",
     changes: [
