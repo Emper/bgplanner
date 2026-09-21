@@ -31,6 +31,13 @@ export const config = {
     "/profile/:path*",
     "/groups/:path*",
     "/events/:path*",
+    // `:path*` casa también con la ruta sin sufijo, así que esto cubre
+    // /collection y /api/collection además de sus subrutas.
+    "/collection/:path*",
+    "/api/collection/:path*",
+    // Colecciones compartidas: el enlace es secreto, pero además hay que
+    // tener cuenta para abrirlo.
+    "/c/:path*",
     "/api/profile/:path*",
     "/api/groups/:path*",
     "/api/events/:path*",

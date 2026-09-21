@@ -13,6 +13,17 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 septiembre 2026",
+    version: "1.24",
+    title: "Enseña tu colección a quien tú quieras",
+    changes: [
+      { type: "new", text: "Desde «Mi colección» puedes generar un enlace para que otra persona vea tu ludoteca entera: tus juegos, tu wishlist, tus partidas y lo seguro que estás de quedarte cada uno" },
+      { type: "new", text: "Quien lo abra puede mirar, buscar y filtrar con las mismas herramientas que tú, incluida la estantería, pero no puede cambiar ni una puntuación" },
+      { type: "new", text: "El enlace es tuyo y lo controlas: se genera cuando quieres, puedes cambiarlo por uno nuevo (y el anterior deja de valer) o dejar de compartir del todo con un clic" },
+      { type: "improved", text: "Para abrir una colección compartida hace falta tener cuenta en BG Planner, así que tus puntuaciones no acaban a la vista de cualquiera que pille el enlace de rebote" },
+    ],
+  },
+  {
+    date: "21 septiembre 2026",
     version: "1.23",
     title: "Mi colección, ahora al vuelo",
     changes: [
