@@ -5,6 +5,7 @@ export type BggCollectionItem = {
   bggId: number;
   name: string;
   thumbnail: string | null;
+  image: string | null;
   yearPublished: number | null;
   minPlayers: number | null;
   maxPlayers: number | null;
@@ -16,6 +17,8 @@ export type BggCollectionItem = {
   userRating: number | null;
   dateAdded: Date | null;
   subtype: string; // "boardgame" | "boardgameexpansion"
+  status: string; // "own" | "wishlist"
+  wishlistPriority: number | null;
 };
 
 export type PlayerCountRec = {
@@ -38,6 +41,9 @@ export type BggGameDetails = {
   bggRank: number | null;
   weight: number | null;
   playerCountRecommendations: PlayerCountRec[];
+  // Juegos base de los que este item es expansión (enlaces "inbound" de BGG).
+  // Vacío en un juego base: sus enlaces a expansiones no son inbound.
+  expandsBggIds: number[];
 };
 
 export type BggSearchResult = {
@@ -211,14 +217,16 @@ export async function ensureBggCollection(
 
   console.log(`[BGG Cache] ${forceRefresh ? "FORCE REFRESH" : "MISS"} for ${normalizedUsername}, fetching from BGG...`);
 
-  // Fetch boardgames AND expansions in parallel (BGG defaults to boardgame only)
-  const [bgResponse, expResponse] = await Promise.all([
-    fetchWithRetry(
-      `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgame&excludesubtype=boardgameexpansion`
-    ),
-    fetchWithRetry(
-      `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&stats=1&subtype=boardgameexpansion`
-    ),
+  // Tres listados en paralelo: los juegos que tiene, sus expansiones (BGG las
+  // excluye del listado por defecto) y la wishlist. La wishlist llega en una
+  // sola llamada porque ahí sí vienen juegos y expansiones mezclados.
+  const collectionUrl = (query: string) =>
+    `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&stats=1&${query}`;
+
+  const [bgResponse, expResponse, wishResponse] = await Promise.all([
+    fetchWithRetry(collectionUrl("own=1&subtype=boardgame&excludesubtype=boardgameexpansion")),
+    fetchWithRetry(collectionUrl("own=1&subtype=boardgameexpansion")),
+    fetchWithRetry(collectionUrl("wishlist=1&subtype=boardgame")),
   ]);
 
   if (!bgResponse.ok) {
@@ -228,36 +236,42 @@ export async function ensureBggCollection(
     throw new Error(`Error al obtener colección de BGG: ${bgResponse.status}`);
   }
 
-  const [bgXml, expXml] = await Promise.all([
+  // Si fallan las listas secundarias seguimos con los juegos que sí tenemos:
+  // es preferible una colección sin wishlist que un error en toda la página.
+  const [bgXml, expXml, wishXml] = await Promise.all([
     bgResponse.text(),
     expResponse.ok ? expResponse.text() : Promise.resolve(null),
+    wishResponse.ok ? wishResponse.text() : Promise.resolve(null),
   ]);
 
-  const bgParsed = await parseStringPromise(bgXml, { explicitArray: false });
-  const expParsed = expXml
-    ? await parseStringPromise(expXml, { explicitArray: false })
-    : null;
+  const parseItems = async (xml: string | null): Promise<any[]> => {
+    if (!xml) return [];
+    const parsed = await parseStringPromise(xml, { explicitArray: false });
+    if (!parsed.items?.item) return [];
+    return Array.isArray(parsed.items.item) ? parsed.items.item : [parsed.items.item];
+  };
 
-  const bgItems = bgParsed.items?.item
-    ? Array.isArray(bgParsed.items.item) ? bgParsed.items.item : [bgParsed.items.item]
-    : [];
-  const expItems = expParsed?.items?.item
-    ? Array.isArray(expParsed.items.item) ? expParsed.items.item : [expParsed.items.item]
-    : [];
+  const [bgItems, expItems, wishItems] = await Promise.all([
+    parseItems(bgXml),
+    parseItems(expXml),
+    parseItems(wishXml),
+  ]);
 
-  if (bgItems.length === 0 && expItems.length === 0) {
+  if (bgItems.length === 0 && expItems.length === 0 && wishItems.length === 0) {
     // Empty collection — clear existing rows
     await prisma.collectionGame.deleteMany({ where: { bggUsername: normalizedUsername } });
     return true;
   }
 
-  // Tag each item with its subtype before merging
+  // Tag each item with its subtype and status before merging
   const allRawItems = [
-    ...bgItems.map((item: any) => ({ ...item, _subtype: "boardgame" })),
-    ...expItems.map((item: any) => ({ ...item, _subtype: "boardgameexpansion" })),
+    ...bgItems.map((item: any) => ({ ...item, _subtype: "boardgame", _status: "own" })),
+    ...expItems.map((item: any) => ({ ...item, _subtype: "boardgameexpansion", _status: "own" })),
+    ...wishItems.map((item: any) => ({ ...item, _status: "wishlist" })),
   ];
 
-  // Deduplicate by bggId — prefer "boardgame" over "boardgameexpansion"
+  // Deduplicate by bggId — el orden manda: "own" gana a "wishlist" y
+  // "boardgame" gana a "boardgameexpansion".
   const seenIds = new Set<number>();
   const uniqueRawItems = allRawItems.filter((item: any) => {
     const id = parseInt(item.$.objectid);
@@ -275,10 +289,15 @@ export async function ensureBggCollection(
       const rankArr = Array.isArray(ranks) ? ranks : ranks ? [ranks] : [];
       const mainRank = rankArr.find((r: any) => r.$?.name === "boardgame");
 
+      const wishlistPriority = item.status?.$?.wishlistpriority
+        ? parseInt(item.status.$.wishlistpriority) || null
+        : null;
+
       return {
         bggId: parseInt(item.$.objectid),
         name: typeof item.name === "string" ? item.name : item.name?._,
         thumbnail: item.thumbnail || null,
+        image: item.image || null,
         yearPublished: item.yearpublished ? parseInt(item.yearpublished) : null,
         minPlayers: stats ? parseInt(stats.$?.minplayers) : null,
         maxPlayers: stats ? parseInt(stats.$?.maxplayers) : null,
@@ -290,15 +309,23 @@ export async function ensureBggCollection(
         userRating: rating ? parseFloat(rating.$?.value) || null : null,
         dateAdded: item.status?.$?.lastmodified ? new Date(item.status.$.lastmodified) : null,
         subtype: item._subtype || item.$.subtype || "boardgame",
+        status: item._status || "own",
+        wishlistPriority: item._status === "wishlist" ? wishlistPriority : null,
       };
     });
 
-  // Preserve bestWith from previous sync
-  const existingBestWith = await prisma.collectionGame.findMany({
-    where: { bggUsername: normalizedUsername, bestWith: { not: null } },
-    select: { bggId: true, bestWith: true },
+  // Preserve enriched data from previous sync (bestWith y el juego base de
+  // cada expansión): se calculan aparte y perderlos obligaría a volver a
+  // pedírselos a BGG en cada refresco.
+  const existingEnriched = await prisma.collectionGame.findMany({
+    where: {
+      bggUsername: normalizedUsername,
+      OR: [{ bestWith: { not: null } }, { baseBggId: { not: null } }],
+    },
+    select: { bggId: true, bestWith: true, baseBggId: true },
   });
-  const bestWithMap = new Map(existingBestWith.map((g) => [g.bggId, g.bestWith]));
+  const bestWithMap = new Map(existingEnriched.map((g) => [g.bggId, g.bestWith]));
+  const baseIdMap = new Map(existingEnriched.map((g) => [g.bggId, g.baseBggId]));
 
   // Bulk upsert: delete old + create new in a transaction
   await prisma.$transaction([
@@ -309,6 +336,7 @@ export async function ensureBggCollection(
         bggId: g.bggId,
         name: g.name,
         thumbnail: g.thumbnail,
+        image: g.image,
         yearPublished: g.yearPublished,
         minPlayers: g.minPlayers,
         maxPlayers: g.maxPlayers,
@@ -319,7 +347,10 @@ export async function ensureBggCollection(
         numPlays: g.numPlays,
         userRating: g.userRating,
         bestWith: bestWithMap.get(g.bggId) || null,
+        baseBggId: baseIdMap.get(g.bggId) ?? null,
         subtype: g.subtype,
+        status: g.status,
+        wishlistPriority: g.wishlistPriority,
         dateAdded: g.dateAdded,
         fetchedAt: now,
       })),
@@ -331,20 +362,51 @@ export async function ensureBggCollection(
 }
 
 /**
- * Enrich collection games that are missing bestWith data.
- * Fetches thing details from BGG in a single batch and updates DB.
- * Returns the enriched bggId→bestWith map.
+ * Completa los datos de la colección que BGG no manda en el listado y hay que
+ * pedir juego a juego: con cuántos jugadores va mejor (`bestWith`) y, en las
+ * expansiones, de qué juego base lo son (`baseBggId`).
+ *
+ * Son datos globales del juego, no del usuario, así que se escriben en todas
+ * las filas con ese bggId. Devuelve cuántos ha rellenado de cada cosa y los
+ * juegos de los que BGG sí ha contestado, para que quien llame sepa
+ * distinguir "BGG dice que no tiene juego base" de "BGG no ha contestado".
  */
 export async function enrichCollectionGames(
   bggIds: number[]
-): Promise<Map<number, string>> {
+): Promise<{ bestWith: number; baseLinks: number; answered: number[] }> {
   const result = new Map<number, string>();
-  if (bggIds.length === 0) return result;
+  const baseLinks = new Map<number, number>();
+  let answered: number[] = [];
+  if (bggIds.length === 0) return { bestWith: 0, baseLinks: 0, answered };
 
   try {
     const details = await fetchBggGameDetails(bggIds);
+    answered = details.map((d) => d.bggId);
+
+    // Una expansión puede colgar de varios juegos base (cruces entre sagas).
+    // Nos quedamos con el primero que esté en alguna colección nuestra; si no
+    // hay ninguno, con el primero que diga BGG.
+    const candidateIds = [...new Set(details.flatMap((d) => d.expandsBggIds))];
+    const knownBases = new Set(
+      candidateIds.length > 0
+        ? (
+            await prisma.collectionGame.findMany({
+              where: { bggId: { in: candidateIds } },
+              select: { bggId: true },
+              distinct: ["bggId"],
+            })
+          ).map((g) => g.bggId)
+        : []
+    );
 
     for (const detail of details) {
+      if (detail.expandsBggIds.length > 0) {
+        const base =
+          detail.expandsBggIds.find((id) => knownBases.has(id)) ??
+          detail.expandsBggIds[0];
+        baseLinks.set(detail.bggId, base);
+      }
+
       const recs = detail.playerCountRecommendations;
       if (!recs || recs.length === 0) continue;
 
@@ -380,23 +442,29 @@ export async function enrichCollectionGames(
       }
     }
 
-    // Bulk update DB
-    if (result.size > 0) {
+    // Bulk update DB: una escritura por juego con lo que hayamos sacado.
+    const touched = new Set([...result.keys(), ...baseLinks.keys()]);
+    if (touched.size > 0) {
       await Promise.all(
-        Array.from(result.entries()).map(([bggId, bestWith]) =>
+        Array.from(touched).map((bggId) =>
           prisma.collectionGame.updateMany({
             where: { bggId },
-            data: { bestWith },
+            data: {
+              ...(result.has(bggId) ? { bestWith: result.get(bggId) } : {}),
+              ...(baseLinks.has(bggId) ? { baseBggId: baseLinks.get(bggId) } : {}),
+            },
           })
         )
       );
-      console.log(`[BGG Enrich] Updated bestWith for ${result.size} games`);
+      console.log(
+        `[BGG Enrich] bestWith: ${result.size}, juego base: ${baseLinks.size}`
+      );
     }
   } catch (err) {
     console.error("[BGG Enrich] Error:", err);
   }
 
-  return result;
+  return { bestWith: result.size, baseLinks: baseLinks.size, answered };
 }
 
 export async function fetchBggGameDetails(
@@ -503,6 +571,17 @@ export async function fetchBggGameDetails(
       (n: any) => n.$?.type === "primary"
     );
 
+    // Los enlaces "boardgameexpansion" apuntan al juego base solo cuando son
+    // inbound; en un juego base los mismos enlaces apuntan a sus expansiones.
+    const links = item.link;
+    const linkArr = Array.isArray(links) ? links : links ? [links] : [];
+    const expandsBggIds = linkArr
+      .filter(
+        (l: any) => l.$?.type === "boardgameexpansion" && l.$?.inbound === "true"
+      )
+      .map((l: any) => parseInt(l.$?.id, 10))
+      .filter((id: number) => Number.isInteger(id));
+
     return {
       bggId: parseInt(item.$.id),
       name: primaryName ? primaryName.$?.value : "Unknown",
@@ -527,6 +606,7 @@ export async function fetchBggGameDetails(
         ? parseFloat(ratings.averageweight.$?.value) || null
         : null,
       playerCountRecommendations,
+      expandsBggIds,
     };
   });
 }

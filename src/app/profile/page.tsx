@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
+import ProfileShowcase from "@/components/ProfileShowcase";
 import { resizeImage } from "@/lib/image";
 
 interface Profile {
@@ -465,6 +466,8 @@ function ProfileForm() {
               </button>
             </form>
           </div>
+
+          <ProfileShowcase />
         </div>
       </div>
 

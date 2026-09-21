@@ -12,6 +12,20 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "21 septiembre 2026",
+    version: "1.22",
+    title: "Mi colección: decide qué juegos se quedan",
+    changes: [
+      { type: "new", text: "Nueva sección «Mi colección» en el menú: todos tus juegos de BGG en un sitio, con tus partidas, tu nota, el año, el peso y su puesto en BGG a la vista" },
+      { type: "new", text: "Puntúa cada juego del 1 al 5 según lo seguro que estés de que se queda contigo, de «quiero venderlo» a «no se irá nunca». Solo lo ves tú" },
+      { type: "new", text: "Las expansiones van con su juego: le pones nota al juego base y ellas la heredan, y si alguna merece un destino distinto puedes puntuarla aparte" },
+      { type: "new", text: "Vista de estantería: tus juegos apoyados en baldas de madera, como en una librería, para verlos de un vistazo y disfrutarlos" },
+      { type: "new", text: "Marca tus imprescindibles y se montan solos en la vitrina de tu perfil" },
+      { type: "new", text: "Filtra por lo que te haga falta (los que aún no has puntuado, los que no has estrenado, los que se juegan a cuatro, los que tienen nota tuya) y ordena por fecha de alta, partidas, año o puesto en BGG" },
+      { type: "new", text: "También traemos tu wishlist de BGG, así que puedes repasar lo que tienes y lo que quieres sin salir de la página" },
+    ],
+  },
+  {
     date: "17 septiembre 2026",
     version: "1.21",
     title: "Las próximas funcionalidades las decidís vosotros",

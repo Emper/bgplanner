@@ -61,6 +61,7 @@ export async function GET(
           where: {
             bggUsername: { in: Array.from(usernameToName.keys()) },
             bggId: { in: results.map((r) => r.bggId) },
+            status: "own",
           },
           select: { bggId: true, bggUsername: true },
         })

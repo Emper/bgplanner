@@ -146,6 +146,25 @@ export const eventInterestSchema = z.object({
   notes: z.string().max(500).transform(clean).optional(),
 });
 
+// Lo que el usuario anota sobre un juego de su colección. Los tres campos
+// son opcionales por separado: la UI manda solo el que cambia. `keepScore`
+// a null borra la puntuación (el juego vuelve a "sin valorar").
+export const collectionEntrySchema = z
+  .object({
+    keepScore: z.number().int().min(1).max(5).nullable().optional(),
+    note: z
+      .string()
+      .trim()
+      .max(300, "Máximo 300 caracteres")
+      .transform(clean)
+      .nullable()
+      .optional(),
+    showcased: z.boolean().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "No hay nada que actualizar",
+  });
+
 export const feedbackSchema = z.object({
   subject: z
     .string()

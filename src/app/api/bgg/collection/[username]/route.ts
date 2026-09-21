@@ -37,10 +37,13 @@ export async function GET(
     // Ensure collection is cached (fetches both boardgames + expansions)
     await ensureBggCollection(normalizedUsername, forceRefresh);
 
-    // Build where clause — only base games (exclude expansions)
+    // Build where clause — only base games (exclude expansions) that the
+    // member actually owns: la caché guarda también su wishlist y aquí no
+    // pinta nada (no puedes llevar a la mesa un juego que no tienes).
     const where: Prisma.CollectionGameWhereInput = {
       bggUsername: normalizedUsername,
       subtype: "boardgame",
+      status: "own",
     };
 
     if (search) {
@@ -129,6 +132,7 @@ export async function GET(
           where: {
             bggUsername: normalizedUsername,
             subtype: "boardgameexpansion",
+            status: "own",
             OR: nameFilters,
           },
           select: { bggId: true, name: true, thumbnail: true },

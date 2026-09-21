@@ -40,6 +40,7 @@ model User {
   reviewedFeedbacks Feedback[]    @relation("FeedbackReviewer")
   createdFeatures   Feature[]     @relation("FeatureCreator")
   featureVotes      FeatureVote[]
+  collectionEntries CollectionEntry[]
 }
 
 model OtpCode {
@@ -198,6 +199,7 @@ model CollectionGame {
   bggId         Int
   name          String
   thumbnail     String?
+  image         String?   @db.Text // portada grande (para la estantería)
   yearPublished Int?
   minPlayers    Int?
   maxPlayers    Int?
@@ -209,17 +211,52 @@ model CollectionGame {
   userRating    Float?
   bestWith      String?
   subtype       String    @default("boardgame") // boardgame | boardgameexpansion
+  // Qué relación tiene el usuario con el juego en BGG. De momento
+  // sincronizamos "own" (lo tiene) y "wishlist" (lo quiere).
+  status           String    @default("own") // own | wishlist
+  wishlistPriority Int?      // 1 (lo quiero ya) .. 5 (algún día), solo en wishlist
+  // Juego base del que es expansión, según los enlaces de BGG. Lo rellena
+  // enrichCollectionGames() y sobrevive a las resincronizaciones.
+  baseBggId     Int?
   dateAdded     DateTime?
   fetchedAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@unique([bggUsername, bggId])
   @@index([bggUsername])
+  @@index([bggUsername, status])
   @@index([bggRank])
   @@index([bggRating])
   @@index([numPlays])
   @@index([dateAdded])
   @@index([subtype])
+  @@index([baseBggId])
+}
+
+// Lo que el usuario anota sobre un juego de su colección, al margen de lo que
+// venga de BGG. `keepScore` es la puntuación de permanencia (1 "quiero
+// venderlo" … 5 "no se irá nunca") y es PRIVADA: solo la ve su dueño, nunca
+// se expone a los grupos ni se registra en el feed de actividad.
+// Las expansiones heredan el keepScore de su juego base mientras no tengan
+// uno propio (ver resolveKeepScore en src/lib/collection.ts).
+// Va por userId (no por bggUsername) para que sobreviva a un cambio de
+// usuario de BGG.
+model CollectionEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  bggId     Int
+  keepScore Int?     // 1-5
+  note      String?
+  showcased Boolean  @default(false) // aparece en la vitrina del perfil
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bggId])
+  @@index([userId])
+  @@index([userId, keepScore])
+  @@index([userId, showcased])
 }
 
 model GameComment {

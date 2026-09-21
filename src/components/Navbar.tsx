@@ -39,9 +39,21 @@ export default function Navbar() {
     }
   }, [menuOpen]);
 
+  // "Mi colección" no cabe escrito junto a los otros dos en una pantalla
+  // pequeña, así que ahí va con su icono (y con nombre en el menú lateral).
   const navItems = [
-    { href: "/groups", label: "Grupos", match: "/groups" },
-    { href: "/events", label: "Eventos", match: "/events" },
+    {
+      href: "/collection",
+      label: "Mi colección",
+      match: "/collection",
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+        </svg>
+      ),
+    },
+    { href: "/groups", label: "Grupos", match: "/groups", icon: null },
+    { href: "/events", label: "Eventos", match: "/events", icon: null },
   ];
 
   const isConnected = bggUsername !== null && bggUsername !== "";
@@ -119,7 +131,16 @@ export default function Navbar() {
                     isActive ? "text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--primary)]"
                   }`}
                 >
-                  {item.label}
+                  {item.icon ? (
+                    <>
+                      <span className="sm:hidden flex items-center" aria-hidden="true">
+                        {item.icon}
+                      </span>
+                      <span className="sr-only sm:not-sr-only">{item.label}</span>
+                    </>
+                  ) : (
+                    item.label
+                  )}
                   <span className={`absolute -bottom-1 left-0 h-0.5 bg-[var(--primary)] rounded-full transition-all duration-300 ${
                     isActive ? "w-full" : "w-0 group-hover:w-full"
                   }`} />
@@ -237,6 +258,21 @@ export default function Navbar() {
                   </Link>
                 )
               )}
+
+              <Link
+                href="/collection"
+                onClick={() => setMenuOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  pathname.startsWith("/collection")
+                    ? "bg-[var(--accent-soft)] text-[var(--primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                </svg>
+                Mi colección
+              </Link>
 
               <Link
                 href="/profile"
