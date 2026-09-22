@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import Avatar from "./Avatar";
 import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
+import { profileHref } from "@/lib/users";
 
 interface ActivityItem {
   id: string;
@@ -12,7 +13,7 @@ interface ActivityItem {
   userId: string;
   metadata: Record<string, unknown>;
   createdAt: string;
-  user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null };
+  user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null; bggUsername?: string | null };
   group?: { id: string; name: string } | null;
   event?: { id: string; name: string } | null;
 }
@@ -91,6 +92,8 @@ interface ItemRun {
 interface UserGroup {
   userId: string;
   userName: string;
+  /** Enlace a su perfil público, ya resuelto (usuario de BGG o id). */
+  userHref: string;
   avatarUrl: string | null;
   runs: ItemRun[];
 }
@@ -112,6 +115,7 @@ function groupItems(items: ActivityItem[]): UserGroup[] {
       groups.push({
         userId: item.userId,
         userName: item.user.displayName || item.user.name || "Alguien",
+        userHref: profileHref({ id: item.userId, bggUsername: item.user.bggUsername }),
         avatarUrl: item.user.avatarUrl,
         runs: [{ type: item.type, items: [item] }],
       });
@@ -236,7 +240,7 @@ export default function ActivityFeed({
           <div key={`${group.userId}-${group.runs[0].items[0].id}`} className="flex gap-3 py-2.5 px-1">
             <div className="flex flex-col items-center shrink-0 w-8">
               {linkUsers ? (
-                <Link href={`/users/${group.userId}`} prefetch={false} aria-label={group.userName}>
+                <Link href={group.userHref} prefetch={false} aria-label={group.userName}>
                   <Avatar
                     name={group.userName}
                     avatarUrl={group.avatarUrl}
@@ -258,7 +262,7 @@ export default function ActivityFeed({
               <p className="text-sm text-[var(--text-secondary)] leading-snug">
                 {linkUsers ? (
                   <Link
-                    href={`/users/${group.userId}`}
+                    href={group.userHref}
                     prefetch={false}
                     className="font-semibold text-[var(--text)] hover:text-[var(--primary)] transition-colors"
                   >

@@ -33,6 +33,7 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "En el perfil se ve la vitrina montada en su estantería, con los juegos que esa persona ha elegido como imprescindibles" },
       { type: "new", text: "Debajo, los eventos a los que va (los que vienen y los que ya pasaron) y lo último que ha estado haciendo" },
       { type: "new", text: "Su usuario de BoardGameGeek, a un clic de su perfil en BGG" },
+      { type: "new", text: "La dirección del perfil lleva tu nombre de BGG (bgplanner.app/users/tu-usuario), así que es fácil de compartir y de recordar" },
       { type: "improved", text: "Toca el nombre o la foto de cualquiera en la lista de miembros de un grupo, en los asistentes a un evento o en el muro de actividad y vas directo a su perfil" },
       { type: "improved", text: "Nadie ve de más: los eventos privados y lo que pasa en grupos a los que no perteneces no aparecen en el perfil de nadie" },
     ],

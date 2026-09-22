@@ -30,7 +30,7 @@ function ProfileForm() {
     location: "",
     bggUsername: "",
   });
-  const [userId, setUserId] = useState("");
+  const [profileSlug, setProfileSlug] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,7 @@ function ProfileForm() {
           });
           setAvatarUrl(data.avatarUrl || null);
           setEmail(data.email || "");
-          setUserId(data.id || "");
+          setProfileSlug(data.bggUsername || data.id || "");
         }
         const emailRes = await fetch("/api/profile/email", {
           credentials: "include",
@@ -279,9 +279,9 @@ function ProfileForm() {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between gap-3 mb-6">
             <h1 className="text-2xl font-bold text-[var(--text)]">Mi Perfil</h1>
-            {userId && (
+            {profileSlug && (
               <Link
-                href={`/users/${userId}`}
+                href={`/users/${encodeURIComponent(profileSlug)}`}
                 className="text-xs text-[var(--primary)] hover:underline shrink-0"
               >
                 Ver mi perfil público &rarr;

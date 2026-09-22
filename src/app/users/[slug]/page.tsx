@@ -39,6 +39,7 @@ interface ActivityItem {
     name: string | null;
     displayName: string | null;
     avatarUrl: string | null;
+    bggUsername?: string | null;
   };
   group?: { id: string; name: string } | null;
   event?: { id: string; name: string } | null;
@@ -46,6 +47,7 @@ interface ActivityItem {
 
 interface PublicProfile {
   id: string;
+  slug: string;
   displayName: string;
   location: string | null;
   bggUsername: string | null;
@@ -59,7 +61,7 @@ interface PublicProfile {
   activity: ActivityItem[];
 }
 
-/** "abril de 2026" */
+/** "marzo de 2026" */
 function formatMonth(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("es-ES", {
     month: "long",
@@ -79,10 +81,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-5 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 sm:p-6 shadow-[var(--card-shadow)]">
-      <div className="flex items-start justify-between gap-3 mb-4">
+    <section className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-[var(--card-shadow)]">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h2 className="text-lg font-bold text-[var(--text)]">{title}</h2>
+          <h2 className="text-base font-bold text-[var(--text)]">{title}</h2>
           {subtitle && (
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>
           )}
@@ -147,14 +149,14 @@ function EventRow({ event }: { event: ProfileEvent }) {
 }
 
 export default function PublicProfilePage() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/users/${id}`, { credentials: "include" })
+    fetch(`/api/users/${slug}`, { credentials: "include" })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "No se ha podido cargar el perfil");
@@ -174,7 +176,17 @@ export default function PublicProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [slug]);
+
+  // Si se ha entrado por el id teniendo usuario de BGG, dejamos la URL bonita
+  // sin recargar ni ensuciar el historial.
+  useEffect(() => {
+    if (!profile) return;
+    const canonical = `/users/${encodeURIComponent(profile.slug)}`;
+    if (window.location.pathname !== canonical) {
+      window.history.replaceState(null, "", canonical);
+    }
+  }, [profile]);
 
   if (loading) {
     return (
@@ -207,40 +219,67 @@ export default function PublicProfilePage() {
 
   const hasEvents =
     profile.upcomingEvents.length > 0 || profile.pastEvents.length > 0;
+  // La vitrina vacía se oculta, salvo en tu propio perfil con BGG conectado:
+  // ahí el hueco es la forma de enterarte de que existe.
+  const showShowcase =
+    profile.showcase.length > 0 || (profile.isSelf && !!profile.bggUsername);
 
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-8 px-3 sm:px-4">
+      <div className="min-h-screen bg-[var(--bg)] py-6 px-3 sm:px-4">
         <div className="max-w-2xl mx-auto">
           {/* ── Datos básicos ────────────────────────────────────────── */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 sm:p-6 shadow-[var(--card-shadow)]">
-            <div className="flex items-start gap-4">
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 sm:p-5 shadow-[var(--card-shadow)]">
+            <div className="flex items-center gap-4">
               <Avatar
                 name={profile.displayName}
                 avatarUrl={profile.avatarUrl}
-                size="xl"
+                size="2xl"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-3">
-                  <h1 className="text-2xl font-bold text-[var(--text)] break-words">
+                  <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)] break-words leading-tight">
                     {profile.displayName}
                   </h1>
                   {profile.isSelf && (
                     <Link
                       href="/profile"
-                      className="shrink-0 text-xs text-[var(--primary)] hover:underline mt-1"
+                      className="shrink-0 text-xs text-[var(--primary)] hover:underline"
                     >
                       Editar perfil
                     </Link>
                   )}
                 </div>
-                <div className="mt-1 space-y-0.5 text-sm text-[var(--text-secondary)]">
-                  {profile.location && <p>📍 {profile.location}</p>}
-                  <p className="text-xs text-[var(--text-muted)]">
-                    En BG Planner desde {formatMonth(profile.memberSince)}
-                  </p>
-                </div>
+                <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                  {profile.location && <span>📍 {profile.location}</span>}
+                  {profile.location && (
+                    <span className="text-[var(--text-muted)]"> · </span>
+                  )}
+                  <span className="text-xs text-[var(--text-muted)]">
+                    desde {formatMonth(profile.memberSince)}
+                  </span>
+                </p>
+                {profile.bggUsername && (
+                  <a
+                    href={`https://boardgamegeek.com/user/${profile.bggUsername}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`@${profile.bggUsername} en BoardGameGeek`}
+                    className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all duration-200"
+                  >
+                    <Image
+                      src="/bgg-icon.svg"
+                      alt="BGG"
+                      width={14}
+                      height={14}
+                      className="w-[14px] h-auto"
+                    />
+                    <span className="text-[11px] font-medium leading-none">
+                      @{profile.bggUsername}
+                    </span>
+                  </a>
+                )}
               </div>
             </div>
 
@@ -267,78 +306,39 @@ export default function PublicProfilePage() {
             )}
           </div>
 
-          {/* ── BoardGameGeek ────────────────────────────────────────── */}
-          <Section title="En BoardGameGeek">
-            {profile.bggUsername ? (
-              <a
-                href={`https://boardgamegeek.com/user/${profile.bggUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all duration-200"
-              >
-                <Image
-                  src="/bgg-icon.svg"
-                  alt="BGG"
-                  width={16}
-                  height={16}
-                  className="w-4 h-auto"
-                />
-                <span className="text-sm font-medium">@{profile.bggUsername}</span>
-                <span className="text-xs opacity-70">Ver su perfil →</span>
-              </a>
-            ) : (
-              <p className="text-sm text-[var(--text-muted)]">
-                {profile.isSelf
-                  ? "Todavía no has conectado tu usuario de BGG."
-                  : "Todavía no ha conectado su usuario de BoardGameGeek."}
-              </p>
-            )}
-          </Section>
-
           {/* ── Vitrina ──────────────────────────────────────────────── */}
-          <Section
-            title={profile.isSelf ? "Mi vitrina" : "Su vitrina"}
-            subtitle="Los imprescindibles, los que enseñaría a cualquiera que entre en casa."
-            action={
-              profile.isSelf ? (
-                <Link
-                  href="/collection"
-                  className="shrink-0 text-xs text-[var(--primary)] hover:underline"
-                >
-                  Editar
-                </Link>
-              ) : undefined
-            }
-          >
-            {profile.showcase.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)]">
-                {profile.isSelf ? (
-                  <>
-                    Todavía no has puesto nada.{" "}
-                    <Link href="/collection" className="text-[var(--primary)] hover:underline">
-                      Elige tus favoritos en Mi colección
-                    </Link>{" "}
-                    y aparecerán aquí.
-                  </>
-                ) : (
-                  "Todavía no ha puesto nada en su vitrina."
-                )}
-              </p>
-            ) : (
-              <GameShelf games={profile.showcase} />
-            )}
-          </Section>
+          {showShowcase && (
+            <Section
+              title={profile.isSelf ? "Mi vitrina" : "Su vitrina"}
+              subtitle="Los imprescindibles, los que enseñaría a cualquiera que entre en casa."
+              action={
+                profile.isSelf ? (
+                  <Link
+                    href="/collection"
+                    className="shrink-0 text-xs text-[var(--primary)] hover:underline"
+                  >
+                    Editar
+                  </Link>
+                ) : undefined
+              }
+            >
+              {profile.showcase.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">
+                  Todavía no has puesto nada.{" "}
+                  <Link href="/collection" className="text-[var(--primary)] hover:underline">
+                    Elige tus favoritos en Mi colección
+                  </Link>{" "}
+                  y aparecerán aquí.
+                </p>
+              ) : (
+                <GameShelf games={profile.showcase} compact />
+              )}
+            </Section>
+          )}
 
           {/* ── Eventos ──────────────────────────────────────────────── */}
-          <Section
-            title="Eventos"
-            subtitle="A los que asiste. Solo salen los que tú también puedes ver."
-          >
-            {!hasEvents ? (
-              <p className="text-sm text-[var(--text-muted)]">
-                No hay eventos que enseñar por aquí.
-              </p>
-            ) : (
+          {hasEvents && (
+            <Section title="Eventos" subtitle="A los que asiste.">
               <div className="space-y-4">
                 {profile.upcomingEvents.length > 0 && (
                   <div>
@@ -365,18 +365,20 @@ export default function PublicProfilePage() {
                   </div>
                 )}
               </div>
-            )}
-          </Section>
+            </Section>
+          )}
 
           {/* ── Actividad reciente ───────────────────────────────────── */}
-          <Section title="Actividad reciente">
-            <ActivityFeed
-              items={profile.activity}
-              showContext
-              minBlocks={0}
-              linkUsers={false}
-            />
-          </Section>
+          {profile.activity.length > 0 && (
+            <Section title="Actividad reciente">
+              <ActivityFeed
+                items={profile.activity}
+                showContext
+                minBlocks={0}
+                linkUsers={false}
+              />
+            </Section>
+          )}
         </div>
       </div>
       <Footer />

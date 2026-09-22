@@ -19,6 +19,7 @@ export interface ShelfGame {
 export default function GameShelf({
   games,
   onSelect,
+  compact = false,
 }: {
   games: ShelfGame[];
   /**
@@ -26,10 +27,12 @@ export default function GameShelf({
    * la app; sin él, la caja es un enlace a la página del juego en BGG.
    */
   onSelect?: (game: ShelfGame) => void;
+  /** Baldas más bajas y cajas más juntas, para vitrinas de pocos juegos. */
+  compact?: boolean;
 }) {
   return (
-    <div className="shelf-wrap">
-      <div className="shelf">
+    <div className={`shelf-wrap${compact ? " shelf-wrap--compact" : ""}`}>
+      <div className={`shelf${compact ? " shelf--compact" : ""}`}>
         {games.map((game) => {
           const img = game.image || game.thumbnail;
           const title = game.keepScore

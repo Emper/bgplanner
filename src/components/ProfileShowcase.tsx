@@ -54,7 +54,7 @@ export default function ProfileShowcase() {
           y aparecerán aquí.
         </p>
       ) : (
-        <GameShelf games={games} />
+        <GameShelf games={games} compact />
       )}
     </div>
   );

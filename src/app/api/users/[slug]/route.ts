@@ -12,29 +12,45 @@ import { getSession } from "@/lib/auth";
 const ACTIVITY_LIMIT = 20;
 const PAST_EVENTS_LIMIT = 6;
 
+const PROFILE_SELECT = {
+  id: true,
+  name: true,
+  displayName: true,
+  location: true,
+  bggUsername: true,
+  avatarUrl: true,
+  createdAt: true,
+} as const;
+
+// El slug de la URL es el usuario de BGG (/users/emper) y si no lo tiene, su
+// id. El id manda porque es único y no cambia; el usuario de BGG ni es único
+// en la BD ni es inmutable, así que ante un empate gana la cuenta más
+// antigua para que el enlace siempre lleve al mismo sitio.
+async function findProfileUser(slug: string) {
+  const byId = await prisma.user.findUnique({
+    where: { id: slug },
+    select: PROFILE_SELECT,
+  });
+  if (byId) return byId;
+
+  return prisma.user.findFirst({
+    where: { bggUsername: slug.toLowerCase().trim() },
+    orderBy: { createdAt: "asc" },
+    select: PROFILE_SELECT,
+  });
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   const session = await getSession(request);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const { id } = await params;
-
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      displayName: true,
-      location: true,
-      bggUsername: true,
-      avatarUrl: true,
-      createdAt: true,
-    },
-  });
+  const { slug } = await params;
+  const user = await findProfileUser(decodeURIComponent(slug));
 
   if (!user) {
     return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
@@ -181,6 +197,7 @@ export async function GET(
 
   return NextResponse.json({
     id: user.id,
+    slug: user.bggUsername || user.id,
     displayName: user.displayName || user.name || "Jugador",
     location: user.location,
     bggUsername: user.bggUsername,
