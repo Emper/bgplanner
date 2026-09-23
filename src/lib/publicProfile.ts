@@ -110,6 +110,28 @@ export interface ProfileHeader {
   showcaseCount: number;
   /** Eventos públicos a los que va y aún no han pasado. */
   upcomingEventCount: number;
+  stats: ProfileStats;
+}
+
+/**
+ * Los números del perfil: las insignias de la página y la fila de cifras de
+ * la tarjeta. Son totales, nunca listas: que alguien esté en 4 grupos o haya
+ * ido a 12 eventos se puede contar sin decir cuáles, así que aquí sí entran
+ * los grupos y los eventos privados que el resto del perfil se calla.
+ */
+export interface ProfileStats {
+  /** Juegos base que tiene (sin expansiones ni wishlist). */
+  games: number;
+  expansions: number;
+  /** Partidas que lleva apuntadas en BGG a sus juegos. */
+  plays: number;
+  groups: number;
+  /** Eventos a los que se ha apuntado en firme, pasados y futuros. */
+  events: number;
+  /** Eventos que ha montado él. */
+  hosted: number;
+  votes: number;
+  reviews: number;
 }
 
 /**
@@ -127,11 +149,21 @@ export const getProfileHeader = cache(
       where: { userId: user.id, showcased: true },
       select: { bggId: true },
     });
-    const [showcaseCount, upcomingEventCount] = await Promise.all([
-      entries.length && user.bggUsername
+    const bggUsername = user.bggUsername?.toLowerCase().trim() || null;
+    const [
+      showcaseCount,
+      upcomingEventCount,
+      owned,
+      groups,
+      events,
+      hosted,
+      votes,
+      reviews,
+    ] = await Promise.all([
+      entries.length && bggUsername
         ? prisma.collectionGame.count({
             where: {
-              bggUsername: user.bggUsername.toLowerCase().trim(),
+              bggUsername,
               bggId: { in: entries.map((e) => e.bggId) },
             },
           })
@@ -143,7 +175,27 @@ export const getProfileHeader = cache(
           event: { visibility: "public", date: { gte: new Date() } },
         },
       }),
+      // De una pasada: cuántos juegos y expansiones tiene y cuántas partidas
+      // les ha apuntado. Sin BGG conectado no hay colección que contar.
+      bggUsername
+        ? prisma.collectionGame.groupBy({
+            by: ["subtype"],
+            where: { bggUsername, status: "own" },
+            _count: { _all: true },
+            _sum: { numPlays: true },
+          })
+        : [],
+      prisma.groupMember.count({ where: { userId: user.id } }),
+      prisma.eventAttendee.count({
+        where: { userId: user.id, status: "attending" },
+      }),
+      prisma.event.count({ where: { createdById: user.id } }),
+      prisma.vote.count({ where: { userId: user.id } }),
+      prisma.gameReview.count({ where: { userId: user.id } }),
     ]);
+
+    const bases = owned.find((o) => o.subtype === "boardgame");
+    const exps = owned.find((o) => o.subtype === "boardgameexpansion");
 
     return {
       slug: user.slug || user.id,
@@ -153,36 +205,77 @@ export const getProfileHeader = cache(
       avatarUrl: user.avatarUrl,
       showcaseCount,
       upcomingEventCount,
+      stats: {
+        games: bases?._count._all ?? 0,
+        expansions: exps?._count._all ?? 0,
+        plays: owned.reduce((sum, o) => sum + (o._sum.numPlays ?? 0), 0),
+        groups,
+        events,
+        hosted,
+        votes,
+        reviews,
+      },
     };
   }
 );
 
 /**
- * La frase con la que se presenta el perfil fuera de la app: en la
- * descripción del enlace y en la tarjeta que se ve al compartirlo. La misma
- * en los dos sitios, para que no se contradigan.
+ * La frase con la que se presenta el perfil fuera de la app: la descripción
+ * del enlace y, si no hay cifras que pintar, la tarjeta al compartirlo.
  */
 export function profileTagline(header: ProfileHeader): string {
   const quien = header.location
     ? `${header.displayName}, de ${header.location}`
     : header.displayName;
+  const { games, groups } = header.stats;
+  const n = (count: number, one: string, many: string) =>
+    `${count.toLocaleString("es-ES")} ${count === 1 ? one : many}`;
 
   const tiene: string[] = [];
+  if (games > 0) tiene.push(`${n(games, "juego", "juegos")} en su colección`);
   if (header.showcaseCount > 0) {
+    // Con la colección delante, "juegos" ya se sobreentiende.
     tiene.push(
-      `${header.showcaseCount} juego${header.showcaseCount === 1 ? "" : "s"} en su vitrina`
+      games > 0
+        ? `${header.showcaseCount} en su vitrina`
+        : `${n(header.showcaseCount, "juego", "juegos")} en su vitrina`
     );
   }
+  if (groups > 0) tiene.push(n(groups, "grupo de juego", "grupos de juego"));
   if (header.upcomingEventCount > 0) {
-    tiene.push(
-      `${header.upcomingEventCount} evento${header.upcomingEventCount === 1 ? "" : "s"} a la vista`
-    );
+    tiene.push(`${n(header.upcomingEventCount, "evento", "eventos")} a la vista`);
   }
 
   if (tiene.length === 0) {
     return `${quien}. Su vitrina, sus eventos y lo último que ha jugado, en BG Planner.`;
   }
-  return `${quien}. ${tiene.join(" y ")}, en BG Planner.`;
+  const lista =
+    tiene.length === 1
+      ? tiene[0]
+      : `${tiene.slice(0, -1).join(", ")} y ${tiene[tiene.length - 1]}`;
+  return `${quien}. ${lista}, en BG Planner.`;
+}
+
+/**
+ * Las cifras grandes de la tarjeta al compartir el perfil, las mismas que
+ * sus insignias. Solo las que tiene: un cero en grande no presume de nada.
+ */
+export function profileCardStats(
+  header: ProfileHeader
+): { value: string; label: string }[] {
+  const { games, groups, events } = header.stats;
+  const stats = [
+    { n: games, one: "juego", many: "juegos" },
+    { n: header.showcaseCount, one: "en la vitrina", many: "en la vitrina" },
+    { n: groups, one: "grupo", many: "grupos" },
+    { n: events, one: "evento", many: "eventos" },
+  ];
+  return stats
+    .filter((s) => s.n > 0)
+    .map((s) => ({
+      value: s.n.toLocaleString("es-ES"),
+      label: s.n === 1 ? s.one : s.many,
+    }));
 }
 
 /**

@@ -16,6 +16,7 @@ export default function PublicPeek({
   facts,
   note,
   cta,
+  banner,
 }: {
   eyebrow?: string;
   title: string;
@@ -26,11 +27,14 @@ export default function PublicPeek({
   /** Aclaración bajo los datos (p. ej. que el evento es privado). */
   note?: string;
   cta: { href: string; label: string; hint?: string };
+  /** Algo que va encima de la ficha: el gancho para registrarse. */
+  banner?: React.ReactNode;
 }) {
   return (
     <>
       <SmartNav />
       <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
+        {banner ? <div className="max-w-xl mx-auto">{banner}</div> : null}
         <div className="max-w-xl mx-auto bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
           {imageUrl ? (
             <div className="h-40 sm:h-52 overflow-hidden">

@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
+import { safeRedirect } from "@/lib/safeRedirect";
 
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  const redirect = searchParams.get("redirect") || "";
+  const redirect = safeRedirect(searchParams.get("redirect"));
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);

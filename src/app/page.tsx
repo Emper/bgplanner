@@ -7,6 +7,7 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import Footer from "@/components/Footer";
 import { useTheme } from "@/lib/theme";
 import PageLoader from "@/components/PageLoader";
+import { safeRedirect } from "@/lib/safeRedirect";
 
 const FEATURES = [
   {
@@ -117,7 +118,7 @@ function FloatingElements() {
 function LandingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "";
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
 
   const [checkingSession, setCheckingSession] = useState(true);

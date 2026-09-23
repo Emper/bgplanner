@@ -14,6 +14,8 @@ import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
 import GameShelf from "@/components/GameShelf";
+import SignupBanner from "@/components/SignupBanner";
+import { profileBadges, type ProfileBadge } from "@/lib/profileBadges";
 import { formatDateShort } from "@/lib/format";
 import { getGroupType } from "@/lib/groupTypes";
 
@@ -159,6 +161,66 @@ function EventRow({ event }: { event: ProfileEvent }) {
   );
 }
 
+// Bronce, plata y oro. El oro además brilla un poco: es el que se enseña.
+const TIER_STYLES = [
+  "border-dashed border-[var(--border)] opacity-60",
+  "border-orange-700/35 bg-orange-700/[0.06]",
+  "border-slate-400/50 bg-slate-400/[0.08]",
+  "border-amber-400/60 bg-amber-400/10 shadow-[0_0_18px_rgba(245,158,11,0.18)]",
+];
+const TIER_LABELS = ["", "Bronce", "Plata", "Oro"];
+const TIER_TEXT = [
+  "text-[var(--text-muted)]",
+  "text-orange-700 dark:text-orange-400",
+  "text-slate-500 dark:text-slate-300",
+  "text-amber-600 dark:text-amber-400",
+];
+
+function BadgeTile({ badge, isSelf }: { badge: ProfileBadge; isSelf: boolean }) {
+  const locked = badge.tier === 0;
+  return (
+    <div
+      className={`flex items-start gap-2.5 p-3 rounded-xl border transition-all duration-200 ${TIER_STYLES[badge.tier]}`}
+      title={
+        badge.next
+          ? `Siguiente nivel: ${badge.next.name} (${badge.next.at.toLocaleString("es-ES")})`
+          : badge.tierName ?? undefined
+      }
+    >
+      <span className={`text-2xl leading-none shrink-0 ${locked ? "grayscale" : ""}`} aria-hidden>
+        {badge.emoji}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-[var(--text)] leading-snug">
+          {badge.text}
+        </p>
+        {locked ? (
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{badge.hint}</p>
+        ) : (
+          <p className={`text-[11px] font-medium mt-0.5 ${TIER_TEXT[badge.tier]}`}>
+            {TIER_LABELS[badge.tier]} · {badge.tierName}
+          </p>
+        )}
+        {/* La barra hacia el siguiente nivel es cosa tuya: en el perfil de
+            otro sería señalarle lo que le falta. */}
+        {isSelf && badge.next && !locked && (
+          <div className="mt-1.5">
+            <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[var(--primary)]"
+                style={{ width: `${Math.max(4, Math.round(badge.progress * 100))}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] mt-1">
+              {(badge.next.at - badge.value).toLocaleString("es-ES")} para {badge.next.name}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function NotFound() {
   return (
     <>
@@ -189,9 +251,18 @@ export default async function PublicProfilePage({
 }) {
   const { slug } = await params;
   const session = await getSession();
-  const profile = await getPublicProfile(slug, session?.userId ?? null);
+  const [profile, header] = await Promise.all([
+    getPublicProfile(slug, session?.userId ?? null),
+    getProfileHeader(slug),
+  ]);
 
-  if (!profile) return <NotFound />;
+  if (!profile || !header) return <NotFound />;
+
+  const badges = profileBadges(header.stats, {
+    hasBgg: !!profile.bggUsername,
+    includeLocked: profile.isSelf,
+  });
+  const earned = badges.filter((b) => b.tier > 0).length;
 
   const hasEvents =
     profile.upcomingEvents.length > 0 || profile.pastEvents.length > 0;
@@ -205,6 +276,14 @@ export default async function PublicProfilePage({
       <SmartNav />
       <div className="min-h-screen bg-[var(--bg)] py-6 px-3 sm:px-4">
         <div className="max-w-2xl mx-auto">
+          {!session && (
+            <SignupBanner
+              variant="profile"
+              name={profile.displayName}
+              redirect={`/users/${encodeURIComponent(profile.slug)}`}
+            />
+          )}
+
           {/* ── Datos básicos ────────────────────────────────────────── */}
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 sm:p-5 shadow-[var(--card-shadow)]">
             <div className="flex items-center gap-4">
@@ -281,6 +360,24 @@ export default async function PublicProfilePage({
               </div>
             )}
           </div>
+
+          {/* ── Insignias ────────────────────────────────────────────── */}
+          {badges.length > 0 && (
+            <Section
+              title={profile.isSelf ? "Mis insignias" : "Insignias"}
+              subtitle={
+                profile.isSelf
+                  ? `Llevas ${earned} de ${badges.length}. Cada una tiene bronce, plata y oro.`
+                  : "Lo que lleva jugado, votado y organizado en BG Planner."
+              }
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {badges.map((badge) => (
+                  <BadgeTile key={badge.key} badge={badge} isSelf={profile.isSelf} />
+                ))}
+              </div>
+            </Section>
+          )}
 
           {/* ── Vitrina ──────────────────────────────────────────────── */}
           {showShowcase && (

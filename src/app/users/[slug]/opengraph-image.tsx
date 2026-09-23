@@ -1,4 +1,8 @@
-import { getProfileHeader, profileTagline } from "@/lib/publicProfile";
+import {
+  getProfileHeader,
+  profileCardStats,
+  profileTagline,
+} from "@/lib/publicProfile";
 import {
   inlineImage,
   shareCardResponse,
@@ -17,11 +21,16 @@ export default async function Image({
 }) {
   const { slug } = await params;
   const header = await getProfileHeader(slug);
+  const stats = header ? profileCardStats(header) : [];
 
   return shareCardResponse({
     title: header?.displayName ?? "BG Planner",
     badge: header?.bggUsername ? `@${header.bggUsername} en BGG` : null,
     badgeTone: "bgg",
+    // Con cifras, la frase no cabe: el sitio pasa a su propia línea para no
+    // perderlo, y los números cuentan lo demás.
+    subtitle: stats.length && header?.location ? `de ${header.location}` : null,
+    stats,
     tagline: header
       ? profileTagline(header)
       : "Organiza las partidas de tu grupo de juegos de mesa.",

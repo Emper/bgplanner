@@ -13,6 +13,17 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "23 septiembre 2026",
+    version: "1.30",
+    title: "Insignias para presumir",
+    changes: [
+      { type: "new", text: "Tu perfil público estrena insignias: juegos en la colección, grupos, eventos a los que vas y los que organizas, partidas, votos y crónicas. Cada una tiene bronce, plata y oro, y cada nivel su propio nombre" },
+      { type: "new", text: "En tu propio perfil ves cuánto te falta para el siguiente nivel y qué hacer para estrenar las que aún no tienes" },
+      { type: "improved", text: "Al compartir tu perfil, la tarjeta de WhatsApp o Telegram enseña en grande tus juegos, tu vitrina, tus grupos y tus eventos" },
+      { type: "improved", text: "Quien abre tu perfil, tu colección o un evento abierto sin tener cuenta ve arriba del todo una invitación para unirse" },
+    ],
+  },
+  {
+    date: "23 septiembre 2026",
     version: "1.29",
     title: "Comparte tu colección con quien sea",
     changes: [

@@ -9,6 +9,7 @@ import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
 import ProfileShowcase from "@/components/ProfileShowcase";
 import { resizeImage } from "@/lib/image";
+import { safeRedirect } from "@/lib/safeRedirect";
 
 interface Profile {
   name: string;
@@ -21,7 +22,7 @@ interface Profile {
 function ProfileForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "";
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<Profile>({
     name: "",

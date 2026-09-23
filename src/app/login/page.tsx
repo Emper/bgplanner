@@ -6,11 +6,12 @@ import { useState, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import { useTheme } from "@/lib/theme";
 import PageLoader from "@/components/PageLoader";
+import { safeRedirect } from "@/lib/safeRedirect";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "";
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
 
   const [email, setEmail] = useState("");

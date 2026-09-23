@@ -6,6 +6,7 @@ import {
   formatEventWhen,
 } from "@/lib/publicLinks";
 import PublicPeek from "@/components/PublicPeek";
+import SignupBanner from "@/components/SignupBanner";
 import EventClient from "./EventClient";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
@@ -111,6 +112,9 @@ export default async function EventPage({
 
   return (
     <PublicPeek
+      banner={
+        <SignupBanner variant="event" redirect={`/events/${event.id}`} />
+      }
       eyebrow="Evento abierto"
       title={event.name}
       imageUrl={event.imageUrl}

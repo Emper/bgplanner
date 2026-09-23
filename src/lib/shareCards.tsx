@@ -57,8 +57,15 @@ export interface ShareCardInput {
   badge?: string | null;
   /** Píldora verde en vez de gris (BGG). */
   badgeTone?: "accent" | "bgg";
+  /** Línea discreta bajo el título: de dónde es, por ejemplo. */
+  subtitle?: string | null;
   /** Frase de presentación, la misma que la descripción del enlace. */
   tagline: string;
+  /**
+   * Cifras grandes en vez de la frase ("120 juegos", "3 grupos"…). Las usa
+   * el perfil, que así presume de lo que lleva hecho de un vistazo.
+   */
+  stats?: { value: string; label: string }[];
   /** Foto ya incrustada con inlineImage(). */
   image?: string | null;
   /** Foto redonda (personas) o con esquinas (eventos, grupos). */
@@ -78,12 +85,13 @@ function Media({
   image,
   initial,
   round,
+  side,
 }: {
   image?: string | null;
   initial: string;
   round: boolean;
+  side: number;
 }) {
-  const side = 260;
   const radius = round ? side / 2 : 36;
   const common = {
     width: side,
@@ -114,7 +122,7 @@ function Media({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 120,
+        fontSize: side * 0.46,
         fontWeight: 700,
         color: ACCENT,
       }}
@@ -181,9 +189,11 @@ function Shelf({ covers }: { covers: string[] }) {
 export function shareCard({
   eyebrow,
   title,
+  subtitle,
   badge,
   badgeTone = "accent",
   tagline,
+  stats,
   image,
   shelf,
   round = false,
@@ -192,6 +202,8 @@ export function shareCard({
   // Con estantería, el título ocupa todo el ancho y las cajas van debajo;
   // sin ella, la plantilla de siempre con la foto al lado.
   const hasShelf = !!shelf && shelf.length > 0;
+  // Con cifras, la foto encoge un poco para dejarles sitio debajo.
+  const hasStats = !hasShelf && !!stats && stats.length > 0;
 
   const eyebrowEl = eyebrow ? (
     <div
@@ -220,6 +232,10 @@ export function shareCard({
       {title}
     </div>
   );
+
+  const subtitleEl = subtitle ? (
+    <div style={{ fontSize: 34, color: MUTED, marginTop: 10 }}>{subtitle}</div>
+  ) : null;
 
   const badgeEl = badge ? (
     <div
@@ -254,7 +270,7 @@ export function shareCard({
         flexDirection: "column",
         justifyContent: "space-between",
         background: BG,
-        padding: hasShelf ? "48px 72px" : "70px 80px",
+        padding: hasShelf ? "48px 72px" : hasStats ? "52px 80px" : "70px 80px",
         fontFamily: "sans-serif",
       }}
     >
@@ -279,10 +295,16 @@ export function shareCard({
         </div>
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 56 }}>
-          <Media image={image} initial={initial} round={round} />
+          <Media
+            image={image}
+            initial={initial}
+            round={round}
+            side={hasStats ? 210 : 260}
+          />
           <div style={{ display: "flex", flexDirection: "column", maxWidth: 700 }}>
             {eyebrowEl}
             {titleEl}
+            {subtitleEl}
             {badgeEl ? (
               <div style={{ display: "flex", marginTop: 20 }}>{badgeEl}</div>
             ) : null}
@@ -293,22 +315,57 @@ export function shareCard({
       {hasShelf ? <Shelf covers={shelf!} /> : null}
 
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <div
-          style={{
-            fontSize: hasShelf ? 32 : 38,
-            color: MUTED,
-            lineHeight: 1.35,
-          }}
-        >
-          {tagline}
-        </div>
+        {hasStats ? (
+          // Cuatro cifras como mucho: con más, los números dejan de leerse
+          // en la miniatura de WhatsApp.
+          <div style={{ display: "flex", gap: 20 }}>
+            {stats!.slice(0, 4).map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  background: SURFACE,
+                  border: `2px solid ${BORDER}`,
+                  borderRadius: 20,
+                  padding: "14px 26px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 60,
+                    fontWeight: 700,
+                    color: ACCENT,
+                    lineHeight: 1,
+                  }}
+                >
+                  {stat.value}
+                </div>
+                <div style={{ fontSize: 28, color: MUTED, marginTop: 6 }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: hasShelf ? 32 : 38,
+              color: MUTED,
+              lineHeight: 1.35,
+            }}
+          >
+            {tagline}
+          </div>
+        )}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 16,
-            marginTop: hasShelf ? 20 : 36,
-            paddingTop: hasShelf ? 20 : 30,
+            marginTop: hasShelf ? 20 : hasStats ? 28 : 36,
+            paddingTop: hasShelf ? 20 : hasStats ? 22 : 30,
             borderTop: `2px solid ${BORDER}`,
           }}
         >

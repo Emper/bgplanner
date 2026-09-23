@@ -11,6 +11,7 @@ import {
 import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
 import CollectionBrowser from "@/components/CollectionBrowser";
+import SignupBanner from "@/components/SignupBanner";
 
 // Depende de quién mire y de datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
@@ -142,17 +143,11 @@ export default async function SharedCollectionPage({
           </div>
 
           {!session && (
-            <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-secondary)]">
-              Esto es una colección compartida desde{" "}
-              <Link href="/" className="text-[var(--primary)] hover:underline">
-                BG Planner
-              </Link>
-              , donde los grupos de amigos deciden a qué jugar.{" "}
-              <Link href="/login" className="text-[var(--primary)] hover:underline">
-                Entra
-              </Link>{" "}
-              para montar la tuya.
-            </div>
+            <SignupBanner
+              variant="collection"
+              name={ownerName}
+              redirect={`/c/${encodeURIComponent(token)}`}
+            />
           )}
 
           <Suspense fallback={<div className="py-16" />}>
