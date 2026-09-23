@@ -15,6 +15,9 @@ const MUTED = "#94a3b8";
 const ACCENT = "#f59e0b";
 const BORDER = "#334155";
 
+/** Para tarjetas con diseño propio (la de la portada) que no usan la plantilla. */
+export const SHARE_COLORS = { BG, SURFACE, TEXT, MUTED, ACCENT, BORDER };
+
 // La madera de la estantería, en su versión oscura (globals.css).
 const WOOD_BACK = "#3f2f24";
 const WOOD = "#8a5a33";

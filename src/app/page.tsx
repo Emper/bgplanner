@@ -23,6 +23,13 @@ export const metadata: Metadata = {
     siteName: "BG Planner",
     locale: "es_ES",
   },
+  // La imagen la pone opengraph-image.tsx; aquí solo pedimos la grande en X.
+  twitter: {
+    card: "summary_large_image",
+    title: "BG Planner · Decide con tus amigos a qué jugar",
+    description:
+      "Grupos, votaciones, ranking, tu colección en estantería y eventos de juegos de mesa. Gratis y sin contraseñas.",
+  },
 };
 
 // Las fechas se formatean aquí, en hora de España, para que servidor y

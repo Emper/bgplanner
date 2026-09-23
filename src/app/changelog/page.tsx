@@ -20,6 +20,7 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Un ranking en directo en la cabecera, con votos que llegan y juegos que se adelantan, para ver de un vistazo cómo funciona la votación" },
       { type: "new", text: "Una estantería de muestra en la que puedes puntuar juegos de verdad, sin tener cuenta, para probar «Mi colección» antes de registrarte" },
       { type: "new", text: "Los próximos eventos abiertos salen en la portada, con acceso directo a su ficha para apuntarse" },
+      { type: "new", text: "Al pasar el enlace de bgplanner.app por WhatsApp, Telegram o redes sale una tarjeta con el ranking de un grupo en plena votación, en vez de un enlace pelado" },
       { type: "improved", text: "Si ya tienes la sesión iniciada, entras directo a tus grupos sin pasar por la pantalla de carga" },
       { type: "fixed", text: "El menú de arriba vuelve a quedarse fijo al bajar por la página, y el buscador del ranking también" },
     ],
