@@ -1,46 +1,18 @@
 import Link from "next/link";
-import { Suspense, cache } from "react";
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { loadCollection } from "@/lib/collectionData";
+import {
+  countOwnedGames,
+  findCollectionOwner,
+  loadCollection,
+} from "@/lib/collectionData";
 import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
 import CollectionBrowser from "@/components/CollectionBrowser";
 
 // Depende de quién mire y de datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
-
-// `cache` de React: generateMetadata y la página corren en la misma
-// petición, y así el dueño se busca una sola vez.
-const findOwner = cache(async (token: string) =>
-  prisma.user.findUnique({
-    where: { collectionShareToken: token },
-    select: { id: true, name: true, displayName: true, bggUsername: true },
-  })
-);
-
-// Para la tarjeta del enlace: la portada de un juego de verdad dice mucho
-// más que el logo. Primero uno de la vitrina; si no tiene, el mejor
-// colocado en el ranking de BGG.
-async function pickCover(userId: string, bggUsername: string) {
-  const showcased = await prisma.collectionEntry.findFirst({
-    where: { userId, showcased: true },
-    select: { bggId: true },
-  });
-
-  const game = await prisma.collectionGame.findFirst({
-    where: {
-      bggUsername,
-      image: { not: null },
-      ...(showcased ? { bggId: showcased.bggId } : { status: "own", subtype: "boardgame" }),
-    },
-    select: { image: true },
-    orderBy: { bggRank: { sort: "asc", nulls: "last" } },
-  });
-
-  return game?.image ?? null;
-}
 
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
@@ -51,7 +23,7 @@ export async function generateMetadata({
   params: Promise<{ token: string }>;
 }): Promise<Metadata> {
   const { token } = await params;
-  const owner = await findOwner(token);
+  const owner = await findCollectionOwner(token);
 
   // Un enlace revocado no cuenta nada de nadie.
   if (!owner?.bggUsername) {
@@ -62,17 +34,7 @@ export async function generateMetadata({
   }
 
   const name = owner.displayName || owner.name || `@${owner.bggUsername}`;
-  const bggUsername = owner.bggUsername.toLowerCase().trim();
-
-  const [games, expansions, cover] = await Promise.all([
-    prisma.collectionGame.count({
-      where: { bggUsername, status: "own", subtype: "boardgame" },
-    }),
-    prisma.collectionGame.count({
-      where: { bggUsername, status: "own", subtype: "boardgameexpansion" },
-    }),
-    pickCover(owner.id, bggUsername),
-  ]);
+  const { games, expansions } = await countOwnedGames(owner.bggUsername);
 
   const title = `La colección de juegos de ${name}`;
   const description =
@@ -87,19 +49,18 @@ export async function generateMetadata({
     description,
     // El enlace se comparte por privado; que no acabe en un buscador.
     robots: { index: false, follow: false },
+    // La imagen la pinta opengraph-image.tsx y Next la enlaza sola.
     openGraph: {
       type: "website",
       siteName: "BG Planner",
       locale: "es_ES",
       title,
       description,
-      ...(cover ? { images: [{ url: cover, alt: title }] } : {}),
     },
     twitter: {
-      card: cover ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      ...(cover ? { images: [cover] } : {}),
     },
   };
 }
@@ -148,7 +109,7 @@ export default async function SharedCollectionPage({
   // revocarlo cuando quiera. La sesión solo sirve para saber si quien mira
   // es el propio dueño.
   const session = await getSession();
-  const owner = await findOwner(token);
+  const owner = await findCollectionOwner(token);
 
   if (!owner || !owner.bggUsername) {
     return (

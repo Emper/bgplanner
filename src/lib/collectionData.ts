@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { CollectionGame } from "@prisma/client";
 import type { CollectionItemView } from "@/lib/collection";
@@ -152,4 +153,106 @@ export async function loadCollection(
     pendingLinks: expansions.filter((e) => e.baseBggId === null).length,
     fetchedAt,
   };
+}
+
+
+// ── Enlace compartido ───────────────────────────────────────────────────
+
+/**
+ * El dueño de un enlace de colección compartida. Va con `cache` de React
+ * porque en la misma petición lo piden generateMetadata y la página.
+ */
+export const findCollectionOwner = cache(async (token: string) =>
+  prisma.user.findUnique({
+    where: { collectionShareToken: token },
+    select: { id: true, name: true, displayName: true, bggUsername: true },
+  })
+);
+
+/**
+ * Las portadas que salen en la balda de la tarjeta al compartir el enlace.
+ * En orden de preferencia:
+ *
+ *   1. La vitrina, que son los que el dueño ha elegido a mano para enseñar.
+ *   2. Los que ha jurado no soltar: "no se irá nunca" y luego "se queda".
+ *   3. Los mejor colocados en el ranking de BGG, para quien acaba de
+ *      conectar su cuenta y todavía no ha puntuado nada.
+ *
+ * Así la tarjeta nunca sale vacía y, cuanto más cuidada esté la colección,
+ * más se parece a lo que su dueño enseñaría de verdad.
+ */
+export async function pickShelfCovers(
+  userId: string,
+  bggUsername: string,
+  limit = 5
+): Promise<string[]> {
+  const username = bggUsername.toLowerCase().trim();
+
+  const marked = await prisma.collectionEntry.findMany({
+    where: { userId, OR: [{ showcased: true }, { keepScore: { gte: 4 } }] },
+    select: { bggId: true, showcased: true, keepScore: true },
+  });
+
+  // Vitrina primero, luego 5, luego 4. El desempate por bggId es para que
+  // la tarjeta salga siempre igual y las cachés no bailen.
+  const weight = (e: (typeof marked)[number]) =>
+    e.showcased ? 0 : e.keepScore === 5 ? 1 : 2;
+  const preferredIds = [...marked]
+    .sort((a, b) => weight(a) - weight(b) || a.bggId - b.bggId)
+    .map((e) => e.bggId);
+
+  const covers: string[] = [];
+  const used = new Set<number>();
+
+  if (preferredIds.length > 0) {
+    const rows = await prisma.collectionGame.findMany({
+      where: {
+        bggUsername: username,
+        status: "own",
+        bggId: { in: preferredIds },
+        image: { not: null },
+      },
+      select: { bggId: true, image: true },
+    });
+    const imageById = new Map(rows.map((r) => [r.bggId, r.image!]));
+    for (const bggId of preferredIds) {
+      if (covers.length >= limit) break;
+      const image = imageById.get(bggId);
+      if (!image || used.has(bggId)) continue;
+      used.add(bggId);
+      covers.push(image);
+    }
+  }
+
+  if (covers.length < limit) {
+    const rows = await prisma.collectionGame.findMany({
+      where: {
+        bggUsername: username,
+        status: "own",
+        subtype: "boardgame",
+        image: { not: null },
+        ...(used.size > 0 ? { bggId: { notIn: [...used] } } : {}),
+      },
+      select: { image: true },
+      orderBy: { bggRank: { sort: "asc", nulls: "last" } },
+      take: limit - covers.length,
+    });
+    for (const row of rows) if (row.image) covers.push(row.image);
+  }
+
+  return covers;
+}
+
+/** Cuántos juegos y cuántas expansiones tiene, para el texto de la tarjeta. */
+export async function countOwnedGames(bggUsername: string) {
+  const username = bggUsername.toLowerCase().trim();
+  const [games, expansions] = await Promise.all([
+    prisma.collectionGame.count({
+      where: { bggUsername: username, status: "own", subtype: "boardgame" },
+    }),
+    prisma.collectionGame.count({
+      where: { bggUsername: username, status: "own", subtype: "boardgameexpansion" },
+    }),
+  ]);
+  return { games, expansions };
 }
