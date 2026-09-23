@@ -13,7 +13,7 @@ interface ActivityItem {
   userId: string;
   metadata: Record<string, unknown>;
   createdAt: string;
-  user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null; bggUsername?: string | null };
+  user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null; slug?: string | null };
   group?: { id: string; name: string } | null;
   event?: { id: string; name: string } | null;
 }
@@ -115,7 +115,7 @@ function groupItems(items: ActivityItem[]): UserGroup[] {
       groups.push({
         userId: item.userId,
         userName: item.user.displayName || item.user.name || "Alguien",
-        userHref: profileHref({ id: item.userId, bggUsername: item.user.bggUsername }),
+        userHref: profileHref({ id: item.userId, slug: item.user.slug }),
         avatarUrl: item.user.avatarUrl,
         runs: [{ type: item.type, items: [item] }],
       });

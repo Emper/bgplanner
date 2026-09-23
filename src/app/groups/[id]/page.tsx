@@ -64,6 +64,7 @@ interface Member {
     email: string;
     bggUsername: string | null;
     avatarUrl: string | null;
+    slug: string | null;
   };
 }
 

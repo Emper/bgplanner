@@ -13,13 +13,24 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "23 septiembre 2026",
-    version: "1.26",
+    version: "1.27",
     title: "Comparte tu colección con quien sea",
     changes: [
       { type: "improved", text: "El enlace de tu colección ya no pide cuenta: quien lo reciba la abre y la ve, se haya registrado o no. Sigue sin poder cambiar nada, y tú puedes desactivarlo cuando quieras" },
       { type: "improved", text: "Ojo con esto: los enlaces que ya hubieras repartido también se abren ahora sin cuenta. Si alguno se te fue de las manos, desactívalo desde «Mi colección»" },
       { type: "new", text: "Al pegar el enlace en WhatsApp o Telegram ya sale una tarjeta en condiciones: «La colección de juegos de Fulanito», cuántos juegos y expansiones tiene y la portada de uno de ellos, en vez del texto genérico de siempre" },
       { type: "improved", text: "Y de paso, cualquier enlace de BG Planner que compartas por ahí se ve mejor: hasta ahora se pegaban sin ninguna presentación" },
+    ],
+  },
+  {
+    date: "23 septiembre 2026",
+    version: "1.26",
+    title: "Tu perfil, enseñable a cualquiera",
+    changes: [
+      { type: "new", text: "Tu perfil se puede abrir sin tener cuenta en BG Planner: manda el enlace a quien quieras y lo ve, aunque no juegue con nosotros" },
+      { type: "new", text: "Al compartirlo por WhatsApp, Telegram o redes sale con tu nombre y tu foto, en vez de un enlace pelado" },
+      { type: "improved", text: "Quien entre sin cuenta ve solo lo que de verdad es público: tu ficha, tu vitrina y los eventos abiertos. Tus grupos, los eventos privados y todo lo que pasa dentro de ellos siguen sin salir de ahí" },
+      { type: "improved", text: "La página aparece ya montada al abrirla, sin el parpadeo de carga de antes" },
     ],
   },
   {

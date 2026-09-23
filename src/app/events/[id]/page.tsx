@@ -53,7 +53,7 @@ interface Attendee {
   eventId: string;
   userId: string;
   status: string;
-  user: { id: string; name: string | null; displayName: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null };
+  user: { id: string; name: string | null; displayName: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null; slug: string | null };
 }
 
 interface EventData {

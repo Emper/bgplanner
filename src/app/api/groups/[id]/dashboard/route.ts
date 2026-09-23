@@ -33,6 +33,7 @@ export async function GET(
                   email: true,
                   bggUsername: true,
                   avatarUrl: true,
+                  slug: true,
                 },
               },
             },

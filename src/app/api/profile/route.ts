@@ -3,6 +3,40 @@ import { prisma } from "@/lib/prisma";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { profileSchema } from "@/lib/validations";
 import { validateBggUsername } from "@/lib/bgg";
+import { slugifyUsername } from "@/lib/users";
+
+// El perfil público vive en /users/<slug>, y el slug sale del usuario de BGG
+// la primera vez que se conecta. Nunca falla hacia fuera: si ese slug ya es de
+// otra persona (o se lo lleva otro a la vez), esta se queda sin él y su perfil
+// sigue accesible por id. Así ni el registro ni vincular BGG se rompen por un
+// nombre repetido. Tampoco se libera al desvincular BGG: para entonces ya es
+// una dirección que ha podido compartir.
+async function claimSlugFromBgg(userId: string) {
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { slug: true, bggUsername: true },
+  });
+  if (!current || current.slug) return;
+
+  const candidate = slugifyUsername(current.bggUsername);
+  if (!candidate) return;
+
+  const taken = await prisma.user.findUnique({
+    where: { slug: candidate },
+    select: { id: true },
+  });
+  if (taken) return;
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { slug: candidate },
+    });
+  } catch {
+    // Carrera con otro que reclamó el mismo slug entre la consulta y el
+    // update: se queda sin él y a seguir.
+  }
+}
 
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
@@ -21,6 +55,7 @@ export async function GET(request: NextRequest) {
       bggUsername: true,
       avatarUrl: true,
       displayName: true,
+      slug: true,
       role: true,
     },
   });
@@ -64,9 +99,15 @@ export async function PUT(request: NextRequest) {
     }
   }
 
-  const user = await prisma.user.update({
+  await prisma.user.update({
     where: { id: session.userId },
     data,
+  });
+
+  await claimSlugFromBgg(session.userId);
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
     select: {
       id: true,
       email: true,
@@ -76,6 +117,7 @@ export async function PUT(request: NextRequest) {
       bggUsername: true,
       avatarUrl: true,
       displayName: true,
+      slug: true,
     },
   });
 
