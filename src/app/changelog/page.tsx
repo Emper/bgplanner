@@ -13,6 +13,17 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "23 septiembre 2026",
+    version: "1.28",
+    title: "Comparte cualquier enlace y que se vea bien",
+    changes: [
+      { type: "new", text: "Los eventos abiertos tienen dirección propia y se pueden pasar a quien sea, tenga cuenta o no: verá el cartel con la fecha, el sitio y cuánta gente va, y un botón para entrar y apuntarse" },
+      { type: "new", text: "Al pegar en WhatsApp, Telegram o redes el enlace de un evento, de un grupo o de una invitación, sale una tarjeta con su nombre y sus datos en vez de un enlace pelado" },
+      { type: "improved", text: "La dirección de un grupo enseña a quien no es miembro lo mismo que verías en el listado —nombre, tipo y cuántos sois— y nada más: ni quién está dentro, ni qué juegos tenéis, ni cómo va el ranking" },
+      { type: "improved", text: "Los eventos privados solo enseñan un cartel de «este evento es privado», sin nombre, sin fecha y sin imagen al compartirlos" },
+    ],
+  },
+  {
+    date: "23 septiembre 2026",
     version: "1.27",
     title: "Comparte tu colección con quien sea",
     changes: [
