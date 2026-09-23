@@ -20,12 +20,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
+
 export const metadata: Metadata = {
+  // Sin esto, las imágenes de las tarjetas de compartir salen con rutas
+  // relativas y ningún cliente las sabe resolver.
+  metadataBase: new URL(APP_URL),
   title: "BG Planner - Organiza tus juegos de mesa",
   description:
     "Decide qué jugar con tu grupo de amigos votando vuestros juegos de mesa favoritos",
   icons: {
     icon: "/favicon.svg",
+  },
+  openGraph: {
+    siteName: "BG Planner",
+    locale: "es_ES",
+    type: "website",
   },
 };
 

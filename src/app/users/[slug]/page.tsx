@@ -3,7 +3,12 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
-import { getProfileHeader, getPublicProfile, type ProfileEvent } from "@/lib/publicProfile";
+import {
+  getProfileHeader,
+  getPublicProfile,
+  profileTagline,
+  type ProfileEvent,
+} from "@/lib/publicProfile";
 import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
@@ -43,36 +48,26 @@ export async function generateMetadata({
     redirect(`/users/${encodeURIComponent(header.slug)}`);
   }
 
-  const title = `${header.displayName} · BG Planner`;
-  const description = [
-    `La vitrina de juegos de ${header.displayName} en BG Planner`,
-    header.location,
-    header.bggUsername ? `@${header.bggUsername} en BGG` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const url = `${APP_URL}/users/${encodeURIComponent(header.slug)}`;
-  // Las fotos subidas a mano viajan como data URL, y eso no vale como imagen
-  // de vista previa: solo mandamos las que viven en una URL de verdad.
-  const image = header.avatarUrl?.startsWith("http") ? header.avatarUrl : null;
-
+  const description = profileTagline(header);
+  // La imagen de la tarjeta la pinta opengraph-image.tsx y Next la enlaza
+  // sola, así que aquí no hay que decir nada de imágenes.
   return {
-    title,
+    title: `${header.displayName} · BG Planner`,
     description,
     alternates: { canonical: url },
     openGraph: {
-      title,
+      title: `${header.displayName} en BG Planner`,
       description,
       url,
       type: "profile",
       siteName: "BG Planner",
-      ...(image ? { images: [image] } : {}),
+      locale: "es_ES",
     },
     twitter: {
-      card: image ? "summary" : "summary_large_image",
-      title,
+      card: "summary_large_image",
+      title: `${header.displayName} en BG Planner`,
       description,
-      ...(image ? { images: [image] } : {}),
     },
   };
 }

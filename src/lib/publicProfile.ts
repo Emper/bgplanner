@@ -100,17 +100,89 @@ const findProfileUser = cache(async (param: string) => {
   });
 });
 
-/** Ficha mínima para el `<title>` y la vista previa al compartir. */
-export async function getProfileHeader(param: string) {
-  const user = await findProfileUser(decodeURIComponent(param));
-  if (!user) return null;
-  return {
-    slug: user.slug || user.id,
-    displayName: user.displayName || user.name || "Jugador",
-    location: user.location,
-    bggUsername: user.bggUsername,
-    avatarUrl: user.avatarUrl,
-  };
+export interface ProfileHeader {
+  slug: string;
+  displayName: string;
+  location: string | null;
+  bggUsername: string | null;
+  avatarUrl: string | null;
+  /** Juegos en la vitrina, contados igual que los que se pintan. */
+  showcaseCount: number;
+  /** Eventos públicos a los que va y aún no han pasado. */
+  upcomingEventCount: number;
+}
+
+/**
+ * Ficha mínima para el `<title>`, la descripción y la tarjeta de compartir.
+ * Solo lleva datos públicos: la ve cualquiera que reciba el enlace.
+ */
+export const getProfileHeader = cache(
+  async (param: string): Promise<ProfileHeader | null> => {
+    const user = await findProfileUser(decodeURIComponent(param));
+    if (!user) return null;
+
+    // La vitrina se cuenta cruzando las marcas con la colección, igual que al
+    // pintarla: si no, un juego que ya no tiene en BGG inflaría el número.
+    const entries = await prisma.collectionEntry.findMany({
+      where: { userId: user.id, showcased: true },
+      select: { bggId: true },
+    });
+    const [showcaseCount, upcomingEventCount] = await Promise.all([
+      entries.length && user.bggUsername
+        ? prisma.collectionGame.count({
+            where: {
+              bggUsername: user.bggUsername.toLowerCase().trim(),
+              bggId: { in: entries.map((e) => e.bggId) },
+            },
+          })
+        : 0,
+      prisma.eventAttendee.count({
+        where: {
+          userId: user.id,
+          status: { in: ["attending", "maybe"] },
+          event: { visibility: "public", date: { gte: new Date() } },
+        },
+      }),
+    ]);
+
+    return {
+      slug: user.slug || user.id,
+      displayName: user.displayName || user.name || "Jugador",
+      location: user.location,
+      bggUsername: user.bggUsername,
+      avatarUrl: user.avatarUrl,
+      showcaseCount,
+      upcomingEventCount,
+    };
+  }
+);
+
+/**
+ * La frase con la que se presenta el perfil fuera de la app: en la
+ * descripción del enlace y en la tarjeta que se ve al compartirlo. La misma
+ * en los dos sitios, para que no se contradigan.
+ */
+export function profileTagline(header: ProfileHeader): string {
+  const quien = header.location
+    ? `${header.displayName}, de ${header.location}`
+    : header.displayName;
+
+  const tiene: string[] = [];
+  if (header.showcaseCount > 0) {
+    tiene.push(
+      `${header.showcaseCount} juego${header.showcaseCount === 1 ? "" : "s"} en su vitrina`
+    );
+  }
+  if (header.upcomingEventCount > 0) {
+    tiene.push(
+      `${header.upcomingEventCount} evento${header.upcomingEventCount === 1 ? "" : "s"} a la vista`
+    );
+  }
+
+  if (tiene.length === 0) {
+    return `${quien}. Su vitrina, sus eventos y lo último que ha jugado, en BG Planner.`;
+  }
+  return `${quien}. ${tiene.join(" y ")}, en BG Planner.`;
 }
 
 /**
