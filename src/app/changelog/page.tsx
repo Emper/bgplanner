@@ -12,6 +12,17 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "23 septiembre 2026",
+    version: "1.26",
+    title: "Tu perfil, enseñable a cualquiera",
+    changes: [
+      { type: "new", text: "Tu perfil se puede abrir sin tener cuenta en BG Planner: manda el enlace a quien quieras y lo ve, aunque no juegue con nosotros" },
+      { type: "new", text: "Al compartirlo por WhatsApp, Telegram o redes sale con tu nombre y tu foto, en vez de un enlace pelado" },
+      { type: "improved", text: "Quien entre sin cuenta ve solo lo que de verdad es público: tu ficha, tu vitrina y los eventos abiertos. Tus grupos, los eventos privados y todo lo que pasa dentro de ellos siguen sin salir de ahí" },
+      { type: "improved", text: "La página aparece ya montada al abrirla, sin el parpadeo de carga de antes" },
+    ],
+  },
+  {
     date: "21 septiembre 2026",
     version: "1.25",
     title: "Enseña tu colección a quien tú quieras",

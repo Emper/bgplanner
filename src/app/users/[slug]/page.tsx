@@ -1,64 +1,80 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
+import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { getSession } from "@/lib/auth";
+import { getProfileHeader, getPublicProfile, type ProfileEvent } from "@/lib/publicProfile";
+import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
-import PageLoader from "@/components/PageLoader";
 import ActivityFeed from "@/components/ActivityFeed";
-import GameShelf, { type ShelfGame } from "@/components/GameShelf";
+import GameShelf from "@/components/GameShelf";
 import { formatDateShort } from "@/lib/format";
 import { getGroupType } from "@/lib/groupTypes";
 
-interface ProfileEvent {
-  id: string;
-  name: string;
-  date: string;
-  endDate: string | null;
-  location: string | null;
-  imageUrl: string | null;
-  visibility: string;
-  isOrganizer: boolean;
-  status: string;
-  attendeeCount: number;
-  gameCount: number;
-}
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
-interface ActivityItem {
-  id: string;
-  type: string;
-  scope: string;
-  userId: string;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  user: {
-    id: string;
-    name: string | null;
-    displayName: string | null;
-    avatarUrl: string | null;
-    bggUsername?: string | null;
+// Depende de quién mire (con cuenta se ven además los grupos en común) y de
+// datos vivos: nada que prerrenderizar.
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const header = await getProfileHeader(slug);
+
+  // Next 16 manda los metadatos en streaming, así que desde aquí no se puede
+  // devolver un 404 de verdad: lo que sí llega a los buscadores (que ejecutan
+  // JS) es el noindex, para que una dirección inventada no acabe indexada.
+  if (!header) {
+    return {
+      title: "Perfil no encontrado · BG Planner",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  // Antes de renderizar nada: quien llegue por el id teniendo slug acaba en la
+  // dirección buena, que es la que se indexa. Hacerlo aquí y no en la página
+  // es lo que da una redirección de verdad en vez de un meta refresh.
+  if (decodeURIComponent(slug) !== header.slug) {
+    redirect(`/users/${encodeURIComponent(header.slug)}`);
+  }
+
+  const title = `${header.displayName} · BG Planner`;
+  const description = [
+    `La vitrina de juegos de ${header.displayName} en BG Planner`,
+    header.location,
+    header.bggUsername ? `@${header.bggUsername} en BGG` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const url = `${APP_URL}/users/${encodeURIComponent(header.slug)}`;
+  // Las fotos subidas a mano viajan como data URL, y eso no vale como imagen
+  // de vista previa: solo mandamos las que viven en una URL de verdad.
+  const image = header.avatarUrl?.startsWith("http") ? header.avatarUrl : null;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "profile",
+      siteName: "BG Planner",
+      ...(image ? { images: [image] } : {}),
+    },
+    twitter: {
+      card: image ? "summary" : "summary_large_image",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
   };
-  group?: { id: string; name: string } | null;
-  event?: { id: string; name: string } | null;
-}
-
-interface PublicProfile {
-  id: string;
-  slug: string;
-  displayName: string;
-  location: string | null;
-  bggUsername: string | null;
-  avatarUrl: string | null;
-  memberSince: string;
-  isSelf: boolean;
-  sharedGroups: { id: string; name: string; type: string }[];
-  showcase: ShelfGame[];
-  upcomingEvents: ProfileEvent[];
-  pastEvents: ProfileEvent[];
-  activity: ActivityItem[];
 }
 
 /** "marzo de 2026" */
@@ -148,74 +164,39 @@ function EventRow({ event }: { event: ProfileEvent }) {
   );
 }
 
-export default function PublicProfilePage() {
-  const { slug } = useParams<{ slug: string }>();
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/users/${slug}`, { credentials: "include" })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "No se ha podido cargar el perfil");
-        return data as PublicProfile;
-      })
-      .then((data) => {
-        if (!cancelled) setProfile(data);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Error inesperado");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
-
-  // Si se ha entrado por el id teniendo usuario de BGG, dejamos la URL bonita
-  // sin recargar ni ensuciar el historial.
-  useEffect(() => {
-    if (!profile) return;
-    const canonical = `/users/${encodeURIComponent(profile.slug)}`;
-    if (window.location.pathname !== canonical) {
-      window.history.replaceState(null, "", canonical);
-    }
-  }, [profile]);
-
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <PageLoader withNavbar />
-      </>
-    );
-  }
-
-  if (error || !profile) {
-    return (
-      <>
-        <Navbar />
-        <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-          <div className="max-w-2xl mx-auto text-center">
-            <p className="text-6xl mb-4">🔍</p>
-            <h1 className="text-xl font-bold text-[var(--text)] mb-2">
-              {error || "Perfil no disponible"}
-            </h1>
-            <Link href="/groups" className="text-sm text-[var(--primary)] hover:underline">
-              Volver a mis grupos
-            </Link>
-          </div>
+function NotFound() {
+  return (
+    <>
+      <SmartNav />
+      <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-6xl mb-4">🔍</p>
+          <h1 className="text-xl font-bold text-[var(--text)] mb-2">
+            Aquí no hay ningún jugador
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mb-6">
+            Puede que haya cambiado su dirección o que el enlace esté mal copiado.
+          </p>
+          <Link href="/" className="text-sm text-[var(--primary)] hover:underline">
+            Ir a BG Planner
+          </Link>
         </div>
-        <Footer />
-      </>
-    );
-  }
+      </div>
+      <Footer />
+    </>
+  );
+}
+
+export default async function PublicProfilePage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const session = await getSession();
+  const profile = await getPublicProfile(slug, session?.userId ?? null);
+
+  if (!profile) return <NotFound />;
 
   const hasEvents =
     profile.upcomingEvents.length > 0 || profile.pastEvents.length > 0;
@@ -226,7 +207,7 @@ export default function PublicProfilePage() {
 
   return (
     <>
-      <Navbar />
+      <SmartNav />
       <div className="min-h-screen bg-[var(--bg)] py-6 px-3 sm:px-4">
         <div className="max-w-2xl mx-auto">
           {/* ── Datos básicos ────────────────────────────────────────── */}
@@ -378,6 +359,25 @@ export default function PublicProfilePage() {
                 linkUsers={false}
               />
             </Section>
+          )}
+
+          {/* ── Invitación para quien llega de fuera ─────────────────── */}
+          {!session && (
+            <section className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-[var(--card-shadow)] text-center">
+              <h2 className="text-base font-bold text-[var(--text)]">
+                ¿Y tu mesa?
+              </h2>
+              <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">
+                En BG Planner tu grupo vota los juegos que tenéis, sale un ranking
+                y de ahí salen las partidas. Monta tu perfil como este en un rato.
+              </p>
+              <Link
+                href="/login"
+                className="inline-flex px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                Entrar o crear cuenta
+              </Link>
+            </section>
           )}
         </div>
       </div>
