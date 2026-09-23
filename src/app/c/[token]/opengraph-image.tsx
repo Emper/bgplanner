@@ -1,5 +1,5 @@
 import {
-  collectionTagline,
+  collectionCardTagline,
   countOwnedGames,
   findCollectionOwner,
   pickShelfCovers,
@@ -51,7 +51,7 @@ export default async function Image({
     eyebrow: "La colección de",
     title: name,
     badge: games > 0 ? `${games} juegos` : null,
-    tagline: collectionTagline({ name, games, expansions }),
+    tagline: collectionCardTagline(expansions),
     shelf: covers,
   });
 }

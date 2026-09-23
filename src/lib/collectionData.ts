@@ -247,8 +247,8 @@ const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
 /**
- * La frase de la colección compartida. Es la misma en la descripción del
- * enlace y en la tarjeta, como hace profileTagline() con los perfiles.
+ * La frase de la descripción del enlace, donde no se ve nada más: lleva el
+ * nombre y las dos cifras.
  */
 export function collectionTagline(opts: {
   name: string;
@@ -261,6 +261,16 @@ export function collectionTagline(opts: {
       ? ` y ${plural(opts.expansions, "expansión", "expansiones")}`
       : "";
   return `${plural(opts.games, "juego", "juegos")}${expansiones} en la estantería de ${opts.name}, con sus partidas y sus notas.`;
+}
+
+/**
+ * La frase de la tarjeta. Ahí el nombre y el número de juegos ya se leen en
+ * grande, así que repetirlos gastaba dos líneas de las pocas que caben.
+ */
+export function collectionCardTagline(expansions: number): string {
+  return expansions > 0
+    ? `Con ${plural(expansions, "expansión", "expansiones")}, sus partidas y sus notas.`
+    : "Con sus partidas y sus notas, en BG Planner.";
 }
 
 /** Cuántos juegos y cuántas expansiones tiene, para el texto de la tarjeta. */

@@ -19,8 +19,8 @@ const BORDER = "#334155";
 const WOOD_BACK = "#3f2f24";
 const WOOD = "#8a5a33";
 const WOOD_DARK = "#5e3b20";
-const COVER_W = 168;
-const COVER_H = 196;
+const COVER_W = 150;
+const COVER_H = 172;
 
 /**
  * Trae una imagen externa y la incrusta en base64.
@@ -133,7 +133,7 @@ function Shelf({ covers }: { covers: string[] }) {
         flexDirection: "column",
         background: WOOD_BACK,
         borderRadius: 16,
-        padding: "18px 26px 0 26px",
+        paddingTop: 16,
       }}
     >
       <div
@@ -143,6 +143,7 @@ function Shelf({ covers }: { covers: string[] }) {
           justifyContent: "center",
           gap: 20,
           height: COVER_H,
+          padding: "0 24px",
         }}
       >
         {covers.map((src, i) => (
@@ -192,6 +193,58 @@ export function shareCard({
   // sin ella, la plantilla de siempre con la foto al lado.
   const hasShelf = !!shelf && shelf.length > 0;
 
+  const eyebrowEl = eyebrow ? (
+    <div
+      style={{
+        fontSize: 30,
+        color: ACCENT,
+        textTransform: "uppercase",
+        letterSpacing: 2,
+        marginBottom: hasShelf ? 10 : 14,
+      }}
+    >
+      {eyebrow}
+    </div>
+  ) : null;
+
+  const titleEl = (
+    <div
+      style={{
+        fontSize: title.length > 24 ? 56 : 72,
+        fontWeight: 700,
+        color: TEXT,
+        lineHeight: 1.1,
+        maxWidth: 700,
+      }}
+    >
+      {title}
+    </div>
+  );
+
+  const badgeEl = badge ? (
+    <div
+      style={{
+        fontSize: 30,
+        borderRadius: 999,
+        padding: "8px 24px",
+        flexShrink: 0,
+        ...(badgeTone === "bgg"
+          ? {
+              color: "#6ee7b7",
+              background: "rgba(16, 185, 129, 0.12)",
+              border: "2px solid rgba(16, 185, 129, 0.35)",
+            }
+          : {
+              color: ACCENT,
+              background: "rgba(245, 158, 11, 0.12)",
+              border: "2px solid rgba(245, 158, 11, 0.35)",
+            }),
+      }}
+    >
+      {badge}
+    </div>
+  ) : null;
+
   return (
     <div
       style={{
@@ -201,76 +254,52 @@ export function shareCard({
         flexDirection: "column",
         justifyContent: "space-between",
         background: BG,
-        padding: hasShelf ? "56px 72px" : "70px 80px",
+        padding: hasShelf ? "48px 72px" : "70px 80px",
         fontFamily: "sans-serif",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 56 }}>
-        {hasShelf ? null : (
-          <Media image={image} initial={initial} round={round} />
-        )}
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            maxWidth: hasShelf ? 1040 : 700,
-          }}
-        >
-          {eyebrow ? (
-            <div
-              style={{
-                fontSize: 30,
-                color: ACCENT,
-                textTransform: "uppercase",
-                letterSpacing: 2,
-                marginBottom: 14,
-              }}
-            >
-              {eyebrow}
-            </div>
-          ) : null}
+      {hasShelf ? (
+        // Con estantería no hay foto que poner al lado, así que el nombre
+        // ocupa la fila entera y el badge se va al extremo derecho. Debajo
+        // solo caben las cajas: cualquier cosa más y se amontona todo.
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {eyebrowEl}
           <div
             style={{
-              fontSize: title.length > 24 ? 56 : 72,
-              fontWeight: 700,
-              color: TEXT,
-              lineHeight: 1.1,
+              display: "flex",
+              width: "100%",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 32,
             }}
           >
-            {title}
+            {titleEl}
+            {badgeEl}
           </div>
-          {badge ? (
-            <div style={{ display: "flex", marginTop: 20 }}>
-              <div
-                style={{
-                  fontSize: 30,
-                  borderRadius: 999,
-                  padding: "8px 24px",
-                  ...(badgeTone === "bgg"
-                    ? {
-                        color: "#6ee7b7",
-                        background: "rgba(16, 185, 129, 0.12)",
-                        border: "2px solid rgba(16, 185, 129, 0.35)",
-                      }
-                    : {
-                        color: ACCENT,
-                        background: "rgba(245, 158, 11, 0.12)",
-                        border: "2px solid rgba(245, 158, 11, 0.35)",
-                      }),
-                }}
-              >
-                {badge}
-              </div>
-            </div>
-          ) : null}
         </div>
-      </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 56 }}>
+          <Media image={image} initial={initial} round={round} />
+          <div style={{ display: "flex", flexDirection: "column", maxWidth: 700 }}>
+            {eyebrowEl}
+            {titleEl}
+            {badgeEl ? (
+              <div style={{ display: "flex", marginTop: 20 }}>{badgeEl}</div>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {hasShelf ? <Shelf covers={shelf!} /> : null}
 
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <div style={{ fontSize: 38, color: MUTED, lineHeight: 1.35 }}>
+        <div
+          style={{
+            fontSize: hasShelf ? 32 : 38,
+            color: MUTED,
+            lineHeight: 1.35,
+          }}
+        >
           {tagline}
         </div>
         <div
@@ -278,8 +307,8 @@ export function shareCard({
             display: "flex",
             alignItems: "center",
             gap: 16,
-            marginTop: 36,
-            paddingTop: 30,
+            marginTop: hasShelf ? 20 : 36,
+            paddingTop: hasShelf ? 20 : 30,
             borderTop: `2px solid ${BORDER}`,
           }}
         >
