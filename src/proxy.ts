@@ -36,9 +36,6 @@ export const config = {
     // /collection y /api/collection además de sus subrutas.
     "/collection/:path*",
     "/api/collection/:path*",
-    // Colecciones compartidas: el enlace es secreto, pero además hay que
-    // tener cuenta para abrirlo.
-    "/c/:path*",
     "/api/profile/:path*",
     "/api/users/:path*",
     "/api/groups/:path*",

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { loadCollection } from "@/lib/collectionData";
-import Navbar from "@/components/Navbar";
+import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
 import CollectionBrowser from "@/components/CollectionBrowser";
 
@@ -117,7 +117,7 @@ function Aviso({
 }) {
   return (
     <>
-      <Navbar />
+      <SmartNav />
       <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
         <div className="max-w-xl mx-auto bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-8 text-center">
           <div className="text-4xl mb-3">🔒</div>
@@ -143,21 +143,11 @@ export default async function SharedCollectionPage({
 }) {
   const { token } = await params;
 
-  // La colección solo se enseña a usuarios de BG Planner. La página sí
-  // responde sin sesión (con este aviso) para que las tarjetas de enlace de
-  // WhatsApp y compañía puedan leer el título; los juegos no salen de aquí.
+  // Página pública: quien tenga el enlace la abre sin cuenta. Lo único que
+  // la protege es que el token no se puede adivinar, y el dueño puede
+  // revocarlo cuando quiera. La sesión solo sirve para saber si quien mira
+  // es el propio dueño.
   const session = await getSession();
-  if (!session) {
-    return (
-      <Aviso
-        titulo="Necesitas iniciar sesión"
-        texto="Esta colección se comparte solo con usuarios de BG Planner. Entra con tu cuenta y te traemos de vuelta aquí."
-        accion="Iniciar sesión"
-        href={`/login?redirect=${encodeURIComponent(`/c/${token}`)}`}
-      />
-    );
-  }
-
   const owner = await findOwner(token);
 
   if (!owner || !owner.bggUsername) {
@@ -165,22 +155,22 @@ export default async function SharedCollectionPage({
       <Aviso
         titulo="Este enlace ya no funciona"
         texto="Puede que su dueño haya dejado de compartir la colección o haya generado un enlace nuevo. Pídeselo otra vez."
-        accion="Ir a mi colección"
-        href="/collection"
+        accion={session ? "Ir a mi colección" : "Conocer BG Planner"}
+        href={session ? "/collection" : "/"}
       />
     );
   }
 
   const { items, fetchedAt } = await loadCollection(owner.id, owner.bggUsername);
   const ownerName = owner.displayName || owner.name || `@${owner.bggUsername}`;
-  const isSelf = owner.id === session.userId;
+  const isSelf = owner.id === session?.userId;
 
   // Las notas privadas no se comparten aunque el resto sí.
   const shared = items.map((item) => ({ ...item, note: null }));
 
   return (
     <>
-      <Navbar />
+      <SmartNav />
       <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="mb-5">
@@ -196,6 +186,20 @@ export default async function SharedCollectionPage({
                 : `Puedes mirar y filtrar, pero las puntuaciones son de ${ownerName} y solo ${ownerName} puede cambiarlas.`}
             </p>
           </div>
+
+          {!session && (
+            <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-secondary)]">
+              Esto es una colección compartida desde{" "}
+              <Link href="/" className="text-[var(--primary)] hover:underline">
+                BG Planner
+              </Link>
+              , donde los grupos de amigos deciden a qué jugar.{" "}
+              <Link href="/login" className="text-[var(--primary)] hover:underline">
+                Entra
+              </Link>{" "}
+              para montar la tuya.
+            </div>
+          )}
 
           <Suspense fallback={<div className="py-16" />}>
             <CollectionBrowser

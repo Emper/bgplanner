@@ -435,9 +435,10 @@ function ShareModal({
           ) : token ? (
             <>
               <p className="text-sm text-[var(--text-secondary)] mb-3">
-                Cualquiera con este enlace y una cuenta de BG Planner puede ver tu
-                colección y tus puntuaciones, <strong>incluido lo que quieres
-                vender</strong>. No podrá cambiar nada.
+                <strong>Cualquiera con este enlace</strong> puede ver tu colección
+                y tus puntuaciones, incluido lo que quieres vender. No hace falta
+                cuenta y no se puede cambiar nada. Compártelo solo con quien
+                quieras que lo vea.
               </p>
               <div className="flex gap-2">
                 <input
@@ -484,10 +485,12 @@ function ShareModal({
           ) : (
             <>
               <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Genera un enlace para que alguien de confianza vea tu colección:
-                tus juegos, tu wishlist y tus puntuaciones de permanencia. Solo
-                puede mirar, no tocar nada, y hace falta tener cuenta en BG
-                Planner para abrirlo. Puedes desactivarlo cuando quieras.
+                Genera un enlace para enseñar tu colección: tus juegos, tu
+                wishlist y tus puntuaciones de permanencia. Quien lo abra solo
+                puede mirar, nunca tocar. Eso sí, lo abre cualquiera que lo
+                tenga, sin necesidad de cuenta, así que trátalo como una llave:
+                compártelo con quien quieras y desactívalo cuando ya no haga
+                falta.
               </p>
               <button
                 onClick={() => call("POST")}
