@@ -148,6 +148,22 @@ export const getGroupByInviteToken = cache(
   }
 );
 
+/** Los próximos eventos abiertos, para enseñarlos en la portada. */
+export async function getUpcomingPublicEvents(limit = 3): Promise<PublicEventInfo[]> {
+  const now = new Date();
+  const events = await prisma.event.findMany({
+    where: {
+      visibility: "public",
+      // Los de varios días siguen valiendo mientras no hayan terminado.
+      OR: [{ date: { gte: now } }, { endDate: { gte: now } }],
+    },
+    orderBy: { date: "asc" },
+    take: limit,
+    select: EVENT_SELECT,
+  });
+  return events.map(toEventInfo);
+}
+
 // ── Frases de presentación ──────────────────────────────────────────────
 // La misma en la descripción del enlace y en la tarjeta, para que no se
 // contradigan.

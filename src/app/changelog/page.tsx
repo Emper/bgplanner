@@ -12,6 +12,19 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "24 septiembre 2026",
+    version: "1.31",
+    title: "Una portada a la altura",
+    changes: [
+      { type: "new", text: "Portada nueva para quien aún no nos conoce: cuenta con calma todo lo que se puede hacer, de los grupos y el ranking a tu colección y los eventos, con pantallas de muestra que se mueven solas" },
+      { type: "new", text: "Un ranking en directo en la cabecera, con votos que llegan y juegos que se adelantan, para ver de un vistazo cómo funciona la votación" },
+      { type: "new", text: "Una estantería de muestra en la que puedes puntuar juegos de verdad, sin tener cuenta, para probar «Mi colección» antes de registrarte" },
+      { type: "new", text: "Los próximos eventos abiertos salen en la portada, con acceso directo a su ficha para apuntarse" },
+      { type: "improved", text: "Si ya tienes la sesión iniciada, entras directo a tus grupos sin pasar por la pantalla de carga" },
+      { type: "fixed", text: "El menú de arriba vuelve a quedarse fijo al bajar por la página, y el buscador del ranking también" },
+    ],
+  },
+  {
     date: "23 septiembre 2026",
     version: "1.30",
     title: "Insignias para presumir",
