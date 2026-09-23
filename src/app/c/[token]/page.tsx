@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import {
+  collectionTagline,
   countOwnedGames,
   findCollectionOwner,
   loadCollection,
@@ -13,9 +14,6 @@ import CollectionBrowser from "@/components/CollectionBrowser";
 
 // Depende de quién mire y de datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
-
-const plural = (n: number, one: string, many: string) =>
-  `${n} ${n === 1 ? one : many}`;
 
 export async function generateMetadata({
   params,
@@ -37,12 +35,7 @@ export async function generateMetadata({
   const { games, expansions } = await countOwnedGames(owner.bggUsername);
 
   const title = `La colección de juegos de ${name}`;
-  const description =
-    games > 0
-      ? `${plural(games, "juego", "juegos")}${
-          expansions > 0 ? ` y ${plural(expansions, "expansión", "expansiones")}` : ""
-        } en la estantería de ${name}, con sus partidas y sus notas.`
-      : `La estantería de ${name} en BG Planner.`;
+  const description = collectionTagline({ name, games, expansions });
 
   return {
     title,

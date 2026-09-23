@@ -15,6 +15,13 @@ const MUTED = "#94a3b8";
 const ACCENT = "#f59e0b";
 const BORDER = "#334155";
 
+// La madera de la estantería, en su versión oscura (globals.css).
+const WOOD_BACK = "#3f2f24";
+const WOOD = "#8a5a33";
+const WOOD_DARK = "#5e3b20";
+const COVER_W = 168;
+const COVER_H = 196;
+
 /**
  * Trae una imagen externa y la incrusta en base64.
  *
@@ -56,6 +63,12 @@ export interface ShareCardInput {
   image?: string | null;
   /** Foto redonda (personas) o con esquinas (eventos, grupos). */
   round?: boolean;
+  /**
+   * Portadas ya incrustadas para pintar la estantería en vez de una sola
+   * foto. Lo usa la colección compartida: una caja suelta parecía que
+   * compartías ese juego y no la ludoteca entera.
+   */
+  shelf?: string[];
 }
 
 // Sin foto, la inicial. Nada de emojis: satori no trae fuente que los
@@ -111,6 +124,59 @@ function Media({
   );
 }
 
+// La estantería de la app, reducida a una balda con sus cajas encima.
+function Shelf({ covers }: { covers: string[] }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        background: WOOD_BACK,
+        borderRadius: 16,
+        padding: "18px 26px 0 26px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "center",
+          gap: 20,
+          height: COVER_H,
+        }}
+      >
+        {covers.map((src, i) => (
+          // Esto lo dibuja satori dentro de un PNG: no hay DOM, ni next/image.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={src}
+            alt=""
+            width={COVER_W}
+            height={COVER_H}
+            style={{
+              width: COVER_W,
+              height: COVER_H,
+              objectFit: "cover",
+              borderRadius: 4,
+              boxShadow: "0 10px 16px rgba(0, 0, 0, 0.55)",
+            }}
+          />
+        ))}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          height: 14,
+          marginTop: 8,
+          background: `linear-gradient(to bottom, ${WOOD}, ${WOOD_DARK})`,
+          borderRadius: 2,
+        }}
+      />
+    </div>
+  );
+}
+
 export function shareCard({
   eyebrow,
   title,
@@ -118,9 +184,13 @@ export function shareCard({
   badgeTone = "accent",
   tagline,
   image,
+  shelf,
   round = false,
 }: ShareCardInput) {
   const initial = (title[0] || "?").toUpperCase();
+  // Con estantería, el título ocupa todo el ancho y las cajas van debajo;
+  // sin ella, la plantilla de siempre con la foto al lado.
+  const hasShelf = !!shelf && shelf.length > 0;
 
   return (
     <div
@@ -131,14 +201,22 @@ export function shareCard({
         flexDirection: "column",
         justifyContent: "space-between",
         background: BG,
-        padding: "70px 80px",
+        padding: hasShelf ? "56px 72px" : "70px 80px",
         fontFamily: "sans-serif",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 56 }}>
-        <Media image={image} initial={initial} round={round} />
+        {hasShelf ? null : (
+          <Media image={image} initial={initial} round={round} />
+        )}
 
-        <div style={{ display: "flex", flexDirection: "column", maxWidth: 700 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            maxWidth: hasShelf ? 1040 : 700,
+          }}
+        >
           {eyebrow ? (
             <div
               style={{
@@ -188,6 +266,8 @@ export function shareCard({
           ) : null}
         </div>
       </div>
+
+      {hasShelf ? <Shelf covers={shelf!} /> : null}
 
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ fontSize: 38, color: MUTED, lineHeight: 1.35 }}>

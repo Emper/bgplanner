@@ -13,6 +13,17 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "23 septiembre 2026",
+    version: "1.29",
+    title: "Comparte tu colección con quien sea",
+    changes: [
+      { type: "improved", text: "El enlace de tu colección ya no pide cuenta: quien lo reciba la abre y la ve, se haya registrado o no. Sigue sin poder cambiar nada, y tú puedes desactivarlo cuando quieras" },
+      { type: "improved", text: "Ojo con esto: los enlaces que ya hubieras repartido también se abren ahora sin cuenta. Si alguno se te fue de las manos, desactívalo desde «Mi colección»" },
+      { type: "new", text: "Al pegar el enlace en WhatsApp o Telegram ya sale una tarjeta en condiciones: «La colección de juegos de Fulanito», cuántos juegos tiene y cinco de sus cajas apoyadas en la estantería, en vez del texto genérico de siempre" },
+      { type: "new", text: "Esas cinco cajas no salen al azar: primero las de tu vitrina, luego los que has marcado como «No se irá nunca» y «Se queda», y si aún no has puntuado nada, tus juegos mejor valorados en BGG" },
+    ],
+  },
+  {
+    date: "23 septiembre 2026",
     version: "1.28",
     title: "Comparte cualquier enlace y que se vea bien",
     changes: [
@@ -20,18 +31,6 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Al pegar en WhatsApp, Telegram o redes el enlace de un evento, de un grupo o de una invitación, sale una tarjeta con su nombre y sus datos en vez de un enlace pelado" },
       { type: "improved", text: "La dirección de un grupo enseña a quien no es miembro lo mismo que verías en el listado —nombre, tipo y cuántos sois— y nada más: ni quién está dentro, ni qué juegos tenéis, ni cómo va el ranking" },
       { type: "improved", text: "Los eventos privados solo enseñan un cartel de «este evento es privado», sin nombre, sin fecha y sin imagen al compartirlos" },
-    ],
-  },
-  {
-    date: "23 septiembre 2026",
-    version: "1.27",
-    title: "Comparte tu colección con quien sea",
-    changes: [
-      { type: "improved", text: "El enlace de tu colección ya no pide cuenta: quien lo reciba la abre y la ve, se haya registrado o no. Sigue sin poder cambiar nada, y tú puedes desactivarlo cuando quieras" },
-      { type: "improved", text: "Ojo con esto: los enlaces que ya hubieras repartido también se abren ahora sin cuenta. Si alguno se te fue de las manos, desactívalo desde «Mi colección»" },
-      { type: "new", text: "Al pegar el enlace en WhatsApp o Telegram ya sale una tarjeta en condiciones: «La colección de juegos de Fulanito», cuántos juegos tiene y cinco de sus cajas apoyadas en la estantería, en vez del texto genérico de siempre" },
-      { type: "new", text: "Esas cinco cajas no salen al azar: primero las de tu vitrina, luego los que has marcado como «No se irá nunca» y «Se queda», y si aún no has puntuado nada, tus juegos mejor valorados en BGG" },
-      { type: "improved", text: "Y de paso, cualquier enlace de BG Planner que compartas por ahí se ve mejor: hasta ahora se pegaban sin ninguna presentación" },
     ],
   },
   {

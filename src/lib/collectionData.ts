@@ -243,6 +243,26 @@ export async function pickShelfCovers(
   return covers;
 }
 
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
+/**
+ * La frase de la colección compartida. Es la misma en la descripción del
+ * enlace y en la tarjeta, como hace profileTagline() con los perfiles.
+ */
+export function collectionTagline(opts: {
+  name: string;
+  games: number;
+  expansions: number;
+}): string {
+  if (opts.games === 0) return `La estantería de ${opts.name} en BG Planner.`;
+  const expansiones =
+    opts.expansions > 0
+      ? ` y ${plural(opts.expansions, "expansión", "expansiones")}`
+      : "";
+  return `${plural(opts.games, "juego", "juegos")}${expansiones} en la estantería de ${opts.name}, con sus partidas y sus notas.`;
+}
+
 /** Cuántos juegos y cuántas expansiones tiene, para el texto de la tarjeta. */
 export async function countOwnedGames(bggUsername: string) {
   const username = bggUsername.toLowerCase().trim();
