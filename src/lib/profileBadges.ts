@@ -22,7 +22,7 @@ export interface ProfileBadge {
   next: { at: number; name: string } | null;
   /** Cuánto lleva del tramo hasta el siguiente nivel, de 0 a 1. */
   progress: number;
-  /** Qué hacer para estrenarla. Solo se enseña en tu propio perfil. */
+  /** Qué hacer para estrenarla, corto: cabe en la ficha del carrusel. */
   hint: string;
 }
 
@@ -52,7 +52,7 @@ const BADGES: BadgeDef[] = [
       [30, "Coleccionista"],
       [100, "Ludoteca de leyenda"],
     ],
-    hint: "Añade juegos a tu colección de BGG",
+    hint: "Añade juegos en BGG",
     needsBgg: true,
   },
   {
@@ -65,7 +65,7 @@ const BADGES: BadgeDef[] = [
       [3, "Alma de la fiesta"],
       [6, "En todas las mesas"],
     ],
-    hint: "Crea un grupo o únete al de tus amigos",
+    hint: "Únete a un grupo",
   },
   {
     key: "events",
@@ -77,7 +77,7 @@ const BADGES: BadgeDef[] = [
       [5, "Habitual de las jornadas"],
       [15, "Ruta de convenciones"],
     ],
-    hint: "Apúntate a tu primer evento",
+    hint: "Apúntate a un evento",
   },
   {
     key: "hosted",
@@ -89,7 +89,7 @@ const BADGES: BadgeDef[] = [
       [5, "Casa llena"],
       [15, "Jornadas propias"],
     ],
-    hint: "Organiza un evento y convoca a tu gente",
+    hint: "Organiza un evento",
   },
   {
     key: "plays",
@@ -101,7 +101,7 @@ const BADGES: BadgeDef[] = [
       [100, "Mesa caliente"],
       [500, "Mil batallas"],
     ],
-    hint: "Apunta tus partidas en BGG",
+    hint: "Apunta partidas en BGG",
     needsBgg: true,
   },
   {
@@ -114,7 +114,7 @@ const BADGES: BadgeDef[] = [
       [25, "Voz y voto"],
       [100, "Opinión con peso"],
     ],
-    hint: "Vota los juegos de tu grupo",
+    hint: "Vota en tu grupo",
   },
   {
     key: "reviews",
@@ -126,43 +126,39 @@ const BADGES: BadgeDef[] = [
       [10, "Cronista"],
       [50, "Pluma de oro"],
     ],
-    hint: "Cuenta qué tal fue la partida después de jugar",
+    hint: "Escribe una crónica",
   },
 ];
 
 /**
- * Las insignias de un perfil, en orden fijo.
- *
- * @param includeLocked con true salen también las que aún no tiene (tu propio
- *   perfil: ahí sirven de lista de cosas por hacer). A otros solo se les
- *   enseña lo conseguido, que un perfil lleno de huecos no presume de nada.
+ * Las insignias de un perfil, todas: las conseguidas primero (el oro
+ * delante, que es de lo que se presume) y al final las que faltan, como
+ * algo aún por desbloquear.
  */
 export function profileBadges(
   stats: ProfileStats,
-  { hasBgg, includeLocked }: { hasBgg: boolean; includeLocked: boolean }
+  { hasBgg }: { hasBgg: boolean }
 ): ProfileBadge[] {
-  return BADGES.flatMap((def): ProfileBadge[] => {
+  const badges = BADGES.map((def): ProfileBadge => {
     const value = def.value(stats);
-    if (value === 0 && !includeLocked) return [];
-
     const reached = def.tiers.filter(([at]) => value >= at);
     const upcoming = def.tiers.find(([at]) => value < at);
     const from = reached.length ? reached[reached.length - 1][0] : 0;
-    return [
-      {
-        key: def.key,
-        emoji: def.emoji,
-        value,
-        text: def.text(value),
-        tier: reached.length as BadgeTier,
-        tierName: reached.length ? reached[reached.length - 1][1] : null,
-        next: upcoming ? { at: upcoming[0], name: upcoming[1] } : null,
-        progress: upcoming ? (value - from) / (upcoming[0] - from) : 1,
-        hint:
-          def.needsBgg && !hasBgg
-            ? "Conecta tu cuenta de BGG en tu perfil"
-            : def.hint,
-      },
-    ];
+    return {
+      key: def.key,
+      emoji: def.emoji,
+      value,
+      text: def.text(value),
+      tier: reached.length as BadgeTier,
+      tierName: reached.length ? reached[reached.length - 1][1] : null,
+      next: upcoming ? { at: upcoming[0], name: upcoming[1] } : null,
+      progress: upcoming ? (value - from) / (upcoming[0] - from) : 1,
+      hint:
+        def.needsBgg && !hasBgg
+          ? "Conecta tu BGG"
+          : def.hint,
+    };
   });
+  // sort es estable: a igual nivel se respeta el orden de BADGES.
+  return badges.sort((a, b) => b.tier - a.tier);
 }
