@@ -1,1099 +1,127 @@
-"use client";
+import type { Metadata } from "next";
+import { getSession } from "@/lib/auth";
+import {
+  getPublicEvent,
+  eventTagline,
+  formatEventWhen,
+} from "@/lib/publicLinks";
+import PublicPeek from "@/components/PublicPeek";
+import EventClient from "./EventClient";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import BggGameSearch from "@/components/BggGameSearch";
-import BggRating from "@/components/BggRating";
-import Avatar from "@/components/Avatar";
-import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
-import EventGallery from "@/components/EventGallery";
-import EmojiField from "@/components/EmojiField";
-import { formatDateFull, formatDuration } from "@/lib/format";
-import { resizeImage } from "@/lib/image";
-import { profileHref } from "@/lib/users";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
-interface Game {
-  id: string;
-  bggId: number;
-  name: string;
-  thumbnail: string | null;
-  yearPublished: number | null;
-  minPlayers: number | null;
-  maxPlayers: number | null;
-  playingTime: number | null;
-  bggRating: number | null;
-  bggRank: number | null;
-  weight: number | null;
-}
+// Cambia según quién mire y con datos vivos: nada que prerrenderizar.
+export const dynamic = "force-dynamic";
 
-interface Interest {
-  id: string;
-  eventGameId: string;
-  attendeeId: string;
-  intensity: number;
-  notes: string | null;
-  userName: string;
-  userId: string;
-}
-
-interface EventGame {
-  id: string;
-  eventId: string;
-  gameId: string;
-  game: Game;
-  interests: Interest[];
-}
-
-interface Attendee {
-  id: string;
-  eventId: string;
-  userId: string;
-  status: string;
-  user: { id: string; name: string | null; displayName: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null; slug: string | null };
-}
-
-interface EventData {
-  id: string;
-  name: string;
-  description: string | null;
-  date: string;
-  endDate: string | null;
-  location: string | null;
-  maxAttendees: number | null;
-  imageUrl: string | null;
-  visibility: string;
-  inviteCode: string | null;
-  createdById: string;
-  createdBy: { id: string; name: string | null; displayName: string | null; email: string };
-  games: EventGame[];
-  attendees: Attendee[];
-  currentUserId: string;
-  isCreator: boolean;
-  currentAttendeeId: string | null;
-}
-
-type Tab = "activity" | "games" | "mylist" | "attendees" | "gallery";
-
-const INTENSITY_LABELS: Record<number, string> = {
-  5: "Máxima prioridad",
-  4: "Tengo que probarlo",
-  3: "Me encantaría",
-  2: "Si surge, me va bien",
-  1: "Solo si no queda otra",
-};
-
-const INTENSITY_COLORS: Record<number, string> = {
-  5: "bg-red-500/20 text-red-300 border-red-500",
-  4: "bg-orange-500/20 text-orange-300 border-orange-500",
-  3: "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]",
-  2: "bg-blue-500/20 text-blue-300 border-blue-500",
-  1: "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)]",
-};
-
-const formatDate = formatDateFull;
-
-function EventDetailPageInner() {
-  const { id: eventId } = useParams<{ id: string }>();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [event, setEvent] = useState<EventData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("activity");
-  const [openReviewSignal, setOpenReviewSignal] = useState(0);
-  const reviewDeepLinkHandled = useRef(false);
-  const [addingGame, setAddingGame] = useState(false);
-  const [joiningEvent, setJoiningEvent] = useState(false);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
-
-  // Activity feed state (restore from cache if available)
-  const eventFeedCacheKey = `event:${eventId}`;
-  const cachedEventFeed = getCachedFeed(eventFeedCacheKey);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [feedItems, setFeedItems] = useState<any[]>(cachedEventFeed?.items ?? []);
-  const [feedCursor, setFeedCursor] = useState<string | null>(cachedEventFeed?.cursor ?? null);
-  const [feedHasMore, setFeedHasMore] = useState(!!cachedEventFeed?.cursor);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const [feedLoaded, setFeedLoaded] = useState(!!cachedEventFeed);
-
-  // Edit event state
-  const [showEdit, setShowEdit] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editDate, setEditDate] = useState("");
-  const [editEndDate, setEditEndDate] = useState("");
-  const [editLocation, setEditLocation] = useState("");
-  const [editMaxAttendees, setEditMaxAttendees] = useState("");
-  const [editVisibility, setEditVisibility] = useState<"public" | "private">("public");
-  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [savingEdit, setSavingEdit] = useState(false);
-
-  const fetchEventFeed = useCallback(async (cursor?: string) => {
-    setFeedLoading(true);
-    try {
-      const url = `/api/events/${eventId}/feed?limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (cursor) {
-          setFeedItems((prev) => {
-            const seen = new Set(prev.map((i: { id: string }) => i.id));
-            const merged = [...prev, ...data.items.filter((i: { id: string }) => !seen.has(i.id))];
-            setCachedFeed(`event:${eventId}`, merged, data.nextCursor);
-            return merged;
-          });
-        } else {
-          setFeedItems(data.items);
-          setCachedFeed(`event:${eventId}`, data.items, data.nextCursor);
-        }
-        setFeedCursor(data.nextCursor);
-        setFeedHasMore(!!data.nextCursor);
-        setFeedLoaded(true);
-      }
-    } finally {
-      setFeedLoading(false);
-    }
-  }, [eventId]);
-
-  const fetchEvent = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/events/${eventId}`);
-      if (!res.ok) {
-        router.push("/events");
-        return;
-      }
-      const data = await res.json();
-      setEvent(data);
-      if (data.inviteCode) setInviteCode(data.inviteCode);
-    } catch {
-      router.push("/events");
-    } finally {
-      setLoading(false);
-    }
-  }, [eventId, router]);
-
-  useEffect(() => {
-    fetchEvent();
-  }, [fetchEvent]);
-
-  useEffect(() => {
-    if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
-  }, [activeTab, feedLoaded, fetchEventFeed]);
-
-  // Deep-link ?review=1 (desde el email de "valora el evento"): abre la galería
-  // y hace scroll al formulario de valoración.
-  useEffect(() => {
-    if (reviewDeepLinkHandled.current || !event) return;
-    if (searchParams.get("review")) {
-      reviewDeepLinkHandled.current = true;
-      setActiveTab("gallery");
-      setOpenReviewSignal((n) => n + 1);
-    }
-  }, [event, searchParams]);
-
-  const openEditModal = () => {
-    if (!event) return;
-    setEditName(event.name);
-    setEditDescription(event.description || "");
-    // Convert ISO date to datetime-local format
-    setEditDate(event.date ? new Date(event.date).toISOString().slice(0, 16) : "");
-    setEditEndDate(event.endDate ? new Date(event.endDate).toISOString().slice(0, 16) : "");
-    setEditLocation(event.location || "");
-    setEditMaxAttendees(event.maxAttendees ? String(event.maxAttendees) : "");
-    setEditVisibility(event.visibility as "public" | "private");
-    setEditImageUrl(event.imageUrl || null);
-    setShowEdit(true);
-  };
-
-  const handleImageUpload = async (file: File, target: "edit" | "direct") => {
-    if (!file.type.startsWith("image/")) return;
-    setUploadingImage(true);
-    try {
-      const resized = await resizeImage(file, 600);
-      if (target === "edit") {
-        setEditImageUrl(resized);
-      } else {
-        // Direct upload (from header) — save immediately
-        const res = await fetch(`/api/events/${eventId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: resized }),
-        });
-        if (res.ok) {
-          setEvent((prev) => prev ? { ...prev, imageUrl: resized } : prev);
-        }
-      }
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    setSavingEdit(true);
-    try {
-      const res = await fetch(`/api/events/${eventId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editName,
-          description: editDescription || null,
-          date: editDate ? new Date(editDate).toISOString() : undefined,
-          endDate: editEndDate ? new Date(editEndDate).toISOString() : null,
-          location: editLocation || null,
-          maxAttendees: editMaxAttendees ? parseInt(editMaxAttendees) : null,
-          visibility: editVisibility,
-          imageUrl: editImageUrl,
-        }),
-      });
-      if (res.ok) {
-        setShowEdit(false);
-        fetchEvent();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Error al guardar");
-      }
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
-  const handleAddGame = async (game: { bggId: number; name?: string }) => {
-    setAddingGame(true);
-    try {
-      const res = await fetch(`/api/events/${eventId}/games`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bggId: game.bggId, name: game.name }),
-      });
-      if (res.ok) {
-        const newEventGame = await res.json();
-        // Optimistic: add game to local state immediately
-        setEvent((prev) => prev ? {
-          ...prev,
-          games: [...prev.games, { ...newEventGame, interests: [] }],
-        } : prev);
-      }
-    } finally {
-      setAddingGame(false);
-    }
-  };
-
-  const handleRemoveGame = async (gameId: string) => {
-    if (!confirm("¿Eliminar este juego del evento?")) return;
-    // Optimistic: remove from UI immediately
-    setEvent((prev) => prev ? {
-      ...prev,
-      games: prev.games.filter((eg) => eg.game.id !== gameId),
-    } : prev);
-    await fetch(`/api/events/${eventId}/games/${gameId}`, { method: "DELETE" });
-  };
-
-  const handleJoin = async () => {
-    setJoiningEvent(true);
-    try {
-      const res = await fetch(`/api/events/${eventId}/attend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "attending" }),
-      });
-      if (res.ok) {
-        // Need full refresh to get attendeeId
-        fetchEvent();
-      }
-    } finally {
-      setJoiningEvent(false);
-    }
-  };
-
-  const handleLeave = async () => {
-    if (!confirm("¿Desapuntarte del evento?")) return;
-    // Optimistic: remove from UI
-    setEvent((prev) => prev ? {
-      ...prev,
-      attendees: prev.attendees.filter((a) => a.userId !== prev.currentUserId),
-      currentAttendeeId: null,
-    } : prev);
-    await fetch(`/api/events/${eventId}/attend`, { method: "DELETE" });
-  };
-
-  const handleSetInterest = async (eventGameId: string, intensity: number) => {
-    if (!event) return;
-    // Optimistic update
-    setEvent((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        games: prev.games.map((eg) => {
-          if (eg.id !== eventGameId) return eg;
-          const existing = eg.interests.find((i) => i.attendeeId === prev.currentAttendeeId);
-          if (existing) {
-            return { ...eg, interests: eg.interests.map((i) => i.attendeeId === prev.currentAttendeeId ? { ...i, intensity } : i) };
-          }
-          return { ...eg, interests: [...eg.interests, { id: "temp", eventGameId, attendeeId: prev.currentAttendeeId!, intensity, notes: null, userName: "", userId: prev.currentUserId }] };
-        }),
-      };
-    });
-    await fetch(`/api/events/${eventId}/interests`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventGameId, intensity }),
-    });
-  };
-
-  const handleRemoveInterest = async (eventGameId: string) => {
-    // Optimistic: remove interest from UI
-    setEvent((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        games: prev.games.map((eg) => {
-          if (eg.id !== eventGameId) return eg;
-          return { ...eg, interests: eg.interests.filter((i) => i.attendeeId !== prev.currentAttendeeId) };
-        }),
-      };
-    });
-    await fetch(`/api/events/${eventId}/interests`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventGameId }),
-    });
-  };
-
-  const handleUpdateNotes = async (eventGameId: string, intensity: number, notes: string) => {
-    // Optimistic: update notes locally
-    setEvent((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        games: prev.games.map((eg) => {
-          if (eg.id !== eventGameId) return eg;
-          return { ...eg, interests: eg.interests.map((i) => i.attendeeId === prev.currentAttendeeId ? { ...i, notes } : i) };
-        }),
-      };
-    });
-    await fetch(`/api/events/${eventId}/interests`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventGameId, intensity, notes }),
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-        <Navbar />
-        <p className="text-[var(--text-secondary)] text-center py-12 animate-pulse">Cargando evento...</p>
-      </div>
-    );
-  }
-
-  if (!event) return null;
-
-  const isAttending = !!event.currentAttendeeId;
-
-  // Games the current user has rated (for My List tab)
-  const myInterests = event.games
-    .map((eg) => {
-      const myInterest = eg.interests.find((i) => i.attendeeId === event.currentAttendeeId);
-      return myInterest ? { ...eg, myInterest } : null;
-    })
-    .filter(Boolean) as (EventGame & { myInterest: Interest })[];
-  myInterests.sort((a, b) => b.myInterest.intensity - a.myInterest.intensity);
-  const attendingCount = event.attendees.filter((a) => a.status === "attending").length;
-
-  return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <Navbar />
-      <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
-        {/* Event image */}
-        {(event.imageUrl || event.isCreator) && (
-          <div className="mb-4 relative group">
-            {event.imageUrl ? (
-              <div className="relative rounded-2xl overflow-hidden border border-[var(--border)]">
-                <Image
-                  src={event.imageUrl}
-                  alt={event.name}
-                  width={1200}
-                  height={400}
-                  unoptimized
-                  className="w-full h-40 sm:h-52 object-cover"
-                />
-                {event.isCreator && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-xl">
-                      {uploadingImage ? "Subiendo..." : "Cambiar imagen"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleImageUpload(f, "direct");
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-            ) : event.isCreator ? (
-              <label className="flex items-center justify-center h-32 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/40 bg-[var(--surface)] cursor-pointer transition-all duration-200">
-                <div className="text-center">
-                  <svg className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-                  </svg>
-                  <span className="text-xs text-[var(--text-muted)]">
-                    {uploadingImage ? "Subiendo..." : "Añadir imagen del evento"}
-                  </span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleImageUpload(f, "direct");
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            ) : null}
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold">{event.name}</h1>
-            {event.isCreator && (
-              <button
-                onClick={openEditModal}
-                className="shrink-0 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border)] hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] rounded-xl transition-all duration-200"
-              >
-                Editar
-              </button>
-            )}
-          </div>
-          {event.description && (
-            <p className="text-[var(--text-secondary)] mt-1">{event.description}</p>
-          )}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
-              {formatDate(event.date)}
-            </span>
-            {event.location && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                {event.location}
-              </span>
-            )}
-            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
-              {attendingCount} asistente{attendingCount !== 1 ? "s" : ""}
-            </span>
-            <span className="text-xs text-[var(--text-muted)]">
-              Organiza: {event.createdBy.displayName || event.createdBy.name || event.createdBy.email}
-            </span>
-          </div>
-
-          {/* Join/Leave button */}
-          <div className="mt-4">
-            {isAttending ? (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-emerald-400 font-medium">Estás apuntado</span>
-                {!event.isCreator && (
-                  <button
-                    onClick={handleLeave}
-                    className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  >
-                    Desapuntarme
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={handleJoin}
-                disabled={joiningEvent}
-                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
-              >
-                {joiningEvent ? "Apuntándote..." : "Apuntarme"}
-              </button>
-            )}
-          </div>
-
-          {/* Invite link (creator only) */}
-          {event.isCreator && (
-            <div className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3">
-              <div className="text-xs font-medium text-[var(--text-secondary)] mb-2">Enlace de invitación</div>
-              {inviteCode ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${window.location.origin}/join-event/${inviteCode}`}
-                    className="flex-1 min-w-0 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs sm:text-sm text-[var(--text-secondary)] truncate transition-all duration-200"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/join-event/${inviteCode}`);
-                      setInviteCopied(true);
-                      setTimeout(() => setInviteCopied(false), 2000);
-                    }}
-                    className="shrink-0 px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    {inviteCopied ? "Copiado" : "Copiar"}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={async () => {
-                    setGeneratingLink(true);
-                    try {
-                      const res = await fetch(`/api/events/${eventId}/invite-link`, { method: "POST" });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setInviteCode(data.inviteCode);
-                      }
-                    } finally {
-                      setGeneratingLink(false);
-                    }
-                  }}
-                  disabled={generatingLink}
-                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)] transition-all duration-200 disabled:opacity-50"
-                >
-                  {generatingLink ? "Generando..." : "Generar enlace"}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-6 border-b border-[var(--border)] mb-4 overflow-x-auto no-scrollbar">
-          {(["activity", "games", "mylist", "attendees", "gallery"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                if (tab === "activity") fetchEventFeed();
-              }}
-              className={`pb-2 text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
-                activeTab === tab
-                  ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text)]"
-              }`}
-            >
-              {tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {activeTab === "activity" && (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
-            <ActivityFeed
-              items={feedItems}
-              onLoadMore={() => feedCursor && fetchEventFeed(feedCursor)}
-              hasMore={feedHasMore}
-              loading={feedLoading}
-            />
-          </div>
-        )}
-        {activeTab === "games" && (
-          <GamesTab
-            event={event}
-            onAddGame={handleAddGame}
-            onRemoveGame={handleRemoveGame}
-            onSetInterest={handleSetInterest}
-            onRemoveInterest={handleRemoveInterest}
-            addingGame={addingGame}
-          />
-        )}
-        {activeTab === "mylist" && (
-          <MyListTab
-            myInterests={myInterests}
-            event={event}
-            onUpdateNotes={handleUpdateNotes}
-            onRemoveInterest={handleRemoveInterest}
-          />
-        )}
-        {activeTab === "attendees" && (
-          <AttendeesTab event={event} />
-        )}
-        {activeTab === "gallery" && (
-          <EventGallery
-            eventId={eventId}
-            currentUserId={event.currentUserId}
-            canParticipate={event.isCreator || event.currentAttendeeId != null}
-            isCreator={event.isCreator}
-            openReviewSignal={openReviewSignal}
-          />
-        )}
-      </div>
-
-      {/* Edit event modal */}
-      {showEdit && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[var(--text)]">Editar evento</h3>
-              <button onClick={() => setShowEdit(false)} className="text-[var(--text-secondary)] hover:text-[var(--text)]">✕</button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre del evento *</label>
-                <EmojiField multiline={false} value={editName} onChange={setEditName}
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={200} />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Descripción</label>
-                <EmojiField value={editDescription} onChange={setEditDescription} rows={3}
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-none transition-all duration-200" maxLength={2000} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha y hora *</label>
-                  <input type="datetime-local" value={editDate} onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha fin (opcional)</label>
-                  <input type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Ubicación</label>
-                  <input type="text" value={editLocation} onChange={(e) => setEditLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={300} />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Máx. asistentes</label>
-                  <input type="number" value={editMaxAttendees} onChange={(e) => setEditMaxAttendees(e.target.value)} min={1}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Imagen del evento</label>
-                <div className="flex items-center gap-3">
-                  {editImageUrl ? (
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
-                      <Image src={editImageUrl} alt="Preview" width={80} height={80} unoptimized className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-xs shrink-0">
-                      Sin imagen
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all duration-200 cursor-pointer text-center">
-                      {uploadingImage ? "Subiendo..." : editImageUrl ? "Cambiar" : "Subir imagen"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) handleImageUpload(f, "edit");
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                    {editImageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setEditImageUrl(null)}
-                        className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Visibilidad</label>
-                <div className="flex gap-2">
-                  {(["public", "private"] as const).map((v) => (
-                    <button key={v} onClick={() => setEditVisibility(v)}
-                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        editVisibility === v ? "bg-[var(--primary)] text-[var(--primary-text)]" : "bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                      }`}
-                    >
-                      {v === "public" ? "Público" : "Privado"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <button onClick={handleSaveEdit} disabled={savingEdit || !editName.trim() || !editDate}
-              className="w-full mt-5 px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              {savingEdit ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function EventDetailPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)]" />}>
-      <EventDetailPageInner />
-    </Suspense>
-  );
-}
-
-// ── Games Tab ─────────────────────────────────────────────────────────────
-
-function GamesTab({
-  event,
-  onAddGame,
-  onRemoveGame,
-  onSetInterest,
-  onRemoveInterest,
-  addingGame,
+export async function generateMetadata({
+  params,
 }: {
-  event: EventData;
-  onAddGame: (game: { bggId: number }) => void;
-  onRemoveGame: (gameId: string) => void;
-  onSetInterest: (eventGameId: string, intensity: number) => void;
-  onRemoveInterest: (eventGameId: string) => void;
-  addingGame: boolean;
-}) {
-  const isAttending = !!event.currentAttendeeId;
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const event = await getPublicEvent(id);
 
-  return (
-    <div>
-      {/* Search bar for creator */}
-      {event.isCreator && (
-        <div className="mb-4">
-          <BggGameSearch
-            onSelect={onAddGame}
-            placeholder="Buscar juego en BGG para añadir..."
-            disabled={addingGame}
-          />
-        </div>
-      )}
+  if (!event) {
+    return {
+      title: "Evento no encontrado · BG Planner",
+      robots: { index: false, follow: false },
+    };
+  }
 
-      {event.games.length === 0 ? (
-        <p className="text-[var(--text-secondary)] text-center py-8">
-          {event.isCreator
-            ? "Usa el buscador para añadir juegos al evento"
-            : "El gestor aún no ha añadido juegos"}
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {event.games.map((eg) => {
-            const myInterest = eg.interests.find(
-              (i) => i.attendeeId === event.currentAttendeeId
-            );
-            const totalInterested = eg.interests.length;
+  // De un evento privado no sale nada fuera de la app: ni el nombre en el
+  // título, ni descripción, ni imagen. `images: []` desactiva la tarjeta que
+  // Next enlazaría sola por existir opengraph-image.tsx.
+  if (!event.isPublic) {
+    const titulo = "Evento privado · BG Planner";
+    const texto = "Solo pueden verlo quienes están invitados.";
+    return {
+      title: titulo,
+      description: texto,
+      robots: { index: false, follow: false },
+      openGraph: { title: titulo, description: texto, images: [] },
+      twitter: { card: "summary", title: titulo, description: texto },
+    };
+  }
 
-            return (
-              <div
-                key={eg.id}
-                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
-              >
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-11 h-11 sm:w-[80px] sm:h-[80px] shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
-                    {eg.game.thumbnail ? (
-                      <Image src={eg.game.thumbnail} alt={eg.game.name} width={80} height={80} className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-[var(--text)] text-sm sm:text-base leading-tight">
-                      <a
-                        href={`https://boardgamegeek.com/boardgame/${eg.game.bggId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-[var(--primary)] transition-colors"
-                      >
-                        {eg.game.name}
-                      </a>
-                      {eg.game.yearPublished && (
-                        <span className="text-[var(--text-muted)] font-normal ml-1 text-xs">({eg.game.yearPublished})</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                      {eg.game.bggRating && (
-                        <BggRating rating={eg.game.bggRating} size={30} />
-                      )}
-                      {eg.game.bggRank && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300" title="Puesto en el ranking global de BGG">
-                          🏆 BGG #{eg.game.bggRank.toLocaleString("es-ES")}
-                        </span>
-                      )}
-                      {eg.game.playingTime && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
-                          {formatDuration(eg.game.playingTime)}
-                        </span>
-                      )}
-                      {(eg.game.minPlayers || eg.game.maxPlayers) && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                          {eg.game.minPlayers === eg.game.maxPlayers
-                            ? `${eg.game.minPlayers}p`
-                            : `${eg.game.minPlayers || "?"}-${eg.game.maxPlayers || "?"}p`}
-                        </span>
-                      )}
-                      {totalInterested > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
-                          {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {/* Remove button for creator */}
-                  {event.isCreator && (
-                    <button
-                      onClick={() => onRemoveGame(eg.game.id)}
-                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-500/50 transition-colors text-sm"
-                      title="Eliminar del evento"
-                    >
-                      🗑
-                    </button>
-                  )}
-                </div>
-
-                {/* Intensity picker for attending users */}
-                {isAttending && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {[5, 4, 3, 2, 1].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() =>
-                          myInterest?.intensity === level
-                            ? onRemoveInterest(eg.id)
-                            : onSetInterest(eg.id, level)
-                        }
-                        className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
-                          myInterest?.intensity === level
-                            ? INTENSITY_COLORS[level]
-                            : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-                        }`}
-                        title={INTENSITY_LABELS[level]}
-                      >
-                        <span className="sm:hidden">{level}</span>
-                        <span className="hidden sm:inline">{level}. {INTENSITY_LABELS[level]}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  const description = eventTagline(event);
+  return {
+    title: `${event.name} · BG Planner`,
+    description,
+    alternates: { canonical: `${APP_URL}/events/${event.id}` },
+    openGraph: {
+      title: event.name,
+      description,
+      url: `${APP_URL}/events/${event.id}`,
+      type: "website",
+      siteName: "BG Planner",
+      locale: "es_ES",
+    },
+    twitter: { card: "summary_large_image", title: event.name, description },
+  };
 }
 
-// ── My List Tab ───────────────────────────────────────────────────────────
-
-function MyListTab({
-  myInterests,
-  event,
-  onUpdateNotes,
-  onRemoveInterest,
+export default async function EventPage({
+  params,
 }: {
-  myInterests: (EventGame & { myInterest: Interest })[];
-  event: EventData;
-  onUpdateNotes: (eventGameId: string, intensity: number, notes: string) => void;
-  onRemoveInterest: (eventGameId: string) => void;
+  params: Promise<{ id: string }>;
 }) {
-  const [editingNotes, setEditingNotes] = useState<string | null>(null);
-  const [notesValue, setNotesValue] = useState("");
+  const session = await getSession();
+  if (session) return <EventClient />;
 
-  if (!event.currentAttendeeId) {
+  const { id } = await params;
+  const event = await getPublicEvent(id);
+
+  if (!event) {
     return (
-      <p className="text-[var(--text-secondary)] text-center py-8">
-        Apúntate al evento para poder crear tu lista de juegos
-      </p>
+      <PublicPeek
+        emoji="🔍"
+        title="Este evento no existe"
+        note="Puede que lo hayan borrado o que el enlace esté mal copiado."
+        cta={{ href: "/", label: "Ir a BG Planner" }}
+      />
     );
   }
 
-  if (myInterests.length === 0) {
+  // Los privados enseñan el cartel y poco más: ni nombre, ni fecha, ni sitio.
+  if (!event.isPublic) {
     return (
-      <p className="text-[var(--text-secondary)] text-center py-8">
-        Aún no has marcado ningún juego. Ve a la pestaña &quot;Juegos&quot; y marca tus preferencias
-      </p>
+      <PublicPeek
+        emoji="🔒"
+        title="Este evento es privado"
+        note="Solo pueden verlo quienes están invitados. Si te han invitado, entra con tu cuenta y lo tendrás en tus eventos."
+        cta={{
+          href: `/login?redirect=${encodeURIComponent(`/events/${id}`)}`,
+          label: "Entrar",
+        }}
+      />
     );
   }
 
+  const facts = [
+    `🗓️ ${formatEventWhen(event.date)}`,
+    event.location ? `📍 ${event.location}` : null,
+    `👥 ${event.attendeeCount} apuntado${event.attendeeCount === 1 ? "" : "s"}${
+      event.maxAttendees ? ` de ${event.maxAttendees}` : ""
+    }${
+      event.gameCount > 0
+        ? ` · 🎲 ${event.gameCount} juego${event.gameCount === 1 ? "" : "s"}`
+        : ""
+    }`,
+  ].filter((f): f is string => !!f);
+
   return (
-    <div className="space-y-3">
-      {myInterests.map(({ id: eventGameId, game, myInterest }) => (
-        <div
-          key={eventGameId}
-          className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
-              {game.thumbnail ? (
-                <Image src={game.thumbnail} alt={game.name} width={64} height={64} className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-[var(--text)] text-sm sm:text-base">{game.name}</div>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border mt-1 ${INTENSITY_COLORS[myInterest.intensity]}`}>
-                {myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}
-              </span>
-            </div>
-            <button
-              onClick={() => onRemoveInterest(eventGameId)}
-              className="shrink-0 text-[var(--text-muted)] hover:text-red-400 text-xs transition-colors"
-            >
-              Quitar
-            </button>
-          </div>
-
-          {/* Notes section */}
-          <div className="mt-3">
-            {editingNotes === eventGameId ? (
-              <div className="flex gap-2">
-                <EmojiField
-                  multiline={false}
-                  value={notesValue}
-                  onChange={setNotesValue}
-                  maxLength={500}
-                  placeholder="Notas privadas..."
-                  wrapperClassName="flex-1"
-                  className="w-full px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      onUpdateNotes(eventGameId, myInterest.intensity, notesValue);
-                      setEditingNotes(null);
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    onUpdateNotes(eventGameId, myInterest.intensity, notesValue);
-                    setEditingNotes(null);
-                  }}
-                  className="px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  Guardar
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setEditingNotes(eventGameId);
-                  setNotesValue(myInterest.notes || "");
-                }}
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-              >
-                {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Attendees Tab ─────────────────────────────────────────────────────────
-
-function AttendeesTab({ event }: { event: EventData }) {
-  return (
-    <div>
-      {event.attendees.length === 0 ? (
-        <p className="text-[var(--text-secondary)] text-center py-8">Nadie se ha apuntado todavía</p>
-      ) : (
-        <div className="space-y-3">
-          {event.attendees.map((att) => {
-            const isCreator = att.userId === event.createdById;
-            // Collect this attendee's interests across all games
-            const attendeeInterests = event.games
-              .map((eg) => {
-                const interest = eg.interests.find((i) => i.attendeeId === att.id);
-                return interest ? { game: eg.game, interest } : null;
-              })
-              .filter(Boolean) as { game: Game; interest: Interest }[];
-            attendeeInterests.sort((a, b) => b.interest.intensity - a.interest.intensity);
-
-            return (
-              <div
-                key={att.id}
-                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
-              >
-                <div className="flex items-center gap-2">
-                  <Link href={profileHref(att.user)} prefetch={false}>
-                    <Avatar
-                      name={att.user.displayName || att.user.name || att.user.email}
-                      avatarUrl={att.user.avatarUrl}
-                      size="sm"
-                    />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[var(--text)] text-sm">
-                      <Link
-                        href={profileHref(att.user)}
-                        prefetch={false}
-                        className="hover:text-[var(--primary)] transition-colors"
-                      >
-                        {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
-                      </Link>
-                      {att.user.bggUsername && (
-                        <a
-                          href={`https://boardgamegeek.com/user/${att.user.bggUsername}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors ml-1.5 font-normal"
-                        >
-                          @{att.user.bggUsername}
-                        </a>
-                      )}
-                    </div>
-                    {isCreator && (
-                      <span className="text-xs text-[var(--primary)]">Gestor</span>
-                    )}
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                    att.status === "attending"
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : att.status === "maybe"
-                        ? "bg-[var(--accent-soft)] text-[var(--primary)]"
-                        : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
-                  }`}>
-                    {att.status === "attending" ? "Asiste" : att.status === "maybe" ? "Quizás" : "Cancelado"}
-                  </span>
-                </div>
-
-                {/* Show attendee's interests (no notes — those are private) */}
-                {attendeeInterests.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {attendeeInterests.map(({ game, interest }) => (
-                      <span
-                        key={interest.id}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${INTENSITY_COLORS[interest.intensity]}`}
-                        title={`${INTENSITY_LABELS[interest.intensity]}`}
-                      >
-                        <span className="font-bold">{interest.intensity}</span>
-                        <span className="max-w-[100px] sm:max-w-[150px] truncate">{game.name}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <Footer />
-    </div>
+    <PublicPeek
+      eyebrow="Evento abierto"
+      title={event.name}
+      imageUrl={event.imageUrl}
+      emoji="🎉"
+      facts={facts}
+      note="Entra con tu cuenta de BG Planner para apuntarte, ver los juegos que se llevan y decir cuáles te apetecen."
+      cta={{
+        href: `/login?redirect=${encodeURIComponent(`/events/${id}`)}`,
+        label: "Entrar y apuntarme",
+        hint: "Crear una cuenta es solo tu email, sin contraseñas.",
+      }}
+    />
   );
 }

@@ -1,0 +1,224 @@
+import { ImageResponse } from "next/og";
+
+// La tarjeta que se ve al pegar un enlace de BG Planner en WhatsApp,
+// Telegram, Slack o X. Una sola plantilla para perfiles, grupos, eventos e
+// invitaciones: cambian la foto, el título y la frase, no el aspecto.
+
+export const SHARE_CARD_SIZE = { width: 1200, height: 630 };
+export const SHARE_CARD_CONTENT_TYPE = "image/png";
+
+// Colores de la app (los mismos del tema oscuro y de los emails).
+const BG = "#0f172a";
+const SURFACE = "#1e293b";
+const TEXT = "#f1f5f9";
+const MUTED = "#94a3b8";
+const ACCENT = "#f59e0b";
+const BORDER = "#334155";
+
+/**
+ * Trae una imagen externa y la incrusta en base64.
+ *
+ * Las fotos de Supabase hay que resolverlas ANTES de dibujar: si se
+ * resolvieran durante el dibujado, un fallo de red reventaría el PNG a media
+ * emisión, y ahí ya no hay try/catch que valga. Lo que ya viene en base64
+ * (las fotos subidas desde el móvil) se usa tal cual.
+ */
+export async function inlineImage(
+  url: string | null | undefined
+): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith("data:")) return url;
+  if (!url.startsWith("http")) return null;
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const type = res.headers.get("content-type") || "image/jpeg";
+    if (!type.startsWith("image/")) return null;
+    const base64 = Buffer.from(await res.arrayBuffer()).toString("base64");
+    return `data:${type};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+export interface ShareCardInput {
+  /** Línea pequeña sobre el título: "Te invitan al grupo", "Evento"… */
+  eyebrow?: string | null;
+  title: string;
+  /** Píldora bajo el título: el usuario de BGG, la fecha del evento… */
+  badge?: string | null;
+  /** Píldora verde en vez de gris (BGG). */
+  badgeTone?: "accent" | "bgg";
+  /** Frase de presentación, la misma que la descripción del enlace. */
+  tagline: string;
+  /** Foto ya incrustada con inlineImage(). */
+  image?: string | null;
+  /** Foto redonda (personas) o con esquinas (eventos, grupos). */
+  round?: boolean;
+}
+
+// Sin foto, la inicial. Nada de emojis: satori no trae fuente que los
+// dibuje y saldrían como un cuadrado vacío, y traérsela de un CDN al vuelo
+// es justo la dependencia de red que esta tarjeta evita.
+function Media({
+  image,
+  initial,
+  round,
+}: {
+  image?: string | null;
+  initial: string;
+  round: boolean;
+}) {
+  const side = 260;
+  const radius = round ? side / 2 : 36;
+  const common = {
+    width: side,
+    height: side,
+    borderRadius: radius,
+    border: `6px solid ${ACCENT}`,
+  };
+
+  if (image) {
+    return (
+      // Esto lo dibuja satori dentro de un PNG: no hay DOM, ni next/image.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={image}
+        alt=""
+        width={side}
+        height={side}
+        style={{ ...common, objectFit: "cover" }}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        ...common,
+        background: SURFACE,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 120,
+        fontWeight: 700,
+        color: ACCENT,
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+export function shareCard({
+  eyebrow,
+  title,
+  badge,
+  badgeTone = "accent",
+  tagline,
+  image,
+  round = false,
+}: ShareCardInput) {
+  const initial = (title[0] || "?").toUpperCase();
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        background: BG,
+        padding: "70px 80px",
+        fontFamily: "sans-serif",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 56 }}>
+        <Media image={image} initial={initial} round={round} />
+
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 700 }}>
+          {eyebrow ? (
+            <div
+              style={{
+                fontSize: 30,
+                color: ACCENT,
+                textTransform: "uppercase",
+                letterSpacing: 2,
+                marginBottom: 14,
+              }}
+            >
+              {eyebrow}
+            </div>
+          ) : null}
+          <div
+            style={{
+              fontSize: title.length > 24 ? 56 : 72,
+              fontWeight: 700,
+              color: TEXT,
+              lineHeight: 1.1,
+            }}
+          >
+            {title}
+          </div>
+          {badge ? (
+            <div style={{ display: "flex", marginTop: 20 }}>
+              <div
+                style={{
+                  fontSize: 30,
+                  borderRadius: 999,
+                  padding: "8px 24px",
+                  ...(badgeTone === "bgg"
+                    ? {
+                        color: "#6ee7b7",
+                        background: "rgba(16, 185, 129, 0.12)",
+                        border: "2px solid rgba(16, 185, 129, 0.35)",
+                      }
+                    : {
+                        color: ACCENT,
+                        background: "rgba(245, 158, 11, 0.12)",
+                        border: "2px solid rgba(245, 158, 11, 0.35)",
+                      }),
+                }}
+              >
+                {badge}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 38, color: MUTED, lineHeight: 1.35 }}>
+          {tagline}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            marginTop: 36,
+            paddingTop: 30,
+            borderTop: `2px solid ${BORDER}`,
+          }}
+        >
+          <div style={{ fontSize: 34, color: ACCENT, fontWeight: 700 }}>
+            BG Planner
+          </div>
+          <div style={{ fontSize: 30, color: MUTED }}>· bgplanner.app</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** La tarjeta ya empaquetada, con caché: los bots la piden muchas veces. */
+export function shareCardResponse(input: ShareCardInput) {
+  return new ImageResponse(shareCard(input), {
+    ...SHARE_CARD_SIZE,
+    headers: {
+      "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+    },
+  });
+}
