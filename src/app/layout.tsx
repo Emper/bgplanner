@@ -20,12 +20,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_NAME = "BG Planner";
+const SITE_TITLE = "BG Planner - Organiza tus juegos de mesa";
+const SITE_DESCRIPTION =
+  "Decide qué jugar con tu grupo de amigos votando vuestros juegos de mesa favoritos";
+
 export const metadata: Metadata = {
-  title: "BG Planner - Organiza tus juegos de mesa",
-  description:
-    "Decide qué jugar con tu grupo de amigos votando vuestros juegos de mesa favoritos",
+  // Dominio fijo a propósito: NEXT_PUBLIC_APP_URL vale localhost en
+  // desarrollo y de ahí saldrían enlaces rotos en las tarjetas que pinta
+  // WhatsApp o Telegram al compartir.
+  metadataBase: new URL("https://bgplanner.app"),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   icons: {
     icon: "/favicon.svg",
+  },
+  // Sin esto, al pegar un enlace en WhatsApp salía solo el título suelto.
+  // Cada página puede afinarlo con su propio `generateMetadata`.
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "es_ES",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
 };
 
