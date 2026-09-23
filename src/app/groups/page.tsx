@@ -8,6 +8,8 @@ import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
 import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
+import DateTile from "@/components/DateTile";
+import { CountUp, spotlightMove } from "@/components/motion";
 import { getGroupType } from "@/lib/groupTypes";
 
 interface GroupMemberPreview {
@@ -45,11 +47,37 @@ interface UpcomingEvent {
   _count: { attendees: number; games: number };
 }
 
+// «Buenos días» a las 9 y «buenas noches» a las 23: la app se usa mucho
+// de noche, que es cuando se queda para jugar.
+function greeting() {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 14) return "Buenos días";
+  if (h >= 14 && h < 21) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+function daysUntil(date: string) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - start.getTime()) / 86_400_000);
+}
+
+function whenLabel(date: string) {
+  const days = daysUntil(date);
+  if (days <= 0) return "hoy";
+  if (days === 1) return "mañana";
+  if (days < 7) return `el ${new Date(date).toLocaleDateString("es-ES", { weekday: "long" })}`;
+  return `en ${days} días`;
+}
+
 export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firstName, setFirstName] = useState<string | null>(null);
   const [error, setError] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [feedItems, setFeedItems] = useState<any[]>([]);
@@ -60,11 +88,18 @@ export default function GroupsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [groupsRes, gamesRes, eventsRes] = await Promise.all([
+        const [groupsRes, gamesRes, eventsRes, profileRes] = await Promise.all([
           fetch("/api/groups", { credentials: "include" }),
           fetch("/api/profile/recent-games", { credentials: "include" }),
           fetch("/api/events", { credentials: "include" }),
+          fetch("/api/profile", { credentials: "include" }),
         ]);
+
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          const name: string = profile.displayName || profile.name || "";
+          setFirstName(name.trim().split(/\s+/)[0] || null);
+        }
 
         if (!groupsRes.ok) throw new Error("Error al cargar los grupos");
         setGroups(await groupsRes.json());
@@ -72,7 +107,11 @@ export default function GroupsPage() {
         if (gamesRes.ok) setRecentGames(await gamesRes.json());
         if (eventsRes.ok) {
           const allEvents: UpcomingEvent[] = await eventsRes.json();
-          setUpcomingEvents(allEvents.filter((e) => new Date(e.date) >= new Date()));
+          setUpcomingEvents(
+            allEvents
+              .filter((e) => new Date(e.date) >= new Date())
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          );
         }
 
         // Fetch activity feed
@@ -119,6 +158,45 @@ export default function GroupsPage() {
       <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
         <div className="max-w-4xl mx-auto">
 
+          {/* Saludo: lo primero que ves al entrar, con lo que tienes por delante */}
+          {!loading && !error && (
+            <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] px-5 py-6 sm:px-8 sm:py-8 mb-8 shadow-[var(--card-shadow)]">
+              <div className="absolute inset-0 fx-dots opacity-60 pointer-events-none" aria-hidden />
+              <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-[var(--glow)] blur-[70px] pointer-events-none" aria-hidden />
+              <div className="relative">
+                <p className="text-sm font-medium text-[var(--text-muted)]">
+                  {greeting()}{firstName ? `, ${firstName}` : ""} 👋
+                </p>
+                <h1 className="mt-1 text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
+                  {upcomingEvents[0] ? (
+                    <>
+                      <span className="text-[var(--primary)]">{upcomingEvents[0].name}</span>{" "}
+                      es {whenLabel(upcomingEvents[0].date)}
+                    </>
+                  ) : (
+                    <>
+                      ¿A qué jugamos{" "}
+                      <span className="bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent">
+                        esta semana?
+                      </span>
+                    </>
+                  )}
+                </h1>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
+                    👥 <CountUp value={groups.length} /> {groups.length === 1 ? "grupo" : "grupos"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
+                    🎲 <CountUp value={groups.reduce((n, g) => n + (g._count?.games || 0), 0)} /> juegos en tus mesas
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
+                    📅 <CountUp value={upcomingEvents.length} /> {upcomingEvents.length === 1 ? "evento próximo" : "eventos próximos"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Mis Grupos */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-[var(--text)]">Mis Grupos</h2>
@@ -141,11 +219,12 @@ export default function GroupsPage() {
           )}
 
           {!loading && groups.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 fx-stagger">
               {groups.map((group) => (
                 <div
                   key={group.id}
-                  className="group/card relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 shadow-[var(--card-shadow)]"
+                  onPointerMove={spotlightMove}
+                  className="fx-spotlight group/card relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5 transition-all duration-200 shadow-[var(--card-shadow)]"
                 >
                   <Link
                     href={`/groups/${group.id}`}
@@ -177,7 +256,7 @@ export default function GroupsPage() {
                       </span>
                     </div>
                     {group.members?.length > 0 && (
-                      <div className="flex -space-x-2">
+                      <div className="flex -space-x-2 group-hover/card:-space-x-1 transition-all duration-300">
                         {group.members.slice(0, 4).map((m, i) => (
                           <Avatar
                             key={i}
@@ -239,16 +318,19 @@ export default function GroupsPage() {
                   Ver todos
                 </Link>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 fx-stagger">
                 {upcomingEvents.slice(0, 3).map((event) => (
                   <Link
                     key={event.id}
                     href={`/events/${event.id}`}
                     prefetch={false}
-                    className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 block shadow-[var(--card-shadow)]"
+                    onPointerMove={spotlightMove}
+                    className="fx-spotlight bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 sm:p-4 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-4 shadow-[var(--card-shadow)]"
                   >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-[var(--text)]">{event.name}</h3>
+                    <DateTile date={event.date} size="sm" />
+                    <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-semibold text-[var(--text)] truncate">{event.name}</h3>
                       {event.attendees?.length > 0 && (
                         <div className="flex -space-x-2">
                           {event.attendees.slice(0, 4).map((a, i) => (
@@ -269,8 +351,8 @@ export default function GroupsPage() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-2 mt-1.5">
-                      <span className="text-xs text-[var(--primary)]">
-                        {new Date(event.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                      <span className="text-xs font-semibold text-[var(--primary)] first-letter:uppercase">
+                        {whenLabel(event.date)}
                       </span>
                       {event.location && (
                         <span className="text-xs text-[var(--text-secondary)]">{event.location}</span>
@@ -278,6 +360,7 @@ export default function GroupsPage() {
                       <span className="text-xs text-[var(--text-muted)]">
                         {event._count.attendees} asistente{event._count.attendees !== 1 ? "s" : ""} · {event._count.games} juego{event._count.games !== 1 ? "s" : ""}
                       </span>
+                    </div>
                     </div>
                   </Link>
                 ))}
@@ -305,7 +388,7 @@ export default function GroupsPage() {
           {!loading && recentGames.length > 0 && (
             <>
               <h2 className="text-xl font-bold text-[var(--text)] mb-4">Juegos recientes</h2>
-              <div className="space-y-2">
+              <div className="space-y-2 fx-stagger">
                 {recentGames.map((item, i) => (
                   <Link
                     key={`${item.groupId}-${item.gameId}-${i}`}
