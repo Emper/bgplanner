@@ -37,8 +37,12 @@ function BadgeCard({ badge, isSelf }: { badge: ProfileBadge; isSelf: boolean }) 
           : badge.tierName ?? undefined
       }
     >
+      {/* Las ganadas brillan de vez en cuando; cada una a su ritmo, según su sitio */}
       <div
-        className={`relative w-12 h-12 rounded-full ring-2 flex items-center justify-center text-2xl ${MEDAL[badge.tier]}`}
+        className={`relative w-12 h-12 rounded-full ring-2 flex items-center justify-center text-2xl ${MEDAL[badge.tier]} ${
+          locked ? "" : "fx-shine overflow-hidden"
+        }`}
+        style={locked ? undefined : { animationDelay: `${(badge.key.length % 5) * 0.7}s` }}
       >
         <span className={locked ? "grayscale opacity-40" : ""} aria-hidden>
           {badge.emoji}
@@ -153,7 +157,7 @@ export default function BadgeCarousel({
       <div
         ref={scroller}
         onScroll={update}
-        className="flex items-stretch gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-1 p-1 py-2"
+        className="flex items-stretch gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-1 p-1 py-2 fx-stagger"
       >
         {badges.map((badge) => (
           <BadgeCard key={badge.key} badge={badge} isSelf={isSelf} />

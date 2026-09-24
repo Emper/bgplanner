@@ -7,7 +7,7 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import Footer from "@/components/Footer";
 import { useTheme } from "@/lib/theme";
 import { MARQUEE_BOTTOM, MARQUEE_TOP, DEMO_GAMES, type DemoGame } from "./games";
-import { Reveal, ScrollProgress, usePrefersReducedMotion } from "./motion";
+import { Reveal, ScrollProgress, usePrefersReducedMotion } from "@/components/motion";
 import {
   AppWindow,
   BadgesMini,
@@ -283,7 +283,7 @@ function HeroStage() {
 function Hero({ loginHref }: { loginHref: string }) {
   return (
     <section className="relative px-4 pt-10 sm:pt-20 pb-16 sm:pb-24 overflow-hidden">
-      <div className="absolute inset-0 landing-dots opacity-70 pointer-events-none" aria-hidden />
+      <div className="absolute inset-0 fx-dots opacity-70 pointer-events-none" aria-hidden />
 
       <div className="relative max-w-3xl mx-auto text-center">
         <div className="animate-fade-up">
@@ -637,7 +637,7 @@ function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHre
                     href={`/events/${ev.id}`}
                     className="group block h-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden hover:border-[var(--primary)]/40 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-1 transition-all duration-300"
                   >
-                    <div className="relative h-28 landing-event-art overflow-hidden">
+                    <div className="relative h-28 fx-event-art overflow-hidden">
                       {ev.imageUrl && (
                         <Image
                           src={ev.imageUrl}
@@ -843,7 +843,7 @@ function FinalCta({ loginHref }: { loginHref: string }) {
         <div className="relative rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-14 sm:p-16 overflow-hidden text-center">
           <div className="absolute -top-24 -right-24 w-72 h-72 bg-[var(--glow)] rounded-full blur-[80px]" />
           <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[var(--glow)] rounded-full blur-[80px]" />
-          <div className="absolute inset-0 landing-dots opacity-50" aria-hidden />
+          <div className="absolute inset-0 fx-dots opacity-50" aria-hidden />
 
           {floating.map((g, i) => (
             <div key={g.bggId} className={`hidden md:block absolute ${spots[i]} opacity-80`} aria-hidden>

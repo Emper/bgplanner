@@ -33,7 +33,7 @@ export default function GameShelf({
   return (
     <div className={`shelf-wrap${compact ? " shelf-wrap--compact" : ""}`}>
       <div className={`shelf${compact ? " shelf--compact" : ""}`}>
-        {games.map((game) => {
+        {games.map((game, i) => {
           const img = game.image || game.thumbnail;
           const title = game.keepScore
             ? `${game.name} — ${KEEP_LABELS[game.keepScore]}`
@@ -70,7 +70,13 @@ export default function GameShelf({
           );
 
           return (
-            <div key={game.bggId} className="shelf-slot">
+            // Las cajas caen en la balda una detrás de otra (tandas de 12, que
+            // con el scroll infinito llegan de golpe muchas más).
+            <div
+              key={game.bggId}
+              className="shelf-slot"
+              style={{ "--i": `${i % 12}` } as React.CSSProperties}
+            >
               {onSelect ? (
                 <button
                   onClick={() => onSelect(game)}

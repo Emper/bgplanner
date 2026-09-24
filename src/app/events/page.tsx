@@ -7,6 +7,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { formatDateShort } from "@/lib/format";
 import PageLoader from "@/components/PageLoader";
+import DateTile from "@/components/DateTile";
+import { spotlightMove } from "@/components/motion";
 
 interface EventData {
   id: string;
@@ -47,7 +49,7 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
-      <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Eventos</h1>
           <Link
@@ -72,7 +74,7 @@ export default function EventsPage() {
                 <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
                   Próximos eventos ({upcoming.length})
                 </h2>
-                <div className="space-y-3">
+                <div className="grid sm:grid-cols-2 gap-4 fx-stagger">
                   {upcoming.map((event) => (
                     <EventCard key={event.id} event={event} />
                   ))}
@@ -85,9 +87,9 @@ export default function EventsPage() {
                 <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
                   Eventos pasados ({past.length})
                 </h2>
-                <div className="space-y-3">
+                <div className="grid sm:grid-cols-2 gap-4 fx-stagger">
                   {past.map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <EventCard key={event.id} event={event} past />
                   ))}
                 </div>
               </div>
@@ -100,44 +102,78 @@ export default function EventsPage() {
   );
 }
 
-function EventCard({ event }: { event: EventData }) {
+// El fin solo se enseña si cae otro día: «11 abr – 11 abr» no dice nada.
+function sameDay(a: string, b: string) {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+function EventCard({ event, past = false }: { event: EventData; past?: boolean }) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="block bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 shadow-[var(--card-shadow)]"
+      onPointerMove={spotlightMove}
+      className={`fx-spotlight group flex flex-col h-full bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5 transition-all duration-200 shadow-[var(--card-shadow)] ${
+        past ? "opacity-75 hover:opacity-100" : ""
+      }`}
     >
-      {event.imageUrl && (
-        <div className="h-28 sm:h-36 overflow-hidden">
-          <Image src={event.imageUrl} alt={event.name} width={600} height={200} unoptimized className="w-full h-full object-cover" />
+      {/* Cartel. La foto va entera (los carteles suelen ser logos y recortarlos
+          los destroza) y el hueco que sobre lo rellena ella misma, difuminada.
+          Sin foto, el degradado con fichas de la portada. */}
+      <div className="relative aspect-[16/10] overflow-hidden fx-event-art">
+        {event.imageUrl ? (
+          <>
+            <Image
+              src={event.imageUrl}
+              alt=""
+              aria-hidden
+              fill
+              unoptimized
+              sizes="(min-width: 640px) 480px, 100vw"
+              className="object-cover scale-125 blur-2xl opacity-70 saturate-150"
+            />
+            <Image
+              src={event.imageUrl}
+              alt={event.name}
+              fill
+              unoptimized
+              sizes="(min-width: 640px) 480px, 100vw"
+              className={`object-contain transition-transform duration-500 group-hover:scale-[1.03] ${past ? "grayscale-[0.4]" : ""}`}
+            />
+          </>
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-5xl opacity-40 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" aria-hidden>
+            🎲
+          </span>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+      </div>
+      <div className="p-4 flex items-start gap-4 flex-1">
+        <div className="-mt-10 sm:-mt-12 relative">
+          <DateTile date={event.date} />
         </div>
-      )}
-      <div className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-semibold text-[var(--text)] text-lg leading-tight">{event.name}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-[var(--text)] text-lg leading-tight group-hover:text-[var(--primary)] transition-colors">{event.name}</h3>
           {event.description && (
             <p className="text-[var(--text-secondary)] text-sm mt-1 line-clamp-2">{event.description}</p>
           )}
           <div className="flex flex-wrap gap-2 mt-2">
             <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
               {formatDate(event.date)}
-              {event.endDate && ` – ${formatDate(event.endDate)}`}
+              {event.endDate && !sameDay(event.date, event.endDate) && ` – ${formatDate(event.endDate)}`}
             </span>
             {event.location && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                 {event.location}
               </span>
             )}
-            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-600 dark:text-blue-300">
               {event._count.attendees} asistente{event._count.attendees !== 1 ? "s" : ""}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
               {event._count.games} juego{event._count.games !== 1 ? "s" : ""}
             </span>
           </div>
         </div>
-        <div className="text-[var(--text-muted)] text-2xl shrink-0">›</div>
-      </div>
       </div>
     </Link>
   );

@@ -13,6 +13,21 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "24 septiembre 2026",
+    version: "1.32",
+    title: "Un poco de magia por dentro",
+    changes: [
+      { type: "new", text: "Al entrar te saluda según la hora y te cuenta lo próximo que tienes: el siguiente evento o, si no hay, la eterna pregunta de a qué jugamos esta semana" },
+      { type: "new", text: "Al votar un juego, el botón da un saltito y del marcador sube un «+1», «+3» o «−1», para que notes tu voto" },
+      { type: "new", text: "Con «Actualizar orden» los juegos viajan hasta su nuevo puesto en el ranking en vez de cambiar de golpe, y el podio sube con suspense: bronce, plata y el oro al final" },
+      { type: "new", text: "Las cajas de tu estantería caen en su balda al aparecer y las insignias que ya tienes brillan de vez en cuando" },
+      { type: "improved", text: "Los eventos se ven en dos columnas y con el cartel entero, sin recortar logos, y con su hojita de calendario para ver el día de un vistazo" },
+      { type: "improved", text: "Las páginas entran con un fundido suave y las tarjetas aparecen una detrás de otra y se iluminan al pasar el ratón" },
+      { type: "fixed", text: "En modo oscuro elegido a mano, algunas etiquetas salían con los colores del modo claro y casi no se leían" },
+      { type: "fixed", text: "Un evento de un solo día ya no enseña la misma fecha dos veces" },
+    ],
+  },
+  {
+    date: "24 septiembre 2026",
     version: "1.31",
     title: "Una portada a la altura",
     changes: [

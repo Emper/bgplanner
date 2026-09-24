@@ -7,7 +7,7 @@ import BggRating from "@/components/BggRating";
 import GameShelf, { type ShelfGame } from "@/components/GameShelf";
 import { KEEP_CLASSES, KEEP_EMOJI, KEEP_LABELS, KEEP_SCORES } from "@/lib/collection";
 import { DEMO_GAMES, type DemoGame } from "./games";
-import { usePrefersReducedMotion } from "./motion";
+import { usePrefersReducedMotion } from "@/components/motion";
 
 // Mockups de la portada: versiones de juguete de las pantallas de verdad,
 // con datos inventados y el mismo aspecto que dentro de la app. Los que se
@@ -176,7 +176,7 @@ export function LiveRanking({ active = true }: { active?: boolean }) {
                 <div className="text-sm font-semibold text-[var(--text)] truncate flex items-center gap-1.5">
                   {row.game.name}
                   {moved === row.key && (
-                    <span key={flash?.id} className="landing-pop text-[10px] font-bold text-emerald-500">▲</span>
+                    <span key={flash?.id} className="fx-pop text-[10px] font-bold text-emerald-500">▲</span>
                   )}
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)]">
@@ -187,7 +187,7 @@ export function LiveRanking({ active = true }: { active?: boolean }) {
                 {isFlash && (
                   <span
                     key={flash.id}
-                    className={`landing-chip-rise absolute right-0 -top-5 whitespace-nowrap text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    className={`fx-chip-rise absolute right-0 -top-5 whitespace-nowrap text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                       flash.tone === "super"
                         ? "bg-orange-500 text-white"
                         : flash.tone === "down"
@@ -444,7 +444,7 @@ export function PodiumMock({ active }: { active: boolean }) {
         <div className="grid grid-cols-3 gap-3 items-end">
           {podium.map((p, i) => (
             <div key={p.rank} className="flex flex-col items-center text-center min-w-0">
-              <span className={`h-7 text-2xl leading-none ${p.rank === 1 && active ? "landing-crown" : ""}`} aria-hidden>
+              <span className={`h-7 text-2xl leading-none ${p.rank === 1 && active ? "fx-crown" : ""}`} aria-hidden>
                 {p.rank === 1 ? "👑" : ""}
               </span>
               <Thumb
@@ -700,7 +700,7 @@ export function EventMock({ active }: { active: boolean }) {
   return (
     <div className="space-y-3">
       <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.35)]">
-        <div className="relative h-36 sm:h-40 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-amber-500 landing-event-art">
+        <div className="relative h-36 sm:h-40 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-amber-500 fx-event-art">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
           <span className="absolute top-3 left-3 text-[11px] font-semibold px-2 py-1 rounded-full bg-white/90 text-violet-700">
             🌍 Evento abierto
@@ -751,7 +751,7 @@ export function EventMock({ active }: { active: boolean }) {
                       {l}
                     </span>
                   ))}
-                  <span key={level} className="ml-2.5 text-[11px] text-[var(--text-secondary)] truncate landing-pop">
+                  <span key={level} className="ml-2.5 text-[11px] text-[var(--text-secondary)] truncate fx-pop">
                     {INTENSITY[level].label}
                   </span>
                 </div>
@@ -779,7 +779,7 @@ export function BadgesMini() {
       {BADGE_TIERS.map((b, i) => (
         <div key={b.name} className="flex flex-col items-center gap-1 min-w-0 flex-1">
           <span
-            className={`landing-shine relative w-11 h-11 rounded-full bg-gradient-to-br ${b.tier} flex items-center justify-center text-xl shadow-md overflow-hidden`}
+            className={`fx-shine relative w-11 h-11 rounded-full bg-gradient-to-br ${b.tier} flex items-center justify-center text-xl shadow-md overflow-hidden`}
             style={{ animationDelay: `${i * 0.6}s` }}
           >
             {b.emoji}
@@ -878,7 +878,7 @@ export function RoadmapMini() {
 export function EventTicketMini() {
   return (
     <div className="w-56 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.35)] overflow-hidden">
-      <div className="h-14 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-amber-500 landing-event-art relative">
+      <div className="h-14 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-amber-500 fx-event-art relative">
         <span className="absolute bottom-1.5 left-3 text-white text-sm font-bold drop-shadow">Jornadas de otoño</span>
       </div>
       <div className="p-3">

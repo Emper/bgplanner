@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ActivityFeed, { getCachedFeed, setCachedFeed, clearCachedFeed } from "@/components/ActivityFeed";
@@ -15,6 +15,7 @@ import GroupGallery from "@/components/GroupGallery";
 import GroupPlayedGames from "@/components/GroupPlayedGames";
 import HelpMePickModal from "@/components/HelpMePickModal";
 import EmojiField from "@/components/EmojiField";
+import { CountUp, useFlip } from "@/components/motion";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 import { profileHref } from "@/lib/users";
@@ -133,11 +134,14 @@ function VoteButton({
   active,
   onClick,
   size,
+  pop = false,
 }: {
   option: VoteOption;
   active: boolean;
   onClick: () => void;
   size: "sm" | "md";
+  /** Recién pulsado: da un saltito (solo al votar, no al cargar la página). */
+  pop?: boolean;
 }) {
   const dims = size === "md" ? "w-9 h-9 text-lg" : "w-8 h-8 text-base";
   const activeClass =
@@ -163,7 +167,7 @@ function VoteButton({
       <span
         className={`${dims} flex items-center justify-center rounded-lg border transition-colors ${
           active ? activeClass : "border-[var(--border)] text-[var(--text-muted)] group-hover/vote:bg-[var(--surface-hover)]"
-        }`}
+        } ${pop && active ? "fx-vote-pop" : ""}`}
       >
         {option.emoji}
       </span>
@@ -206,6 +210,11 @@ function GroupDashboardPage() {
   // Orden "congelado" del ranking: al votar la lista no se reordena sola, para
   // no perder el sitio por el que ibas explorando. null = orden real y vivo.
   const [frozenOrder, setFrozenOrder] = useState<string[] | null>(null);
+  // El último voto, para el saltito del botón y el «+3» que sube del marcador.
+  const [voteFx, setVoteFx] = useState<{ id: string; value: number | null; delta: number; key: number } | null>(null);
+  const voteFxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Al pulsar «Actualizar orden», las tarjetas viajan a su nuevo puesto.
+  const rankingFlip = useFlip<HTMLDivElement>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
@@ -609,6 +618,11 @@ function GroupDashboardPage() {
     const isRemove = currentValue === value;
     const newValue = isRemove ? null : value;
     const snapshot = ranking;
+
+    const delta = (newValue ?? 0) - (currentValue ?? 0);
+    if (voteFxTimer.current) clearTimeout(voteFxTimer.current);
+    setVoteFx({ id: gameDbId, value: newValue, delta, key: Date.now() });
+    voteFxTimer.current = setTimeout(() => setVoteFx(null), 1800);
     const groupTypeCfg = getGroupType(group.type);
 
     // Congelamos el orden que el usuario está viendo: a partir de aquí los votos
@@ -1365,7 +1379,7 @@ function GroupDashboardPage() {
                           </div>
                         );
                       })()}
-                      <div className="space-y-3">
+                      <div ref={rankingFlip.ref} className="space-y-3 fx-stagger">
                         {displayedGames.map((item, index) => {
                           const isEditorOpen = openCommentEditors.has(item.groupGameId);
                           const hasOtherComments = item.voters.some(
@@ -1384,6 +1398,7 @@ function GroupDashboardPage() {
                           return (
                           <div
                             key={item.groupGameId}
+                            data-flip-id={item.groupGameId}
                             className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
@@ -1530,10 +1545,12 @@ function GroupDashboardPage() {
                                       active={item.userVoteValue === opt.value}
                                       onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
                                       size="md"
+                                      pop={voteFx?.id === item.groupGameId && voteFx.value === opt.value}
                                     />
                                   ))}
                                 </div>
                                 <div className="relative group/score text-center w-12 cursor-default">
+                                  <ScoreChip fx={voteFx} id={item.groupGameId} />
                                   <div className="text-xl font-bold text-[var(--text)]">{item.score}</div>
                                   <div className="text-xs text-[var(--text-muted)]">pts</div>
                                   {/* Tooltip with voter breakdown */}
@@ -1562,6 +1579,7 @@ function GroupDashboardPage() {
                               </div>
                               {/* Mobile: Score with tap-to-toggle tooltip */}
                               <div className="relative text-center shrink-0 sm:hidden">
+                                <ScoreChip fx={voteFx} id={item.groupGameId} />
                                 <div
                                   className="cursor-pointer"
                                   onClick={(e) => {
@@ -1665,6 +1683,7 @@ function GroupDashboardPage() {
                                     active={item.userVoteValue === opt.value}
                                     onClick={() => handleVote(item.game.id, item.groupGameId, opt.value, item.userVoteValue)}
                                     size="sm"
+                                    pop={voteFx?.id === item.groupGameId && voteFx.value === opt.value}
                                   />
                                 ))}
                               </div>
@@ -2116,8 +2135,11 @@ function GroupDashboardPage() {
           {/* Botón flotante: aplica el nuevo orden cuando el usuario quiera */}
           {activeTab === "ranking" && gamesSubTab === "ranking" && outOfPlaceCount > 0 && (
             <button
-              onClick={() => setFrozenOrder(null)}
-              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm hover:bg-[var(--primary-hover)] transition-all duration-200"
+              onClick={() => {
+                rankingFlip.capture();
+                setFrozenOrder(null);
+              }}
+              className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm hover:bg-[var(--primary-hover)] transition-all duration-200"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2128,19 +2150,19 @@ function GroupDashboardPage() {
 
           {/* Ping success toast */}
           {pingToast && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+            <div className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {pingToast}
             </div>
           )}
 
           {/* Comment toasts */}
           {commentToast && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+            <div className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {commentToast}
             </div>
           )}
           {commentError && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+            <div className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
               {commentError}
             </div>
           )}
@@ -2945,7 +2967,7 @@ function GroupDashboardPage() {
                             className="group/podium flex flex-col items-center text-center min-w-0 cursor-pointer"
                             title={`${game.game.name} · ${game.score} pts`}
                           >
-                            <span className="h-6 mb-1 text-xl sm:text-2xl leading-none" aria-hidden>
+                            <span className={`h-6 mb-1 text-xl sm:text-2xl leading-none ${rank === 1 ? "fx-crown" : ""}`} aria-hidden>
                               {rank === 1 ? "👑" : ""}
                             </span>
                             <div className={`${thumbDim} rounded-lg overflow-hidden ring-2 ${ring} bg-[var(--surface-hover)] mb-2 transition-transform group-hover/podium:scale-105`}>
@@ -2968,7 +2990,11 @@ function GroupDashboardPage() {
                             <div className="text-[10px] sm:text-xs text-[var(--text-muted)] mt-0.5 mb-2">
                               {game.score} pts
                             </div>
-                            <div className={`w-full ${stepHeight} rounded-t-xl bg-gradient-to-b ${gradient} flex items-start justify-center pt-1 sm:pt-1.5`}>
+                            {/* Las gradas suben al entrar con suspense: bronce, plata y el oro al final */}
+                            <div
+                              className={`fx-grow-up w-full ${stepHeight} rounded-t-xl bg-gradient-to-b ${gradient} flex items-start justify-center pt-1 sm:pt-1.5`}
+                              style={{ animationDelay: `${rank === 3 ? 100 : rank === 2 ? 300 : 550}ms` }}
+                            >
                               <span className="text-white text-base sm:text-lg font-bold drop-shadow">{rank}º</span>
                             </div>
                           </button>
@@ -2985,8 +3011,8 @@ function GroupDashboardPage() {
                     El grupo en números
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <StatTile label="Juegos" value={stats.gamesCount.toLocaleString("es-ES")} />
-                    <StatTile label="Partidas" value={stats.playsCount.toLocaleString("es-ES")} />
+                    <StatTile label="Juegos" value={<CountUp value={stats.gamesCount} />} />
+                    <StatTile label="Partidas" value={<CountUp value={stats.playsCount} />} />
                     <StatTile
                       label="A la mesa"
                       value={stats.totalMinutes > 0 ? formatDuration(stats.totalMinutes) : "—"}
@@ -3054,11 +3080,36 @@ function GroupDashboardPage() {
   );
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2.5">
       <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{label}</div>
       <div className="text-lg font-semibold text-[var(--text)] tabular-nums">{value}</div>
     </div>
+  );
+}
+
+// El «+1», «+3» o «−1» que sube del marcador al votar.
+function ScoreChip({
+  fx,
+  id,
+}: {
+  fx: { id: string; delta: number; key: number } | null;
+  id: string;
+}) {
+  if (!fx || fx.id !== id || fx.delta === 0) return null;
+  const tone =
+    fx.delta >= 3
+      ? "bg-orange-500 text-white"
+      : fx.delta < 0
+        ? "bg-red-500 text-white"
+        : "bg-[var(--primary)] text-[var(--primary-text)]";
+  return (
+    <span
+      key={fx.key}
+      className={`fx-chip-rise pointer-events-none absolute left-1/2 -translate-x-1/2 -top-5 z-10 whitespace-nowrap text-[11px] font-bold px-1.5 py-0.5 rounded-md shadow ${tone}`}
+    >
+      {fx.delta > 0 ? `+${fx.delta}` : `−${Math.abs(fx.delta)}`}
+    </span>
   );
 }
