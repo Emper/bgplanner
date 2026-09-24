@@ -189,9 +189,12 @@ export default function GroupsPage() {
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
                     🎲 <CountUp value={groups.reduce((n, g) => n + (g._count?.games || 0), 0)} /> juegos en tus mesas
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
-                    📅 <CountUp value={upcomingEvents.length} /> {upcomingEvents.length === 1 ? "evento próximo" : "eventos próximos"}
-                  </span>
+                  {/* Sin eventos a la vista, mejor no presumir de un cero */}
+                  {upcomingEvents.length > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
+                      📅 <CountUp value={upcomingEvents.length} /> {upcomingEvents.length === 1 ? "evento próximo" : "eventos próximos"}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

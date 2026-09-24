@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* El tema lo decide la clase .dark del <html> (el conmutador de la app), no
+   la preferencia del sistema: sin esto, los `dark:` de Tailwind seguían al
+   sistema y en modo oscuro elegido a mano salían los colores del claro. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Theme variables ─────────────────────────────────────────────────── */
 
 :root {
