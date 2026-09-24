@@ -24,6 +24,8 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "improved", text: "Las páginas entran con un fundido suave y las tarjetas aparecen una detrás de otra y se iluminan al pasar el ratón" },
       { type: "fixed", text: "En modo oscuro elegido a mano, algunas etiquetas salían con los colores del modo claro y casi no se leían" },
       { type: "fixed", text: "Un evento de un solo día ya no enseña la misma fecha dos veces" },
+      { type: "improved", text: "El botón «Actualizar orden» cuenta solo los juegos que has votado, no todos los que se han movido por el camino" },
+      { type: "fixed", text: "Si tenías abierto el comentario de un juego y votabas otro más abajo, a veces el voto no se marcaba: ahora entra a la primera" },
     ],
   },
   {

@@ -210,11 +210,39 @@ function GroupDashboardPage() {
   // Orden "congelado" del ranking: al votar la lista no se reordena sola, para
   // no perder el sitio por el que ibas explorando. null = orden real y vivo.
   const [frozenOrder, setFrozenOrder] = useState<string[] | null>(null);
+  // Juegos que has votado desde que se congeló el orden: el botón de
+  // reordenar cuenta estos y no todos los que se han descolocado, que al
+  // subir un juego diez puestos se mueven también los diez de en medio.
+  const [votedWhileFrozen, setVotedWhileFrozen] = useState<Set<string>>(new Set());
+  const unfreezeOrder = useCallback(() => {
+    setFrozenOrder(null);
+    setVotedWhileFrozen(new Set());
+  }, []);
   // El último voto, para el saltito del botón y el «+3» que sube del marcador.
   const [voteFx, setVoteFx] = useState<{ id: string; value: number | null; delta: number; key: number } | null>(null);
   const voteFxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Al pulsar «Actualizar orden», las tarjetas viajan a su nuevo puesto.
   const rankingFlip = useFlip<HTMLDivElement>();
+  // ¿Hay un dedo o un botón del ratón pulsado ahora mismo? Ver closeCommentEditor.
+  const pointerDownRef = useRef(false);
+  // Editores con el cierre aplazado; votar ese mismo juego lo cancela.
+  const pendingCloseRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const down = () => {
+      pointerDownRef.current = true;
+    };
+    const up = () => {
+      pointerDownRef.current = false;
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+    };
+  }, []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
@@ -358,8 +386,8 @@ function GroupDashboardPage() {
 
   // Al cambiar de pestaña/subpestaña descongelamos: se ve el orden real.
   useEffect(() => {
-    setFrozenOrder(null);
-  }, [activeTab, gamesSubTab]);
+    unfreezeOrder();
+  }, [activeTab, gamesSubTab, unfreezeOrder]);
 
   // Close mobile vote tooltip when tapping outside
   useEffect(() => {
@@ -393,7 +421,7 @@ function GroupDashboardPage() {
 
       setGroup(data.group);
       setRanking(data.ranking);
-      setFrozenOrder(null);
+      unfreezeOrder();
       setSessions(data.sessions);
       setStats(data.stats ?? null);
       if (data.group) {
@@ -405,7 +433,7 @@ function GroupDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, unfreezeOrder]);
 
   useEffect(() => {
     fetchData();
@@ -453,12 +481,18 @@ function GroupDashboardPage() {
           (frozenIndexes.get(b.groupGameId) ?? Number.MAX_SAFE_INTEGER)
       )
     : pendingGames;
-  // Cuántos juegos están fuera de su puesto real (para el botón de reordenar).
-  const outOfPlaceCount = frozenIndexes
+  // Cuántos juegos están fuera de su puesto real (el botón de reordenar sale
+  // si hay alguno) y, de ellos, cuántos has votado tú (lo que dice el botón).
+  const outOfPlace = frozenIndexes
     ? displayedGames.filter(
         (item, i) => (livePositions.get(item.groupGameId) ?? i + 1) !== i + 1
-      ).length
-    : 0;
+      )
+    : [];
+  const outOfPlaceCount = outOfPlace.length;
+  const movedVotesCount = Math.max(
+    1,
+    outOfPlace.filter((item) => votedWhileFrozen.has(item.groupGameId)).length
+  );
 
   const isAdmin = group?.currentUserRole === "admin" || group?.currentUserRole === "owner";
   const groupTypeCfg = getGroupType(group?.type);
@@ -628,6 +662,10 @@ function GroupDashboardPage() {
     // Congelamos el orden que el usuario está viendo: a partir de aquí los votos
     // cambian la puntuación pero no mueven las tarjetas de sitio.
     setFrozenOrder((prev) => prev ?? ranking.map((r) => r.groupGameId));
+    setVotedWhileFrozen((prev) => new Set(prev).add(gameDbId));
+    // Si el editor de este juego iba a cerrarse (el clic que lo desenfocó es
+    // este voto), se queda abierto como siempre.
+    if (!isRemove) pendingCloseRef.current.delete(gameDbId);
 
     // ── Vote-limit conflict: ask before moving (e.g. super vote in friends) ──
     const limit = !isRemove ? groupTypeCfg.voteLimits.find((l) => l.value === value && l.max <= 1) : null;
@@ -642,6 +680,8 @@ function GroupDashboardPage() {
       );
       if (!move) return;
 
+      // El supervoto que se mueve también cambia el otro juego de puesto.
+      setVotedWhileFrozen((prev) => new Set(prev).add(conflicting.groupGameId));
       setRanking((prev) => {
         let next = applyVoteLocally(prev, conflicting.groupGameId, 1, value, group.currentUserId);
         next = applyVoteLocally(next, gameDbId, value, currentValue, group.currentUserId);
@@ -728,6 +768,36 @@ function GroupDashboardPage() {
     });
   };
 
+  // El editor se cierra al perder el foco, y el foco se pierde al PULSAR en
+  // otro sitio. Si ese sitio era el voto de un juego de más abajo, al cerrarse
+  // el editor la tarjeta encoge, el botón sube bajo el cursor y al soltar ya
+  // no estás encima: el clic se perdía. Con algo pulsado, esperamos a que se
+  // suelte (y a que llegue el clic) para cerrarlo.
+  const closeCommentEditor = (gameDbId: string) => {
+    const close = () => {
+      if (!pendingCloseRef.current.delete(gameDbId)) return;
+      setOpenCommentEditors((prev) => {
+        if (!prev.has(gameDbId)) return prev;
+        const next = new Set(prev);
+        next.delete(gameDbId);
+        return next;
+      });
+    };
+    pendingCloseRef.current.add(gameDbId);
+    if (!pointerDownRef.current) {
+      close();
+      return;
+    }
+    const afterRelease = () => {
+      window.removeEventListener("pointerup", afterRelease, true);
+      window.removeEventListener("pointercancel", afterRelease, true);
+      // El click se despacha justo después del pointerup: cerramos detrás.
+      setTimeout(close, 0);
+    };
+    window.addEventListener("pointerup", afterRelease, true);
+    window.addEventListener("pointercancel", afterRelease, true);
+  };
+
   const handleSaveComment = async (
     gameId: string,
     gameDbId: string,
@@ -743,12 +813,7 @@ function GroupDashboardPage() {
     const next = draft.trim() === "" ? null : draft.trim();
 
     // Cerramos el editor en cualquier caso (al perder foco volvemos al display).
-    setOpenCommentEditors((prev) => {
-      if (!prev.has(gameDbId)) return prev;
-      const next = new Set(prev);
-      next.delete(gameDbId);
-      return next;
-    });
+    closeCommentEditor(gameDbId);
 
     if (next === current) {
       // Sin cambios reales; descartamos el draft para que vuelva al valor del servidor.
@@ -2137,14 +2202,14 @@ function GroupDashboardPage() {
             <button
               onClick={() => {
                 rankingFlip.capture();
-                setFrozenOrder(null);
+                unfreezeOrder();
               }}
               className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm hover:bg-[var(--primary-hover)] transition-all duration-200"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Actualizar orden ({outOfPlaceCount} {outOfPlaceCount === 1 ? "cambio" : "cambios"})
+              Actualizar orden ({movedVotesCount} {movedVotesCount === 1 ? "voto" : "votos"})
             </button>
           )}
 
