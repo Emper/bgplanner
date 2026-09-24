@@ -130,6 +130,8 @@ NextResponse.json(...)
 
 Descriptivo pero **sin explicar cómo funciona por dentro**: se trata de enseñar "cosas chulas nuevas", no detalles de implementación. Texto en español, orientado al valor que aporta al usuario. Evita tecnicismos tipo "caché", "rate limit", "campo X", "optimización de queries".
 
+**Breve**: 1-4 puntos por entrada, una frase corta cada uno. Solo lo que el usuario nota; las mejoras internas, retoques menores y fixes sin impacto visible no entran.
+
 ## Comandos
 
 ```bash

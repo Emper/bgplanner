@@ -16,16 +16,10 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.32",
     title: "Un poco de magia por dentro",
     changes: [
-      { type: "new", text: "Al entrar te saluda según la hora y te cuenta lo próximo que tienes: el siguiente evento o, si no hay, la eterna pregunta de a qué jugamos esta semana" },
-      { type: "new", text: "Al votar un juego, el botón da un saltito y del marcador sube un «+1», «+3» o «−1», para que notes tu voto" },
-      { type: "new", text: "Con «Actualizar orden» los juegos viajan hasta su nuevo puesto en el ranking en vez de cambiar de golpe, y el podio sube con suspense: bronce, plata y el oro al final" },
-      { type: "new", text: "Las cajas de tu estantería caen en su balda al aparecer y las insignias que ya tienes brillan de vez en cuando" },
-      { type: "improved", text: "Los eventos se ven en dos columnas y con el cartel entero, sin recortar logos, y con su hojita de calendario para ver el día de un vistazo" },
-      { type: "improved", text: "Las páginas entran con un fundido suave y las tarjetas aparecen una detrás de otra y se iluminan al pasar el ratón" },
-      { type: "fixed", text: "En modo oscuro elegido a mano, algunas etiquetas salían con los colores del modo claro y casi no se leían" },
-      { type: "fixed", text: "Un evento de un solo día ya no enseña la misma fecha dos veces" },
-      { type: "improved", text: "El botón «Actualizar orden» cuenta solo los juegos que has votado, no todos los que se han movido por el camino" },
-      { type: "fixed", text: "Si tenías abierto el comentario de un juego y votabas otro más abajo, a veces el voto no se marcaba: ahora entra a la primera" },
+      { type: "new", text: "Al entrar te saludamos con lo próximo que tienes en agenda" },
+      { type: "new", text: "Animaciones al votar, al reordenar el ranking y en tu estantería" },
+      { type: "improved", text: "Eventos en dos columnas y con el cartel entero" },
+      { type: "fixed", text: "Votos que a veces no se marcaban a la primera" },
     ],
   },
   {
@@ -33,13 +27,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.31",
     title: "Una portada a la altura",
     changes: [
-      { type: "new", text: "Portada nueva para quien aún no nos conoce: cuenta con calma todo lo que se puede hacer, de los grupos y el ranking a tu colección y los eventos, con pantallas de muestra que se mueven solas" },
-      { type: "new", text: "Un ranking en directo en la cabecera, con votos que llegan y juegos que se adelantan, para ver de un vistazo cómo funciona la votación" },
-      { type: "new", text: "Una estantería de muestra en la que puedes puntuar juegos de verdad, sin tener cuenta, para probar «Mi colección» antes de registrarte" },
-      { type: "new", text: "Los próximos eventos abiertos salen en la portada, con acceso directo a su ficha para apuntarse" },
-      { type: "new", text: "Al pasar el enlace de bgplanner.app por WhatsApp, Telegram o redes sale una tarjeta con el ranking de un grupo en plena votación, en vez de un enlace pelado" },
-      { type: "improved", text: "Si ya tienes la sesión iniciada, entras directo a tus grupos sin pasar por la pantalla de carga" },
-      { type: "fixed", text: "El menú de arriba vuelve a quedarse fijo al bajar por la página, y el buscador del ranking también" },
+      { type: "new", text: "Portada nueva con un ranking en directo, una estantería para probar y los próximos eventos abiertos" },
+      { type: "new", text: "Tarjeta de vista previa al compartir bgplanner.app" },
     ],
   },
   {
@@ -47,10 +36,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.30",
     title: "Insignias para presumir",
     changes: [
-      { type: "new", text: "Tu perfil público estrena insignias: juegos en la colección, grupos, eventos a los que vas y los que organizas, partidas, votos y crónicas. Cada una tiene bronce, plata y oro, y cada nivel su propio nombre" },
-      { type: "new", text: "En tu propio perfil ves cuánto te falta para el siguiente nivel y qué hacer para estrenar las que aún no tienes" },
-      { type: "improved", text: "Al compartir tu perfil, la tarjeta de WhatsApp o Telegram enseña en grande tus juegos, tu vitrina, tus grupos y tus eventos" },
-      { type: "improved", text: "Quien abre tu perfil, tu colección o un evento abierto sin tener cuenta ve arriba del todo una invitación para unirse" },
+      { type: "new", text: "Insignias de bronce, plata y oro en tu perfil, y lo que te falta para el siguiente nivel" },
     ],
   },
   {
@@ -58,10 +44,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.29",
     title: "Comparte tu colección con quien sea",
     changes: [
-      { type: "improved", text: "El enlace de tu colección ya no pide cuenta: quien lo reciba la abre y la ve, se haya registrado o no. Sigue sin poder cambiar nada, y tú puedes desactivarlo cuando quieras" },
-      { type: "improved", text: "Ojo con esto: los enlaces que ya hubieras repartido también se abren ahora sin cuenta. Si alguno se te fue de las manos, desactívalo desde «Mi colección»" },
-      { type: "new", text: "Al pegar el enlace en WhatsApp o Telegram ya sale una tarjeta en condiciones: «La colección de juegos de Fulanito», cuántos juegos tiene y cinco de sus cajas apoyadas en la estantería, en vez del texto genérico de siempre" },
-      { type: "new", text: "Esas cinco cajas no salen al azar: primero las de tu vitrina, luego los que has marcado como «No se irá nunca» y «Se queda», y si aún no has puntuado nada, tus juegos mejor valorados en BGG" },
+      { type: "improved", text: "El enlace de tu colección ya se abre sin cuenta, también los que ya hubieras repartido. Puedes desactivarlo desde «Mi colección»" },
     ],
   },
   {
@@ -69,10 +52,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.28",
     title: "Comparte cualquier enlace y que se vea bien",
     changes: [
-      { type: "new", text: "Los eventos abiertos tienen dirección propia y se pueden pasar a quien sea, tenga cuenta o no: verá el cartel con la fecha, el sitio y cuánta gente va, y un botón para entrar y apuntarse" },
-      { type: "new", text: "Al pegar en WhatsApp, Telegram o redes el enlace de un evento, de un grupo o de una invitación, sale una tarjeta con su nombre y sus datos en vez de un enlace pelado" },
-      { type: "improved", text: "La dirección de un grupo enseña a quien no es miembro lo mismo que verías en el listado —nombre, tipo y cuántos sois— y nada más: ni quién está dentro, ni qué juegos tenéis, ni cómo va el ranking" },
-      { type: "improved", text: "Los eventos privados solo enseñan un cartel de «este evento es privado», sin nombre, sin fecha y sin imagen al compartirlos" },
+      { type: "new", text: "Los eventos abiertos se pueden compartir con cualquiera, tenga cuenta o no" },
+      { type: "new", text: "Tarjeta de vista previa al compartir eventos, grupos e invitaciones" },
     ],
   },
   {
@@ -80,10 +61,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.26",
     title: "Tu perfil, enseñable a cualquiera",
     changes: [
-      { type: "new", text: "Tu perfil se puede abrir sin tener cuenta en BG Planner: manda el enlace a quien quieras y lo ve, aunque no juegue con nosotros" },
-      { type: "new", text: "Al compartirlo por WhatsApp, Telegram o redes sale con tu nombre y tu foto, en vez de un enlace pelado" },
-      { type: "improved", text: "Quien entre sin cuenta ve solo lo que de verdad es público: tu ficha, tu vitrina y los eventos abiertos. Tus grupos, los eventos privados y todo lo que pasa dentro de ellos siguen sin salir de ahí" },
-      { type: "improved", text: "La página aparece ya montada al abrirla, sin el parpadeo de carga de antes" },
+      { type: "new", text: "Tu perfil se puede ver sin cuenta y sale con tu nombre y foto al compartirlo" },
     ],
   },
   {
@@ -91,12 +69,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.25",
     title: "Enseña tu colección a quien tú quieras",
     changes: [
-      { type: "new", text: "Desde «Mi colección» puedes generar un enlace para que otra persona vea tu ludoteca entera: tus juegos, tu wishlist, tus partidas y lo seguro que estás de quedarte cada uno" },
-      { type: "new", text: "Quien lo abra puede mirar, buscar y filtrar con las mismas herramientas que tú, incluida la estantería, pero no puede cambiar ni una puntuación" },
-      { type: "new", text: "El enlace es tuyo y lo controlas: se genera cuando quieres, puedes cambiarlo por uno nuevo (y el anterior deja de valer) o dejar de compartir del todo con un clic" },
-      { type: "improved", text: "Para abrir una colección compartida hace falta tener cuenta en BG Planner, así que tus puntuaciones no acaban a la vista de cualquiera que pille el enlace de rebote" },
-      { type: "improved", text: "Montar tu vitrina es ahora un clic: la estrella está en cada juego del listado, sin tener que abrir su ficha" },
-      { type: "improved", text: "Los botones de puntuación de la cabecera dicen lo que son («Se queda», «Quiero venderlo»…) en vez de solo el icono" },
+      { type: "new", text: "Comparte tu colección con un enlace que puedes renovar o desactivar cuando quieras" },
+      { type: "improved", text: "Añade juegos a tu vitrina con un clic desde el listado" },
     ],
   },
   {
@@ -104,13 +78,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.24",
     title: "Cada jugador, con su perfil",
     changes: [
-      { type: "new", text: "Todos los jugadores tenéis ya un perfil público: foto, nombre, de dónde sois, desde cuándo estáis por aquí y los grupos que tenéis en común con quien os visita" },
-      { type: "new", text: "En el perfil se ve la vitrina montada en su estantería, con los juegos que esa persona ha elegido como imprescindibles" },
-      { type: "new", text: "Debajo, los eventos a los que va (los que vienen y los que ya pasaron) y lo último que ha estado haciendo" },
-      { type: "new", text: "Su usuario de BoardGameGeek, a un clic de su perfil en BGG" },
-      { type: "new", text: "La dirección del perfil lleva tu nombre de BGG (bgplanner.app/users/tu-usuario), así que es fácil de compartir y de recordar" },
-      { type: "improved", text: "Toca el nombre o la foto de cualquiera en la lista de miembros de un grupo, en los asistentes a un evento o en el muro de actividad y vas directo a su perfil" },
-      { type: "improved", text: "Nadie ve de más: los eventos privados y lo que pasa en grupos a los que no perteneces no aparecen en el perfil de nadie" },
+      { type: "new", text: "Perfil público para cada jugador, con su vitrina, sus eventos y su actividad" },
+      { type: "improved", text: "Toca a cualquiera en un grupo, un evento o la actividad para ir a su perfil" },
     ],
   },
   {
@@ -118,15 +87,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.23",
     title: "Mi colección, ahora al vuelo",
     changes: [
-      { type: "new", text: "Nueva pestaña «Sin valorar» junto a «Los que tengo» y «Los que quiero», con el número de juegos que te quedan por puntuar. Según los vas puntuando, la cuenta baja sola" },
-      { type: "improved", text: "Cambiar de orden, filtrar o buscar es instantáneo: la colección se carga una vez y a partir de ahí no hay esperas. Buscar ya no tiene ni retardo al teclear" },
-      { type: "improved", text: "La página aparece al momento con lo último que teníamos guardado, y si hace falta actualizar desde BGG te lo cuenta en un aviso mientras sigues usándola, en vez de dejarte esperando" },
-      { type: "improved", text: "Mientras carga ves la forma de la lista en lugar de una pantalla vacía, y cuando estamos colocando tus expansiones te lo decimos con una barra de avance" },
-      { type: "new", text: "La lista se alarga sola al bajar: se acabó ir pasando páginas. Y ya no se salta juegos al avanzar, aunque vayas puntuando por el camino" },
-      { type: "new", text: "Los filtros, el orden y la vista se guardan en la dirección de la página: recarga, guárdala en favoritos o mándasela a alguien y sale exactamente lo mismo que estabas viendo" },
-      { type: "improved", text: "Al puntuar un juego desde «Sin valorar» ya no desaparece de golpe: se queda a la vista por si quieres corregir" },
-      { type: "improved", text: "Las puntuaciones 2 y 3 se llaman ahora «Última oportunidad» y «Pensando en ello», que dice mucho mejor lo que significan" },
-      { type: "improved", text: "La ficha de un juego se cierra con la tecla Escape" },
+      { type: "new", text: "Pestaña «Sin valorar» con los juegos que te quedan por puntuar" },
+      { type: "improved", text: "Filtrar, ordenar y buscar es instantáneo, y la lista se alarga sola al bajar" },
     ],
   },
   {
@@ -134,13 +96,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.22",
     title: "Mi colección: decide qué juegos se quedan",
     changes: [
-      { type: "new", text: "Nueva sección «Mi colección» en el menú: todos tus juegos de BGG en un sitio, con tus partidas, tu nota, el año, el peso y su puesto en BGG a la vista" },
-      { type: "new", text: "Puntúa cada juego del 1 al 5 según lo seguro que estés de que se queda contigo, de «quiero venderlo» a «no se irá nunca». Solo lo ves tú" },
-      { type: "new", text: "Las expansiones van con su juego: le pones nota al juego base y ellas la heredan, y si alguna merece un destino distinto puedes puntuarla aparte" },
-      { type: "new", text: "Vista de estantería: tus juegos apoyados en baldas de madera, como en una librería, para verlos de un vistazo y disfrutarlos" },
-      { type: "new", text: "Marca tus imprescindibles y se montan solos en la vitrina de tu perfil" },
-      { type: "new", text: "Filtra por lo que te haga falta (los que aún no has puntuado, los que no has estrenado, los que se juegan a cuatro, los que tienen nota tuya) y ordena por fecha de alta, partidas, año o puesto en BGG" },
-      { type: "new", text: "También traemos tu wishlist de BGG, así que puedes repasar lo que tienes y lo que quieres sin salir de la página" },
+      { type: "new", text: "«Mi colección»: tus juegos y tu wishlist de BGG, con vista de estantería" },
+      { type: "new", text: "Puntúa qué juegos se quedan y cuáles venderías, y monta la vitrina de tu perfil" },
     ],
   },
   {
@@ -148,10 +105,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.21",
     title: "Las próximas funcionalidades las decidís vosotros",
     changes: [
-      { type: "new", text: "Nueva página «Ideas y mejoras»: propón lo que echas en falta o cuéntanos un error, y se publica al momento en la lista para que cualquiera pueda votarlo" },
-      { type: "new", text: "Vota las propuestas que más te interesen: cuantas más tenga una idea, antes nos ponemos con ella. Puedes votar todas las que quieras y cambiar de opinión" },
-      { type: "new", text: "La lista va agrupada por estado, así que ves de un vistazo qué estamos haciendo ahora, qué está planificado y qué ya está listo" },
-      { type: "improved", text: "Feedback y roadmap eran lo mismo y ahora están en la misma página, con el formulario arriba y las propuestas debajo" },
+      { type: "new", text: "«Ideas y mejoras»: propón funcionalidades, reporta errores y vota las propuestas de los demás" },
     ],
   },
   {
@@ -159,9 +113,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.20",
     title: "Emojis por todas partes 🎲🔥",
     changes: [
-      { type: "new", text: "Botón de emojis en los comentarios del ranking, en las opiniones de las partidas y de los eventos, en la convocatoria del grupo, al crear grupos y eventos y en los formularios de contacto y sugerencias" },
-      { type: "new", text: "El selector tiene buscador en español, categorías (empezando por una de juegos: dados, cartas, dragones y trofeos) y recuerda los que más usas" },
-      { type: "fixed", text: "Los emojis se insertan justo donde tengas el cursor y el comentario ya no se cierra a medias mientras eliges: ahora escribir 😍 en un juego es tan fácil como en cualquier chat" },
+      { type: "new", text: "Selector de emojis en comentarios, opiniones y formularios" },
     ],
   },
   {
@@ -169,9 +121,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.19",
     title: "Vota sin perder el sitio en el ranking",
     changes: [
-      { type: "improved", text: "Ahora los juegos ya no saltan de posición mientras votas: la lista se queda quieta para que puedas seguir bajando por donde ibas" },
-      { type: "improved", text: "Cada juego que votas te enseña a qué puesto va a subir (o bajar), para que veas el efecto de tu voto al instante" },
-      { type: "new", text: "Cuando quieras ver el ranking actualizado, un botón «Actualizar orden» lo recoloca todo de golpe" },
+      { type: "improved", text: "El ranking ya no se mueve mientras votas: recolócalo cuando quieras con «Actualizar orden»" },
     ],
   },
   {
@@ -179,9 +129,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.18",
     title: "Cambia tu email sin perder la cuenta",
     changes: [
-      { type: "new", text: "Desde tu perfil puedes cambiar el email de tu cuenta: escribes la nueva dirección y te llega un código de 6 dígitos para confirmarla" },
-      { type: "new", text: "Hasta que introduces el código no cambia nada: sigues entrando con tu email de siempre y puedes cancelar la solicitud cuando quieras" },
-      { type: "new", text: "Avisamos también a tu dirección anterior, para que nadie pueda cambiarte el email sin que te enteres" },
+      { type: "new", text: "Cambia el email de tu cuenta desde tu perfil" },
     ],
   },
   {
@@ -189,18 +137,15 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.17",
     title: "Borrón y cuenta nueva en el ranking",
     changes: [
-      { type: "new", text: "Al convocar al grupo, los admins pueden marcar «Empezar de cero» para dejar el ranking sin votos y que todos vuelvan a elegir sus favoritos desde el principio" },
-      { type: "new", text: "Los juegos siguen todos en su sitio: solo se borran los votos, y el email que reciben los demás avisa de que toca votar de nuevo" },
-      { type: "new", text: "Antes de borrar nada te pedimos confirmación y te enseñamos el podio que se despide, que queda guardado en la actividad del grupo como recuerdo" },
+      { type: "new", text: "Los admins pueden poner el ranking a cero al convocar al grupo" },
     ],
   },
   {
     date: "22 agosto 2026",
     version: "1.16",
-    title: "«Ayúdame a elegir»: sorteo entre vuestros favoritos",
+    title: "Ayúdame a elegir",
     changes: [
-      { type: "new", text: "Nuevo botón «Ayúdame a elegir» en el ranking del grupo: abre un sorteo con ruleta y confeti que escoge por vosotros entre los juegos mejor valorados" },
-      { type: "new", text: "Si el sorteo no os convence, podéis repetirlo tantas veces como queráis; el juego elegido no se marca como jugado ni cambia nada del grupo" },
+      { type: "new", text: "Una ruleta que sortea entre vuestros juegos favoritos" },
     ],
   },
   {
@@ -208,7 +153,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.15.1",
     title: "Escribir en el móvil sin saltos de zoom",
     changes: [
-      { type: "fixed", text: "Al escribir un comentario en el ranking desde el móvil, la pantalla ya no se acerca sola y se queda así: ahora puedes escribir y seguir votando sin tener que ajustar la vista a mano" },
+      { type: "fixed", text: "La pantalla ya no hace zoom al escribir un comentario en el móvil" },
     ],
   },
   {
@@ -216,7 +161,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.15",
     title: "Fotos sueltas en la galería del grupo",
     changes: [
-      { type: "new", text: "Ya puedes subir fotos sueltas a la galería del grupo, sin tener que asociarlas a la opinión de un juego" },
+      { type: "new", text: "Sube fotos a la galería del grupo sin asociarlas a un juego" },
     ],
   },
   {
@@ -224,8 +169,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.14",
     title: "Opinar desde la galería y pestaña de Jugados",
     changes: [
-      { type: "new", text: "Desde la galería del grupo puedes opinar sobre cualquier juego, incluidos los que has ocultado, con el botón «Añadir opinión»" },
-      { type: "improved", text: "Los juegos ya jugados tienen ahora su propia pestaña «Jugados» en el grupo, en vez de ir debajo del ranking" },
+      { type: "new", text: "Opina sobre cualquier juego desde la galería" },
+      { type: "improved", text: "Los juegos jugados tienen su propia pestaña" },
     ],
   },
   {
@@ -233,9 +178,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.13",
     title: "Galería y valoraciones de los eventos",
     changes: [
-      { type: "new", text: "Cada evento tiene ahora su galería: cualquier asistente puede subir fotos para dejar el recuerdo de la quedada" },
-      { type: "new", text: "Al terminar un evento puedes valorarlo con estrellas y un comentario, y ver las valoraciones del resto de asistentes" },
-      { type: "new", text: "Cuando un evento acaba, sus asistentes reciben un email para valorarlo y subir sus fotos" },
+      { type: "new", text: "Galería de fotos y valoraciones con estrellas en cada evento" },
     ],
   },
   {
@@ -243,10 +186,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.12",
     title: "Opiniones de partida y galería del grupo",
     changes: [
-      { type: "new", text: "Cuando marcas un juego como jugado puedes dejar tu opinión: una valoración con estrellas, un comentario y las fotos de la partida" },
-      { type: "new", text: "Nueva pestaña Galería en cada grupo donde se juntan todas las opiniones y fotos de vuestras partidas, con visor a pantalla completa" },
-      { type: "new", text: "Cada día recibes un email para valorar los juegos que jugasteis el día anterior, con acceso directo para dejar tu opinión" },
-      { type: "improved", text: "Las notas de por qué se propuso un juego se retiran automáticamente al jugarlo, para dejar sitio a las opiniones de la partida" },
+      { type: "new", text: "Deja tu opinión y fotos al jugar un juego, y revívelas en la galería del grupo" },
     ],
   },
   {
@@ -254,8 +194,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.11",
     title: "La valoración de BGG, a todo color",
     changes: [
-      { type: "new", text: "La valoración de BoardGameGeek de cada juego se muestra ahora en un hexágono con el color oficial de BGG según la nota, para verla de un vistazo" },
-      { type: "new", text: "Cada juego muestra también su puesto en el ranking global de BoardGameGeek" },
+      { type: "new", text: "Nota de BGG con su color oficial y puesto en el ranking mundial" },
     ],
   },
   {
@@ -263,10 +202,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.10",
     title: "Buscar juegos, mejor",
     changes: [
-      { type: "new", text: "Si buscas un juego en el ranking y no está en la colección de ningún miembro, ahora puedes buscarlo en todo BoardGameGeek y añadirlo igualmente. Te avisamos con una etiqueta cuando nadie del grupo lo tiene, para que lo sepas antes de sumarlo" },
-      { type: "new", text: "Los resultados de búsqueda ahora salen con la foto del juego" },
-      { type: "improved", text: "Al buscar por nombre, las coincidencias exactas aparecen primero: buscar «Ra» o «Recall» ya te muestra ese juego arriba del todo" },
-      { type: "improved", text: "Los juegos que ya están en el ranking se quedan visibles en la lista, marcados, en vez de desaparecer al añadirlos" },
+      { type: "new", text: "Añade al ranking juegos de BGG aunque nadie del grupo los tenga" },
+      { type: "improved", text: "Resultados con foto y coincidencias exactas primero" },
     ],
   },
   {
@@ -274,7 +211,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.9",
     title: "Podio del grupo",
     changes: [
-      { type: "new", text: "En la portada del grupo aparece un podio con los tres juegos más votados ahora mismo, con oro, plata y bronce. Click en cualquiera para saltar al ranking" },
+      { type: "new", text: "Podio con los tres juegos más votados en la portada del grupo" },
     ],
   },
   {
@@ -282,7 +219,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.8",
     title: "Comentarios en el ranking",
     changes: [
-      { type: "new", text: "Después de votar un juego puedes dejar un comentario para tu grupo. Aparecerá en su tarjeta del ranking junto a los del resto, para defender tus picks o avisar de que ese sólo se juega con cinco copas encima" },
+      { type: "new", text: "Deja un comentario al votar un juego para defender tus picks" },
     ],
   },
   {
@@ -290,15 +227,15 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.7",
     title: "Salta al grupo o evento desde el feed",
     changes: [
-      { type: "improved", text: "En la actividad reciente, los nombres de grupos y eventos son ahora enlaces: un clic y estás dentro" },
+      { type: "improved", text: "Los grupos y eventos de la actividad reciente son ahora enlaces" },
     ],
   },
   {
     date: "24 abril 2026",
     version: "1.6",
-    title: "Mover el super voto sin perder el voto del juego anterior",
+    title: "Super voto más flexible",
     changes: [
-      { type: "improved", text: "Cuando mueves tu super voto a otro juego, el anterior se queda con un voto normal en vez de quedarse sin voto" },
+      { type: "improved", text: "Al mover tu super voto, el juego anterior conserva un voto normal" },
     ],
   },
   {
@@ -306,15 +243,15 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.5",
     title: "El grupo en números",
     changes: [
-      { type: "new", text: "En la portada del grupo aparece un resumen con cuántos juegos hay, partidas jugadas, tiempo a la mesa, cuál es el juego más jugado y cuándo fue la última partida" },
+      { type: "new", text: "Resumen del grupo: juegos, partidas, tiempo a la mesa y el más jugado" },
     ],
   },
   {
     date: "24 abril 2026",
     version: "1.4",
-    title: "Eliminar un grupo (con todas las precauciones)",
+    title: "Eliminar un grupo",
     changes: [
-      { type: "new", text: "El propietario de un grupo puede eliminarlo desde la pestaña de miembros, con un aviso bien claro y pidiendo que escriba el nombre del grupo para confirmar" },
+      { type: "new", text: "El propietario puede eliminar su grupo" },
     ],
   },
   {
@@ -322,9 +259,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.3",
     title: "Tipos de grupo: ahora también «en pareja»",
     changes: [
-      { type: "new", text: "Al crear un grupo eliges su modo: el clásico «con amigos» (👍, 👎 y un super voto) o el nuevo «en pareja» con una escala más fina del -1 al +5 para decidir entre dos con más matiz" },
-      { type: "new", text: "Selector vistoso al crear un grupo que te explica para qué situación encaja mejor cada modo" },
-      { type: "new", text: "Insignia con el modo del grupo junto a su nombre, para que se vea de un vistazo" },
+      { type: "new", text: "Nuevo modo «en pareja», con una escala de votos más fina" },
     ],
   },
   {
@@ -332,7 +267,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.2",
     title: "Convoca a tu grupo a votar",
     changes: [
-      { type: "new", text: "Nuevo botón \"Convocar a los jugadores\" para avisar al resto del grupo cuando queráis organizar la próxima partida, con la opción de añadir un mensaje personal" },
+      { type: "new", text: "Convoca al grupo a votar con un mensaje personal" },
     ],
   },
   {
@@ -340,9 +275,9 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.1",
     title: "Super votos, imágenes de evento y dominio propio",
     changes: [
-      { type: "new", text: "Indicador de super votos libres en el ranking: ve quién aún no lo ha usado y anímalo a jugársela" },
-      { type: "new", text: "Sube una imagen para cada evento: aparece en el listado y en su ficha" },
-      { type: "new", text: "Estrenamos dominio propio: la app vive ya en bgplanner.app" },
+      { type: "new", text: "Mira quién tiene aún su super voto libre" },
+      { type: "new", text: "Imagen propia para cada evento" },
+      { type: "new", text: "Estrenamos dominio: bgplanner.app" },
     ],
   },
   {
@@ -350,12 +285,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.0",
     title: "BG Planner: nueva identidad y rediseño visual",
     changes: [
-      { type: "new", text: "Nueva marca: la app se llama ahora BG Planner, con logo e identidad renovados" },
-      { type: "new", text: "Rediseño visual completo: nueva paleta, tipografía y portada pública" },
-      { type: "new", text: "Animación circular al cambiar entre modo claro y oscuro" },
-      { type: "new", text: "Loader con dado giratorio mientras cargan las páginas" },
-      { type: "new", text: "Badge \"Powered by BGG\" en el pie" },
-      { type: "improved", text: "Se muestra el perfil de BGG en las listas de miembros y asistentes" },
+      { type: "new", text: "Nueva marca, logo y rediseño visual completo" },
     ],
   },
   {
@@ -363,10 +293,9 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.9",
     title: "Modo claro, feed de actividad y favoritos",
     changes: [
-      { type: "new", text: "Modo claro y oscuro: se adapta a tu sistema o cámbialo a mano" },
-      { type: "new", text: "Feed de actividad: ve en directo lo que pasa en tus grupos y eventos" },
-      { type: "new", text: "Fija tus grupos favoritos con chincheta para tenerlos siempre a mano" },
-      { type: "new", text: "Edita eventos después de crearlos: fecha, ubicación, asistentes o visibilidad" },
+      { type: "new", text: "Modo claro y oscuro" },
+      { type: "new", text: "Actividad en directo de tus grupos y eventos" },
+      { type: "new", text: "Fija tus grupos favoritos y edita tus eventos" },
     ],
   },
   {
@@ -374,12 +303,9 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.8",
     title: "Sesiones rápidas, roles y gestión de juegos",
     changes: [
-      { type: "new", text: "Crea una sesión desde el ranking: elige los juegos y lanza la partida en segundos" },
-      { type: "new", text: "Marca juegos como jugados y archívalos para mantener el ranking limpio" },
-      { type: "new", text: "Al completar un juego se avisa por email a quien tenía un super voto puesto" },
-      { type: "new", text: "Roles de grupo: propietario, admin y miembro, con permisos diferenciados" },
-      { type: "new", text: "Comparte la vista exacta que estás viendo: cada pestaña y sesión tiene su enlace" },
-      { type: "improved", text: "Reordena juegos en una sesión y filtra por peso (Ligero, Medio, Pesado)" },
+      { type: "new", text: "Crea una sesión desde el ranking en segundos" },
+      { type: "new", text: "Marca juegos como jugados y archívalos" },
+      { type: "new", text: "Roles de propietario, admin y miembro" },
     ],
   },
   {
@@ -387,11 +313,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.6",
     title: "Eventos, portada pública y perfiles",
     changes: [
-      { type: "new", text: "Eventos: organiza quedadas públicas o privadas, añade juegos y comparte el enlace de invitación" },
-      { type: "new", text: "Lista de interés por juego con niveles y notas privadas" },
-      { type: "new", text: "Nueva portada pública para que nuevos jugadores descubran la app" },
-      { type: "new", text: "Foto de perfil con inicial coloreada cuando aún no has subido una" },
-      { type: "new", text: "Los próximos eventos se ven directamente en la portada" },
+      { type: "new", text: "Eventos públicos o privados con sus juegos e invitaciones" },
+      { type: "new", text: "Portada pública para descubrir la app" },
     ],
   },
   {
@@ -399,9 +322,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.5",
     title: "Ranking visual y diseño responsive",
     changes: [
-      { type: "new", text: "Medallas de oro, plata y bronce para el top 3 del ranking" },
-      { type: "new", text: "Pasa el cursor por la puntuación para ver quién votó qué" },
-      { type: "new", text: "Logo animado con dado giratorio e icono propio en la pestaña" },
+      { type: "new", text: "Medallas para el top 3 y detalle de quién votó qué" },
     ],
   },
   {
@@ -409,9 +330,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.4",
     title: "Sesiones de juego y votación inteligente",
     changes: [
-      { type: "new", text: "Planificador de sesiones: la app propone juegos según los votos y el tiempo que tengáis" },
-      { type: "new", text: "Estado de cada juego en una sesión: pendiente, jugando, completado o saltado" },
-      { type: "improved", text: "Al añadir un juego al grupo queda registrado tu voto a favor automáticamente" },
+      { type: "new", text: "Planificador que propone juegos según los votos y el tiempo que tengáis" },
     ],
   },
   {
@@ -419,8 +338,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.3",
     title: "Expansiones agrupadas y filtro Antiludoteca",
     changes: [
-      { type: "new", text: "Las expansiones aparecen agrupadas bajo su juego base" },
-      { type: "new", text: "Filtro \"Antiludoteca\" para descubrir juegos de la colección que aún no habéis probado" },
+      { type: "new", text: "Expansiones agrupadas bajo su juego base" },
+      { type: "new", text: "Filtro «Antiludoteca» para los juegos que aún no habéis probado" },
     ],
   },
   {
@@ -428,10 +347,9 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.2",
     title: "Colecciones BGG y sistema de votación",
     changes: [
-      { type: "new", text: "Importa tu colección de BoardGameGeek con un clic" },
-      { type: "new", text: "Sistema de votación: voto normal, super voto (suma más) y voto en contra" },
-      { type: "new", text: "Ranking automático por puntuación" },
-      { type: "new", text: "Invita a amigos al grupo por email" },
+      { type: "new", text: "Importa tu colección de BoardGameGeek" },
+      { type: "new", text: "Votos, super voto y ranking automático" },
+      { type: "new", text: "Invita a tus amigos por email" },
     ],
   },
   {
@@ -439,9 +357,8 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "0.1",
     title: "MVP inicial",
     changes: [
-      { type: "new", text: "Entra sin contraseña: te mandamos un código de acceso por email" },
-      { type: "new", text: "Crea grupos y añade juegos de BoardGameGeek para empezar a votar" },
-      { type: "new", text: "Diseño en modo oscuro de serie" },
+      { type: "new", text: "Entra sin contraseña, con un código por email" },
+      { type: "new", text: "Crea grupos y añade juegos para empezar a votar" },
     ],
   },
 ];
