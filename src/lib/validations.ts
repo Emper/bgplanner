@@ -171,10 +171,6 @@ export const gameFlagSchema = z.object({
   flag: z.enum(["wishlist", "dismissed"], { error: "Acción no válida" }).nullable(),
 });
 
-export const prepareRecommendationsSchema = z.object({
-  pool: z.boolean().optional(),
-});
-
 export const feedbackSchema = z.object({
   subject: z
     .string()

@@ -3,7 +3,6 @@ import {
   fetchBggGameDetails,
   fetchBggHotIds,
   fetchBggUserGames,
-  isCollectionStale,
 } from "@/lib/bgg";
 import {
   categoryLabel,
@@ -30,6 +29,8 @@ import {
 
 // ── Ajustes ─────────────────────────────────────────────────────────────
 
+/** Cada cuánto se vuelve a pedir a BGG lo que has jugado y puntuado. */
+const HISTORY_TTL = 7 * 24 * 60 * 60 * 1000; // una semana
 /** Cada cuánto se vuelve a pedir a BGG la ficha de un juego. */
 export const INFO_TTL = 60 * 24 * 60 * 60 * 1000; // 60 días
 /** Juegos tuyos que usamos, como mucho, para conocer tus gustos. */
@@ -800,9 +801,8 @@ async function tasteMissingIds(signals: UserSignals): Promise<number[]> {
 }
 
 function isHistoryStale(username: string, fetchedAt: Date | null): boolean {
-  if (fetchedAt) return isCollectionStale(fetchedAt);
-  const askedEmpty = emptyHistoryAt.get(username);
-  return !askedEmpty || isCollectionStale(new Date(askedEmpty));
+  const askedAt = fetchedAt?.getTime() ?? emptyHistoryAt.get(username);
+  return !askedAt || Date.now() - askedAt >= HISTORY_TTL;
 }
 
 /**
@@ -893,22 +893,17 @@ export async function getPrepStatus(
   };
 }
 
-// La primera vez que alguien entra con el pool casi vacío, traemos también
-// los más comentados de BGG para que haya algo entre lo que elegir.
-const BOOTSTRAP_POOL = 500;
-let hotFetchedAt = 0;
-let hotQueue: number[] = [];
-
 /**
  * Un paso de preparación, lo más corto posible (una o dos llamadas a BGG):
- * primero lo que has jugado y puntuado, luego de qué van tus juegos y, por
- * último, ampliar el pool de candidatos. Devuelve qué ha hecho.
+ * primero lo que has jugado y puntuado (como mucho una vez por semana) y
+ * luego de qué van tus juegos nuevos. Ampliar el pool de candidatos no se
+ * hace aquí sino en el cron: así entrar en la página no le cuesta a BGG más
+ * que lo imprescindible. Devuelve qué ha hecho.
  */
 export async function prepareStep(
   userId: string,
-  bggUsername: string,
-  includePool: boolean
-): Promise<"history" | "taste" | "pool" | "done"> {
+  bggUsername: string
+): Promise<"history" | "taste" | "done"> {
   const username = bggUsername.toLowerCase().trim();
 
   if (isHistoryStale(username, await historyFetchedAt(username))) {
@@ -923,23 +918,5 @@ export async function prepareStep(
     return "taste";
   }
 
-  if (!includePool) return "done";
-
-  const poolSize = await prisma.bggGameInfo.count({ where: { subtype: "boardgame" } });
-  if (poolSize < BOOTSTRAP_POOL && Date.now() - hotFetchedAt > 24 * 60 * 60 * 1000) {
-    hotFetchedAt = Date.now();
-    hotQueue = await hotMissingIds();
-  }
-  if (hotQueue.length > 0) {
-    const batch = hotQueue.splice(0, ENRICH_BATCH);
-    await saveGameInfo(batch);
-    return "pool";
-  }
-
-  const missing = await poolMissingIds(ENRICH_BATCH);
-  if (missing.length > 0) {
-    await saveGameInfo(missing);
-    return "pool";
-  }
   return "done";
 }

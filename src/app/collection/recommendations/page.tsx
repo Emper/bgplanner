@@ -13,9 +13,6 @@ import type {
   RecommendedGame,
 } from "@/lib/recommendationTypes";
 
-// Pasos de ampliación del catálogo por visita: cada uno estudia 20 juegos
-// nuevos. El resto lo va completando un cron cada noche.
-const POOL_STEPS_PER_VISIT = 8;
 // Cuántas tarjetas de "Para ti" se ven de entrada y cuántas añade "Ver más".
 const FOR_YOU_BATCH = 9;
 
@@ -76,8 +73,7 @@ export default function RecommendationsPage() {
   const [data, setData] = useState<RecommendationsResponse | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<RecommendationsStatus | null>(null);
-  const [phase, setPhase] = useState<"history" | "taste" | "pool" | null>(null);
-  const [poolAdded, setPoolAdded] = useState(0);
+  const [phase, setPhase] = useState<"history" | "taste" | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,49 +108,36 @@ export default function RecommendationsPage() {
     }
   }, []);
 
-  // Primero recomendamos con lo que ya sabemos y, en segundo plano, vamos
-  // preparando lo que falte: tu historial de BGG, de qué van tus juegos y
-  // más candidatos. Cuando termina lo de tus juegos se recalcula, que es lo
-  // que más cambia el resultado.
+  // Primero recomendamos con lo que ya sabemos y, solo si hace falta,
+  // preparamos en segundo plano lo que falte: tu historial de BGG (una vez
+  // por semana) y de qué van tus juegos nuevos. Buscar candidatos nuevos es
+  // cosa del cron nocturno, no de cada visita. Al terminar se recalcula.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const first = await load();
       if (cancelled || !first?.connected || !first.status) return;
       const s = first.status;
-      if (!s.historyStale && s.tasteMissing === 0 && s.poolMissing === 0) return;
+      if (!s.historyStale && s.tasteMissing === 0) return;
       // Antes de la primera respuesta, para no enseñar un "no hay nada" que
       // va a dejar de ser verdad en unos segundos.
-      setPhase(s.historyStale ? "history" : s.tasteMissing > 0 ? "taste" : "pool");
+      setPhase(s.historyStale ? "history" : "taste");
 
-      let poolSteps = 0;
-      let reloadedAfterTaste = false;
-      let lastStep: string | null = null;
+      let worked = false;
       // Tope de seguridad por si algo se queda dando vueltas.
       for (let i = 0; i < 40 && !cancelled; i++) {
-        const wantPool = poolSteps < POOL_STEPS_PER_VISIT;
         try {
           const res = await fetch("/api/recommendations/prepare", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ pool: wantPool }),
           });
           const json = await res.json();
           if (!res.ok) throw new Error(json.error || "BGG no ha respondido");
           if (cancelled) return;
           setStatus(json.status);
-          lastStep = json.step;
           if (json.step === "done") break;
+          worked = true;
           setPhase(json.step);
-          if (json.step === "pool") {
-            poolSteps++;
-            setPoolAdded((n) => n + 20);
-            if (!reloadedAfterTaste) {
-              reloadedAfterTaste = true;
-              await load();
-            }
-          }
         } catch (err) {
           if (!cancelled) {
             showToast({
@@ -166,7 +149,7 @@ export default function RecommendationsPage() {
       }
       if (!cancelled) {
         setPhase(null);
-        if (lastStep !== null) await load();
+        if (worked) await load();
       }
     })();
     return () => {
@@ -319,7 +302,7 @@ export default function RecommendationsPage() {
             </p>
           </div>
 
-          {phase && status && <PrepBanner phase={phase} status={status} poolAdded={poolAdded} />}
+          {phase && status && <PrepBanner phase={phase} status={status} />}
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
@@ -639,11 +622,9 @@ function ChipGroup<T extends string>({
 function PrepBanner({
   phase,
   status,
-  poolAdded,
 }: {
-  phase: "history" | "taste" | "pool";
+  phase: "history" | "taste";
   status: RecommendationsStatus;
-  poolAdded: number;
 }) {
   const total = status.tasteCount + status.tasteMissing;
   const { title, text, progress } =
@@ -653,17 +634,11 @@ function PrepBanner({
           text: "Así no te recomendamos nada que ya conozcas.",
           progress: undefined,
         }
-      : phase === "taste"
-        ? {
-            title: `Estudiando tus juegos… ${status.tasteCount} de ${total}`,
-            text: "Le preguntamos a BGG de qué va cada uno para entender qué te gusta.",
-            progress: total > 0 ? status.tasteCount / total : 0,
-          }
-        : {
-            title: `Buscando más candidatos… ${poolAdded} juegos nuevos`,
-            text: "Ya puedes ir mirando: las recomendaciones mejorarán un poco la próxima vez.",
-            progress: undefined,
-          };
+      : {
+          title: `Estudiando tus juegos… quedan ${status.tasteMissing}`,
+          text: "Le preguntamos a BGG de qué va cada uno para entender qué te gusta. Solo hace falta la primera vez y cuando llegan juegos nuevos.",
+          progress: total > 0 ? status.tasteCount / total : 0,
+        };
 
   return (
     <div className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4">
