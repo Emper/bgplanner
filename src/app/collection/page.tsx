@@ -181,6 +181,24 @@ function CollectionPageInner() {
     }
   };
 
+  const removeSaved = async (bggId: number) => {
+    const previous = all;
+    setAll((prev) => (prev ? prev.filter((i) => i.bggId !== bggId) : prev));
+    try {
+      const res = await fetch(`/api/recommendations/${bggId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ flag: null }),
+      });
+      if (!res.ok) throw new Error();
+      showToast("Quitado de tu wishlist");
+    } catch {
+      setAll(previous);
+      showToast("No se ha podido quitar");
+    }
+  };
+
   const toggleShowcase = (bggId: number) => {
     const current = all?.find((i) => i.bggId === bggId);
     if (!current) return;
@@ -232,6 +250,14 @@ function CollectionPageInner() {
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/collection/recommendations"
+                title="Juegos que te pueden gustar"
+                className="px-3 py-2 bg-[var(--accent-soft)] border border-[var(--primary)]/30 rounded-xl text-sm font-semibold text-[var(--primary)] hover:border-[var(--primary)]/60 transition-all duration-200"
+              >
+                <span className="sm:hidden">✨</span>
+                <span className="hidden sm:inline">✨ Recomendaciones</span>
+              </Link>
               <button
                 onClick={() => setShareOpen(true)}
                 title="Compartir mi colección"
@@ -283,6 +309,7 @@ function CollectionPageInner() {
             fetchedAt={meta?.fetchedAt}
             onScore={(bggId, value) => saveEntry(bggId, { keepScore: value })}
             onToggleShowcase={toggleShowcase}
+            onRemoveSaved={removeSaved}
           />
         </div>
       </div>

@@ -49,6 +49,7 @@ model User {
   createdFeatures   Feature[]     @relation("FeatureCreator")
   featureVotes      FeatureVote[]
   collectionEntries CollectionEntry[]
+  gameFlags         UserGameFlag[]
 }
 
 model OtpCode {
@@ -265,6 +266,69 @@ model CollectionEntry {
   @@index([userId])
   @@index([userId, keepScore])
   @@index([userId, showcased])
+}
+
+// Ficha de BGG de cualquier juego, lo tenga alguien o no: de qué va
+// (mecánicas, categorías, autores, familias) y cuánto gusta. Es la materia
+// prima de las recomendaciones. Se rellena por lotes desde BGG, empezando por
+// los juegos de las colecciones de la comunidad y los más comentados en BGG.
+model BggGameInfo {
+  bggId         Int      @id
+  name          String
+  thumbnail     String?
+  image         String?  @db.Text
+  subtype       String   @default("boardgame") // boardgame | boardgameexpansion
+  yearPublished Int?
+  minPlayers    Int?
+  maxPlayers    Int?
+  playingTime   Int?
+  bggRating     Float?
+  bggRank       Int?
+  usersRated    Int?
+  weight        Float?
+  mechanics     String[] @default([])
+  categories    String[] @default([])
+  designers     String[] @default([])
+  families      String[] @default([])
+  fetchedAt     DateTime @default(now())
+
+  @@index([fetchedAt])
+}
+
+// Todo lo que un usuario de BGG tiene apuntado de un juego base, más allá de
+// lo que tiene o quiere: lo que tuvo, lo que ha jugado y lo que ha puntuado.
+// Las recomendaciones lo usan para no proponerte nada que ya conozcas y para
+// saber qué te gusta. Se sustituye entero en cada sincronización.
+model BggUserGame {
+  bggUsername String
+  bggId       Int
+  name        String
+  own         Boolean  @default(false)
+  prevOwned   Boolean  @default(false)
+  wishlist    Boolean  @default(false)
+  numPlays    Int      @default(0)
+  userRating  Float?
+  fetchedAt   DateTime @default(now())
+
+  @@id([bggUsername, bggId])
+  @@index([bggId])
+  @@index([userRating])
+}
+
+// Lo que el usuario decide sobre un juego que no tiene: guardarlo en su
+// wishlist de BG Planner o descartarlo ("no me interesa") para que no se lo
+// volvamos a recomendar. Va por userId, como CollectionEntry.
+model UserGameFlag {
+  id        String   @id @default(cuid())
+  userId    String
+  bggId     Int
+  kind      String   // wishlist | dismissed
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bggId])
+  @@index([userId, kind])
 }
 
 model GameComment {

@@ -52,11 +52,12 @@ export async function loadCollection(
   /** Cuándo se trajo esto de BGG por última vez. */
   fetchedAt: Date | null;
 }> {
-  const [rows, entries] = await Promise.all([
+  const [rows, entries, savedHere] = await Promise.all([
     prisma.collectionGame.findMany({
       where: { bggUsername: bggUsername.toLowerCase().trim() },
     }),
     prisma.collectionEntry.findMany({ where: { userId } }),
+    loadSavedWishlist(userId),
   ]);
 
   const entryByBggId = new Map(entries.map((e) => [e.bggId, e]));
@@ -119,6 +120,7 @@ export async function loadCollection(
       dateAdded: row.dateAdded ? row.dateAdded.toISOString() : null,
       status: row.status,
       wishlistPriority: row.wishlistPriority,
+      savedHere: false,
       isExpansion: row.subtype === "boardgameexpansion",
       keepScore: keepScoreOf(row),
       note: entry?.note ?? null,
@@ -143,6 +145,29 @@ export async function loadCollection(
   // ficha más: si no, desaparecerían de la lista sin explicación.
   const items = [...bases, ...orphanExpansions].map(toView);
 
+  // La wishlist de BG Planner va detrás de la de BGG. Si el juego ya ha
+  // llegado a BGG (lo añadiste allí también), gana la ficha de BGG.
+  const inBgg = new Set(rows.map((r) => r.bggId));
+  for (const saved of savedHere) {
+    if (inBgg.has(saved.bggId)) continue;
+    const entry = entryByBggId.get(saved.bggId);
+    items.push({
+      ...saved,
+      bestWith: null,
+      numPlays: 0,
+      userRating: null,
+      status: "wishlist",
+      wishlistPriority: null,
+      savedHere: true,
+      isExpansion: false,
+      keepScore: entry?.keepScore ?? null,
+      note: entry?.note ?? null,
+      showcased: entry?.showcased ?? false,
+      expansions: [],
+      expansionPlays: 0,
+    });
+  }
+
   let fetchedAt: Date | null = null;
   for (const row of rows) {
     if (!fetchedAt || row.fetchedAt > fetchedAt) fetchedAt = row.fetchedAt;
@@ -155,6 +180,40 @@ export async function loadCollection(
   };
 }
 
+
+/** Los juegos que el usuario ha guardado en su wishlist de BG Planner. */
+async function loadSavedWishlist(userId: string) {
+  // Si la tabla aún no existe (código desplegado antes que el SQL), la
+  // colección se enseña igual, solo que sin esta parte.
+  const flags = await prisma.userGameFlag
+    .findMany({
+      where: { userId, kind: "wishlist" },
+      select: { bggId: true, createdAt: true },
+    })
+    .catch(() => []);
+  if (flags.length === 0) return [];
+  const infos = await prisma.bggGameInfo.findMany({
+    where: { bggId: { in: flags.map((f) => f.bggId) } },
+    select: {
+      bggId: true,
+      name: true,
+      thumbnail: true,
+      image: true,
+      yearPublished: true,
+      minPlayers: true,
+      maxPlayers: true,
+      playingTime: true,
+      weight: true,
+      bggRating: true,
+      bggRank: true,
+    },
+  });
+  const addedAt = new Map(flags.map((f) => [f.bggId, f.createdAt]));
+  return infos.map((info) => ({
+    ...info,
+    dateAdded: addedAt.get(info.bggId)?.toISOString() ?? null,
+  }));
+}
 
 // ── Enlace compartido ───────────────────────────────────────────────────
 

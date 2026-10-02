@@ -75,6 +75,8 @@ export interface CollectionItemView {
   dateAdded: string | null;
   status: string;
   wishlistPriority: number | null;
+  /** En la wishlist de BG Planner (desde las recomendaciones), no en la de BGG. */
+  savedHere: boolean;
   /** true si es una expansión cuyo juego base no está en la colección. */
   isExpansion: boolean;
   keepScore: number | null;

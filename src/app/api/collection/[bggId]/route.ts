@@ -44,16 +44,23 @@ export async function PUT(
     );
   }
 
-  const inCollection = await prisma.collectionGame.findUnique({
-    where: {
-      bggUsername_bggId: {
-        bggUsername: user.bggUsername.toLowerCase().trim(),
-        bggId,
+  // O en la de BGG, o en la wishlist de BG Planner.
+  const [inCollection, savedHere] = await Promise.all([
+    prisma.collectionGame.findUnique({
+      where: {
+        bggUsername_bggId: {
+          bggUsername: user.bggUsername.toLowerCase().trim(),
+          bggId,
+        },
       },
-    },
-    select: { id: true },
-  });
-  if (!inCollection) {
+      select: { id: true },
+    }),
+    prisma.userGameFlag.findFirst({
+      where: { userId: session.userId, bggId, kind: "wishlist" },
+      select: { id: true },
+    }),
+  ]);
+  if (!inCollection && !savedHere) {
     return NextResponse.json(
       { error: "Ese juego no está en tu colección" },
       { status: 404 }

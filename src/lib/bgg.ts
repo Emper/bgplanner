@@ -34,16 +34,36 @@ export type BggGameDetails = {
   name: string;
   thumbnail: string | null;
   image: string | null;
+  subtype: string; // "boardgame" | "boardgameexpansion"
   yearPublished: number | null;
   minPlayers: number | null;
   maxPlayers: number | null;
+  playingTime: number | null;
   bggRating: number | null;
   bggRank: number | null;
+  usersRated: number | null;
   weight: number | null;
   playerCountRecommendations: PlayerCountRec[];
   // Juegos base de los que este item es expansión (enlaces "inbound" de BGG).
   // Vacío en un juego base: sus enlaces a expansiones no son inbound.
   expandsBggIds: number[];
+  // De qué va el juego, para las recomendaciones.
+  mechanics: string[];
+  categories: string[];
+  designers: string[];
+  families: string[];
+};
+
+// Lo que un usuario tiene apuntado en BGG de un juego base, sea cual sea su
+// relación con él (lo tiene, lo tuvo, lo quiere, lo ha jugado, lo ha puntuado).
+export type BggUserGameItem = {
+  bggId: number;
+  name: string;
+  own: boolean;
+  prevOwned: boolean;
+  wishlist: boolean;
+  numPlays: number;
+  userRating: number | null;
 };
 
 export type BggSearchResult = {
@@ -592,11 +612,17 @@ export async function fetchBggGameDetails(
       .map((l: any) => parseInt(l.$?.id, 10))
       .filter((id: number) => Number.isInteger(id));
 
+    const linkValues = (type: string): string[] =>
+      linkArr
+        .filter((l: any) => l.$?.type === type && typeof l.$?.value === "string")
+        .map((l: any) => l.$.value as string);
+
     return {
       bggId: parseInt(item.$.id),
       name: primaryName ? primaryName.$?.value : "Unknown",
       thumbnail: item.thumbnail || null,
       image: item.image || null,
+      subtype: item.$?.type === "boardgameexpansion" ? "boardgameexpansion" : "boardgame",
       yearPublished: item.yearpublished?.$
         ? parseInt(item.yearpublished.$.value) || null
         : null,
@@ -606,19 +632,117 @@ export async function fetchBggGameDetails(
       maxPlayers: item.maxplayers?.$
         ? parseInt(item.maxplayers.$.value) || null
         : null,
+      playingTime: item.playingtime?.$
+        ? parseInt(item.playingtime.$.value) || null
+        : null,
       bggRating: ratings?.average
         ? parseFloat(ratings.average.$?.value) || null
         : null,
       bggRank: mainRank
         ? parseInt(mainRank.$?.value) || null
         : null,
+      usersRated: ratings?.usersrated
+        ? parseInt(ratings.usersrated.$?.value) || null
+        : null,
       weight: ratings?.averageweight
         ? parseFloat(ratings.averageweight.$?.value) || null
         : null,
       playerCountRecommendations,
       expandsBggIds,
+      mechanics: linkValues("boardgamemechanic"),
+      categories: linkValues("boardgamecategory"),
+      // "(Uncredited)" no es un autor: juntaría juegos que no tienen nada
+      // que ver entre sí.
+      designers: linkValues("boardgamedesigner").filter((d) => !d.startsWith("(")),
+      families: linkValues("boardgamefamily"),
     };
   });
+}
+
+/**
+ * Todo lo que un usuario tiene apuntado en BGG de juegos base: lo que tiene,
+ * lo que tuvo, lo que quiere, lo que ha puntuado y lo que ha jugado. El
+ * listado sin filtros trae los juegos con algún estado o nota; los que solo
+ * tienen partidas registradas se piden aparte con `played=1`. Si esa segunda
+ * lista falla seguimos con la primera: mejor algo que nada.
+ */
+export async function fetchBggUserGames(username: string): Promise<BggUserGameItem[]> {
+  const normalizedUsername = username.toLowerCase().trim();
+  const url = (query: string) =>
+    `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&subtype=boardgame&excludesubtype=boardgameexpansion&stats=1${query}`;
+
+  const allResponse = await fetchWithRetry(url(""));
+  if (!allResponse.ok) {
+    if (allResponse.status === 404) {
+      throw new Error(`No se encontró el usuario "${username}" en BGG.`);
+    }
+    throw new Error(`Error al obtener el historial de BGG: ${allResponse.status}`);
+  }
+  const allXml = await allResponse.text();
+  let playedXml: string | null = null;
+  try {
+    const playedResponse = await fetchWithRetry(url("&played=1"));
+    if (playedResponse.ok) playedXml = await playedResponse.text();
+  } catch (err) {
+    console.log("[BGG History] Sin lista de jugados:", err);
+  }
+
+  const parseItems = async (xml: string | null): Promise<any[]> => {
+    if (!xml) return [];
+    const parsed = await parseStringPromise(xml, { explicitArray: false });
+    if (!parsed.items?.item) return [];
+    return Array.isArray(parsed.items.item) ? parsed.items.item : [parsed.items.item];
+  };
+
+  const byId = new Map<number, BggUserGameItem>();
+  for (const item of [...(await parseItems(allXml)), ...(await parseItems(playedXml))]) {
+    const bggId = parseInt(item.$?.objectid, 10);
+    if (!Number.isInteger(bggId)) continue;
+    const status = item.status?.$ ?? {};
+    const rating = parseFloat(item.stats?.rating?.$?.value);
+    const next: BggUserGameItem = {
+      bggId,
+      name: typeof item.name === "string" ? item.name : item.name?._ || "Unknown",
+      own: status.own === "1",
+      prevOwned: status.prevowned === "1",
+      wishlist: status.wishlist === "1",
+      numPlays: parseInt(item.numplays, 10) || 0,
+      userRating: Number.isFinite(rating) ? rating : null,
+    };
+    // El mismo juego puede venir en las dos listas: nos quedamos con lo más
+    // completo de cada una.
+    const prev = byId.get(bggId);
+    byId.set(
+      bggId,
+      prev
+        ? {
+            ...prev,
+            own: prev.own || next.own,
+            prevOwned: prev.prevOwned || next.prevOwned,
+            wishlist: prev.wishlist || next.wishlist,
+            numPlays: Math.max(prev.numPlays, next.numPlays),
+            userRating: prev.userRating ?? next.userRating,
+          }
+        : next
+    );
+  }
+  return [...byId.values()];
+}
+
+/** Los juegos de los que más se habla en BGG ahora mismo (unos 50). */
+export async function fetchBggHotIds(): Promise<number[]> {
+  const response = await fetchWithRetry(
+    "https://boardgamegeek.com/xmlapi2/hot?type=boardgame"
+  );
+  if (!response.ok) return [];
+  const parsed = await parseStringPromise(await response.text(), {
+    explicitArray: false,
+  });
+  const items = parsed.items?.item;
+  const arr = Array.isArray(items) ? items : items ? [items] : [];
+  return arr
+    .map((i: any) => parseInt(i.$?.id, 10))
+    .filter((id: number) => Number.isInteger(id) && id > 0);
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

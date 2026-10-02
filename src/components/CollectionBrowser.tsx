@@ -94,6 +94,8 @@ interface Props {
   fetchedAt?: string | null;
   onScore?: (bggId: number, score: number | null) => void;
   onToggleShowcase?: (bggId: number) => void;
+  /** Quitar un juego de la wishlist de BG Planner. */
+  onRemoveSaved?: (bggId: number) => void;
 }
 
 /**
@@ -109,6 +111,7 @@ export default function CollectionBrowser({
   fetchedAt,
   onScore,
   onToggleShowcase,
+  onRemoveSaved,
 }: Props) {
   // Lo que estás mirando viaja en la URL: así puedes recargar, compartir el
   // enlace o volver atrás sin perder los filtros.
@@ -653,6 +656,14 @@ export default function CollectionBrowser({
           onScore={(value) => score(detail.bggId, value)}
           onExpansionScore={(bggId, value) => score(bggId, value)}
           onToggleShowcase={() => showcase(detail.bggId)}
+          onRemoveSaved={
+            onRemoveSaved && detail.savedHere
+              ? () => {
+                  onRemoveSaved(detail.bggId);
+                  setDetailId(null);
+                }
+              : undefined
+          }
         />
       )}
     </>

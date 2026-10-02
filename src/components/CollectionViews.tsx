@@ -240,7 +240,17 @@ export function ListRow({
                 readOnly={readOnly}
                 onToggle={onToggleShowcase}
               />
-              {item.status === "wishlist" && <Meta title="Está en su wishlist de BGG">Lo quiere</Meta>}
+              {item.status === "wishlist" && (
+                <Meta
+                  title={
+                    item.savedHere
+                      ? "Guardado en la wishlist de BG Planner"
+                      : "Está en su wishlist de BGG"
+                  }
+                >
+                  Lo quiere
+                </Meta>
+              )}
               {item.userRating !== null && (
                 <MyRatingBadge rating={item.userRating} owner={owner} />
               )}
@@ -399,6 +409,7 @@ export function DetailModal({
   onScore,
   onExpansionScore,
   onToggleShowcase,
+  onRemoveSaved,
   readOnly = false,
   owner,
 }: {
@@ -407,6 +418,8 @@ export function DetailModal({
   onScore: (score: number | null) => void;
   onExpansionScore: (bggId: number, score: number | null) => void;
   onToggleShowcase: () => void;
+  /** Quitar de la wishlist de BG Planner (solo para los guardados aquí). */
+  onRemoveSaved?: () => void;
   readOnly?: boolean;
   owner?: string;
 }) {
@@ -474,6 +487,34 @@ export function DetailModal({
               ✕
             </button>
           </div>
+
+          {item.savedHere && !readOnly && (
+            <div className="mt-5 p-4 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/30">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Lo guardaste desde tus recomendaciones. BGG no deja apuntar
+                cosas en tu wishlist desde fuera: añádelo allí también y lo
+                tendrás en todas partes.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <a
+                  href={`https://boardgamegeek.com/boardgame/${item.bggId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-lg text-xs font-semibold hover:bg-[var(--primary-hover)] transition-colors"
+                >
+                  Añadirlo en BGG ↗
+                </a>
+                {onRemoveSaved && (
+                  <button
+                    onClick={onRemoveSaved}
+                    className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-xs hover:text-[var(--text)] transition-colors"
+                  >
+                    Quitar de mi wishlist
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-5 p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border)]">
             <p className="text-xs text-[var(--text-secondary)] mb-2">

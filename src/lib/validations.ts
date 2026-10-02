@@ -165,6 +165,16 @@ export const collectionEntrySchema = z
     message: "No hay nada que actualizar",
   });
 
+// Guardar en la wishlist o descartar un juego recomendado; null lo deja como
+// estaba antes de tocarlo.
+export const gameFlagSchema = z.object({
+  flag: z.enum(["wishlist", "dismissed"], { error: "Acción no válida" }).nullable(),
+});
+
+export const prepareRecommendationsSchema = z.object({
+  pool: z.boolean().optional(),
+});
+
 export const feedbackSchema = z.object({
   subject: z
     .string()
