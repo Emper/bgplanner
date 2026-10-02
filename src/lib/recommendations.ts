@@ -82,6 +82,7 @@ interface PoolGame {
   usersRated: number | null;
   designers: string[];
   families: string[];
+  relatedIds: number[];
   /** token → peso, ya normalizado (norma 1). */
   vector: Map<string, number>;
 }
@@ -156,6 +157,7 @@ async function loadPool(): Promise<Pool> {
         usersRated: r.usersRated,
         designers: r.designers,
         families: r.families,
+        relatedIds: r.relatedIds,
         vector,
       });
     });
@@ -532,10 +534,32 @@ export async function getRecommendations(
   };
   if (liked.length === 0) return empty;
 
+  // Otras versiones de lo que ya conoces (Agricola → Agricola revisado,
+  // Nemesis: Retaliation → Nemesis) no son un descubrimiento. Se mira a dos
+  // saltos para pillar a los "hermanos": GWT Argentina y GWT Nueva Zelanda
+  // no se enlazan entre sí, sino los dos con el Great Western Trail original.
+  // Y por los dos lados, porque BGG no siempre lo apunta en ambas fichas.
+  const relatedOf = async (ids: Iterable<number>) => {
+    const list = [...ids];
+    if (list.length === 0) return new Set<number>();
+    const rows = await prisma.bggGameInfo.findMany({
+      where: { bggId: { in: list } },
+      select: { relatedIds: true },
+    });
+    return new Set(rows.flatMap((r) => r.relatedIds));
+  };
+  const firstHop = await relatedOf(signals.known);
+  const secondHop = await relatedOf(firstHop);
+  const isRelatedToKnown = (g: PoolGame) =>
+    firstHop.has(g.bggId) ||
+    secondHop.has(g.bggId) ||
+    g.relatedIds.some((id) => signals.known.has(id) || firstHop.has(id));
+
   const currentYear = new Date().getFullYear();
   const candidates: PoolGame[] = [];
   for (const g of pool.games.values()) {
     if (signals.known.has(g.bggId)) continue;
+    if (isRelatedToKnown(g)) continue;
     if ((g.usersRated ?? 0) < MIN_USERS_RATED) continue;
     if ((g.bggRating ?? 0) < MIN_RATING) continue;
     if (g.yearPublished && g.yearPublished > currentYear) continue;
@@ -687,6 +711,7 @@ export async function saveGameInfo(bggIds: number[]): Promise<number> {
         categories: d.categories,
         designers: d.designers,
         families: d.families,
+        relatedIds: d.relatedIds,
         fetchedAt: now,
       };
       return prisma.bggGameInfo.upsert({
@@ -745,8 +770,10 @@ const emptyHistoryAt = new Map<string, number>();
 async function tasteMissingIds(signals: UserSignals): Promise<number[]> {
   const ids = strongestTaste(signals.taste).map((t) => t.bggId);
   if (ids.length === 0) return [];
+  // Las fichas caducadas cuentan como pendientes: así tus juegos se
+  // refrescan al entrar, sin esperar a que les toque en el cron.
   const have = await prisma.bggGameInfo.findMany({
-    where: { bggId: { in: ids } },
+    where: { bggId: { in: ids }, fetchedAt: { gte: new Date(Date.now() - INFO_TTL) } },
     select: { bggId: true },
   });
   const haveSet = new Set(have.map((h) => h.bggId));

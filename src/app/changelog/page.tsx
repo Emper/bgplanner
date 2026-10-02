@@ -17,7 +17,7 @@ const CHANGELOG: ChangelogEntry[] = [
     title: "Juegos que te van a encantar",
     changes: [
       { type: "new", text: "Recomendaciones a partir de tu colección y tus notas: «si te gustó X, te gustará Y»" },
-      { type: "new", text: "Solo juegos que no tienes, no has tenido y no has jugado" },
+      { type: "new", text: "Solo juegos que no tienes, no has tenido y no has jugado, ni otras ediciones de los que ya conoces" },
       { type: "new", text: "Guárdalos en tu wishlist con un clic o descarta los que no te llamen" },
     ],
   },

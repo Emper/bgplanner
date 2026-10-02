@@ -52,6 +52,9 @@ export type BggGameDetails = {
   categories: string[];
   designers: string[];
   families: string[];
+  // Reimplementaciones (en los dos sentidos) e integraciones: otras versiones
+  // del mismo juego.
+  relatedIds: number[];
 };
 
 // Lo que un usuario tiene apuntado en BGG de un juego base, sea cual sea su
@@ -612,6 +615,19 @@ export async function fetchBggGameDetails(
       .map((l: any) => parseInt(l.$?.id, 10))
       .filter((id: number) => Number.isInteger(id));
 
+    const relatedIds = [
+      ...new Set(
+        linkArr
+          .filter(
+            (l: any) =>
+              l.$?.type === "boardgameimplementation" ||
+              l.$?.type === "boardgameintegration"
+          )
+          .map((l: any) => parseInt(l.$?.id, 10) as number)
+          .filter((id: number) => Number.isInteger(id))
+      ),
+    ];
+
     const linkValues = (type: string): string[] =>
       linkArr
         .filter((l: any) => l.$?.type === type && typeof l.$?.value === "string")
@@ -655,6 +671,7 @@ export async function fetchBggGameDetails(
       // que ver entre sí.
       designers: linkValues("boardgamedesigner").filter((d) => !d.startsWith("(")),
       families: linkValues("boardgamefamily"),
+      relatedIds,
     };
   });
 }

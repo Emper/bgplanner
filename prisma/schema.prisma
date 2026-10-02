@@ -290,6 +290,10 @@ model BggGameInfo {
   categories    String[] @default([])
   designers     String[] @default([])
   families      String[] @default([])
+  // Juegos que son "el mismo juego" en otra versión: lo reimplementa o lo
+  // reimplementan (en los dos sentidos) o se integra con él. Si tienes uno,
+  // no te recomendamos los otros.
+  relatedIds    Int[]    @default([])
   fetchedAt     DateTime @default(now())
 
   @@index([fetchedAt])
