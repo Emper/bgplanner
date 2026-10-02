@@ -529,6 +529,12 @@ const COLLECTION_POINTS = [
   { icon: "💎", title: "¿Se queda o se va?", text: "Puntúa cada juego del 💸 «Quiero venderlo» al 💎 «No se irá nunca». Solo lo ves tú." },
   { icon: "⭐", title: "Tu vitrina", text: "Marca tus imprescindibles y se exponen solos en tu perfil público." },
   { icon: "🔗", title: "Compártela", text: "Un enlace de solo lectura para que te cotilleen la colección… o te la envidien." },
+  {
+    icon: "✨",
+    title: "Te recomendamos juegos",
+    text: "«Si te gustó Agricola, te gustará…»: ideas que no tienes ni has jugado, sacadas de tus notas y tu colección. Las que te gusten, a tu wishlist con un clic.",
+    isNew: true,
+  },
 ];
 
 function CollectionSection() {
@@ -551,9 +557,24 @@ function CollectionSection() {
           </Reveal>
           <div className="mt-8 grid sm:grid-cols-2 gap-4">
             {COLLECTION_POINTS.map((p, i) => (
-              <Reveal key={p.title} delay={i * 90}>
-                <div className="h-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 hover:border-[var(--primary)]/30 hover:-translate-y-0.5 transition-all">
-                  <div className="text-2xl mb-2">{p.icon}</div>
+              // La novedad ocupa la fila entera: con cinco tarjetas en dos
+              // columnas, la última quedaría coja.
+              <Reveal key={p.title} delay={i * 90} className={"isNew" in p ? "sm:col-span-2" : undefined}>
+                <div
+                  className={`h-full rounded-2xl border p-4 hover:-translate-y-0.5 transition-all ${
+                    "isNew" in p
+                      ? "border-[var(--primary)]/40 bg-[var(--accent-soft)] hover:border-[var(--primary)]/60"
+                      : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)]/30"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">{p.icon}</span>
+                    {"isNew" in p && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--primary)] text-[var(--primary-text)]">
+                        Nuevo
+                      </span>
+                    )}
+                  </div>
                   <div className="font-bold text-[var(--text)] mb-1">{p.title}</div>
                   <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{p.text}</p>
                 </div>

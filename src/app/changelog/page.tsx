@@ -12,6 +12,16 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2 octubre 2026",
+    version: "1.33",
+    title: "Juegos que te van a encantar",
+    changes: [
+      { type: "new", text: "Recomendaciones a partir de tu colección y tus notas: «si te gustó X, te gustará Y»" },
+      { type: "new", text: "Solo juegos que no tienes, no has tenido y no has jugado" },
+      { type: "new", text: "Guárdalos en tu wishlist con un clic o descarta los que no te llamen" },
+    ],
+  },
+  {
     date: "24 septiembre 2026",
     version: "1.32",
     title: "Un poco de magia por dentro",
