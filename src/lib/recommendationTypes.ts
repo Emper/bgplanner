@@ -13,8 +13,12 @@ export interface RecommendedGame {
   weight: number | null;
   bggRating: number | null;
   bggRank: number | null;
-  /** El juego tuyo que más pesa en esta recomendación. */
-  because: { bggId: number; name: string } | null;
+  /**
+   * El juego tuyo que más pesa en esta recomendación. `liked`: lo has jugado
+   * y te gusta; si no, solo sabemos que tienes ganas de jugarlo (votos,
+   * wishlist, sin estrenar).
+   */
+  because: { bggId: number; name: string; liked: boolean } | null;
   /** Lo que comparte con ese juego, ya en castellano ("De Uwe Rosenberg"). */
   traits: string[];
   /** Jugadores de BG Planner a los que les encantan los dos juegos. */

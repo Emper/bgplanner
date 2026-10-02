@@ -230,6 +230,13 @@ interface TasteEntry {
   /** -1.2 (no lo soportas) … 1.4 (te encanta). */
   weight: number;
   why: string;
+  /**
+   * true si hay pruebas de que lo has jugado y te gusta (nota, permanencia,
+   * vitrina, partidas, crónica). false si solo sabemos que te interesa
+   * (votos, wishlist, tenerlo sin estrenar): un supervoto es "quiero
+   * jugarlo", casi nunca "lo he jugado y me encanta".
+   */
+  liked: boolean;
 }
 
 interface UserSignals {
@@ -281,10 +288,12 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
 
   const known = new Set<number>();
   // Señales por juego, antes de combinarlas.
+  // `tried`: la señal viene de haberlo jugado, no de tener ganas de jugarlo.
+  type Signal = { w: number; why: string; tried: boolean };
   type Raw = {
     name: string;
-    explicit: { w: number; why: string }[];
-    implicit: { w: number; why: string }[];
+    explicit: Signal[];
+    implicit: Signal[];
     showcased: boolean;
   };
   const raw = new Map<number, Raw>();
@@ -297,18 +306,16 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
     return r;
   };
 
-  const ratingSignal = (r: number) => ({
+  const ratingSignal = (r: number): Signal => ({
     w: Math.max(-1.2, Math.min(1.4, (r - 6.5) / 2.5)),
     why: `Le diste un ${fmtRating(r)} en BGG`,
+    tried: true,
   });
-  const playsSignal = (plays: number) =>
-    plays >= 10
-      ? { w: 0.8, why: `Lo has jugado ${plays} veces` }
-      : plays >= 5
-        ? { w: 0.6, why: `Lo has jugado ${plays} veces` }
-        : plays >= 2
-          ? { w: 0.4, why: `Lo has jugado ${plays} veces` }
-          : { w: 0.15, why: "Lo has jugado" };
+  const playsSignal = (plays: number): Signal => ({
+    w: plays >= 10 ? 0.8 : plays >= 5 ? 0.6 : plays >= 2 ? 0.4 : 0.15,
+    why: plays >= 2 ? `Lo has jugado ${plays} veces` : "Lo has jugado",
+    tried: true,
+  });
 
   const ratedIds = new Set<number>();
   for (const row of collection) {
@@ -320,11 +327,11 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
       ratedIds.add(row.bggId);
     }
     if (row.status === "wishlist") {
-      r.implicit.push({ w: 0.35, why: "Está en tu wishlist" });
+      r.implicit.push({ w: 0.35, why: "Está en tu wishlist", tried: false });
     } else if (row.numPlays > 0) {
       r.implicit.push(playsSignal(row.numPlays));
     } else {
-      r.implicit.push({ w: 0.2, why: "Está en tu colección" });
+      r.implicit.push({ w: 0.2, why: "Lo tienes sin estrenar", tried: false });
     }
   }
 
@@ -335,7 +342,7 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
       r.explicit.push(ratingSignal(row.userRating));
     }
     if (row.numPlays > 0) r.implicit.push(playsSignal(row.numPlays));
-    else if (row.prevOwned) r.implicit.push({ w: -0.15, why: "Lo tuviste" });
+    else if (row.prevOwned) r.implicit.push({ w: -0.15, why: "Lo tuviste", tried: false });
   }
 
   for (const e of entries) {
@@ -345,6 +352,7 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
       r.explicit.push({
         w: KEEP_WEIGHT[e.keepScore],
         why: KEEP_WHY[e.keepScore] ?? "Lo tienes puntuado",
+        tried: true,
       });
     }
     if (e.showcased) r.showcased = true;
@@ -354,9 +362,11 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
     const game = v.groupGame.game;
     known.add(game.bggId);
     const r = get(game.bggId, game.name);
-    if (v.value >= 3) r.explicit.push({ w: 0.9, why: "Le diste tu supervoto" });
-    else if (v.value > 0) r.explicit.push({ w: 0.45, why: "Lo votaste en tu grupo" });
-    else if (v.value < 0) r.explicit.push({ w: -0.6, why: "Votaste en contra" });
+    // Votar es "quiero jugarlo", no "me gusta": suele ser un juego que aún
+    // no has probado. Cuenta como interés, y flojito.
+    if (v.value >= 3) r.implicit.push({ w: 0.5, why: "Le diste tu supervoto", tried: false });
+    else if (v.value > 0) r.implicit.push({ w: 0.3, why: "Lo votaste en tu grupo", tried: false });
+    else if (v.value < 0) r.implicit.push({ w: -0.3, why: "Votaste en contra", tried: false });
   }
 
   for (const rev of reviews) {
@@ -366,37 +376,42 @@ async function loadUserSignals(userId: string, bggUsername: string): Promise<Use
     get(game.bggId, game.name).explicit.push({
       w: REVIEW_WEIGHT[rev.rating] ?? 0,
       why: `Le pusiste ${rev.rating} ${rev.rating === 1 ? "estrella" : "estrellas"} en tu crónica`,
+      tried: true,
     });
   }
 
   for (const f of flags) {
     known.add(f.bggId);
     const r = get(f.bggId, "");
-    if (f.kind === "wishlist") r.implicit.push({ w: 0.35, why: "Está en tu wishlist" });
-    else r.explicit.push({ w: -0.25, why: "Dijiste que no te interesa" });
+    if (f.kind === "wishlist") r.implicit.push({ w: 0.35, why: "Está en tu wishlist", tried: false });
+    else r.explicit.push({ w: -0.25, why: "Dijiste que no te interesa", tried: false });
   }
 
-  // Lo explícito (notas, puntuaciones, votos) manda sobre lo implícito
-  // (tenerlo, jugarlo). La vitrina es un "me encanta" sin discusión.
+  // Lo explícito (notas, puntuaciones, crónicas) manda sobre lo implícito
+  // (jugarlo, tenerlo, votarlo). La vitrina es un "me encanta" sin discusión.
   const taste = new Map<number, TasteEntry>();
   for (const [bggId, r] of raw) {
     let weight: number;
-    let why: string;
     if (r.explicit.length > 0) {
       weight = r.explicit.reduce((s, x) => s + x.w, 0) / r.explicit.length;
-      why = [...r.explicit].sort((a, b) => Math.abs(b.w) - Math.abs(a.w))[0].why;
     } else if (r.implicit.length > 0) {
-      const best = [...r.implicit].sort((a, b) => b.w - a.w)[0];
-      weight = best.w;
-      why = best.why;
+      weight = Math.max(...r.implicit.map((x) => x.w));
     } else {
       continue;
     }
+    const all = [...r.explicit, ...r.implicit];
+    const triedSignals = all.filter((x) => x.tried && x.w > 0);
+    let liked = triedSignals.length > 0;
+    // El porqué que se enseña: lo que demuestra que te gusta, si lo hay.
+    let why = [...(liked ? triedSignals : all)].sort(
+      (a, b) => Math.abs(b.w) - Math.abs(a.w)
+    )[0].why;
     if (r.showcased && weight < 1.2) {
       weight = 1.2;
       why = "Está en tu vitrina";
+      liked = true;
     }
-    taste.set(bggId, { bggId, name: r.name, weight, why });
+    taste.set(bggId, { bggId, name: r.name, weight, why, liked });
   }
 
   return { taste, known };
@@ -492,7 +507,8 @@ function communityAffinity(
 function toView(
   g: PoolGame,
   because: PoolGame | null,
-  communityFans: number
+  communityFans: number,
+  liked: boolean
 ): RecommendedGame {
   return {
     bggId: g.bggId,
@@ -506,7 +522,7 @@ function toView(
     weight: g.weight,
     bggRating: g.bggRating,
     bggRank: g.bggRank,
-    because: because ? { bggId: because.bggId, name: because.name } : null,
+    because: because ? { bggId: because.bggId, name: because.name, liked } : null,
     traits: because ? sharedTraits(because, g) : [],
     communityFans,
   };
@@ -652,7 +668,9 @@ export async function getRecommendations(
   const rows: { anchor: TasteAnchor; games: RecommendedGame[] }[] = [];
   for (const { t, g: anchorGame } of likedGames) {
     if (rows.length >= 4) break;
-    if (t.weight < 0.5) continue;
+    // Solo de lo que has jugado y te gusta: "si te gustó X" de un juego al
+    // que solo has dado tu supervoto sería mentira.
+    if (t.weight < 0.5 || !t.liked) continue;
     const games = scored
       .filter((s) => !shown.has(s.g.bggId) && (s.sims.get(anchorGame.bggId) ?? 0) >= 0.22)
       .map((s) => ({ s, v: (s.sims.get(anchorGame.bggId) ?? 0) * quality(s.g) }))
@@ -668,13 +686,15 @@ export async function getRecommendations(
         image: anchorGame.image,
         why: t.why,
       },
-      games: games.map(({ s }) => toView(s.g, anchorGame, 0)),
+      games: games.map(({ s }) => toView(s.g, anchorGame, 0, true)),
     });
   }
 
   return {
     connected: true,
-    forYou: forYou.map((s) => toView(s.g, s.anchor, s.communityFans)),
+    forYou: forYou.map((s) =>
+      toView(s.g, s.anchor, s.communityFans, signals.taste.get(s.anchor.bggId)?.liked ?? false)
+    ),
     becauseYouLiked: rows,
     status,
   };

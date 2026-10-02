@@ -538,7 +538,8 @@ function RecCard({
               </p>
             ) : !compact ? (
               <p>
-                Porque te gustó <strong className="text-[var(--text)]">{game.because.name}</strong>
+                {game.because.liked ? "Porque te gustó" : "Porque tienes ganas de jugar a"}{" "}
+                <strong className="text-[var(--text)]">{game.because.name}</strong>
               </p>
             ) : null}
             {game.traits.length > 0 && (
