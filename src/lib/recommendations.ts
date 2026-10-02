@@ -770,14 +770,33 @@ const emptyHistoryAt = new Map<string, number>();
 async function tasteMissingIds(signals: UserSignals): Promise<number[]> {
   const ids = strongestTaste(signals.taste).map((t) => t.bggId);
   if (ids.length === 0) return [];
+  const fresh = { gte: new Date(Date.now() - INFO_TTL) };
   // Las fichas caducadas cuentan como pendientes: así tus juegos se
   // refrescan al entrar, sin esperar a que les toque en el cron.
   const have = await prisma.bggGameInfo.findMany({
-    where: { bggId: { in: ids }, fetchedAt: { gte: new Date(Date.now() - INFO_TTL) } },
+    where: { bggId: { in: ids }, fetchedAt: fresh },
     select: { bggId: true },
   });
   const haveSet = new Set(have.map((h) => h.bggId));
-  return ids.filter((id) => !haveSet.has(id));
+  const missing = ids.filter((id) => !haveSet.has(id));
+
+  // Y también las de las otras versiones de lo que ya conoces (el GWT
+  // original de tu GWT Nueva Zelanda): son el puente para descartar a los
+  // "hermanos" (GWT Argentina) sin esperar al cron.
+  const knownRows = await prisma.bggGameInfo.findMany({
+    where: { bggId: { in: [...signals.known] }, fetchedAt: fresh },
+    select: { relatedIds: true },
+  });
+  const related = [...new Set(knownRows.flatMap((r) => r.relatedIds))].filter(
+    (id) => !signals.known.has(id)
+  );
+  if (related.length === 0) return missing;
+  const haveRelated = await prisma.bggGameInfo.findMany({
+    where: { bggId: { in: related }, fetchedAt: fresh },
+    select: { bggId: true },
+  });
+  const haveRelatedSet = new Set(haveRelated.map((h) => h.bggId));
+  return [...missing, ...related.filter((id) => !haveRelatedSet.has(id))];
 }
 
 function isHistoryStale(username: string, fetchedAt: Date | null): boolean {
