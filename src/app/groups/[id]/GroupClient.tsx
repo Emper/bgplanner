@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { flushSync } from "react-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ActivityFeed, { getCachedFeed, setCachedFeed, clearCachedFeed } from "@/components/ActivityFeed";
@@ -227,6 +228,9 @@ function GroupDashboardPage() {
   const pointerDownRef = useRef(false);
   // Editores con el cierre aplazado; votar ese mismo juego lo cancela.
   const pendingCloseRef = useRef<Set<string>>(new Set());
+  // Editores que abrió un voto y que nadie ha tocado: como no tienen el foco,
+  // no se cierran solos al pinchar fuera. Se cierran al votar otro juego.
+  const untouchedEditorsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const down = () => {
       pointerDownRef.current = true;
@@ -687,12 +691,7 @@ function GroupDashboardPage() {
         next = applyVoteLocally(next, gameDbId, value, currentValue, group.currentUserId);
         return next;
       });
-      setOpenCommentEditors((prev) => {
-        if (prev.has(gameDbId)) return prev;
-        const next = new Set(prev);
-        next.add(gameDbId);
-        return next;
-      });
+      openCommentEditorAfterVote(gameDbId);
 
       try {
         const downgradeRes = await fetch(
@@ -725,14 +724,7 @@ function GroupDashboardPage() {
     setRanking((prev) => applyVoteLocally(prev, gameDbId, newValue, currentValue, group.currentUserId));
 
     // Al votar (no al retirar), abrimos el editor de comentario para invitar a comentar.
-    if (!isRemove) {
-      setOpenCommentEditors((prev) => {
-        if (prev.has(gameDbId)) return prev;
-        const next = new Set(prev);
-        next.add(gameDbId);
-        return next;
-      });
-    }
+    if (!isRemove) openCommentEditorAfterVote(gameDbId);
 
     try {
       if (isRemove) {
@@ -759,13 +751,49 @@ function GroupDashboardPage() {
     }
   };
 
+  const focusCommentField = (gameDbId: string) => {
+    document.getElementById(`comment-${gameDbId}`)?.focus();
+  };
+
+  // Tras votar abrimos el editor para invitar a comentar. Con ratón le damos
+  // el foco; en táctil no, porque sacaría el teclado y la página daría un
+  // salto en cada voto: el campo queda a la vista y basta con tocarlo.
+  const openCommentEditorAfterVote = (gameDbId: string) => {
+    const stale = [...untouchedEditorsRef.current].filter((id) => id !== gameDbId);
+    stale.forEach((id) => untouchedEditorsRef.current.delete(id));
+    const update = () =>
+      setOpenCommentEditors((prev) => {
+        const next = new Set(prev);
+        stale.forEach((id) => next.delete(id));
+        next.add(gameDbId);
+        return next;
+      });
+    if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      flushSync(update);
+      focusCommentField(gameDbId);
+    } else {
+      untouchedEditorsRef.current.add(gameDbId);
+      update();
+    }
+  };
+
+  // Abrir a mano sí enfoca (dentro del mismo toque, para que iOS saque el
+  // teclado). Si el editor estaba abierto por un voto, sin tocar, se enfoca
+  // en vez de cerrarse.
   const toggleCommentEditor = (gameDbId: string) => {
-    setOpenCommentEditors((prev) => {
-      const next = new Set(prev);
-      if (next.has(gameDbId)) next.delete(gameDbId);
-      else next.add(gameDbId);
-      return next;
-    });
+    if (openCommentEditors.has(gameDbId) && !untouchedEditorsRef.current.has(gameDbId)) {
+      setOpenCommentEditors((prev) => {
+        const next = new Set(prev);
+        next.delete(gameDbId);
+        return next;
+      });
+      return;
+    }
+    untouchedEditorsRef.current.delete(gameDbId);
+    flushSync(() =>
+      setOpenCommentEditors((prev) => (prev.has(gameDbId) ? prev : new Set(prev).add(gameDbId)))
+    );
+    focusCommentField(gameDbId);
   };
 
   // El editor se cierra al perder el foco, y el foco se pierde al PULSAR en
@@ -1770,7 +1798,8 @@ function GroupDashboardPage() {
                                 <div className="mt-3 pl-9 sm:pl-14 space-y-2">
                                   {isEditorOpen && (
                                     <EmojiField
-                                      autoFocus
+                                      id={`comment-${item.groupGameId}`}
+                                      onFocus={() => untouchedEditorsRef.current.delete(item.groupGameId)}
                                       rows={1}
                                       maxLength={500}
                                       value={draftValue}

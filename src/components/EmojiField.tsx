@@ -279,7 +279,9 @@ type EmojiFieldProps = {
   disabled?: boolean;
   required?: boolean;
   autoFocus?: boolean;
+  id?: string;
   name?: string;
+  onFocus?: (e: React.FocusEvent<FieldElement>) => void;
   onBlur?: (e: React.FocusEvent<FieldElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<FieldElement>) => void;
 };
@@ -297,7 +299,9 @@ export default function EmojiField({
   disabled,
   required,
   autoFocus,
+  id,
   name,
+  onFocus,
   onBlur,
   onKeyDown,
 }: EmojiFieldProps) {
@@ -347,6 +351,7 @@ export default function EmojiField({
   const sharedProps = {
     value,
     onChange: (e: React.ChangeEvent<FieldElement>) => onChange(e.target.value),
+    onFocus,
     onBlur: handleBlur,
     onKeyDown,
     maxLength,
@@ -354,6 +359,7 @@ export default function EmojiField({
     disabled,
     required,
     autoFocus,
+    id,
     name,
     style,
     className: `${className} pr-11`,

@@ -12,6 +12,14 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "4 octubre 2026",
+    version: "1.33.1",
+    title: "Votar sin sobresaltos en el móvil",
+    changes: [
+      { type: "fixed", text: "Al votar en el móvil ya no salta el teclado ni se mueve la página: el comentario te espera por si quieres escribirlo" },
+    ],
+  },
+  {
     date: "2 octubre 2026",
     version: "1.33",
     title: "Juegos que te van a encantar",
