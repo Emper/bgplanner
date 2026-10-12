@@ -964,6 +964,23 @@ function MyListTab({
 
   const renderRow = ({ id: eventGameId, game, myInterest }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
     <li key={eventGameId} className="flex items-start gap-3 py-2.5">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={isPlayed}
+        aria-label={isPlayed ? `Desmarcar ${game.name} como jugado` : `Marcar ${game.name} como jugado`}
+        title={isPlayed ? "Desmarcar" : "Marcar como jugado"}
+        onClick={() => onTogglePlayed(eventGameId, myInterest.intensity, !isPlayed)}
+        className={`w-7 h-7 mt-1.5 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
+          isPlayed
+            ? "bg-emerald-500 border-emerald-500 text-white"
+            : "border-[var(--border-strong)] bg-[var(--input-bg)] text-transparent hover:border-emerald-400 hover:text-emerald-400/50"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      </button>
       <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${isPlayed ? "opacity-60" : ""}`}>
         {game.thumbnail ? (
           <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-contain" />
@@ -1022,25 +1039,17 @@ function MyListTab({
           </button>
         )}
       </div>
-      <button
-        onClick={() => onTogglePlayed(eventGameId, myInterest.intensity, !isPlayed)}
-        className={`shrink-0 mt-0.5 text-xs transition-colors ${
-          isPlayed
-            ? "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-            : "text-[var(--text-muted)] hover:text-emerald-400"
-        }`}
-      >
-        {isPlayed ? "Desmarcar" : "Marcar jugado"}
-      </button>
     </li>
   );
 
   return (
     <div className="space-y-6">
       {pending.length > 0 ? (
-        <ul className="divide-y divide-[var(--border)]">
-          {pending.map((item) => renderRow(item, false))}
-        </ul>
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-1">
+          <ul className="divide-y divide-[var(--border)]">
+            {pending.map((item) => renderRow(item, false))}
+          </ul>
+        </div>
       ) : (
         <p className="text-[var(--text-secondary)] text-center py-6">¡Ya has jugado todo lo de tu lista! 🎉</p>
       )}
