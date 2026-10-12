@@ -4,7 +4,6 @@ import { ImageResponse } from "next/og";
 import { DEMO_GAMES, type DemoGame } from "@/components/landing/games";
 import {
   inlineImage,
-  SHARE_CARD_CONTENT_TYPE,
   SHARE_CARD_SIZE,
   SHARE_COLORS,
 } from "@/lib/shareCards";
@@ -19,7 +18,8 @@ import {
 
 export const alt = "BG Planner: decide con tus amigos a qué jugar";
 export const size = SHARE_CARD_SIZE;
-export const contentType = SHARE_CARD_CONTENT_TYPE;
+// Esta sigue en PNG: se dibuja una vez en el build y sin fotos pesa poco.
+export const contentType = "image/png";
 // Sin datos de la petición, así que Next la dibuja una vez en el build y la
 // sirve estática: ni lee las fuentes ni pide carátulas a BGG en cada visita.
 

@@ -1,11 +1,14 @@
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 
 // La tarjeta que se ve al pegar un enlace de BG Planner en WhatsApp,
 // Telegram, Slack o X. Una sola plantilla para perfiles, grupos, eventos e
 // invitaciones: cambian la foto, el título y la frase, no el aspecto.
 
 export const SHARE_CARD_SIZE = { width: 1200, height: 630 };
-export const SHARE_CARD_CONTENT_TYPE = "image/png";
+// JPEG y no PNG: con portadas o fotos, el PNG pasa de los ~300 KB y
+// WhatsApp deja el enlace sin imagen.
+export const SHARE_CARD_CONTENT_TYPE = "image/jpeg";
 
 // Colores de la app (los mismos del tema oscuro y de los emails).
 const BG = "#0f172a";
@@ -383,10 +386,16 @@ export function shareCard({
 }
 
 /** La tarjeta ya empaquetada, con caché: los bots la piden muchas veces. */
-export function shareCardResponse(input: ShareCardInput) {
-  return new ImageResponse(shareCard(input), {
-    ...SHARE_CARD_SIZE,
+export async function shareCardResponse(input: ShareCardInput) {
+  const png = await new ImageResponse(shareCard(input), SHARE_CARD_SIZE).arrayBuffer();
+  // Sin submuestreo de color, para que los textos de color no se emborronen.
+  const jpeg = await sharp(Buffer.from(png))
+    .jpeg({ quality: 85, chromaSubsampling: "4:4:4", mozjpeg: true })
+    .toBuffer();
+
+  return new Response(new Uint8Array(jpeg), {
     headers: {
+      "content-type": SHARE_CARD_CONTENT_TYPE,
       "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
     },
   });
