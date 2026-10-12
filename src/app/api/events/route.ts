@@ -22,7 +22,15 @@ export async function GET(request: NextRequest) {
     include: {
       createdBy: { select: { name: true, displayName: true, email: true } },
       attendees: {
-        include: { user: { select: { name: true, displayName: true, avatarUrl: true } } },
+        // Campos a mano: el enlace de la lista compartida no sale de aquí
+        select: {
+          id: true,
+          eventId: true,
+          userId: true,
+          status: true,
+          joinedAt: true,
+          user: { select: { name: true, displayName: true, avatarUrl: true } },
+        },
         take: 5,
       },
       _count: { select: { attendees: true, games: true } },

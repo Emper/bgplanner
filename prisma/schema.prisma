@@ -468,6 +468,9 @@ model EventAttendee {
   userId   String
   status   String   @default("attending") // attending | maybe | cancelled
   joinedAt DateTime @default(now())
+  // Enlace de solo lectura a "Mi Lista" en este evento. null = no compartida.
+  // Regenerarlo invalida el enlace anterior.
+  listShareToken String? @unique
 
   event     Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user      User                @relation(fields: [userId], references: [id])

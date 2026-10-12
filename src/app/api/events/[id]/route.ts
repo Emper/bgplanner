@@ -30,7 +30,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         },
       },
       attendees: {
-        include: {
+        // Campos a mano: el enlace de la lista compartida de cada uno no se
+        // enseña al resto de asistentes
+        select: {
+          id: true,
+          eventId: true,
+          userId: true,
+          status: true,
+          joinedAt: true,
           user: { select: { id: true, name: true, displayName: true, surname: true, email: true, avatarUrl: true, bggUsername: true, slug: true } },
         },
         orderBy: { user: { name: "asc" } },

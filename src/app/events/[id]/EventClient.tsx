@@ -15,6 +15,7 @@ import EmojiField from "@/components/EmojiField";
 import { formatDateFull, formatDuration } from "@/lib/format";
 import { resizeImage } from "@/lib/image";
 import { profileHref } from "@/lib/users";
+import { INTENSITY_LABELS, INTENSITY_COLORS } from "@/lib/intensity";
 
 interface Game {
   id: string;
@@ -78,22 +79,9 @@ interface EventData {
 }
 
 type Tab = "activity" | "games" | "mylist" | "attendees" | "gallery";
+const TABS: Tab[] = ["activity", "games", "mylist", "attendees", "gallery"];
 
-const INTENSITY_LABELS: Record<number, string> = {
-  5: "Máxima prioridad",
-  4: "Tengo que probarlo",
-  3: "Me encantaría",
-  2: "Si surge, me va bien",
-  1: "Solo si no queda otra",
-};
-
-const INTENSITY_COLORS: Record<number, string> = {
-  5: "bg-red-500/20 text-red-300 border-red-500",
-  4: "bg-orange-500/20 text-orange-300 border-orange-500",
-  3: "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]",
-  2: "bg-blue-500/20 text-blue-300 border-blue-500",
-  1: "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)]",
-};
+const INVITE_OPEN_KEY = "event-invite-open";
 
 const formatDate = formatDateFull;
 
@@ -103,7 +91,10 @@ function EventDetailPageInner() {
   const searchParams = useSearchParams();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("activity");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const tab = searchParams.get("tab") as Tab | null;
+    return tab && TABS.includes(tab) ? tab : "activity";
+  });
   const [openReviewSignal, setOpenReviewSignal] = useState(0);
   const reviewDeepLinkHandled = useRef(false);
   const [addingGame, setAddingGame] = useState(false);
@@ -111,6 +102,14 @@ function EventDetailPageInner() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
+  // La caja del enlace de invitación va plegada salvo que la hayas abierto
+  const [inviteOpen, setInviteOpen] = useState(() => {
+    try {
+      return typeof window !== "undefined" && localStorage.getItem(INVITE_OPEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
 
   // Activity feed state (restore from cache if available)
   const eventFeedCacheKey = `event:${eventId}`;
@@ -186,6 +185,29 @@ function EventDetailPageInner() {
   useEffect(() => {
     if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
   }, [activeTab, feedLoaded, fetchEventFeed]);
+
+  const switchTab = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    router.replace(`/events/${eventId}${tab !== "activity" ? `?tab=${tab}` : ""}`, { scroll: false });
+    if (tab === "activity") fetchEventFeed();
+  }, [router, eventId, fetchEventFeed]);
+
+  const toggleInvite = () => {
+    setInviteOpen((open) => {
+      try {
+        localStorage.setItem(INVITE_OPEN_KEY, open ? "0" : "1");
+      } catch {
+        // Sin almacenamiento (modo privado) simplemente no se recuerda
+      }
+      return !open;
+    });
+  };
+
+  const copyInvite = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/join-event/${inviteCode}`);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
 
   // Deep-link ?review=1 (desde el email de "valora el evento"): abre la galería
   // y hace scroll al formulario de valoración.
@@ -547,46 +569,64 @@ function EventDetailPageInner() {
 
           {/* Invite link (creator only) */}
           {event.isCreator && (
-            <div className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3">
-              <div className="text-xs font-medium text-[var(--text-secondary)] mb-2">Enlace de invitación</div>
-              {inviteCode ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${window.location.origin}/join-event/${inviteCode}`}
-                    className="flex-1 min-w-0 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs sm:text-sm text-[var(--text-secondary)] truncate transition-all duration-200"
-                  />
+            <div className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 py-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleInvite}
+                  aria-expanded={inviteOpen}
+                  className="flex-1 flex items-center gap-1.5 text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors py-1"
+                >
+                  <span className={`inline-block text-[10px] transition-transform duration-200 ${inviteOpen ? "rotate-90" : ""}`}>▶</span>
+                  Enlace de invitación
+                </button>
+                {inviteCode && !inviteOpen && (
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/join-event/${inviteCode}`);
-                      setInviteCopied(true);
-                      setTimeout(() => setInviteCopied(false), 2000);
-                    }}
-                    className="shrink-0 px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
+                    onClick={copyInvite}
+                    className="shrink-0 px-3 py-1 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:text-[var(--primary)] transition-all duration-200"
                   >
                     {inviteCopied ? "Copiado" : "Copiar"}
                   </button>
+                )}
+              </div>
+              {inviteOpen && (
+                <div className="mt-1.5 mb-1">
+                  {inviteCode ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${window.location.origin}/join-event/${inviteCode}`}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="flex-1 min-w-0 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs sm:text-sm text-[var(--text-secondary)] truncate transition-all duration-200"
+                      />
+                      <button
+                        onClick={copyInvite}
+                        className="shrink-0 px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
+                      >
+                        {inviteCopied ? "Copiado" : "Copiar"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        setGeneratingLink(true);
+                        try {
+                          const res = await fetch(`/api/events/${eventId}/invite-link`, { method: "POST" });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setInviteCode(data.inviteCode);
+                          }
+                        } finally {
+                          setGeneratingLink(false);
+                        }
+                      }}
+                      disabled={generatingLink}
+                      className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:text-[var(--text)] transition-all duration-200 disabled:opacity-50"
+                    >
+                      {generatingLink ? "Generando..." : "Generar enlace"}
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <button
-                  onClick={async () => {
-                    setGeneratingLink(true);
-                    try {
-                      const res = await fetch(`/api/events/${eventId}/invite-link`, { method: "POST" });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setInviteCode(data.inviteCode);
-                      }
-                    } finally {
-                      setGeneratingLink(false);
-                    }
-                  }}
-                  disabled={generatingLink}
-                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)] transition-all duration-200 disabled:opacity-50"
-                >
-                  {generatingLink ? "Generando..." : "Generar enlace"}
-                </button>
               )}
             </div>
           )}
@@ -594,13 +634,10 @@ function EventDetailPageInner() {
 
         {/* Tabs */}
         <div className="flex gap-6 border-b border-[var(--border)] mb-4 overflow-x-auto no-scrollbar">
-          {(["activity", "games", "mylist", "attendees", "gallery"] as Tab[]).map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                if (tab === "activity") fetchEventFeed();
-              }}
+              onClick={() => switchTab(tab)}
               className={`pb-2 text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
                 activeTab === tab
                   ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
@@ -934,6 +971,13 @@ function MyListTab({
 }) {
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(""), 4000);
+  };
 
   if (!event.currentAttendeeId) {
     return (
@@ -1044,6 +1088,17 @@ function MyListTab({
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 -mb-3">
+        <p className="text-xs text-[var(--text-muted)]">Tus notas son privadas: solo las ves tú.</p>
+        <button
+          onClick={() => setShareOpen(true)}
+          title="Compartir mi lista"
+          className="shrink-0 px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition-all duration-200"
+        >
+          ↗ Compartir
+        </button>
+      </div>
+
       {pending.length > 0 ? (
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-1">
           <ul className="divide-y divide-[var(--border)]">
@@ -1064,6 +1119,160 @@ function MyListTab({
           </ul>
         </div>
       )}
+
+      {shareOpen && (
+        <ShareListModal eventId={event.id} onClose={() => setShareOpen(false)} onToast={showToast} />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Compartir Mi Lista ────────────────────────────────────────────────────
+
+function ShareListModal({
+  eventId,
+  onClose,
+  onToast,
+}: {
+  eventId: string;
+  onClose: () => void;
+  onToast: (message: string) => void;
+}) {
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const endpoint = `/api/events/${eventId}/my-list/share`;
+
+  useEffect(() => {
+    fetch(endpoint)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setToken(data?.token ?? null))
+      .catch(() => setToken(null))
+      .finally(() => setLoading(false));
+  }, [endpoint]);
+
+  const call = async (method: "POST" | "DELETE") => {
+    setBusy(true);
+    try {
+      const res = await fetch(endpoint, { method });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setToken(data.token ?? null);
+      setConfirmRevoke(false);
+      onToast(method === "DELETE" ? "Enlace desactivado: ya no se puede abrir" : "Enlace listo para compartir");
+    } catch {
+      onToast("No se ha podido cambiar el enlace");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const url = token ? `${window.location.origin}/l/${token}` : "";
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      onToast("Enlace copiado");
+    } catch {
+      onToast("No se ha podido copiar; selecciónalo a mano");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h2 className="text-lg font-bold text-[var(--text)]">Compartir mi lista</h2>
+            <button
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
+            >
+              ✕
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="h-24 flex items-center justify-center">
+              <span className="w-5 h-5 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+            </div>
+          ) : token ? (
+            <>
+              <p className="text-sm text-[var(--text-secondary)] mb-3">
+                <strong>Cualquiera con este enlace</strong> puede ver tu lista para este evento: tus prioridades y lo que
+                ya has jugado, siempre al día. Tus notas no salen. No hace falta cuenta y no se puede cambiar nada.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={url}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="flex-1 min-w-0 px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs text-[var(--text)] font-mono"
+                />
+                <button
+                  onClick={copy}
+                  className="shrink-0 px-4 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
+                >
+                  Copiar
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--border)]">
+                <button
+                  onClick={() => call("POST")}
+                  disabled={busy}
+                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-xs hover:text-[var(--text)] disabled:opacity-50 transition-colors"
+                  title="Genera un enlace nuevo; el anterior deja de funcionar"
+                >
+                  Generar uno nuevo
+                </button>
+                {confirmRevoke ? (
+                  <button
+                    onClick={() => call("DELETE")}
+                    disabled={busy}
+                    className="px-3 py-1.5 bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  >
+                    ¿Seguro? Dejar de compartir
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirmRevoke(true)}
+                    className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
+                  >
+                    Dejar de compartir
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">
+                Genera un enlace para que quien te acompañe vea qué te apetece jugar en este evento y qué has jugado
+                ya. Solo pueden mirar, y tus notas no salen. Lo abre cualquiera que lo tenga, sin cuenta, así que
+                desactívalo cuando ya no haga falta.
+              </p>
+              <button
+                onClick={() => call("POST")}
+                disabled={busy}
+                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-all duration-200"
+              >
+                {busy ? "Creando…" : "Crear enlace para compartir"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

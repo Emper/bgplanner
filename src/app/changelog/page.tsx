@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "12 octubre 2026",
+    version: "1.35",
+    title: "Comparte tu lista con quien te acompaña",
+    changes: [
+      { type: "new", text: "Comparte tu lista de un evento con un enlace: verán qué te apetece jugar y qué has jugado ya" },
+      { type: "new", text: "Cada pestaña de un evento tiene su propio enlace, para mandarla directamente" },
+      { type: "improved", text: "El enlace de invitación del evento se puede plegar para que no ocupe tanto" },
+    ],
+  },
+  {
+    date: "12 octubre 2026",
     version: "1.34",
     title: "Tu lista, lista para la mesa",
     changes: [
