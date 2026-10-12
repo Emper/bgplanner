@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       ],
     },
     include: {
-      createdBy: { select: { name: true, displayName: true, email: true } },
+      createdBy: { select: { name: true, displayName: true } },
       attendees: {
         // Campos a mano: el enlace de la lista compartida no sale de aquí
         select: {

@@ -21,7 +21,7 @@ interface EventData {
   imageUrl: string | null;
   visibility: string;
   createdById: string;
-  createdBy: { name: string | null; email: string };
+  createdBy: { name: string | null; displayName: string | null };
   _count: { attendees: number; games: number };
 }
 

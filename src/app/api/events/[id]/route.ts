@@ -16,14 +16,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
-      createdBy: { select: { id: true, name: true, displayName: true, email: true, avatarUrl: true } },
+      createdBy: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
       games: {
         include: {
           game: true,
           interests: {
             include: {
               attendee: {
-                include: { user: { select: { id: true, name: true, displayName: true, email: true, avatarUrl: true } } },
+                include: { user: { select: { id: true, name: true, displayName: true, avatarUrl: true } } },
               },
             },
           },
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           userId: true,
           status: true,
           joinedAt: true,
-          user: { select: { id: true, name: true, displayName: true, surname: true, email: true, avatarUrl: true, bggUsername: true, slug: true } },
+          user: { select: { id: true, name: true, displayName: true, surname: true, avatarUrl: true, bggUsername: true, slug: true } },
         },
         orderBy: { user: { name: "asc" } },
       },
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       // Notes are ALWAYS private — only the owner sees them
       notes: interest.attendeeId === currentAttendee?.id ? interest.notes : null,
       playedAt: interest.attendeeId === currentAttendee?.id ? interest.playedAt : null,
-      userName: interest.attendee.user.displayName || interest.attendee.user.name || interest.attendee.user.email,
+      userName: interest.attendee.user.displayName || interest.attendee.user.name || "Alguien",
       userId: interest.attendee.user.id,
     })),
   }));

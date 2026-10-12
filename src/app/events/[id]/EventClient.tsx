@@ -55,7 +55,7 @@ interface Attendee {
   eventId: string;
   userId: string;
   status: string;
-  user: { id: string; name: string | null; displayName: string | null; surname: string | null; email: string; avatarUrl: string | null; bggUsername: string | null; slug: string | null };
+  user: { id: string; name: string | null; displayName: string | null; surname: string | null; avatarUrl: string | null; bggUsername: string | null; slug: string | null };
 }
 
 interface EventData {
@@ -70,7 +70,7 @@ interface EventData {
   visibility: string;
   inviteCode: string | null;
   createdById: string;
-  createdBy: { id: string; name: string | null; displayName: string | null; email: string };
+  createdBy: { id: string; name: string | null; displayName: string | null };
   games: EventGame[];
   attendees: Attendee[];
   currentUserId: string;
@@ -538,7 +538,7 @@ function EventDetailPageInner() {
               {attendingCount} asistente{attendingCount !== 1 ? "s" : ""}
             </span>
             <span className="text-xs text-[var(--text-muted)]">
-              Organiza: {event.createdBy.displayName || event.createdBy.name || event.createdBy.email}
+              Organiza: {event.createdBy.displayName || event.createdBy.name || "Alguien"}
             </span>
           </div>
 
@@ -1305,7 +1305,7 @@ function AttendeesTab({ event }: { event: EventData }) {
                 <div className="flex items-center gap-2">
                   <Link href={profileHref(att.user)} prefetch={false}>
                     <Avatar
-                      name={att.user.displayName || att.user.name || att.user.email}
+                      name={att.user.displayName || att.user.name || "Jugador"}
                       avatarUrl={att.user.avatarUrl}
                       size="sm"
                     />
@@ -1317,7 +1317,7 @@ function AttendeesTab({ event }: { event: EventData }) {
                         prefetch={false}
                         className="hover:text-[var(--primary)] transition-colors"
                       >
-                        {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.email}
+                        {att.user.name ? `${att.user.name}${att.user.surname ? ` ${att.user.surname}` : ""}` : att.user.displayName || "Jugador"}
                       </Link>
                       {att.user.bggUsername && (
                         <a
