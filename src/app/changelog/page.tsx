@@ -12,6 +12,15 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "12 octubre 2026",
+    version: "1.34",
+    title: "Tu lista, lista para la mesa",
+    changes: [
+      { type: "improved", text: "«Mi Lista» del evento es ahora un listado compacto para consultarlo de un vistazo durante la quedada" },
+      { type: "new", text: "Marca los juegos como jugados y bajan a su propio apartado al final de la lista" },
+    ],
+  },
+  {
     date: "4 octubre 2026",
     version: "1.33.1",
     title: "Votar sin sobresaltos en el móvil",

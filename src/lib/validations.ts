@@ -144,6 +144,7 @@ export const eventInterestSchema = z.object({
   eventGameId: z.string().min(1),
   intensity: z.number().int().min(1).max(5),
   notes: z.string().max(500).transform(clean).optional(),
+  played: z.boolean().optional(),
 });
 
 // Lo que el usuario anota sobre un juego de su colección. Los tres campos

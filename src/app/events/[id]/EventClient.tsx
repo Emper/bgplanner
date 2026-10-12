@@ -36,6 +36,7 @@ interface Interest {
   attendeeId: string;
   intensity: number;
   notes: string | null;
+  playedAt: string | null;
   userName: string;
   userId: string;
 }
@@ -335,7 +336,7 @@ function EventDetailPageInner() {
           if (existing) {
             return { ...eg, interests: eg.interests.map((i) => i.attendeeId === prev.currentAttendeeId ? { ...i, intensity } : i) };
           }
-          return { ...eg, interests: [...eg.interests, { id: "temp", eventGameId, attendeeId: prev.currentAttendeeId!, intensity, notes: null, userName: "", userId: prev.currentUserId }] };
+          return { ...eg, interests: [...eg.interests, { id: "temp", eventGameId, attendeeId: prev.currentAttendeeId!, intensity, notes: null, playedAt: null, userName: "", userId: prev.currentUserId }] };
         }),
       };
     });
@@ -381,6 +382,25 @@ function EventDetailPageInner() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventGameId, intensity, notes }),
+    });
+  };
+
+  const handleTogglePlayed = async (eventGameId: string, intensity: number, played: boolean) => {
+    const playedAt = played ? new Date().toISOString() : null;
+    setEvent((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        games: prev.games.map((eg) => {
+          if (eg.id !== eventGameId) return eg;
+          return { ...eg, interests: eg.interests.map((i) => i.attendeeId === prev.currentAttendeeId ? { ...i, playedAt } : i) };
+        }),
+      };
+    });
+    await fetch(`/api/events/${eventId}/interests`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventGameId, intensity, played }),
     });
   };
 
@@ -618,7 +638,7 @@ function EventDetailPageInner() {
             myInterests={myInterests}
             event={event}
             onUpdateNotes={handleUpdateNotes}
-            onRemoveInterest={handleRemoveInterest}
+            onTogglePlayed={handleTogglePlayed}
           />
         )}
         {activeTab === "attendees" && (
@@ -905,12 +925,12 @@ function MyListTab({
   myInterests,
   event,
   onUpdateNotes,
-  onRemoveInterest,
+  onTogglePlayed,
 }: {
   myInterests: (EventGame & { myInterest: Interest })[];
   event: EventData;
   onUpdateNotes: (eventGameId: string, intensity: number, notes: string) => void;
-  onRemoveInterest: (eventGameId: string) => void;
+  onTogglePlayed: (eventGameId: string, intensity: number, played: boolean) => void;
 }) {
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState("");
@@ -931,78 +951,110 @@ function MyListTab({
     );
   }
 
-  return (
-    <div className="space-y-3">
-      {myInterests.map(({ id: eventGameId, game, myInterest }) => (
-        <div
-          key={eventGameId}
-          className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
-              {game.thumbnail ? (
-                <Image src={game.thumbnail} alt={game.name} width={64} height={64} className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-[var(--text)] text-sm sm:text-base">{game.name}</div>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border mt-1 ${INTENSITY_COLORS[myInterest.intensity]}`}>
-                {myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}
-              </span>
-            </div>
+  const pending = myInterests.filter((i) => !i.myInterest.playedAt);
+  // Los jugados, en el orden en que se marcaron
+  const played = myInterests
+    .filter((i) => i.myInterest.playedAt)
+    .sort((a, b) => a.myInterest.playedAt!.localeCompare(b.myInterest.playedAt!));
+
+  const saveNotes = (eventGameId: string, intensity: number) => {
+    onUpdateNotes(eventGameId, intensity, notesValue);
+    setEditingNotes(null);
+  };
+
+  const renderRow = ({ id: eventGameId, game, myInterest }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
+    <li key={eventGameId} className="flex items-start gap-3 py-2.5">
+      <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${isPlayed ? "opacity-60" : ""}`}>
+        {game.thumbnail ? (
+          <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-contain" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
+          <span className={`font-semibold text-sm sm:text-base ${isPlayed ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"}`}>
+            {game.name}
+          </span>
+          <span
+            className={`inline-flex items-center px-1.5 py-px rounded text-[11px] font-medium border ${INTENSITY_COLORS[myInterest.intensity]} ${isPlayed ? "opacity-60" : ""}`}
+            title={INTENSITY_LABELS[myInterest.intensity]}
+          >
+            <span className="sm:hidden">{myInterest.intensity}</span>
+            <span className="hidden sm:inline">{myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}</span>
+          </span>
+        </div>
+
+        {editingNotes === eventGameId ? (
+          <div className="flex gap-2 mt-1.5">
+            <EmojiField
+              multiline={false}
+              value={notesValue}
+              onChange={setNotesValue}
+              maxLength={500}
+              placeholder="Notas privadas..."
+              wrapperClassName="flex-1"
+              className="w-full px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveNotes(eventGameId, myInterest.intensity);
+              }}
+            />
             <button
-              onClick={() => onRemoveInterest(eventGameId)}
-              className="shrink-0 text-[var(--text-muted)] hover:text-red-400 text-xs transition-colors"
+              onClick={() => saveNotes(eventGameId, myInterest.intensity)}
+              className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
             >
-              Quitar
+              Guardar
             </button>
           </div>
+        ) : (
+          <button
+            onClick={() => {
+              setEditingNotes(eventGameId);
+              setNotesValue(myInterest.notes || "");
+            }}
+            className={`block text-left text-xs mt-0.5 transition-colors ${
+              myInterest.notes
+                ? "text-[var(--text-secondary)] hover:text-[var(--text)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            }`}
+          >
+            {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
+          </button>
+        )}
+      </div>
+      <button
+        onClick={() => onTogglePlayed(eventGameId, myInterest.intensity, !isPlayed)}
+        className={`shrink-0 mt-0.5 text-xs transition-colors ${
+          isPlayed
+            ? "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            : "text-[var(--text-muted)] hover:text-emerald-400"
+        }`}
+      >
+        {isPlayed ? "Desmarcar" : "Marcar jugado"}
+      </button>
+    </li>
+  );
 
-          {/* Notes section */}
-          <div className="mt-3">
-            {editingNotes === eventGameId ? (
-              <div className="flex gap-2">
-                <EmojiField
-                  multiline={false}
-                  value={notesValue}
-                  onChange={setNotesValue}
-                  maxLength={500}
-                  placeholder="Notas privadas..."
-                  wrapperClassName="flex-1"
-                  className="w-full px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      onUpdateNotes(eventGameId, myInterest.intensity, notesValue);
-                      setEditingNotes(null);
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    onUpdateNotes(eventGameId, myInterest.intensity, notesValue);
-                    setEditingNotes(null);
-                  }}
-                  className="px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  Guardar
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setEditingNotes(eventGameId);
-                  setNotesValue(myInterest.notes || "");
-                }}
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-              >
-                {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
-              </button>
-            )}
-          </div>
+  return (
+    <div className="space-y-6">
+      {pending.length > 0 ? (
+        <ul className="divide-y divide-[var(--border)]">
+          {pending.map((item) => renderRow(item, false))}
+        </ul>
+      ) : (
+        <p className="text-[var(--text-secondary)] text-center py-6">¡Ya has jugado todo lo de tu lista! 🎉</p>
+      )}
+
+      {played.length > 0 && (
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
+            Jugados ({played.length})
+          </h3>
+          <ul className="divide-y divide-[var(--border)]">
+            {played.map((item) => renderRow(item, true))}
+          </ul>
         </div>
-      ))}
+      )}
     </div>
   );
 }

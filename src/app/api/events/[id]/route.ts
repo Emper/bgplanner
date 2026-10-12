@@ -64,6 +64,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       intensity: interest.intensity,
       // Notes are ALWAYS private — only the owner sees them
       notes: interest.attendeeId === currentAttendee?.id ? interest.notes : null,
+      playedAt: interest.attendeeId === currentAttendee?.id ? interest.playedAt : null,
       userName: interest.attendee.user.displayName || interest.attendee.user.name || interest.attendee.user.email,
       userId: interest.attendee.user.id,
     })),

@@ -27,7 +27,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { eventGameId, intensity, notes } = parsed.data;
+  const { eventGameId, intensity, notes, played } = parsed.data;
+  const playedAt = played === undefined ? undefined : played ? new Date() : null;
 
   // Verify the game belongs to this event
   const eventGame = await prisma.eventGame.findUnique({
@@ -40,8 +41,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const interest = await prisma.eventGameInterest.upsert({
     where: { eventGameId_attendeeId: { eventGameId, attendeeId: attendee.id } },
-    update: { intensity, notes },
-    create: { eventGameId, attendeeId: attendee.id, intensity, notes },
+    update: { intensity, notes, playedAt },
+    create: { eventGameId, attendeeId: attendee.id, intensity, notes, playedAt },
   });
 
   logActivity("event_interest_set", session.userId, { eventId, gameName: eventGame.game.name, intensity });

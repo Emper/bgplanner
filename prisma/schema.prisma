@@ -484,6 +484,7 @@ model EventGameInterest {
   attendeeId  String
   intensity   Int      // 1-5
   notes       String?
+  playedAt    DateTime? // marcado como jugado desde "Mi Lista"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
