@@ -1087,8 +1087,8 @@ function MyListTab({
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 -mb-3">
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-3">
         <p className="text-xs text-[var(--text-muted)]">Tus notas son privadas: solo las ves tú.</p>
         <button
           onClick={() => setShareOpen(true)}
@@ -1110,7 +1110,7 @@ function MyListTab({
       )}
 
       {played.length > 0 && (
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2">
+        <div className="mt-6 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
             Jugados ({played.length})
           </h3>
