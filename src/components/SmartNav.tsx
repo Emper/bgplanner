@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import AnimatedLogo from "./AnimatedLogo";
 import { useTheme } from "@/lib/theme";
+import { useNavUser } from "@/lib/navUser";
 
 export default function SmartNav() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  // Comparte con la navbar lo que ya se sabe de la sesión: quien ya ha
+  // entrado ve su cabecera desde el principio, sin pasar por la de visitante.
+  const navUser = useNavUser();
+  const isLoggedIn = navUser === undefined ? null : !!navUser;
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
-
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => setIsLoggedIn(res.ok))
-      .catch(() => setIsLoggedIn(false));
-  }, []);
 
   if (isLoggedIn === true) {
     return <Navbar />;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
   NOTIFICATIONS_EVENT,
@@ -18,10 +18,29 @@ import {
 const POLL_MS = 60_000;
 const PANEL_LIMIT = 15;
 
+// El contador sobrevive a los cambios de página (la navbar se monta de nuevo
+// en cada una): así el globo sale ya puesto en vez de aparecer a destiempo.
+let lastUnread: number | null = null;
+const unreadListeners = new Set<() => void>();
+const subscribeUnread = (cb: () => void) => {
+  unreadListeners.add(cb);
+  return () => {
+    unreadListeners.delete(cb);
+  };
+};
+const getUnread = () => lastUnread;
+const getServerUnread = () => null;
+
+type UnreadUpdate = number | null | ((prev: number | null) => number | null);
+function setUnread(next: UnreadUpdate) {
+  lastUnread = typeof next === "function" ? next(lastUnread) : next;
+  unreadListeners.forEach((l) => l());
+}
+
 export default function NotificationBell() {
   const router = useRouter();
-  // null hasta saber si hay sesión: sin ella la campana no se pinta
-  const [unread, setUnread] = useState<number | null>(null);
+  // null hasta tener el primer recuento: se guarda el hueco para no mover nada
+  const unread = useSyncExternalStore(subscribeUnread, getUnread, getServerUnread);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItemData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,7 +130,7 @@ export default function NotificationBell() {
     await markNotificationsRead();
   };
 
-  if (unread === null) return null;
+  if (unread === null) return <span className="block w-9 h-9" aria-hidden />;
 
   return (
     <div className="relative">

@@ -7,33 +7,25 @@ import { useState, useEffect, useRef } from "react";
 import AnimatedLogo from "./AnimatedLogo";
 import NotificationBell from "./NotificationBell";
 import { useTheme } from "@/lib/theme";
-import { profileHref } from "@/lib/users";
+import { useNavUser, clearNavUser } from "@/lib/navUser";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
+  // Lo último conocido de quien navega, para no ir colocando piezas a
+  // destiempo en cada página. Mientras no se sabe, huecos del mismo tamaño.
+  const navUser = useNavUser();
   // null = loading, "" = no username, string = username
-  const [bggUsername, setBggUsername] = useState<string | null>(null);
-  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const bggUsername = navUser ? navUser.bggUsername : null;
+  const isSuperadmin = !!navUser?.isSuperadmin;
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   // "Perfil" lleva al perfil público, que es el que se enseña; editarlo está
   // a un clic desde allí. Hasta que sabemos quiénes somos, al formulario.
-  const [myProfile, setMyProfile] = useState("/profile");
-
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        setBggUsername(data?.bggUsername || "");
-        setIsSuperadmin(!!data?.isSuperadmin);
-        if (data?.id) setMyProfile(profileHref(data));
-      })
-      .catch(() => setBggUsername(""));
-  }, []);
+  const myProfile = navUser?.profileHref ?? "/profile";
 
   // Bloquea el scroll del body cuando el menú está abierto
   useEffect(() => {
@@ -70,6 +62,7 @@ export default function Navbar() {
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      clearNavUser();
       // "/" pinta tu inicio o la portada según haya sesión: que no se quede
       // el inicio de antes en la caché del router.
       router.push("/");

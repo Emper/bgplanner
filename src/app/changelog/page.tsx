@@ -13,6 +13,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "13 octubre 2026",
+    version: "1.40.1",
+    title: "Una cabecera que no baila",
+    changes: [
+      { type: "fixed", text: "La barra de arriba ya no da saltos al cambiar de página: tu cuenta de BGG, los avisos y el resto salen en su sitio desde el principio" },
+    ],
+  },
+  {
+    date: "13 octubre 2026",
     version: "1.40",
     title: "Tu campana de avisos",
     changes: [

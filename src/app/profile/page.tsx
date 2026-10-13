@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
+import { refreshNavUser } from "@/lib/navUser";
 import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
@@ -256,6 +257,8 @@ function ProfileForm() {
         throw new Error(data.error || "Error al guardar el perfil");
       }
 
+      // Que la cabecera de la siguiente página ya salga con el BGG nuevo
+      await refreshNavUser();
       router.push(redirect || "/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
