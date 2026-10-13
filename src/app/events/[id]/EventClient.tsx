@@ -12,6 +12,7 @@ import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import EventGallery from "@/components/EventGallery";
 import EmojiField from "@/components/EmojiField";
+import MesaView from "./MesaView";
 import { formatDateFull, formatDuration } from "@/lib/format";
 import { resizeImage } from "@/lib/image";
 import { profileHref } from "@/lib/users";
@@ -188,8 +189,28 @@ function EventDetailPageInner() {
     if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
   }, [activeTab, feedLoaded, fetchEventFeed]);
 
+  // "Armar mesa" (pestaña Asistentes): ids de asistente, en la URL para
+  // poder pasar el enlace a quien se sienta contigo
+  const [mesa, setMesa] = useState<string[] | null>(() => {
+    const ids = searchParams.get("mesa")?.split(",").filter(Boolean);
+    return ids && ids.length > 0 ? ids : null;
+  });
+
+  const openMesa = useCallback((ids: string[]) => {
+    setMesa(ids);
+    setActiveTab("attendees");
+    router.replace(`/events/${eventId}?tab=attendees&mesa=${ids.join(",")}`, { scroll: false });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [router, eventId]);
+
+  const closeMesa = useCallback(() => {
+    setMesa(null);
+    router.replace(`/events/${eventId}?tab=attendees`, { scroll: false });
+  }, [router, eventId]);
+
   const switchTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
+    setMesa(null);
     router.replace(`/events/${eventId}${tab !== "activity" ? `?tab=${tab}` : ""}`, { scroll: false });
     if (tab === "activity") fetchEventFeed();
   }, [router, eventId, fetchEventFeed]);
@@ -695,7 +716,13 @@ function EventDetailPageInner() {
           />
         )}
         {activeTab === "attendees" && (
-          <AttendeesTab event={event} onSetRole={handleSetAttendeeRole} />
+          <AttendeesTab
+            event={event}
+            onSetRole={handleSetAttendeeRole}
+            mesa={mesa}
+            onOpenMesa={openMesa}
+            onCloseMesa={closeMesa}
+          />
         )}
         {activeTab === "gallery" && (
           <EventGallery
@@ -1298,12 +1325,68 @@ function ShareListModal({
 function AttendeesTab({
   event,
   onSetRole,
+  mesa,
+  onOpenMesa,
+  onCloseMesa,
 }: {
   event: EventData;
   onSetRole: (attendeeId: string, role: "attendee" | "admin") => void;
+  mesa: string[] | null;
+  onOpenMesa: (attendeeIds: string[]) => void;
+  onCloseMesa: () => void;
 }) {
+  // Con quién armar mesa (ids de asistente). Quien mira, si está apuntado,
+  // va siempre incluido y no se marca.
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(mesa ?? []));
+  const me = event.currentAttendeeId;
+
+  const togglePicked = (attendeeId: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(attendeeId)) next.delete(attendeeId);
+      else next.add(attendeeId);
+      return next;
+    });
+  };
+
+  // La mesa que se enseña: la del enlace, quedándonos con quien siga apuntado
+  const mesaMembers = (mesa ?? [])
+    .map((id) => event.attendees.find((a) => a.id === id))
+    .filter((a): a is Attendee => !!a);
+  if (mesaMembers.length >= 2) {
+    return (
+      <div>
+        <MesaView
+          members={mesaMembers}
+          games={event.games}
+          currentAttendeeId={me}
+          shareUrl={`${window.location.origin}/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`}
+          onClose={onCloseMesa}
+        />
+        <Footer />
+      </div>
+    );
+  }
+
+  // Yo primero, y luego el resto en el orden de la lista
+  const selection = [
+    ...(me ? [me] : []),
+    ...event.attendees.filter((a) => a.id !== me && picked.has(a.id)).map((a) => a.id),
+  ];
+  const pickedNames = event.attendees
+    .filter((a) => a.id !== me && picked.has(a.id))
+    .map((a) => (a.user.displayName || a.user.name || "Jugador").split(" ")[0]);
+  const namesText =
+    pickedNames.length <= 1 ? pickedNames.join("") : `${pickedNames.slice(0, -1).join(", ")} y ${pickedNames[pickedNames.length - 1]}`;
+  const canPick = event.attendees.length >= 2;
+
   return (
-    <div>
+    <div className={selection.length >= 2 ? "pb-20" : ""}>
+      {canPick && (
+        <p className="text-xs text-[var(--text-muted)] mb-3">
+          🎲 Marca con quién vas a jugar y te decimos qué os apetece a todos.
+        </p>
+      )}
       {event.attendees.length === 0 ? (
         <p className="text-[var(--text-secondary)] text-center py-8">Nadie se ha apuntado todavía</p>
       ) : (
@@ -1316,6 +1399,7 @@ function AttendeesTab({
             // Como en grupos: los admins nombran admins; quitarlos, solo el creador
             const canPromote = event.isAdmin && !isCreator && !isAdmin && !isSelf;
             const canDemote = event.isCreator && isAdmin;
+            const isPicked = picked.has(att.id);
             // Collect this attendee's interests across all games
             const attendeeInterests = event.games
               .map((eg) => {
@@ -1328,9 +1412,30 @@ function AttendeesTab({
             return (
               <div
                 key={att.id}
-                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
+                className={`bg-[var(--surface)] rounded-2xl border shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200 ${
+                  isPicked ? "border-[var(--primary)]" : "border-[var(--border)]"
+                }`}
               >
                 <div className="flex items-center gap-2">
+                  {canPick && !isSelf && (
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isPicked}
+                      aria-label={`${isPicked ? "Quitar a" : "Añadir a"} ${displayName} de la mesa`}
+                      title={isPicked ? "Quitar de la mesa" : "Añadir a la mesa"}
+                      onClick={() => togglePicked(att.id)}
+                      className={`w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
+                        isPicked
+                          ? "bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-text)]"
+                          : "border-[var(--border-strong)] bg-[var(--input-bg)] text-transparent hover:border-[var(--primary)]"
+                      }`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" />
+                      </svg>
+                    </button>
+                  )}
                   <Link href={profileHref(att.user)} prefetch={false}>
                     <Avatar
                       name={displayName}
@@ -1414,6 +1519,27 @@ function AttendeesTab({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Barra para abrir la mesa con quien se haya marcado */}
+      {selection.length >= 2 && (
+        <div className="fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-2 max-w-full">
+            <button
+              onClick={() => onOpenMesa(selection)}
+              className="min-w-0 truncate px-5 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-2xl text-sm font-semibold hover:bg-[var(--primary-hover)] shadow-lg transition-all duration-200"
+            >
+              🎲 Armar mesa {me ? "con " : ""}{namesText}
+            </button>
+            <button
+              onClick={() => setPicked(new Set())}
+              aria-label="Limpiar selección"
+              className="shrink-0 w-11 h-11 flex items-center justify-center rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] shadow-lg transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
       <Footer />

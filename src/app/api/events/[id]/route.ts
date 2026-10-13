@@ -73,7 +73,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       intensity: interest.intensity,
       // Notes are ALWAYS private — only the owner sees them
       notes: interest.attendeeId === currentAttendee?.id ? interest.notes : null,
-      playedAt: interest.attendeeId === currentAttendee?.id ? interest.playedAt : null,
+      // Lo jugado sí se comparte: lo usa "Armar mesa" para bajar lo ya jugado
+      playedAt: interest.playedAt,
       userName: interest.attendee.user.displayName || interest.attendee.user.name || "Alguien",
       userId: interest.attendee.user.id,
     })),

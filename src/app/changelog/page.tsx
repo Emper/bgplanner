@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "13 octubre 2026",
+    version: "1.37",
+    title: "Arma tu mesa",
+    changes: [
+      { type: "new", text: "En los asistentes de un evento, marca con quién vas a jugar y descubre qué os apetece a todos, ordenado para que nadie se aburra" },
+      { type: "new", text: "Avisos si un juego no da para tanta gente y lo que alguien ya ha jugado, al final" },
+      { type: "new", text: "Comparte la mesa con un enlace para que todos veáis lo mismo" },
+    ],
+  },
+  {
+    date: "13 octubre 2026",
     version: "1.36",
     title: "Organiza en equipo",
     changes: [
