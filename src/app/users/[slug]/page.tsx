@@ -16,6 +16,7 @@ import ActivityFeed from "@/components/ActivityFeed";
 import GameShelf from "@/components/GameShelf";
 import SignupBanner from "@/components/SignupBanner";
 import BadgeCarousel from "@/components/BadgeCarousel";
+import FriendButton from "@/components/FriendButton";
 import { profileBadges } from "@/lib/profileBadges";
 import { formatDateShort } from "@/lib/format";
 import { getGroupType } from "@/lib/groupTypes";
@@ -275,6 +276,27 @@ export default async function PublicProfilePage({
                 )}
               </div>
             </div>
+
+            {/* Amigos: el botón solo sale con sesión y en el perfil de otro */}
+            {session && !profile.isSelf && (
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <FriendButton
+                  variant="pill"
+                  user={{
+                    id: profile.id,
+                    name: null,
+                    displayName: profile.displayName,
+                    avatarUrl: profile.avatarUrl,
+                    slug: profile.slug,
+                  }}
+                />
+                {profile.addedViewer && (
+                  <span className="text-xs text-[var(--text-muted)]">
+                    🤝 Te tiene entre sus amigos
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Grupos en común */}
             {profile.sharedGroups.length > 0 && (

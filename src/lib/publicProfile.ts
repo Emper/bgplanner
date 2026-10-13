@@ -67,6 +67,8 @@ export interface PublicProfile {
   avatarUrl: string | null;
   memberSince: string;
   isSelf: boolean;
+  /** Si el dueño del perfil tiene entre sus amigos a quien mira. */
+  addedViewer: boolean;
   sharedGroups: { id: string; name: string; type: string }[];
   showcase: {
     bggId: number;
@@ -318,6 +320,15 @@ export async function getPublicProfile(
       })
     : [];
 
+  // Solo se le cuenta a quien ha sido añadido: no dice nada de nadie más.
+  const addedViewer =
+    !!viewerId &&
+    viewerId !== user.id &&
+    !!(await prisma.friendship.findUnique({
+      where: { userId_friendId: { userId: user.id, friendId: viewerId } },
+      select: { id: true },
+    }));
+
   // ── Vitrina ────────────────────────────────────────────────────────────
   // Los juegos que ha marcado como imprescindibles en su colección. Van por
   // userId (la marca) cruzado con su usuario de BGG (los datos del juego).
@@ -446,6 +457,7 @@ export async function getPublicProfile(
     avatarUrl: user.avatarUrl,
     memberSince: user.createdAt.toISOString(),
     isSelf: user.id === viewerId,
+    addedViewer,
     sharedGroups: sharedGroups.map((m) => m.group),
     showcase,
     upcomingEvents,

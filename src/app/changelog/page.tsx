@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "13 octubre 2026",
+    version: "1.38",
+    title: "Tus amigos, a un toque",
+    changes: [
+      { type: "new", text: "Añade amigos con un clic desde su perfil o desde los miembros de un grupo o evento que compartáis" },
+      { type: "new", text: "Tus amigos te esperan en la pantalla de inicio para saltar a su perfil cuando quieras" },
+      { type: "new", text: "En el perfil de alguien verás si te tiene entre sus amigos" },
+    ],
+  },
+  {
+    date: "13 octubre 2026",
     version: "1.37",
     title: "Arma tu mesa",
     changes: [

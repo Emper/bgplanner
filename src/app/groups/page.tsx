@@ -11,6 +11,8 @@ import PageLoader from "@/components/PageLoader";
 import DateTile from "@/components/DateTile";
 import { CountUp, spotlightMove } from "@/components/motion";
 import { getGroupType } from "@/lib/groupTypes";
+import { useFriends } from "@/lib/friends";
+import { profileHref } from "@/lib/users";
 
 interface GroupMemberPreview {
   user: { name: string | null; displayName: string | null; avatarUrl: string | null };
@@ -84,6 +86,7 @@ export default function GroupsPage() {
   const [feedCursor, setFeedCursor] = useState<string | null>(null);
   const [feedHasMore, setFeedHasMore] = useState(false);
   const [feedLoading, setFeedLoading] = useState(false);
+  const { loaded: friendsLoaded, friends } = useFriends();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -197,6 +200,48 @@ export default function GroupsPage() {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Mis amigos: acceso directo a sus perfiles */}
+          {!loading && !error && friendsLoaded && (friends.length > 0 || groups.length > 0) && (
+            <div className="mb-8">
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-xl font-bold text-[var(--text)]">Mis amigos</h2>
+                {friends.length > 0 && (
+                  <span className="text-sm text-[var(--text-muted)]">{friends.length}</span>
+                )}
+              </div>
+              {friends.length === 0 ? (
+                <p className="text-sm text-[var(--text-secondary)] bg-[var(--surface)] rounded-2xl border border-dashed border-[var(--border)] px-4 py-3">
+                  🤝 Añade amigos desde su perfil o desde los miembros de tus grupos y eventos, y los tendrás aquí a un toque.
+                </p>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
+                  {friends.map((friend) => {
+                    const name = friend.displayName || friend.name || "Jugador";
+                    return (
+                      <Link
+                        key={friend.id}
+                        href={profileHref(friend)}
+                        prefetch={false}
+                        title={name}
+                        className="shrink-0 w-20 flex flex-col items-center gap-1.5 p-2 rounded-2xl border border-transparent hover:border-[var(--border)] hover:bg-[var(--surface)] transition-all duration-200"
+                      >
+                        <Avatar
+                          name={name}
+                          avatarUrl={friend.avatarUrl}
+                          size="lg"
+                          className="ring-2 ring-[var(--border)]"
+                        />
+                        <span className="w-full text-center text-xs font-medium text-[var(--text-secondary)] truncate">
+                          {name.trim().split(/\s+/)[0]}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

@@ -50,6 +50,8 @@ model User {
   featureVotes      FeatureVote[]
   collectionEntries CollectionEntry[]
   gameFlags         UserGameFlag[]
+  friendships       Friendship[]  @relation("FriendshipOwner")
+  friendOf          Friendship[]  @relation("FriendshipFriend")
 }
 
 model OtpCode {
@@ -624,4 +626,20 @@ model FeatureVote {
   @@unique([featureId, userId])
   @@index([featureId])
   @@index([userId])
+}
+
+// Amigos: cada uno lleva su propia lista y añadir a alguien es un clic, sin
+// solicitudes ni aceptación. Que tú tengas a alguien no hace que él te tenga
+// a ti; para eso tendrá que añadirte él.
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+
+  user   User @relation("FriendshipOwner", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("FriendshipFriend", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([friendId])
 }

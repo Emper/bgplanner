@@ -16,10 +16,12 @@ import GroupGallery from "@/components/GroupGallery";
 import GroupPlayedGames from "@/components/GroupPlayedGames";
 import HelpMePickModal from "@/components/HelpMePickModal";
 import EmojiField from "@/components/EmojiField";
+import FriendButton from "@/components/FriendButton";
 import { CountUp, useFlip } from "@/components/motion";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 import { profileHref } from "@/lib/users";
+import { toFriend } from "@/lib/friends";
 
 interface Game {
   id: string;
@@ -2751,7 +2753,8 @@ function GroupDashboardPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <FriendButton user={toFriend(member.user)} />
                         {/* Hacer admin: visible para admins/owners, en miembros que no son admin/owner */}
                         {isAdmin && member.role === "member" && member.user.id !== group.currentUserId && (
                           <button

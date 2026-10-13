@@ -223,3 +223,7 @@ export const contactSchema = z.object({
     .transform(clean),
   honeypot: z.string().max(0).optional(),
 });
+
+export const friendAddSchema = z.object({
+  userId: z.string().trim().min(1, "Falta a quién añadir").max(64, "Usuario no válido"),
+});

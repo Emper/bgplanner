@@ -16,6 +16,8 @@ import MesaView from "./MesaView";
 import { formatDateFull, formatDuration } from "@/lib/format";
 import { resizeImage } from "@/lib/image";
 import { profileHref } from "@/lib/users";
+import { toFriend } from "@/lib/friends";
+import FriendButton from "@/components/FriendButton";
 import { INTENSITY_LABELS, INTENSITY_COLORS } from "@/lib/intensity";
 
 interface Game {
@@ -1468,6 +1470,7 @@ function AttendeesTab({
                       <span className="text-xs text-[var(--primary)]">Admin</span>
                     )}
                   </div>
+                  <FriendButton user={toFriend(att.user)} />
                   {canPromote && (
                     <button
                       onClick={() => {
