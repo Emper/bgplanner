@@ -467,6 +467,9 @@ model EventAttendee {
   eventId  String
   userId   String
   status   String   @default("attending") // attending | maybe | cancelled
+  // attendee | admin. Los admins gestionan el evento como su creador (que no
+  // tiene fila especial: se reconoce por Event.createdById), salvo borrarlo.
+  role     String   @default("attendee")
   joinedAt DateTime @default(now())
   // Enlace de solo lectura a "Mi Lista" en este evento. null = no compartida.
   // Regenerarlo invalida el enlace anterior.

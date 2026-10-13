@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
 import { logActivity } from "@/lib/activity";
+import { isEventAdmin } from "@/lib/events";
 
-// Add game to event (creator only)
+// Add game to event (creator or admins)
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession(request);
   if (!session) {
@@ -18,8 +19,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
-  if (event.createdById !== session.userId) {
-    return NextResponse.json({ error: "Solo el gestor puede añadir juegos" }, { status: 403 });
+  if (!(await isEventAdmin(event, session.userId))) {
+    return NextResponse.json({ error: "Solo quien gestiona el evento puede añadir juegos" }, { status: 403 });
   }
 
   const body = await request.json();

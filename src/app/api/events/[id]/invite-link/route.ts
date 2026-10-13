@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import crypto from "crypto";
+import { isEventAdmin } from "@/lib/events";
 
 // GET — return current invite link info
 export async function GET(
@@ -17,17 +18,20 @@ export async function GET(
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    select: { inviteCode: true, createdById: true },
+    select: { id: true, inviteCode: true, createdById: true },
   });
 
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
+  if (!(await isEventAdmin(event, session.userId))) {
+    return NextResponse.json({ error: "Solo quien gestiona el evento puede ver el enlace" }, { status: 403 });
+  }
 
   return NextResponse.json({ inviteCode: event.inviteCode });
 }
 
-// POST — generate a new invite code (creator only)
+// POST — generate a new invite code (creator or admins)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -43,8 +47,8 @@ export async function POST(
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
-  if (event.createdById !== session.userId) {
-    return NextResponse.json({ error: "Solo el gestor puede gestionar el enlace" }, { status: 403 });
+  if (!(await isEventAdmin(event, session.userId))) {
+    return NextResponse.json({ error: "Solo quien gestiona el evento puede gestionar el enlace" }, { status: 403 });
   }
 
   const inviteCode = crypto.randomBytes(16).toString("base64url");

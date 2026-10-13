@@ -12,6 +12,14 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "13 octubre 2026",
+    version: "1.36",
+    title: "Organiza en equipo",
+    changes: [
+      { type: "new", text: "Nombra admins entre los asistentes de tu evento para que te echen una mano con los juegos, la invitación y los detalles" },
+    ],
+  },
+  {
     date: "12 octubre 2026",
     version: "1.35",
     title: "Comparte tu lista con quien te acompaña",

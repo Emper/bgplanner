@@ -25,7 +25,7 @@ interface Props {
   eventId: string;
   currentUserId: string;
   canParticipate: boolean;
-  isCreator: boolean;
+  isAdmin: boolean;
   // Incrementar para hacer scroll al formulario de valoración (deep-link ?review=1).
   openReviewSignal: number;
 }
@@ -36,7 +36,7 @@ export default function EventGallery({
   eventId,
   currentUserId,
   canParticipate,
-  isCreator,
+  isAdmin,
   openReviewSignal,
 }: Props) {
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
@@ -311,7 +311,7 @@ export default function EventGallery({
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {photos.map((p, i) => {
-              const canDelete = p.userId === currentUserId || isCreator;
+              const canDelete = p.userId === currentUserId || isAdmin;
               return (
                 <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden group">
                   <button onClick={() => setLightbox(i)} className="absolute inset-0">

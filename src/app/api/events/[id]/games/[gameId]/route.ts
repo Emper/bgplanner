@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isEventAdmin } from "@/lib/events";
 
-// Remove game from event (creator only)
+// Remove game from event (creator or admins)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; gameId: string }> }
@@ -18,8 +19,8 @@ export async function DELETE(
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
-  if (event.createdById !== session.userId) {
-    return NextResponse.json({ error: "Solo el gestor puede eliminar juegos" }, { status: 403 });
+  if (!(await isEventAdmin(event, session.userId))) {
+    return NextResponse.json({ error: "Solo quien gestiona el evento puede eliminar juegos" }, { status: 403 });
   }
 
   const eventGame = await prisma.eventGame.findFirst({

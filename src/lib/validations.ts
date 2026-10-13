@@ -140,6 +140,10 @@ export const updateEventSchema = z.object({
   imageUrl: z.string().nullable().optional(),
 });
 
+export const eventAttendeeRoleSchema = z.object({
+  role: z.enum(["attendee", "admin"], { error: "Rol inválido" }),
+});
+
 export const eventInterestSchema = z.object({
   eventGameId: z.string().min(1),
   intensity: z.number().int().min(1).max(5),

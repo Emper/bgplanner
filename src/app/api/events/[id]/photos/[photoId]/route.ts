@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { getEventParticipation } from "@/lib/events";
 import { deletePhotos, pathFromPublicUrl } from "@/lib/supabaseStorage";
 
-// Borra una foto de la galería. Solo el autor o el gestor del evento.
+// Borra una foto de la galería. Solo el autor o quien gestiona el evento.
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; photoId: string }> }
@@ -25,9 +25,9 @@ export async function DELETE(
   if (!photo) {
     return NextResponse.json({ error: "Foto no encontrada" }, { status: 404 });
   }
-  if (photo.userId !== session.userId && !p.isCreator) {
+  if (photo.userId !== session.userId && !p.isAdmin) {
     return NextResponse.json(
-      { error: "Solo quien la subió o el gestor puede borrarla" },
+      { error: "Solo quien la subió o quien gestiona el evento puede borrarla" },
       { status: 403 }
     );
   }

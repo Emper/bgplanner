@@ -55,6 +55,7 @@ interface Attendee {
   eventId: string;
   userId: string;
   status: string;
+  role: string; // attendee | admin
   user: { id: string; name: string | null; displayName: string | null; surname: string | null; avatarUrl: string | null; bggUsername: string | null; slug: string | null };
 }
 
@@ -75,6 +76,7 @@ interface EventData {
   attendees: Attendee[];
   currentUserId: string;
   isCreator: boolean;
+  isAdmin: boolean;
   currentAttendeeId: string | null;
 }
 
@@ -407,6 +409,23 @@ function EventDetailPageInner() {
     });
   };
 
+  const handleSetAttendeeRole = async (attendeeId: string, role: "attendee" | "admin") => {
+    const res = await fetch(`/api/events/${eventId}/attendees/${attendeeId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Error al cambiar el rol");
+      return;
+    }
+    setEvent((prev) => prev && {
+      ...prev,
+      attendees: prev.attendees.map((a) => (a.id === attendeeId ? { ...a, role } : a)),
+    });
+  };
+
   const handleTogglePlayed = async (eventGameId: string, intensity: number, played: boolean) => {
     const playedAt = played ? new Date().toISOString() : null;
     setEvent((prev) => {
@@ -454,7 +473,7 @@ function EventDetailPageInner() {
       <Navbar />
       <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         {/* Event image */}
-        {(event.imageUrl || event.isCreator) && (
+        {(event.imageUrl || event.isAdmin) && (
           <div className="mb-4 relative group">
             {event.imageUrl ? (
               <div className="relative rounded-2xl overflow-hidden border border-[var(--border)]">
@@ -466,7 +485,7 @@ function EventDetailPageInner() {
                   unoptimized
                   className="w-full h-40 sm:h-52 object-cover"
                 />
-                {event.isCreator && (
+                {event.isAdmin && (
                   <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-xl">
                       {uploadingImage ? "Subiendo..." : "Cambiar imagen"}
@@ -484,7 +503,7 @@ function EventDetailPageInner() {
                   </label>
                 )}
               </div>
-            ) : event.isCreator ? (
+            ) : event.isAdmin ? (
               <label className="flex items-center justify-center h-32 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/40 bg-[var(--surface)] cursor-pointer transition-all duration-200">
                 <div className="text-center">
                   <svg className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -513,7 +532,7 @@ function EventDetailPageInner() {
         <div className="mb-6">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold">{event.name}</h1>
-            {event.isCreator && (
+            {event.isAdmin && (
               <button
                 onClick={openEditModal}
                 className="shrink-0 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border)] hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] rounded-xl transition-all duration-200"
@@ -568,7 +587,7 @@ function EventDetailPageInner() {
           </div>
 
           {/* Invite link (creator only) */}
-          {event.isCreator && (
+          {event.isAdmin && (
             <div className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 py-2">
               <div className="flex items-center gap-2">
                 <button
@@ -679,14 +698,14 @@ function EventDetailPageInner() {
           />
         )}
         {activeTab === "attendees" && (
-          <AttendeesTab event={event} />
+          <AttendeesTab event={event} onSetRole={handleSetAttendeeRole} />
         )}
         {activeTab === "gallery" && (
           <EventGallery
             eventId={eventId}
             currentUserId={event.currentUserId}
             canParticipate={event.isCreator || event.currentAttendeeId != null}
-            isCreator={event.isCreator}
+            isAdmin={event.isAdmin}
             openReviewSignal={openReviewSignal}
           />
         )}
@@ -832,7 +851,7 @@ function GamesTab({
   return (
     <div>
       {/* Search bar for creator */}
-      {event.isCreator && (
+      {event.isAdmin && (
         <div className="mb-4">
           <BggGameSearch
             onSelect={onAddGame}
@@ -844,7 +863,7 @@ function GamesTab({
 
       {event.games.length === 0 ? (
         <p className="text-[var(--text-secondary)] text-center py-8">
-          {event.isCreator
+          {event.isAdmin
             ? "Usa el buscador para añadir juegos al evento"
             : "El gestor aún no ha añadido juegos"}
         </p>
@@ -912,7 +931,7 @@ function GamesTab({
                     </div>
                   </div>
                   {/* Remove button for creator */}
-                  {event.isCreator && (
+                  {event.isAdmin && (
                     <button
                       onClick={() => onRemoveGame(eg.game.id)}
                       className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-500/50 transition-colors text-sm"
@@ -1279,7 +1298,13 @@ function ShareListModal({
 
 // ── Attendees Tab ─────────────────────────────────────────────────────────
 
-function AttendeesTab({ event }: { event: EventData }) {
+function AttendeesTab({
+  event,
+  onSetRole,
+}: {
+  event: EventData;
+  onSetRole: (attendeeId: string, role: "attendee" | "admin") => void;
+}) {
   return (
     <div>
       {event.attendees.length === 0 ? (
@@ -1288,6 +1313,12 @@ function AttendeesTab({ event }: { event: EventData }) {
         <div className="space-y-3">
           {event.attendees.map((att) => {
             const isCreator = att.userId === event.createdById;
+            const isAdmin = !isCreator && att.role === "admin";
+            const isSelf = att.userId === event.currentUserId;
+            const displayName = att.user.displayName || att.user.name || "Jugador";
+            // Como en grupos: los admins nombran admins; quitarlos, solo el creador
+            const canPromote = event.isAdmin && !isCreator && !isAdmin && !isSelf;
+            const canDemote = event.isCreator && isAdmin;
             // Collect this attendee's interests across all games
             const attendeeInterests = event.games
               .map((eg) => {
@@ -1305,7 +1336,7 @@ function AttendeesTab({ event }: { event: EventData }) {
                 <div className="flex items-center gap-2">
                   <Link href={profileHref(att.user)} prefetch={false}>
                     <Avatar
-                      name={att.user.displayName || att.user.name || "Jugador"}
+                      name={displayName}
                       avatarUrl={att.user.avatarUrl}
                       size="sm"
                     />
@@ -1333,7 +1364,32 @@ function AttendeesTab({ event }: { event: EventData }) {
                     {isCreator && (
                       <span className="text-xs text-[var(--primary)]">Gestor</span>
                     )}
+                    {isAdmin && (
+                      <span className="text-xs text-[var(--primary)]">Admin</span>
+                    )}
                   </div>
+                  {canPromote && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Hacer admin a ${displayName}? Podrá editar el evento, gestionar los juegos y el enlace de invitación.`)) {
+                          onSetRole(att.id, "admin");
+                        }
+                      }}
+                      className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)] hover:bg-[var(--primary)]/20 transition-colors"
+                    >
+                      Hacer admin
+                    </button>
+                  )}
+                  {canDemote && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Quitar admin a ${displayName}?`)) onSetRole(att.id, "attendee");
+                      }}
+                      className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                    >
+                      Quitar admin
+                    </button>
+                  )}
                   <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                     att.status === "attending"
                       ? "bg-emerald-500/20 text-emerald-300"

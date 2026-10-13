@@ -3,6 +3,7 @@ import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateEventSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { isEventAdmin } from "@/lib/events";
 
 // Get event detail with games, attendees, and current user's interests
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           eventId: true,
           userId: true,
           status: true,
+          role: true,
           joinedAt: true,
           user: { select: { id: true, name: true, displayName: true, surname: true, avatarUrl: true, bggUsername: true, slug: true } },
         },
@@ -77,16 +79,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })),
   }));
 
+  const isAdmin = isCreator || currentAttendee?.role === "admin";
+
   return NextResponse.json({
     ...event,
+    // El enlace de invitación solo lo ve quien lo gestiona
+    inviteCode: isAdmin ? event.inviteCode : null,
     games: gamesWithFilteredInterests,
     currentUserId: session.userId,
     isCreator,
+    isAdmin,
     currentAttendeeId: currentAttendee?.id || null,
   });
 }
 
-// Update event (creator only)
+// Update event (creator or admins)
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession(request);
   if (!session) {
@@ -100,8 +107,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
   }
   const admin = await isSuperadmin(session);
-  if (!admin && event.createdById !== session.userId) {
-    return NextResponse.json({ error: "Solo el gestor puede editar el evento" }, { status: 403 });
+  const eventAdmin = await isEventAdmin(event, session.userId);
+  if (!admin && !eventAdmin) {
+    return NextResponse.json({ error: "Solo quien gestiona el evento puede editarlo" }, { status: 403 });
   }
 
   const body = await request.json();
@@ -125,7 +133,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   logActivity("event_updated", session.userId, {
     eventId: id,
     eventName: updated.name,
-    ...(admin && event.createdById !== session.userId ? { actorRole: "superadmin" } : {}),
+    ...(admin && !eventAdmin ? { actorRole: "superadmin" } : {}),
   });
 
   return NextResponse.json(updated);
