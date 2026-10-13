@@ -556,9 +556,6 @@ function EventDetailPageInner() {
             <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
               {attendingCount} asistente{attendingCount !== 1 ? "s" : ""}
             </span>
-            <span className="text-xs text-[var(--text-muted)]">
-              Organiza: {event.createdBy.displayName || event.createdBy.name || "Alguien"}
-            </span>
           </div>
 
           {/* Join/Leave button */}
@@ -865,7 +862,7 @@ function GamesTab({
         <p className="text-[var(--text-secondary)] text-center py-8">
           {event.isAdmin
             ? "Usa el buscador para añadir juegos al evento"
-            : "El gestor aún no ha añadido juegos"}
+            : "Aún no se han añadido juegos"}
         </p>
       ) : (
         <div className="space-y-3">
@@ -1361,10 +1358,8 @@ function AttendeesTab({
                         </a>
                       )}
                     </div>
-                    {isCreator && (
-                      <span className="text-xs text-[var(--primary)]">Gestor</span>
-                    )}
-                    {isAdmin && (
+                    {/* Quien creó el evento no se distingue: es un admin más */}
+                    {(isCreator || isAdmin) && (
                       <span className="text-xs text-[var(--primary)]">Admin</span>
                     )}
                   </div>
