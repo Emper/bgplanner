@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
+import { notifyManagers } from "@/lib/notifications";
 
 export async function POST(
   request: NextRequest,
@@ -75,6 +77,9 @@ export async function POST(
       data: { status: "accepted" },
     }),
   ]);
+
+  logActivity("group_joined", session.userId, { groupId });
+  notifyManagers({ groupId }, { type: "group_member_joined", actorId: session.userId });
 
   return NextResponse.json({ success: true });
 }

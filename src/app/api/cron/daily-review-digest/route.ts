@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resend } from "@/lib/resend";
-import { escapeHtml } from "@/lib/html";
+import { notifyNow, NOTIFICATION_TTL_DAYS } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const TZ = "Europe/Madrid";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 interface MadridParts {
   y: number;
@@ -108,18 +106,13 @@ export async function GET(request: NextRequest) {
       gameId: true,
       groupId: true,
       playedAt: true,
-      game: { select: { name: true } },
+      game: { select: { name: true, thumbnail: true } },
       reviews: { select: { userId: true } },
       group: {
         select: {
           id: true,
           name: true,
-          members: {
-            select: {
-              userId: true,
-              user: { select: { email: true, name: true, displayName: true } },
-            },
-          },
+          members: { select: { userId: true } },
         },
       },
     },
@@ -130,87 +123,32 @@ export async function GET(request: NextRequest) {
     (gg) => inWindow(gg.playedAt) || sessionPairs.has(`${gg.groupId}:${gg.gameId}`)
   );
 
-  // Por usuario: qué juegos de ayer le faltan por valorar (agrupados por grupo).
-  interface Item {
-    groupId: string;
-    groupName: string;
-    gameId: string;
-    gameName: string;
-  }
-  const perUser = new Map<
+  // Por usuario y grupo: qué juegos de ayer le faltan por valorar. Un aviso
+  // por grupo, con todos sus juegos dentro.
+  const pending = new Map<
     string,
-    { email: string; name: string; items: Item[] }
+    { userId: string; groupId: string; games: { id: string; name: string; thumbnail: string | null }[] }
   >();
 
   for (const gg of playedGames) {
     const reviewers = new Set(gg.reviews.map((r) => r.userId));
     for (const m of gg.group.members) {
       if (reviewers.has(m.userId)) continue; // ya opinó
-      if (!m.user.email) continue;
-      const entry =
-        perUser.get(m.userId) ??
-        {
-          email: m.user.email,
-          name: m.user.displayName || m.user.name || "jugador",
-          items: [] as Item[],
-        };
-      entry.items.push({
-        groupId: gg.group.id,
-        groupName: gg.group.name,
-        gameId: gg.gameId,
-        gameName: gg.game.name,
-      });
-      perUser.set(m.userId, entry);
+      const key = `${m.userId}:${gg.group.id}`;
+      const entry = pending.get(key) ?? { userId: m.userId, groupId: gg.group.id, games: [] };
+      entry.games.push({ id: gg.gameId, name: gg.game.name, thumbnail: gg.game.thumbnail });
+      pending.set(key, entry);
     }
   }
 
-  let emailsSent = 0;
-  for (const { email, name, items } of perUser.values()) {
-    // Agrupar los juegos por grupo para el cuerpo del email.
-    const byGroup = new Map<string, { name: string; games: Item[] }>();
-    for (const it of items) {
-      const g = byGroup.get(it.groupId) ?? { name: it.groupName, games: [] };
-      g.games.push(it);
-      byGroup.set(it.groupId, g);
-    }
-
-    const blocks = Array.from(byGroup.entries())
-      .map(([groupId, g]) => {
-        const rows = g.games
-          .map((it) => {
-            const url = `${APP_URL}/groups/${groupId}?review=${it.gameId}`;
-            return `
-              <tr>
-                <td style="padding: 8px 0; color: #f1f5f9;">🎲 ${escapeHtml(it.gameName)}</td>
-                <td style="padding: 8px 0; text-align: right;">
-                  <a href="${url}" style="color: #f59e0b; text-decoration: none; font-weight: bold;">Valorar →</a>
-                </td>
-              </tr>`;
-          })
-          .join("");
-        return `
-          <p style="color: #94a3b8; font-size: 13px; margin: 18px 0 4px;">${escapeHtml(g.name)}</p>
-          <table style="width: 100%; border-collapse: collapse;">${rows}</table>`;
-      })
-      .join("");
-
-    resend.emails
-      .send({
-        from: "BG Planner <cesar@tiradacritica.es>",
-        to: email,
-        subject: "Valora los juegos de ayer 🎲",
-        html: `
-          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-            <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-            <p>¡Hola, ${escapeHtml(name)}! 🎲</p>
-            <p>Estos juegos se marcaron como jugados ayer. ¿Qué te parecieron? Deja tu valoración, un comentario y las fotos de la partida.</p>
-            ${blocks}
-            <p style="color: #94a3b8; font-size: 13px; margin-top: 24px;">Si no jugaste alguna de estas partidas, ignora esa línea sin problema.</p>
-          </div>
-        `,
-      })
-      .catch(() => {}); // Nunca fallar por un email
-    emailsSent += 1;
+  let gameReminders = 0;
+  for (const { userId, groupId, games } of pending.values()) {
+    gameReminders += await notifyNow({
+      type: "review_games",
+      userIds: [userId],
+      groupId,
+      metadata: { games },
+    }).catch(() => 0);
   }
 
   // ── Eventos terminados ayer: pedir valoración a los asistentes ──────────
@@ -226,68 +164,36 @@ export async function GET(request: NextRequest) {
       id: true,
       name: true,
       createdById: true,
-      createdBy: { select: { email: true, name: true, displayName: true } },
       reviews: { select: { userId: true } },
       attendees: {
         where: { status: { not: "cancelled" } },
-        select: {
-          userId: true,
-          user: { select: { email: true, name: true, displayName: true } },
-        },
+        select: { userId: true },
       },
     },
   });
 
-  let eventEmailsSent = 0;
+  let eventReminders = 0;
   for (const ev of endedEvents) {
     const reviewers = new Set(ev.reviews.map((r) => r.userId));
-    // Destinatarios: creador + asistentes (no cancelados) que aún no han valorado.
-    const recipients = new Map<string, { email: string; name: string }>();
-    if (ev.createdBy.email && !reviewers.has(ev.createdById)) {
-      recipients.set(ev.createdById, {
-        email: ev.createdBy.email,
-        name: ev.createdBy.displayName || ev.createdBy.name || "organizador",
-      });
-    }
-    for (const a of ev.attendees) {
-      if (reviewers.has(a.userId) || !a.user.email) continue;
-      recipients.set(a.userId, {
-        email: a.user.email,
-        name: a.user.displayName || a.user.name || "asistente",
-      });
-    }
-
-    const eventNameSafe = escapeHtml(ev.name);
-    const url = `${APP_URL}/events/${ev.id}?review=1`;
-    for (const { email, name } of recipients.values()) {
-      resend.emails
-        .send({
-          from: "BG Planner <cesar@tiradacritica.es>",
-          to: email,
-          subject: `¿Qué tal "${ev.name}"? Valora el evento 🎉`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-              <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-              <p>¡Hola, ${escapeHtml(name)}! 🎉</p>
-              <p>El evento <strong style="color: #f59e0b;">"${eventNameSafe}"</strong> ya ha terminado. ¿Qué tal fue?</p>
-              <p>Deja tu valoración y súbele fotos a la galería del evento para que quede el recuerdo.</p>
-              <a href="${url}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-                Valorar el evento
-              </a>
-            </div>
-          `,
-        })
-        .catch(() => {}); // Nunca fallar por un email
-      eventEmailsSent += 1;
-    }
+    // Creador + asistentes (no cancelados) que aún no han valorado.
+    const userIds = [ev.createdById, ...ev.attendees.map((a) => a.userId)].filter(
+      (id) => !reviewers.has(id)
+    );
+    eventReminders += await notifyNow({ type: "review_event", userIds, eventId: ev.id }).catch(() => 0);
   }
+
+  // Limpieza: las notificaciones viejas ya no le sirven a nadie.
+  const purged = await prisma.notification.deleteMany({
+    where: { createdAt: { lt: new Date(now.getTime() - NOTIFICATION_TTL_DAYS * 86_400_000) } },
+  });
 
   return NextResponse.json({
     ok: true,
     window: { from: yesterdayStart.toISOString(), to: todayStart.toISOString() },
     gamesPlayed: playedGames.length,
-    emailsSent,
+    gameReminders,
     eventsEnded: endedEvents.length,
-    eventEmailsSent,
+    eventReminders,
+    notificationsPurged: purged.count,
   });
 }

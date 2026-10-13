@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { resend } from "@/lib/resend";
 import { logActivity } from "@/lib/activity";
+import { notify } from "@/lib/notifications";
 
 export async function PATCH(
   request: NextRequest,
@@ -67,49 +67,13 @@ export async function PATCH(
     data: { role },
   });
 
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
-    select: { name: true },
+  notify({
+    type: "group_role_changed",
+    userIds: [targetUserId],
+    actorId: session.userId,
+    groupId,
+    metadata: { role },
   });
-
-  // Send email notification
-  if (role === "admin") {
-    resend.emails.send({
-      from: "BG Planner <cesar@tiradacritica.es>",
-      to: targetMembership.user.email,
-      subject: `¡Ahora eres admin de "${group?.name}" en BG Planner!`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-          <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-          <p>¡Enhorabuena, ${targetMembership.user.displayName || targetMembership.user.name || "jugador"}! 🎉</p>
-          <p>Ahora eres <strong style="color: #f59e0b;">administrador</strong> del grupo <strong style="color: #f59e0b;">"${group?.name}"</strong>.</p>
-          <p>Como admin puedes:</p>
-          <ul style="color: #94a3b8; font-size: 14px; padding-left: 20px;">
-            <li>Marcar juegos como jugados</li>
-            <li>Gestionar sesiones y miembros</li>
-            <li>Generar y controlar el enlace de invitación</li>
-          </ul>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app"}/groups/${groupId}?tab=members" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-            Ir al grupo
-          </a>
-        </div>
-      `,
-    }).catch(() => {});
-  } else if (role === "member") {
-    resend.emails.send({
-      from: "BG Planner <cesar@tiradacritica.es>",
-      to: targetMembership.user.email,
-      subject: `Tu rol en "${group?.name}" ha cambiado`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-          <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-          <p>Hola, ${targetMembership.user.displayName || targetMembership.user.name || "jugador"}.</p>
-          <p>Tu rol en el grupo <strong style="color: #f59e0b;">"${group?.name}"</strong> ha cambiado a <strong>miembro</strong>.</p>
-          <p style="color: #94a3b8; font-size: 14px;">Sigues formando parte del grupo y puedes votar y participar en sesiones como siempre.</p>
-        </div>
-      `,
-    }).catch(() => {});
-  }
 
   logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, { groupId, targetName: targetMembership.user.displayName || targetMembership.user.name || targetMembership.user.email });
 

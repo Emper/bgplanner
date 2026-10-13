@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isEventAdmin } from "@/lib/events";
 import { logActivity } from "@/lib/activity";
+import { notifyManagers } from "@/lib/notifications";
 import { eventAttendSchema } from "@/lib/validations";
 
 // Attend event / update attendance status
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   logActivity("event_joined", session.userId, { eventId, eventName: event.name });
+  // Solo al apuntarse por primera vez: cambiar de «voy» a «quizás» no avisa
+  if (!existing) {
+    notifyManagers({ eventId }, { type: "event_attendee_joined", actorId: session.userId, metadata: { status } });
+  }
 
   return NextResponse.json(attendee);
 }

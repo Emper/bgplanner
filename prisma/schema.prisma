@@ -52,6 +52,8 @@ model User {
   gameFlags         UserGameFlag[]
   friendships       Friendship[]  @relation("FriendshipOwner")
   friendOf          Friendship[]  @relation("FriendshipFriend")
+  notifications     Notification[] @relation("NotificationRecipient")
+  sentNotifications Notification[] @relation("NotificationActor")
 }
 
 model OtpCode {
@@ -100,6 +102,7 @@ model Group {
   sessions      GameSession[]
   activityLogs  ActivityLog[]
   photos        GroupPhoto[]
+  notifications Notification[]
 }
 
 model GroupMember {
@@ -443,6 +446,7 @@ model Event {
   photos    EventPhoto[]
   attendees    EventAttendee[]
   activityLogs ActivityLog[]
+  notifications Notification[]
 
   @@index([date])
   @@index([visibility])
@@ -642,4 +646,28 @@ model Friendship {
 
   @@unique([userId, friendId])
   @@index([friendId])
+}
+
+// Avisos dentro de la web (la campana). Sustituyen a los emails que no
+// merecían salir de la app. El texto no se guarda: se compone al servirlos,
+// con los nombres de grupo y evento al día.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    // quien la recibe
+  actorId   String?   // quien la provoca; null en los recordatorios
+  type      String
+  groupId   String?
+  eventId   String?
+  metadata  Json      @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user  User   @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User?  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  group Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([createdAt])
 }

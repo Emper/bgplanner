@@ -5,6 +5,7 @@ import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
 import { logActivity } from "@/lib/activity";
 import { isEventAdmin } from "@/lib/events";
+import { notify } from "@/lib/notifications";
 
 // Add game to event (creator or admins)
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +49,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   logActivity("event_game_added", session.userId, { eventId, gameName: eventGame.game.name });
+
+  // A quien va (o quizás) le interesa saber qué habrá en la mesa. Varios
+  // juegos seguidos se juntan en un solo aviso (ver notify).
+  prisma.eventAttendee
+    .findMany({
+      where: { eventId, status: { not: "cancelled" } },
+      select: { userId: true },
+    })
+    .then((attendees) =>
+      notify({
+        type: "event_game_added",
+        userIds: [event.createdById, ...attendees.map((a) => a.userId)],
+        actorId: session.userId,
+        eventId,
+        metadata: { games: [{ name: eventGame.game.name, thumbnail: eventGame.game.thumbnail }] },
+      })
+    )
+    .catch(() => {});
 
   return NextResponse.json(eventGame, { status: 201 });
 }

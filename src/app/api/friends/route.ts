@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { friendAddSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { notify } from "@/lib/notifications";
 
 // Solo lo que hace falta para pintar el acceso a su perfil: nada de email.
 const FRIEND_SELECT = {
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       friendId,
       friendName: friend.displayName || friend.name || null,
     });
+    notify({ type: "friend_added", userIds: [friendId], actorId: session.userId });
   }
 
   return NextResponse.json({ friend });

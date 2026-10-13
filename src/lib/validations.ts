@@ -227,3 +227,7 @@ export const contactSchema = z.object({
 export const friendAddSchema = z.object({
   userId: z.string().trim().min(1, "Falta a quién añadir").max(64, "Usuario no válido"),
 });
+
+export const notificationsReadSchema = z.object({
+  ids: z.array(z.string().min(1).max(64)).max(100, "Demasiadas notificaciones").optional(),
+});

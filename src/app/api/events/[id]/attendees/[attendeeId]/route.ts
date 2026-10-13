@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { eventAttendeeRoleSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { notify } from "@/lib/notifications";
 
 // Cambia el rol de un asistente (attendee <-> admin). Igual que en grupos:
 // el creador y los admins pueden nombrar admins, pero quitarle el rol a un
@@ -66,6 +67,13 @@ export async function PATCH(
     logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, {
       eventId,
       targetName: target.user.displayName || target.user.name || "un asistente",
+    });
+    notify({
+      type: "event_role_changed",
+      userIds: [target.userId],
+      actorId: session.userId,
+      eventId,
+      metadata: { role },
     });
   }
 

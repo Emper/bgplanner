@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "13 octubre 2026",
+    version: "1.40",
+    title: "Tu campana de avisos",
+    changes: [
+      { type: "new", text: "Nueva campana de notificaciones: entérate de quién te añade a sus amigos, se une a tus grupos o se apunta a tus eventos" },
+      { type: "new", text: "Los recordatorios para valorar partidas y eventos, los cambios de admin y tu super voto liberado llegan ahora a la campana en vez de a tu correo" },
+      { type: "improved", text: "Si añaden varios juegos seguidos a un evento al que vas, te llega un solo aviso con todos" },
+    ],
+  },
+  {
+    date: "13 octubre 2026",
     version: "1.39",
     title: "Un inicio con más vida",
     changes: [

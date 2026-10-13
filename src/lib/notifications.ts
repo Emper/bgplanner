@@ -1,0 +1,292 @@
+import { prisma } from "./prisma";
+import { profileHref } from "./users";
+
+// Notificaciones dentro de la web: lo que le pasa a alguien y no merece un
+// email. Se crean con `notify` (fire-and-forget, como logActivity) y se
+// sirven con `presentNotification`, que compone el texto y el enlace.
+
+export type NotificationType =
+  | "friend_added"
+  | "group_member_joined"
+  | "group_role_changed"
+  | "group_pinged"
+  | "super_vote_freed"
+  | "event_attendee_joined"
+  | "event_role_changed"
+  | "event_game_added"
+  | "review_games"
+  | "review_event";
+
+// Las que pueden llegar en ráfaga (un admin añade diez juegos seguidos) se
+// funden en una sola mientras siga sin leer: se acumulan los juegos y sube
+// arriba. Así una tarde de trabajo en un evento no son diez avisos.
+const MERGEABLE = new Set<NotificationType>(["event_game_added"]);
+const MERGE_WINDOW_MS = 12 * 60 * 60 * 1000;
+const MAX_MERGED_GAMES = 20;
+
+// Las de más de esto se borran en el cron diario.
+export const NOTIFICATION_TTL_DAYS = 90;
+
+type Meta = Record<string, unknown>;
+
+interface NotifyInput {
+  /** Destinatarios. Quien la provoca se descarta solo. */
+  userIds: string[];
+  actorId?: string | null;
+  type: NotificationType;
+  groupId?: string | null;
+  eventId?: string | null;
+  metadata?: Meta;
+}
+
+async function createOrMerge(userId: string, input: NotifyInput) {
+  const base = {
+    userId,
+    actorId: input.actorId ?? null,
+    type: input.type,
+    groupId: input.groupId ?? null,
+    eventId: input.eventId ?? null,
+  };
+  const metadata = (input.metadata ?? {}) as Meta;
+
+  if (MERGEABLE.has(input.type)) {
+    const previous = await prisma.notification.findFirst({
+      where: {
+        ...base,
+        readAt: null,
+        createdAt: { gte: new Date(Date.now() - MERGE_WINDOW_MS) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, metadata: true },
+    });
+    if (previous) {
+      const prev = (previous.metadata ?? {}) as Meta;
+      const games = [
+        ...(Array.isArray(prev.games) ? (prev.games as Meta[]) : []),
+        ...(Array.isArray(metadata.games) ? (metadata.games as Meta[]) : []),
+      ];
+      const seen = new Set<string>();
+      const unique = games.filter((g) => {
+        const key = String(g.name ?? "");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      await prisma.notification.update({
+        where: { id: previous.id },
+        data: {
+          metadata: { ...prev, ...metadata, games: unique.slice(-MAX_MERGED_GAMES) } as object,
+          createdAt: new Date(),
+        },
+      });
+      return;
+    }
+  }
+
+  await prisma.notification.create({ data: { ...base, metadata: metadata as object } });
+}
+
+/** Avisa y espera a que quede guardado (para el cron, que no puede soltarlo). */
+export async function notifyNow(input: NotifyInput): Promise<number> {
+  const recipients = [...new Set(input.userIds)].filter((id) => id && id !== input.actorId);
+  await Promise.all(recipients.map((userId) => createOrMerge(userId, input)));
+  return recipients.length;
+}
+
+/** Avisa a cada destinatario. Nunca bloquea ni hace fallar la respuesta. */
+export function notify(input: NotifyInput) {
+  notifyNow(input).catch(() => {});
+}
+
+// ── Presentación ────────────────────────────────────────────────────────────
+
+export interface NotificationRow {
+  id: string;
+  type: string;
+  metadata: unknown;
+  readAt: Date | null;
+  createdAt: Date;
+  groupId: string | null;
+  eventId: string | null;
+  actor: {
+    id: string;
+    name: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+    slug: string | null;
+  } | null;
+  group: { id: string; name: string } | null;
+  event: { id: string; name: string } | null;
+}
+
+export interface PresentedNotification {
+  id: string;
+  type: string;
+  emoji: string;
+  /** Trozos de texto; los `strong` van resaltados. */
+  parts: { text: string; strong?: boolean }[];
+  href: string;
+  thumbnail: string | null;
+  actor: { name: string; avatarUrl: string | null } | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export const NOTIFICATION_SELECT = {
+  id: true,
+  type: true,
+  metadata: true,
+  readAt: true,
+  createdAt: true,
+  groupId: true,
+  eventId: true,
+  actor: { select: { id: true, name: true, displayName: true, avatarUrl: true, slug: true } },
+  group: { select: { id: true, name: true } },
+  event: { select: { id: true, name: true } },
+} as const;
+
+function gameList(games: Meta[]): { text: string; strong?: boolean }[] {
+  const names = games.map((g) => String(g.name ?? "")).filter(Boolean);
+  if (names.length === 0) return [{ text: "un juego" }];
+  const shown = names.slice(0, 2);
+  const rest = names.length - shown.length;
+  const out: { text: string; strong?: boolean }[] = [];
+  shown.forEach((n, i) => {
+    if (i > 0) out.push({ text: i === shown.length - 1 && rest === 0 ? " y " : ", " });
+    out.push({ text: `«${n}»`, strong: true });
+  });
+  if (rest > 0) out.push({ text: ` y ${rest} más` });
+  return out;
+}
+
+export function presentNotification(n: NotificationRow): PresentedNotification {
+  const m = (n.metadata ?? {}) as Meta;
+  const actorName = n.actor ? n.actor.displayName || n.actor.name || "Alguien" : null;
+  const actor = { text: actorName ?? "Alguien", strong: true };
+  const groupName = { text: n.group?.name ?? "tu grupo", strong: true };
+  const eventName = { text: n.event?.name ?? "el evento", strong: true };
+  const groupHref = n.groupId ? `/groups/${n.groupId}` : "/groups";
+  const eventHref = n.eventId ? `/events/${n.eventId}` : "/events";
+  const games = Array.isArray(m.games) ? (m.games as Meta[]) : [];
+  const firstThumb = games.find((g) => typeof g.thumbnail === "string")?.thumbnail as string | undefined;
+
+  let emoji = "🔔";
+  let parts: PresentedNotification["parts"] = [];
+  let href = "/";
+
+  switch (n.type) {
+    case "friend_added":
+      emoji = "🤝";
+      parts = [actor, { text: " te ha añadido a sus amigos" }];
+      href = n.actor ? profileHref(n.actor) : "/";
+      break;
+    case "group_member_joined":
+      emoji = "👋";
+      parts = [actor, { text: " se ha unido a " }, groupName];
+      href = `${groupHref}?tab=members`;
+      break;
+    case "group_role_changed":
+      emoji = "🛡️";
+      parts =
+        m.role === "admin"
+          ? [actor, { text: " te ha hecho admin de " }, groupName]
+          : [{ text: "Ya no eres admin de " }, groupName, { text: ", sigues como miembro" }];
+      href = `${groupHref}?tab=members`;
+      break;
+    case "group_pinged":
+      emoji = "📯";
+      parts = [actor, { text: " convoca a " }, groupName, { text: " para votar" }];
+      href = groupHref;
+      break;
+    case "super_vote_freed":
+      emoji = "🔥";
+      parts = [
+        { text: "Vuelves a tener tu super voto en " },
+        groupName,
+        { text: ": " },
+        { text: `«${String(m.gameName ?? "un juego")}»`, strong: true },
+        { text: " ya se ha jugado" },
+      ];
+      href = groupHref;
+      break;
+    case "event_attendee_joined":
+      emoji = "🙋";
+      parts = [actor, { text: m.status === "maybe" ? " quizás vaya a " : " se ha apuntado a " }, eventName];
+      href = `${eventHref}?tab=attendees`;
+      break;
+    case "event_role_changed":
+      emoji = "🛡️";
+      parts =
+        m.role === "admin"
+          ? [actor, { text: " te ha hecho admin de " }, eventName]
+          : [{ text: "Ya no eres admin de " }, eventName];
+      href = `${eventHref}?tab=attendees`;
+      break;
+    case "event_game_added":
+      emoji = "🎲";
+      parts = [actor, { text: " ha añadido " }, ...gameList(games), { text: " a " }, eventName];
+      href = `${eventHref}?tab=games`;
+      break;
+    case "review_games": {
+      emoji = "⭐";
+      parts = [{ text: "¿Qué tal ayer en " }, groupName, { text: "? Valora " }, ...gameList(games)];
+      const first = games[0]?.id;
+      href = first ? `${groupHref}?review=${encodeURIComponent(String(first))}` : groupHref;
+      break;
+    }
+    case "review_event":
+      emoji = "🎉";
+      parts = [eventName, { text: " ya ha terminado. ¿Qué tal fue? Valóralo y sube tus fotos" }];
+      href = `${eventHref}?review=1`;
+      break;
+    default:
+      parts = [{ text: "Tienes una novedad" }];
+  }
+
+  return {
+    id: n.id,
+    type: n.type,
+    emoji,
+    parts,
+    href,
+    thumbnail: (typeof m.thumbnail === "string" ? m.thumbnail : null) ?? firstThumb ?? null,
+    actor: n.actor ? { name: actorName!, avatarUrl: n.actor.avatarUrl } : null,
+    read: !!n.readAt,
+    createdAt: n.createdAt.toISOString(),
+  };
+}
+
+// ── Destinatarios habituales ────────────────────────────────────────────────
+
+/** Quien gestiona el grupo: propietario y admins. */
+export async function groupManagerIds(groupId: string): Promise<string[]> {
+  const rows = await prisma.groupMember.findMany({
+    where: { groupId, role: { in: ["owner", "admin"] } },
+    select: { userId: true },
+  });
+  return rows.map((r) => r.userId);
+}
+
+/** Quien gestiona el evento: quien lo creó y sus admins. */
+export async function eventManagerIds(eventId: string): Promise<string[]> {
+  const [event, admins] = await Promise.all([
+    prisma.event.findUnique({ where: { id: eventId }, select: { createdById: true } }),
+    prisma.eventAttendee.findMany({
+      where: { eventId, role: "admin" },
+      select: { userId: true },
+    }),
+  ]);
+  return [...(event ? [event.createdById] : []), ...admins.map((a) => a.userId)];
+}
+
+/** Variante fire-and-forget: busca a quién avisar y avisa, sin esperar. */
+export function notifyManagers(
+  scope: { groupId: string } | { eventId: string },
+  input: Omit<NotifyInput, "userIds" | "groupId" | "eventId">
+) {
+  const lookup =
+    "groupId" in scope ? groupManagerIds(scope.groupId) : eventManagerIds(scope.eventId);
+  lookup
+    .then((userIds) => notify({ ...input, ...scope, userIds }))
+    .catch(() => {});
+}

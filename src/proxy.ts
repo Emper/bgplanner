@@ -41,6 +41,7 @@ function handleUnauthorized(request: NextRequest) {
 export const config = {
   matcher: [
     "/profile/:path*",
+    "/notifications/:path*",
     "/groups/:path*",
     "/events/:path*",
     // `:path*` casa también con la ruta sin sufijo, así que esto cubre

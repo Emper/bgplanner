@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { notifyManagers } from "@/lib/notifications";
 
 // GET — resolve invite code to event info (+ attendance check if logged in)
 export async function GET(
@@ -98,6 +99,10 @@ export async function POST(
       status: "attending",
     },
   });
+  notifyManagers(
+    { eventId: event.id },
+    { type: "event_attendee_joined", actorId: session.userId, metadata: { status: "attending" } }
+  );
 
   return NextResponse.json({
     joined: true,

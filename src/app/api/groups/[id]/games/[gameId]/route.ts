@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { resend } from "@/lib/resend";
 import { logActivity } from "@/lib/activity";
+import { notify } from "@/lib/notifications";
 import { getGroupType } from "@/lib/groupTypes";
 
 export async function DELETE(
@@ -84,7 +84,7 @@ export async function PATCH(
 
   const groupGame = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId } },
-    include: { game: { select: { name: true } } },
+    include: { game: { select: { name: true, thumbnail: true } } },
   });
 
   if (!groupGame) {
@@ -125,7 +125,7 @@ export async function PATCH(
     const superVotes = limitedValues.length
       ? await prisma.vote.findMany({
           where: { groupGameId: groupGame.id, value: { in: limitedValues } },
-          include: { user: { select: { email: true, name: true, displayName: true } } },
+          select: { userId: true },
         })
       : [];
 
@@ -135,30 +135,18 @@ export async function PATCH(
         data: { value: 1 },
       });
 
-      // Send notification emails (fire and forget)
-      for (const vote of superVotes) {
-        resend.emails.send({
-          from: "BG Planner <cesar@tiradacritica.es>",
-          to: vote.user.email,
-          subject: `Tu super voto en "${group?.name}" se ha liberado`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-              <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-              <p>¡Buenas noticias, ${vote.user.displayName || vote.user.name || "jugador"}! 🎲</p>
-              <p>El juego <strong style="color: #f59e0b;">"${groupGame.game.name}"</strong> en el grupo <strong>"${group?.name}"</strong> ha sido marcado como jugado.</p>
-              <p>Tu super voto se ha convertido en un voto normal y <strong style="color: #f59e0b;">vuelves a tener tu super voto disponible</strong> para usarlo en otro juego del grupo.</p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app"}/groups/${groupId}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-                Ir al grupo
-              </a>
-            </div>
-          `,
-        }).catch(() => {}); // Don't fail if email fails
-      }
+      notify({
+        type: "super_vote_freed",
+        userIds: superVotes.map((v) => v.userId),
+        actorId: session.userId,
+        groupId,
+        metadata: { gameName: groupGame.game.name, thumbnail: groupGame.game.thumbnail ?? null },
+      });
     }
 
     // Solo en la transición pendiente → jugado (evita re-disparar al re-marcar).
-    // La invitación a opinar NO se manda aquí: la envía el digest diario
-    // ("valora los juegos de ayer") para no saturar con un correo por juego.
+    // La invitación a opinar NO se manda aquí: la deja el cron diario en la
+    // campana ("valora los juegos de ayer"), uno por grupo y no uno por juego.
     if (!groupGame.playedAt) {
       // Las notas de ranking ("por qué propongo este juego") pierden sentido
       // una vez jugado: soft-delete de TODAS las del juego en el grupo.

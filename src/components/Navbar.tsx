@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import AnimatedLogo from "./AnimatedLogo";
+import NotificationBell from "./NotificationBell";
 import { useTheme } from "@/lib/theme";
 
 export default function Navbar() {
@@ -176,6 +177,7 @@ export default function Navbar() {
                 Admin
               </Link>
             )}
+            <NotificationBell />
             <button
               onClick={toggleTheme}
               className="hidden sm:flex w-9 h-9 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"

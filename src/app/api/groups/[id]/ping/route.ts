@@ -5,6 +5,7 @@ import { resend } from "@/lib/resend";
 import { pingSchema } from "@/lib/validations";
 import { computeRanking } from "@/lib/ranking";
 import { logActivity } from "@/lib/activity";
+import { notify } from "@/lib/notifications";
 import { escapeHtml } from "@/lib/html";
 
 const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -221,6 +222,15 @@ export async function POST(
       topBefore: snapshot,
     });
   }
+
+  // El email sigue saliendo (convocar es justo para avisar fuera de la web),
+  // y además queda en la campana de cada uno.
+  notify({
+    type: "group_pinged",
+    userIds: group.members.map((m) => m.userId),
+    actorId: session.userId,
+    groupId,
+  });
 
   logActivity("group_pinged", session.userId, {
     groupId,
