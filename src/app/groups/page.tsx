@@ -1,18 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
-import ActivityFeed from "@/components/ActivityFeed";
 import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
-import DateTile from "@/components/DateTile";
-import { CountUp, spotlightMove } from "@/components/motion";
+import { spotlightMove } from "@/components/motion";
 import { getGroupType } from "@/lib/groupTypes";
-import { useFriends } from "@/lib/friends";
-import { profileHref } from "@/lib/users";
+
+// Todos tus grupos. La portada con la actividad vive en /home.
 
 interface GroupMemberPreview {
   user: { name: string | null; displayName: string | null; avatarUrl: string | null };
@@ -27,227 +24,28 @@ interface Group {
   members: GroupMemberPreview[];
 }
 
-interface RecentGame {
-  gameId: number;
-  gameName: string;
-  thumbnail: string | null;
-  groupId: string;
-  groupName: string;
-  date: string;
-}
-
-interface EventAttendeePreview {
-  user: { name: string | null; displayName: string | null; avatarUrl: string | null };
-}
-
-interface UpcomingEvent {
-  id: string;
-  name: string;
-  date: string;
-  location: string | null;
-  attendees: EventAttendeePreview[];
-  _count: { attendees: number; games: number };
-}
-
-// «Buenos días» a las 9 y «buenas noches» a las 23: la app se usa mucho
-// de noche, que es cuando se queda para jugar.
-function greeting() {
-  const h = new Date().getHours();
-  if (h >= 6 && h < 14) return "Buenos días";
-  if (h >= 14 && h < 21) return "Buenas tardes";
-  return "Buenas noches";
-}
-
-function daysUntil(date: string) {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - start.getTime()) / 86_400_000);
-}
-
-function whenLabel(date: string) {
-  const days = daysUntil(date);
-  if (days <= 0) return "hoy";
-  if (days === 1) return "mañana";
-  if (days < 7) return `el ${new Date(date).toLocaleDateString("es-ES", { weekday: "long" })}`;
-  return `en ${days} días`;
-}
-
 export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [firstName, setFirstName] = useState<string | null>(null);
   const [error, setError] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [feedItems, setFeedItems] = useState<any[]>([]);
-  const [feedCursor, setFeedCursor] = useState<string | null>(null);
-  const [feedHasMore, setFeedHasMore] = useState(false);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const { loaded: friendsLoaded, friends } = useFriends();
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [groupsRes, gamesRes, eventsRes, profileRes] = await Promise.all([
-          fetch("/api/groups", { credentials: "include" }),
-          fetch("/api/profile/recent-games", { credentials: "include" }),
-          fetch("/api/events", { credentials: "include" }),
-          fetch("/api/profile", { credentials: "include" }),
-        ]);
-
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          const name: string = profile.displayName || profile.name || "";
-          setFirstName(name.trim().split(/\s+/)[0] || null);
-        }
-
-        if (!groupsRes.ok) throw new Error("Error al cargar los grupos");
-        setGroups(await groupsRes.json());
-
-        if (gamesRes.ok) setRecentGames(await gamesRes.json());
-        if (eventsRes.ok) {
-          const allEvents: UpcomingEvent[] = await eventsRes.json();
-          setUpcomingEvents(
-            allEvents
-              .filter((e) => new Date(e.date) >= new Date())
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-          );
-        }
-
-        // Fetch activity feed
-        const feedRes = await fetch("/api/feed?limit=10", { credentials: "include" });
-        if (feedRes.ok) {
-          const feedData = await feedRes.json();
-          setFeedItems(feedData.items);
-          setFeedCursor(feedData.nextCursor);
-          setFeedHasMore(!!feedData.nextCursor);
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Error inesperado");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetch("/api/groups", { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Error al cargar los grupos");
+        setGroups(await res.json());
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Error inesperado"))
+      .finally(() => setLoading(false));
   }, []);
-
-  const loadMoreFeed = useCallback(async () => {
-    if (!feedCursor || feedLoading) return;
-    setFeedLoading(true);
-    try {
-      const res = await fetch(`/api/feed?limit=10&cursor=${encodeURIComponent(feedCursor)}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        // Deduplicamos por id: en dev (Strict Mode) y bajo razas el efecto
-        // de auto-carga puede disparar la misma página dos veces.
-        setFeedItems((prev) => {
-          const seen = new Set(prev.map((i: { id: string }) => i.id));
-          return [...prev, ...data.items.filter((i: { id: string }) => !seen.has(i.id))];
-        });
-        setFeedCursor(data.nextCursor);
-        setFeedHasMore(!!data.nextCursor);
-      }
-    } finally {
-      setFeedLoading(false);
-    }
-  }, [feedCursor, feedLoading]);
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
         <div className="max-w-4xl mx-auto">
-
-          {/* Saludo: lo primero que ves al entrar, con lo que tienes por delante */}
-          {!loading && !error && (
-            <div className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] px-5 py-6 sm:px-8 sm:py-8 mb-8 shadow-[var(--card-shadow)]">
-              <div className="absolute inset-0 fx-dots opacity-60 pointer-events-none" aria-hidden />
-              <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-[var(--glow)] blur-[70px] pointer-events-none" aria-hidden />
-              <div className="relative">
-                <p className="text-sm font-medium text-[var(--text-muted)]">
-                  {greeting()}{firstName ? `, ${firstName}` : ""} 👋
-                </p>
-                <h1 className="mt-1 text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
-                  {upcomingEvents[0] ? (
-                    <>
-                      <span className="text-[var(--primary)]">{upcomingEvents[0].name}</span>{" "}
-                      es {whenLabel(upcomingEvents[0].date)}
-                    </>
-                  ) : (
-                    <>
-                      ¿A qué jugamos{" "}
-                      <span className="bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent">
-                        esta semana?
-                      </span>
-                    </>
-                  )}
-                </h1>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
-                    👥 <CountUp value={groups.length} /> {groups.length === 1 ? "grupo" : "grupos"}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
-                    🎲 <CountUp value={groups.reduce((n, g) => n + (g._count?.games || 0), 0)} /> juegos en tus mesas
-                  </span>
-                  {/* Sin eventos a la vista, mejor no presumir de un cero */}
-                  {upcomingEvents.length > 0 && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
-                      📅 <CountUp value={upcomingEvents.length} /> {upcomingEvents.length === 1 ? "evento próximo" : "eventos próximos"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mis amigos: acceso directo a sus perfiles */}
-          {!loading && !error && friendsLoaded && (friends.length > 0 || groups.length > 0) && (
-            <div className="mb-8">
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-xl font-bold text-[var(--text)]">Mis amigos</h2>
-                {friends.length > 0 && (
-                  <span className="text-sm text-[var(--text-muted)]">{friends.length}</span>
-                )}
-              </div>
-              {friends.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)] bg-[var(--surface)] rounded-2xl border border-dashed border-[var(--border)] px-4 py-3">
-                  🤝 Añade amigos desde su perfil o desde los miembros de tus grupos y eventos, y los tendrás aquí a un toque.
-                </p>
-              ) : (
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 no-scrollbar">
-                  {friends.map((friend) => {
-                    const name = friend.displayName || friend.name || "Jugador";
-                    return (
-                      <Link
-                        key={friend.id}
-                        href={profileHref(friend)}
-                        prefetch={false}
-                        title={name}
-                        className="shrink-0 w-20 flex flex-col items-center gap-1.5 p-2 rounded-2xl border border-transparent hover:border-[var(--border)] hover:bg-[var(--surface)] transition-all duration-200"
-                      >
-                        <Avatar
-                          name={name}
-                          avatarUrl={friend.avatarUrl}
-                          size="lg"
-                          className="ring-2 ring-[var(--border)]"
-                        />
-                        <span className="w-full text-center text-xs font-medium text-[var(--text-secondary)] truncate">
-                          {name.trim().split(/\s+/)[0]}
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Mis Grupos */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-[var(--text)]">Mis Grupos</h2>
+            <h1 className="text-2xl font-bold text-[var(--text)]">Mis Grupos</h1>
             <Link
               href="/groups/new"
               prefetch={false}
@@ -351,124 +149,6 @@ export default function GroupsPage() {
                 </div>
               ))}
             </div>
-          )}
-
-          {/* Próximos Eventos */}
-          {!loading && upcomingEvents.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-[var(--text)]">Próximos eventos</h2>
-                <Link
-                  href="/events"
-                  prefetch={false}
-                  className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
-                >
-                  Ver todos
-                </Link>
-              </div>
-              <div className="space-y-2 fx-stagger">
-                {upcomingEvents.slice(0, 3).map((event) => (
-                  <Link
-                    key={event.id}
-                    href={`/events/${event.id}`}
-                    prefetch={false}
-                    onPointerMove={spotlightMove}
-                    className="fx-spotlight bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 sm:p-4 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-4 shadow-[var(--card-shadow)]"
-                  >
-                    <DateTile date={event.date} size="sm" />
-                    <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-semibold text-[var(--text)] truncate">{event.name}</h3>
-                      {event.attendees?.length > 0 && (
-                        <div className="flex -space-x-2">
-                          {event.attendees.slice(0, 4).map((a, i) => (
-                            <Avatar
-                              key={i}
-                              name={a.user.displayName || a.user.name || "?"}
-                              avatarUrl={a.user.avatarUrl}
-                              size="xs"
-                              className="ring-2 ring-[var(--surface)]"
-                            />
-                          ))}
-                          {event._count.attendees > 4 && (
-                            <div className="w-6 h-6 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-[9px] text-[var(--text-secondary)] ring-2 ring-[var(--surface)] shrink-0">
-                              +{event._count.attendees - 4}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-1.5">
-                      <span className="text-xs font-semibold text-[var(--primary)] first-letter:uppercase">
-                        {whenLabel(event.date)}
-                      </span>
-                      {event.location && (
-                        <span className="text-xs text-[var(--text-secondary)]">{event.location}</span>
-                      )}
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {event._count.attendees} asistente{event._count.attendees !== 1 ? "s" : ""} · {event._count.games} juego{event._count.games !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Actividad reciente */}
-          {!loading && feedItems.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-[var(--text)] mb-4">Actividad reciente</h2>
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 shadow-[var(--card-shadow)]">
-                <ActivityFeed
-                  items={feedItems}
-                  showContext
-                  onLoadMore={loadMoreFeed}
-                  hasMore={feedHasMore}
-                  loading={feedLoading}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Juegos Recientes */}
-          {!loading && recentGames.length > 0 && (
-            <>
-              <h2 className="text-xl font-bold text-[var(--text)] mb-4">Juegos recientes</h2>
-              <div className="space-y-2 fx-stagger">
-                {recentGames.map((item, i) => (
-                  <Link
-                    key={`${item.groupId}-${item.gameId}-${i}`}
-                    href={`/groups/${item.groupId}`}
-                    prefetch={false}
-                    className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 flex items-center gap-3 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 block shadow-[var(--card-shadow)]"
-                  >
-                    {item.thumbnail ? (
-                      <Image
-                        src={item.thumbnail}
-                        alt={item.gameName}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-[var(--surface-hover)] rounded-lg flex items-center justify-center text-[var(--text-muted)] text-xs">
-                        ?
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-[var(--text)] truncate">
-                        {item.gameName}
-                      </p>
-                      <p className="text-sm text-[var(--text-secondary)] truncate">
-                        en {item.groupName}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </>
           )}
         </div>
       </div>

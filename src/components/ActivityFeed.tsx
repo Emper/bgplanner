@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Avatar from "./Avatar";
 import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
 import { profileHref } from "@/lib/users";
@@ -16,6 +17,8 @@ interface ActivityItem {
   user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null; slug?: string | null };
   group?: { id: string; name: string } | null;
   event?: { id: string; name: string } | null;
+  /** Carátula del juego del que habla el ítem, si la hay (la pone el servidor). */
+  thumbnail?: string | null;
 }
 
 // ── In-memory feed cache (survives tab switches & navigations within SPA) ──
@@ -52,6 +55,102 @@ function timeAgo(dateStr: string): string {
   if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
   if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`;
   return new Date(dateStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+
+// Separadores del feed: hoy, ayer, esta semana y, más atrás, el mes. Dan
+// ritmo a la lista y evitan leer "hace 3d" en cada línea para situarse.
+function dayBucket(dateStr: string): string {
+  const d = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  const days = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+  if (days <= 0) return "Hoy";
+  if (days === 1) return "Ayer";
+  if (days < 7) return "Esta semana";
+  const sameYear = d.getFullYear() === today.getFullYear();
+  const label = d.toLocaleDateString("es-ES", sameYear ? { month: "long" } : { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+// Un emoji por tipo, en la esquina del avatar: se ve de un vistazo qué ha
+// pasado sin leer la frase.
+const TYPE_BADGES: Record<string, string> = {
+  group_created: "✨",
+  group_joined: "👋",
+  group_pinged: "📯",
+  votes_reset: "🧹",
+  member_promoted: "🛡️",
+  member_demoted: "🛡️",
+  game_added: "🎲",
+  game_removed: "📦",
+  game_marked_played: "✅",
+  game_returned_pending: "↩️",
+  game_archived: "🙈",
+  game_reviewed: "⭐",
+  group_photo_added: "📷",
+  vote_cast: "🗳️",
+  vote_changed: "🗳️",
+  vote_removed: "🗳️",
+  vote_commented: "💬",
+  session_created: "🗓️",
+  session_updated: "🗓️",
+  session_deleted: "🗓️",
+  session_game_completed: "🏁",
+  event_created: "🎉",
+  event_updated: "🎉",
+  event_joined: "🙋",
+  event_left: "👋",
+  event_game_added: "🎲",
+  event_interest_set: "💛",
+  event_reviewed: "⭐",
+  event_photo_added: "📷",
+  friend_added: "🤝",
+};
+
+/** Carátulas de un run, sin repetir y en orden. */
+function runCovers(items: ActivityItem[]): { name: string; src: string }[] {
+  const seen = new Set<string>();
+  const covers: { name: string; src: string }[] = [];
+  for (const item of items) {
+    if (!item.thumbnail || seen.has(item.thumbnail)) continue;
+    seen.add(item.thumbnail);
+    const name = (item.metadata as { gameName?: unknown }).gameName;
+    covers.push({ name: typeof name === "string" ? name : "", src: item.thumbnail });
+  }
+  return covers;
+}
+
+const MAX_STRIP_COVERS = 5;
+
+function CoverStrip({ covers }: { covers: { name: string; src: string }[] }) {
+  if (covers.length === 0) return null;
+  const shown = covers.slice(0, MAX_STRIP_COVERS);
+  const rest = covers.length - shown.length;
+  return (
+    <div className="flex items-end gap-1.5 mt-2 mb-0.5">
+      {shown.map((c, i) => (
+        <Image
+          key={c.src}
+          src={c.src}
+          alt={c.name}
+          title={c.name}
+          width={40}
+          height={52}
+          unoptimized
+          className={`w-10 h-[52px] rounded-md object-cover shadow-sm ring-1 ring-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:rotate-0 ${
+            i % 2 === 0 ? "-rotate-[1.5deg]" : "rotate-[1.5deg]"
+          }`}
+        />
+      ))}
+      {rest > 0 && (
+        <span className="w-10 h-[52px] rounded-md bg-[var(--surface-hover)] flex items-center justify-center text-xs font-semibold text-[var(--text-secondary)]">
+          +{rest}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function SkeletonRow({ showAvatar = true }: { showAvatar?: boolean }) {
@@ -231,28 +330,52 @@ export default function ActivityFeed({
     );
   }
 
+  const buckets = groups.map((g) => dayBucket(g.runs[0].items[0].createdAt));
+
   return (
     <div>
-      {groups.map((group) => {
+      {groups.map((group, groupIndex) => {
         const latestTime = group.runs[0].items[0].createdAt;
         const hasMultipleRuns = group.runs.length > 1;
+        const bucket = buckets[groupIndex];
+        const showBucket = groupIndex === 0 || bucket !== buckets[groupIndex - 1];
+        const badge = TYPE_BADGES[group.runs[0].type];
+        const coversByRun = group.runs.map((run) => runCovers(run.items));
+        // Una sola carátula en todo el bloque va a la derecha, grande; si hay
+        // varias, en tira bajo cada línea.
+        const soloCover =
+          !hasMultipleRuns && coversByRun[0].length === 1 ? coversByRun[0][0] : null;
+        const avatar = (
+          <span className="relative block">
+            <Avatar name={group.userName} avatarUrl={group.avatarUrl} size="sm" />
+            {badge && (
+              <span
+                className="absolute -bottom-1 -right-1.5 w-[18px] h-[18px] rounded-full bg-[var(--surface)] ring-1 ring-[var(--border)] flex items-center justify-center text-[10px] leading-none"
+                aria-hidden
+              >
+                {badge}
+              </span>
+            )}
+          </span>
+        );
         return (
-          <div key={`${group.userId}-${group.runs[0].items[0].id}`} className="flex gap-3 py-2.5 px-1">
+          <div key={`${group.userId}-${group.runs[0].items[0].id}`}>
+            {showBucket && (
+              <div className={`flex items-center gap-2 px-1 pb-1 ${groupIndex === 0 ? "" : "pt-3"}`}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  {bucket}
+                </span>
+                <span className="flex-1 h-px bg-[var(--border)]" />
+              </div>
+            )}
+          <div className="flex gap-3 py-2.5 px-1">
             <div className="flex flex-col items-center shrink-0 w-8">
               {linkUsers ? (
                 <Link href={group.userHref} prefetch={false} aria-label={group.userName}>
-                  <Avatar
-                    name={group.userName}
-                    avatarUrl={group.avatarUrl}
-                    size="sm"
-                  />
+                  {avatar}
                 </Link>
               ) : (
-                <Avatar
-                  name={group.userName}
-                  avatarUrl={group.avatarUrl}
-                  size="sm"
-                />
+                avatar
               )}
               {hasMultipleRuns && (
                 <div className="flex-1 w-0.5 bg-[var(--border)] mt-2 mb-0.5 rounded-full" />
@@ -273,7 +396,7 @@ export default function ActivityFeed({
                 )}
               </p>
               <div className="space-y-1 mt-0.5">
-                {group.runs.map((run) => {
+                {group.runs.map((run, runIndex) => {
                   const data = getGroupedActivity(
                     run.type,
                     run.items.map((i) => i.metadata as Record<string, unknown>)
@@ -287,10 +410,8 @@ export default function ActivityFeed({
                     : null;
                   const appendContext = APPEND_CONTEXT_TYPES.has(run.type);
                   return (
-                    <p
-                      key={run.items[0].id}
-                      className="text-sm text-[var(--text-secondary)] leading-snug"
-                    >
+                    <div key={run.items[0].id}>
+                    <p className="text-sm text-[var(--text-secondary)] leading-snug">
                       <GroupedLine data={data} />
                       {ctx && appendContext && (
                         <>
@@ -317,6 +438,8 @@ export default function ActivityFeed({
                         </>
                       )}
                     </p>
+                    {!soloCover && <CoverStrip covers={coversByRun[runIndex]} />}
+                    </div>
                   );
                 })}
               </div>
@@ -324,6 +447,18 @@ export default function ActivityFeed({
                 {timeAgo(latestTime)}
               </p>
             </div>
+            {soloCover && (
+              <Image
+                src={soloCover.src}
+                alt={soloCover.name}
+                title={soloCover.name}
+                width={48}
+                height={64}
+                unoptimized
+                className="shrink-0 w-12 h-16 rounded-lg object-cover shadow-md ring-1 ring-black/10 rotate-[2deg] transition-transform duration-200 hover:rotate-0 hover:scale-105"
+              />
+            )}
+          </div>
           </div>
         );
       })}

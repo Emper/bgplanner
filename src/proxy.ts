@@ -40,6 +40,7 @@ function handleUnauthorized(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/home/:path*",
     "/profile/:path*",
     "/groups/:path*",
     "/events/:path*",

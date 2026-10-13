@@ -38,7 +38,16 @@ export async function GET(request: NextRequest) {
     orderBy: { date: "asc" },
   });
 
-  return NextResponse.json(events);
+  // Si quien pide va o no: con la vista previa de 5 asistentes no se sabe
+  const mine = await prisma.eventAttendee.findMany({
+    where: { userId: session.userId, eventId: { in: events.map((e) => e.id) } },
+    select: { eventId: true, status: true },
+  });
+  const myStatus = new Map(mine.map((a) => [a.eventId, a.status]));
+
+  return NextResponse.json(
+    events.map((e) => ({ ...e, myStatus: myStatus.get(e.id) ?? null }))
+  );
 }
 
 // Create event

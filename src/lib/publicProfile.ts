@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { withGameCovers } from "@/lib/activityCovers";
 
 // Perfil público de un jugador. Se ve SIN cuenta, así que lo que sale de aquí
 // es lo que cualquiera puede leer en internet. Deliberadamente NO sale:
@@ -42,6 +43,8 @@ export interface ProfileEvent {
 
 export interface ProfileActivityItem {
   id: string;
+  /** Carátula del juego del que habla, si habla de uno. */
+  thumbnail: string | null;
   type: string;
   scope: string;
   userId: string;
@@ -462,7 +465,7 @@ export async function getPublicProfile(
     showcase,
     upcomingEvents,
     pastEvents,
-    activity: activity.map((a) => ({
+    activity: (await withGameCovers(activity)).map((a) => ({
       ...a,
       metadata: a.metadata as Record<string, unknown>,
       createdAt: a.createdAt.toISOString(),

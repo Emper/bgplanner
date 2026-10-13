@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { withGameCovers } from "@/lib/activityCovers";
 
 export async function GET(
   request: NextRequest,
@@ -33,5 +34,5 @@ export async function GET(
   const items = activities.slice(0, limit);
   const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
 
-  return NextResponse.json({ items, nextCursor });
+  return NextResponse.json({ items: await withGameCovers(items), nextCursor });
 }

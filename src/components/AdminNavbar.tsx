@@ -54,7 +54,7 @@ export default function AdminNavbar() {
               );
             })}
             <Link
-              href="/groups"
+              href="/home"
               prefetch={false}
               className="text-xs sm:text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] whitespace-nowrap"
               title="Volver a la app como usuario"

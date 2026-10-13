@@ -13,6 +13,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "13 octubre 2026",
+    version: "1.39",
+    title: "Un inicio con más vida",
+    changes: [
+      { type: "new", text: "Tu inicio estrena barra lateral con tus grupos, tus próximos eventos y tus amigos siempre a mano" },
+      { type: "improved", text: "La actividad reciente enseña las cajas de los juegos y se ordena por días" },
+      { type: "improved", text: "Los juegos recientes, en tarjetas grandes con su carátula" },
+    ],
+  },
+  {
+    date: "13 octubre 2026",
     version: "1.38",
     title: "Tus amigos, a un toque",
     changes: [

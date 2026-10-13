@@ -69,7 +69,7 @@ export default async function Home({
       where: { id: session.userId },
       select: { id: true },
     });
-    if (user) redirect(target || "/groups");
+    if (user) redirect(target || "/home");
   }
 
   const events = await getUpcomingPublicEvents(3).catch(() => []);
