@@ -122,6 +122,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const data: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) data.name = parsed.data.name;
   if (parsed.data.description !== undefined) data.description = parsed.data.description;
+  if (parsed.data.about !== undefined) data.about = parsed.data.about?.trim() ? parsed.data.about : null;
   if (parsed.data.date) data.date = new Date(parsed.data.date);
   if (parsed.data.endDate !== undefined) data.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
   if (parsed.data.location !== undefined) data.location = parsed.data.location;

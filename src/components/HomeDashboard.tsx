@@ -13,6 +13,7 @@ import { CountUp } from "@/components/motion";
 import { getGroupType } from "@/lib/groupTypes";
 import { useFriends } from "@/lib/friends";
 import { profileHref } from "@/lib/users";
+import { useNavUser } from "@/lib/navUser";
 
 // La portada de quien tiene cuenta (la pinta / cuando hay sesión). En escritorio, una barra lateral con
 // accesos directos (grupos › eventos › amigos) y a la derecha lo que se mueve:
@@ -318,7 +319,8 @@ export default function HomeDashboard() {
   const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [firstName, setFirstName] = useState<string | null>(null);
+  const navUser = useNavUser();
+  const firstName = navUser?.name.trim().split(/\s+/)[0] || null;
   const [error, setError] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [feedItems, setFeedItems] = useState<any[]>([]);
@@ -329,19 +331,13 @@ export default function HomeDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [groupsRes, gamesRes, eventsRes, profileRes, feedRes] = await Promise.all([
+        // El nombre para saludar sale de lo que ya ha pedido la cabecera
+        const [groupsRes, gamesRes, eventsRes, feedRes] = await Promise.all([
           fetch("/api/groups", { credentials: "include" }),
           fetch("/api/profile/recent-games", { credentials: "include" }),
-          fetch("/api/events", { credentials: "include" }),
-          fetch("/api/profile", { credentials: "include" }),
+          fetch("/api/events?upcoming=1", { credentials: "include" }),
           fetch("/api/feed?limit=10", { credentials: "include" }),
         ]);
-
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          const name: string = profile.displayName || profile.name || "";
-          setFirstName(name.trim().split(/\s+/)[0] || null);
-        }
 
         if (!groupsRes.ok) throw new Error("Error al cargar tu inicio");
         setGroups(await groupsRes.json());

@@ -294,6 +294,9 @@ export async function getPublicProfile(
 ): Promise<PublicProfile | null> {
   const user = await findProfileUser(decodeURIComponent(param));
   if (!user) return null;
+  // Ya sin null, para las consultas de más abajo (funciones que se declaran
+  // antes de usarse y en las que TypeScript no arrastra el `if`)
+  const owner = user;
 
   // Con qué puede cruzarse quien mira: sus grupos y sus eventos. Sirve para
   // decidir qué eventos y qué actividad del otro puede ver. Sin cuenta no hay
@@ -313,53 +316,65 @@ export async function getPublicProfile(
   const viewerGroupIds = viewerMemberships.map((m) => m.groupId);
   const viewerEventIds = viewerAttendances.map((a) => a.eventId);
 
+  // A partir de aquí nada depende de lo anterior: todo a la vez, en vez de
+  // una consulta detrás de otra.
+  const [sharedGroups, addedViewer, showcase, attendances, activity] = await Promise.all([
+    getSharedGroups(),
+    getAddedViewer(),
+    getShowcase(),
+    getAttendances(),
+    getActivity(),
+  ]);
+
   // Grupos en común. De los grupos del otro solo enseñamos estos: los demás
   // no son asunto de quien mira, y quien no tiene cuenta no ve ninguno.
-  const sharedGroups = viewerGroupIds.length
-    ? await prisma.groupMember.findMany({
-        where: { userId: user.id, groupId: { in: viewerGroupIds } },
+  function getSharedGroups() {
+    return viewerGroupIds.length
+    ? prisma.groupMember.findMany({
+        where: { userId: owner.id, groupId: { in: viewerGroupIds } },
         select: { group: { select: { id: true, name: true, type: true } } },
         orderBy: { joinedAt: "asc" },
       })
-    : [];
+    : Promise.resolve([]);
+  }
 
   // Solo se le cuenta a quien ha sido añadido: no dice nada de nadie más.
-  const addedViewer =
-    !!viewerId &&
-    viewerId !== user.id &&
-    !!(await prisma.friendship.findUnique({
-      where: { userId_friendId: { userId: user.id, friendId: viewerId } },
+  async function getAddedViewer() {
+    if (!viewerId || viewerId === owner.id) return false;
+    return !!(await prisma.friendship.findUnique({
+      where: { userId_friendId: { userId: owner.id, friendId: viewerId } },
       select: { id: true },
     }));
+  }
 
   // ── Vitrina ────────────────────────────────────────────────────────────
   // Los juegos que ha marcado como imprescindibles en su colección. Van por
   // userId (la marca) cruzado con su usuario de BGG (los datos del juego).
-  let showcase: PublicProfile["showcase"] = [];
-
-  if (user.bggUsername) {
+  async function getShowcase(): Promise<PublicProfile["showcase"]> {
+    const bggUsername = owner.bggUsername;
+    if (!bggUsername) return [];
     const entries = await prisma.collectionEntry.findMany({
-      where: { userId: user.id, showcased: true },
+      where: { userId: owner.id, showcased: true },
       select: { bggId: true },
     });
-    if (entries.length > 0) {
-      const rows = await prisma.collectionGame.findMany({
-        where: {
-          bggUsername: user.bggUsername.toLowerCase().trim(),
-          bggId: { in: entries.map((e) => e.bggId) },
-        },
-        select: { bggId: true, name: true, image: true, thumbnail: true },
-      });
-      showcase = rows.sort((a, b) => a.name.localeCompare(b.name));
-    }
+    if (entries.length === 0) return [];
+    const rows = await prisma.collectionGame.findMany({
+      where: {
+        bggUsername: bggUsername.toLowerCase().trim(),
+        bggId: { in: entries.map((e) => e.bggId) },
+      },
+      select: { bggId: true, name: true, image: true, thumbnail: true },
+    });
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   // ── Eventos ────────────────────────────────────────────────────────────
   // A los que asiste (o dice que quizás). Los privados solo si quien mira
   // también está dentro: suyo o de los que él mismo asiste.
-  const attendances = await prisma.eventAttendee.findMany({
+  function getAttendances() {
+    return prisma.eventAttendee.findMany({
     where: {
-      userId: user.id,
+      userId: owner.id,
       status: { in: ["attending", "maybe"] },
       event: {
         OR: [
@@ -391,36 +406,16 @@ export async function getPublicProfile(
     },
     orderBy: { event: { date: "asc" } },
   });
-
-  const now = new Date();
-  const eventItems: ProfileEvent[] = attendances.map((a) => ({
-    id: a.event.id,
-    name: a.event.name,
-    date: a.event.date.toISOString(),
-    endDate: a.event.endDate ? a.event.endDate.toISOString() : null,
-    location: a.event.location,
-    imageUrl: a.event.imageUrl,
-    visibility: a.event.visibility,
-    isOrganizer: a.event.createdById === user.id,
-    status: a.status,
-    attendeeCount: a.event._count.attendees,
-    gameCount: a.event._count.games,
-  }));
-
-  const eventEnd = (e: ProfileEvent) => new Date(e.endDate ?? e.date);
-  const upcomingEvents = eventItems.filter((e) => eventEnd(e) >= now);
-  const pastEvents = eventItems
-    .filter((e) => eventEnd(e) < now)
-    .reverse()
-    .slice(0, PAST_EVENTS_LIMIT);
+  }
 
   // ── Actividad reciente ─────────────────────────────────────────────────
   // Solo la pública, y solo la que quien mira podría haber visto ya en su
   // propio feed: grupos suyos o eventos públicos / a los que asiste. Sin
   // cuenta, únicamente la de eventos públicos.
-  const activity = await prisma.activityLog.findMany({
+  function getActivity() {
+    return prisma.activityLog.findMany({
     where: {
-      userId: user.id,
+      userId: owner.id,
       scope: "public",
       OR: [
         ...(viewerGroupIds.length ? [{ groupId: { in: viewerGroupIds } }] : []),
@@ -450,6 +445,29 @@ export async function getPublicProfile(
       event: { select: { id: true, name: true } },
     },
   });
+  }
+
+  const now = new Date();
+  const eventItems: ProfileEvent[] = attendances.map((a) => ({
+    id: a.event.id,
+    name: a.event.name,
+    date: a.event.date.toISOString(),
+    endDate: a.event.endDate ? a.event.endDate.toISOString() : null,
+    location: a.event.location,
+    imageUrl: a.event.imageUrl,
+    visibility: a.event.visibility,
+    isOrganizer: a.event.createdById === user.id,
+    status: a.status,
+    attendeeCount: a.event._count.attendees,
+    gameCount: a.event._count.games,
+  }));
+
+  const eventEnd = (e: ProfileEvent) => new Date(e.endDate ?? e.date);
+  const upcomingEvents = eventItems.filter((e) => eventEnd(e) >= now);
+  const pastEvents = eventItems
+    .filter((e) => eventEnd(e) < now)
+    .reverse()
+    .slice(0, PAST_EVENTS_LIMIT);
 
   return {
     id: user.id,

@@ -676,9 +676,9 @@ function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHre
                       </div>
                     </div>
                     <div className="p-4">
-                      <div className="font-bold text-[var(--text)] leading-tight line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
+                      <h4 className="font-bold text-[var(--text)] leading-tight line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
                         {ev.name}
-                      </div>
+                      </h4>
                       <div className="mt-1.5 text-xs text-[var(--text-muted)] space-y-0.5">
                         <div>🕐 {ev.time}{ev.location ? ` · 📍 ${ev.location}` : ""}</div>
                         <div>

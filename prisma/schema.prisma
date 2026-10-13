@@ -151,6 +151,9 @@ model Game {
   groupGames   GroupGame[]
   sessionGames GameSessionGame[]
   eventGames   EventGame[]
+
+  // Las carátulas del feed se buscan por nombre (withGameCovers)
+  @@index([name])
 }
 
 model GameSession {
@@ -205,6 +208,8 @@ model GroupGame {
 
   @@unique([groupId, gameId])
   @@index([groupId])
+  // "Juegos recientes" del inicio: lo último que ha añadido cada uno
+  @@index([addedById, addedAt])
 }
 
 model CollectionGame {
@@ -429,6 +434,9 @@ model Event {
   id           String    @id @default(cuid())
   name         String
   description  String?
+  // Info general: el texto largo (horarios, normas, cómo llegar…) que se
+  // enseña en la ficha pública y en la pestaña "Info" del evento.
+  about        String?   @db.Text
   date         DateTime
   endDate      DateTime?
   location     String?

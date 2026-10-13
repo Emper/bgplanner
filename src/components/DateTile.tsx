@@ -1,9 +1,18 @@
 // La hojita de calendario de los eventos (SÁB / 18 / OCT), la misma que en
-// la portada. Se pinta en el navegador, así que va en la hora local.
-export default function DateTile({ date, size = "md" }: { date: string; size?: "sm" | "md" }) {
+// la portada. En el navegador va en la hora local; si se pinta en el
+// servidor hay que pasarle la zona (`timeZone`), que allí es UTC.
+export default function DateTile({
+  date,
+  size = "md",
+  timeZone,
+}: {
+  date: string;
+  size?: "sm" | "md";
+  timeZone?: string;
+}) {
   const d = new Date(date);
   const part = (opts: Intl.DateTimeFormatOptions) =>
-    d.toLocaleDateString("es-ES", opts).replace(".", "");
+    d.toLocaleDateString("es-ES", { timeZone, ...opts }).replace(".", "");
   const sm = size === "sm";
   return (
     <div

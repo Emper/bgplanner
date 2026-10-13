@@ -22,3 +22,20 @@ export function truncateChars(value: string, max: number): string {
   if (chars.length <= max) return value;
   return chars.slice(0, max).join("");
 }
+
+/** Tope de la info general de un evento: da para horarios, normas y cómo llegar. */
+export const EVENT_ABOUT_MAX = 10000;
+
+/** Texto en una sola línea y recortado, para descripciones meta y similares. */
+export function excerpt(value: string, max: number): string {
+  const flat = value
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^\s*[-•*]\s+/gm, "")
+    .replace(/^\s*#{1,3}\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (Array.from(flat).length <= max) return flat;
+  const cut = truncateChars(flat, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:]+$/, "")}…`;
+}

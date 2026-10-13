@@ -11,15 +11,19 @@ import Footer from "@/components/Footer";
 export default function PublicPeek({
   eyebrow,
   title,
+  lead,
   imageUrl,
   emoji,
   facts,
   note,
   cta,
   banner,
+  children,
 }: {
   eyebrow?: string;
   title: string;
+  /** Una frase bajo el título (la descripción corta de un evento). */
+  lead?: string | null;
   imageUrl?: string | null;
   emoji?: string;
   /** Las dos o tres líneas de datos, ya formateadas. */
@@ -29,6 +33,8 @@ export default function PublicPeek({
   cta: { href: string; label: string; hint?: string };
   /** Algo que va encima de la ficha: el gancho para registrarse. */
   banner?: React.ReactNode;
+  /** Lo que va debajo de la ficha (la info general de un evento). */
+  children?: React.ReactNode;
 }) {
   return (
     <>
@@ -61,6 +67,9 @@ export default function PublicPeek({
             <h1 className="text-2xl font-bold text-[var(--text)] break-words">
               {title}
             </h1>
+            {lead ? (
+              <p className="mt-2 text-[var(--text-secondary)] break-words">{lead}</p>
+            ) : null}
 
             {facts && facts.length > 0 ? (
               <div className="mt-3 space-y-1">
@@ -89,6 +98,7 @@ export default function PublicPeek({
             ) : null}
           </div>
         </div>
+        {children ? <div className="max-w-xl mx-auto mt-5">{children}</div> : null}
       </div>
       <Footer />
     </>

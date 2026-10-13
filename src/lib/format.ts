@@ -55,3 +55,15 @@ export function formatRelativeShort(dateStr: string | Date) {
   const y = Math.floor(days / 365);
   return `hace ${y} ${y === 1 ? "año" : "años"}`;
 }
+
+/**
+ * Valor para un <input type="datetime-local">: la hora local de quien edita.
+ * Con toISOString() a secas saldría en UTC y, al guardar (se lee como hora
+ * local), el evento se movería una o dos horas cada vez.
+ */
+export function toDateTimeLocalInput(d: string | null | undefined): string {
+  if (!d) return "";
+  const date = new Date(d);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}

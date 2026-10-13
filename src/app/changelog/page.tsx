@@ -1,5 +1,4 @@
-"use client";
-
+import type { Metadata } from "next";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
 
@@ -11,6 +10,17 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "13 octubre 2026",
+    version: "1.41",
+    title: "Eventos con toda la info",
+    changes: [
+      { type: "new", text: "Los eventos estrenan «Info general»: horarios, normas, qué traer o cómo llegar, en su propia pestaña y en la página pública" },
+      { type: "new", text: "Nueva página con todos los próximos eventos abiertos, para descubrir a cuáles apuntarte" },
+      { type: "improved", text: "Los eventos abiertos se encuentran mejor en Google, con su fecha y su sitio, y la web carga más rápido" },
+      { type: "fixed", text: "La hora de los eventos ya no se descuadra al editarlos ni en los enlaces compartidos" },
+    ],
+  },
   {
     date: "13 octubre 2026",
     version: "1.40.1",
@@ -460,6 +470,16 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   new: { label: "Nuevo", color: "bg-emerald-500/20 text-emerald-400" },
   improved: { label: "Mejora", color: "bg-blue-500/20 text-blue-400" },
   fixed: { label: "Fix", color: "bg-[var(--accent-soft)] text-[var(--primary)]" },
+};
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
+
+// Contenido fijo: se genera una vez en el build y se sirve como HTML estático.
+export const metadata: Metadata = {
+  title: "Novedades · BG Planner",
+  description:
+    "Todo lo nuevo en BG Planner: cada mejora para organizar partidas de juegos de mesa con tus amigos, versión a versión.",
+  alternates: { canonical: `${APP_URL}/changelog` },
 };
 
 export default function ChangelogPage() {

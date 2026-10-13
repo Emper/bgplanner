@@ -8,6 +8,8 @@ import { profileHref } from "@/lib/users";
 // para las recargas): se pinta al momento con lo último conocido y se
 // revalida por detrás, en vez de ir apareciendo trozos que empujan al resto.
 export type NavUser = {
+  /** Nombre a mostrar (displayName o nombre), para saludar. */
+  name: string;
   bggUsername: string;
   isSuperadmin: boolean;
   profileHref: string;
@@ -30,6 +32,7 @@ function isNavUser(v: unknown): v is NavUser {
   const u = v as NavUser | null;
   return (
     !!u &&
+    typeof u.name === "string" &&
     typeof u.bggUsername === "string" &&
     typeof u.isSuperadmin === "boolean" &&
     typeof u.profileHref === "string"
@@ -76,13 +79,14 @@ function setState(next: NavUserState) {
 /** Pide el perfil de nuevo (una sola petición aunque lo pidan varios). */
 export function refreshNavUser(): Promise<void> {
   if (inflight) return inflight;
-  inflight = fetch("/api/profile", { credentials: "include" })
+  inflight = fetch("/api/profile?lite=1", { credentials: "include" })
     .then(async (res) => {
       if (res.status === 401) {
         setState(null);
       } else if (res.ok) {
         const data = await res.json();
         setState({
+          name: data?.displayName || data?.name || "",
           bggUsername: data?.bggUsername || "",
           isSuperadmin: !!data?.isSuperadmin,
           profileHref: data?.id ? profileHref(data) : "/profile",

@@ -4,10 +4,11 @@ import { verifyToken } from "@/lib/auth";
 // Las fichas de un grupo y de un evento se resuelven ellas solas: con sesión
 // enseñan el panel completo y sin ella la versión pública. Su tarjeta para
 // compartir (opengraph-image) es una ruta hija y también tiene que pasar, o
-// las vistas previas se quedan en la pantalla de login. El resto de /groups y
-// /events (el listado, crear, añadir juegos…) sigue pidiendo cuenta.
+// las vistas previas se quedan en la pantalla de login. El listado de
+// /events también: sin sesión es el escaparate de eventos abiertos. El resto
+// de /groups y /events (crear, añadir juegos…) sigue pidiendo cuenta.
 const PUBLIC_DETAIL =
-  /^\/(groups|events)\/(?!new$)[^/]+(\/opengraph-image)?$/;
+  /^\/(?:events|(?:groups|events)\/(?!new$)[^/]+(?:\/opengraph-image)?)$/;
 
 export async function proxy(request: NextRequest) {
   if (PUBLIC_DETAIL.test(request.nextUrl.pathname)) {

@@ -11,10 +11,8 @@ import ActivityFeed, { getCachedFeed, setCachedFeed, clearCachedFeed } from "@/c
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
-import GameReviewModal from "@/components/GameReviewModal";
-import GroupGallery from "@/components/GroupGallery";
+import dynamic from "next/dynamic";
 import GroupPlayedGames from "@/components/GroupPlayedGames";
-import HelpMePickModal from "@/components/HelpMePickModal";
 import EmojiField from "@/components/EmojiField";
 import FriendButton from "@/components/FriendButton";
 import { CountUp, useFlip } from "@/components/motion";
@@ -22,6 +20,12 @@ import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 import { profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
+
+// Modales y galería que solo se abren a petición: su código se descarga
+// entonces, no con la ficha del grupo.
+const GameReviewModal = dynamic(() => import("@/components/GameReviewModal"));
+const GroupGallery = dynamic(() => import("@/components/GroupGallery"));
+const HelpMePickModal = dynamic(() => import("@/components/HelpMePickModal"));
 
 interface Game {
   id: string;

@@ -9,6 +9,8 @@ import { getGroupType } from "@/lib/groupTypes";
 export interface PublicEventInfo {
   id: string;
   name: string;
+  description: string | null;
+  about: string | null;
   date: string;
   endDate: string | null;
   location: string | null;
@@ -33,6 +35,8 @@ export interface PublicGroupInfo {
 const EVENT_SELECT = {
   id: true,
   name: true,
+  description: true,
+  about: true,
   date: true,
   endDate: true,
   location: true,
@@ -53,6 +57,8 @@ const GROUP_SELECT = {
 type EventRow = {
   id: string;
   name: string;
+  description: string | null;
+  about: string | null;
   date: Date;
   endDate: Date | null;
   location: string | null;
@@ -74,6 +80,8 @@ function toEventInfo(event: EventRow): PublicEventInfo {
   return {
     id: event.id,
     name: event.name,
+    description: event.description,
+    about: event.about,
     date: event.date.toISOString(),
     endDate: event.endDate ? event.endDate.toISOString() : null,
     location: event.location,
@@ -168,15 +176,21 @@ export async function getUpcomingPublicEvents(limit = 3): Promise<PublicEventInf
 // La misma en la descripción del enlace y en la tarjeta, para que no se
 // contradigan.
 
+// Esto se pinta en el servidor, que en Vercel va en UTC: sin zona fija las
+// horas saldrían una o dos antes de la real.
+export const EVENT_TZ = "Europe/Madrid";
+
 /** "sábado, 12 de diciembre a las 18:30" */
 export function formatEventWhen(dateStr: string): string {
   const fecha = new Date(dateStr);
   const dia = fecha.toLocaleDateString("es-ES", {
+    timeZone: EVENT_TZ,
     weekday: "long",
     day: "numeric",
     month: "long",
   });
   const hora = fecha.toLocaleTimeString("es-ES", {
+    timeZone: EVENT_TZ,
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -186,6 +200,7 @@ export function formatEventWhen(dateStr: string): string {
 /** "12 dic · Madrid" — la píldora de la tarjeta, que es corta. */
 export function eventBadge(event: PublicEventInfo): string {
   const dia = new Date(event.date).toLocaleDateString("es-ES", {
+    timeZone: EVENT_TZ,
     day: "numeric",
     month: "short",
   });

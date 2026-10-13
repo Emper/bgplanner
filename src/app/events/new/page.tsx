@@ -6,12 +6,14 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import EmojiField from "@/components/EmojiField";
+import { EVENT_ABOUT_MAX } from "@/lib/text";
 import { resizeImage } from "@/lib/image";
 
 export default function NewEventPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [about, setAbout] = useState("");
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [location, setLocation] = useState("");
@@ -45,6 +47,7 @@ export default function NewEventPage() {
         body: JSON.stringify({
           name,
           description: description || undefined,
+          about: about.trim() ? about : undefined,
           date,
           endDate: endDate || undefined,
           location: location || undefined,
@@ -93,16 +96,33 @@ export default function NewEventPage() {
 
           <div>
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Descripción
+              Descripción corta
             </label>
             <EmojiField
               value={description}
               onChange={setDescription}
               maxLength={2000}
-              rows={3}
-              placeholder="Describe el evento..."
+              rows={2}
+              placeholder="Una frase que resuma el evento"
               className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] resize-none transition-all duration-200"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              Info general
+            </label>
+            <EmojiField
+              value={about}
+              onChange={setAbout}
+              maxLength={EVENT_ABOUT_MAX}
+              rows={6}
+              placeholder={"Horarios, normas, qué traer, cómo llegar…\n\n## Horarios\n- Sábado de 10:00 a 22:00"}
+              className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] resize-y transition-all duration-200"
+            />
+            <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+              Opcional. Se ve en el evento y en su página pública. Usa <code>## </code> para títulos, <code>- </code> para listas y <code>**texto**</code> para negrita.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

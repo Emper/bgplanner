@@ -15,5 +15,8 @@ export async function GET(request: NextRequest) {
 
   const results = await searchBggGames(query);
 
-  return NextResponse.json(results);
+  // Al borrar y volver a escribir, la misma búsqueda sale del navegador
+  return NextResponse.json(results, {
+    headers: { "Cache-Control": "private, max-age=300" },
+  });
 }

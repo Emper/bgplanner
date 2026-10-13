@@ -10,10 +10,11 @@ import BggGameSearch from "@/components/BggGameSearch";
 import BggRating from "@/components/BggRating";
 import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
-import EventGallery from "@/components/EventGallery";
 import EmojiField from "@/components/EmojiField";
-import MesaView from "./MesaView";
-import { formatDateFull, formatDuration } from "@/lib/format";
+import dynamic from "next/dynamic";
+import RichText from "@/components/RichText";
+import { formatDateFull, formatDuration, toDateTimeLocalInput } from "@/lib/format";
+import { EVENT_ABOUT_MAX } from "@/lib/text";
 import { resizeImage } from "@/lib/image";
 import { profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
@@ -66,6 +67,7 @@ interface EventData {
   id: string;
   name: string;
   description: string | null;
+  about: string | null;
   date: string;
   endDate: string | null;
   location: string | null;
@@ -83,8 +85,13 @@ interface EventData {
   currentAttendeeId: string | null;
 }
 
-type Tab = "activity" | "games" | "mylist" | "attendees" | "gallery";
-const TABS: Tab[] = ["activity", "games", "mylist", "attendees", "gallery"];
+// La galería y "Armar mesa" solo se abren a petición: su código se descarga
+// entonces, no con la ficha del evento.
+const EventGallery = dynamic(() => import("@/components/EventGallery"));
+const MesaView = dynamic(() => import("./MesaView"));
+
+type Tab = "info" | "activity" | "games" | "mylist" | "attendees" | "gallery";
+const TABS: Tab[] = ["info", "activity", "games", "mylist", "attendees", "gallery"];
 
 const INVITE_OPEN_KEY = "event-invite-open";
 
@@ -130,6 +137,7 @@ function EventDetailPageInner() {
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editAbout, setEditAbout] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
   const [editLocation, setEditLocation] = useState("");
@@ -234,6 +242,21 @@ function EventDetailPageInner() {
     setTimeout(() => setInviteCopied(false), 2000);
   };
 
+  // Con info general y sin pestaña en el enlace, se entra por la info: es lo
+  // primero que quiere ver quien llega (horarios, cómo llegar…). Sin info, la
+  // pestaña solo existe para quien puede rellenarla.
+  const defaultTabResolved = useRef(false);
+  useEffect(() => {
+    if (!event || defaultTabResolved.current) return;
+    defaultTabResolved.current = true;
+    const hasAbout = !!event.about?.trim();
+    if (!searchParams.get("tab") && !searchParams.get("review") && hasAbout) {
+      setActiveTab("info");
+    } else if (searchParams.get("tab") === "info" && !hasAbout && !event.isAdmin) {
+      setActiveTab("activity");
+    }
+  }, [event, searchParams]);
+
   // Deep-link ?review=1 (desde el email de "valora el evento"): abre la galería
   // y hace scroll al formulario de valoración.
   useEffect(() => {
@@ -249,9 +272,9 @@ function EventDetailPageInner() {
     if (!event) return;
     setEditName(event.name);
     setEditDescription(event.description || "");
-    // Convert ISO date to datetime-local format
-    setEditDate(event.date ? new Date(event.date).toISOString().slice(0, 16) : "");
-    setEditEndDate(event.endDate ? new Date(event.endDate).toISOString().slice(0, 16) : "");
+    setEditAbout(event.about || "");
+    setEditDate(toDateTimeLocalInput(event.date));
+    setEditEndDate(toDateTimeLocalInput(event.endDate));
     setEditLocation(event.location || "");
     setEditMaxAttendees(event.maxAttendees ? String(event.maxAttendees) : "");
     setEditVisibility(event.visibility as "public" | "private");
@@ -291,6 +314,7 @@ function EventDetailPageInner() {
         body: JSON.stringify({
           name: editName,
           description: editDescription || null,
+          about: editAbout.trim() ? editAbout : null,
           date: editDate ? new Date(editDate).toISOString() : undefined,
           endDate: editEndDate ? new Date(editEndDate).toISOString() : null,
           location: editLocation || null,
@@ -673,7 +697,7 @@ function EventDetailPageInner() {
 
         {/* Tabs */}
         <div className="flex gap-6 border-b border-[var(--border)] mb-4 overflow-x-auto no-scrollbar">
-          {TABS.map((tab) => (
+          {TABS.filter((tab) => tab !== "info" || !!event.about?.trim() || event.isAdmin).map((tab) => (
             <button
               key={tab}
               onClick={() => switchTab(tab)}
@@ -683,12 +707,43 @@ function EventDetailPageInner() {
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]"
               }`}
             >
-              {tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
+              {tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
             </button>
           ))}
         </div>
 
         {/* Tab content */}
+        {activeTab === "info" && (
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 sm:p-6">
+            {event.about?.trim() ? (
+              <>
+                <RichText text={event.about} />
+                {event.isAdmin && (
+                  <button
+                    onClick={openEditModal}
+                    className="mt-5 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                  >
+                    Editar la info
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-3xl mb-2">📋</p>
+                <p className="text-sm font-medium text-[var(--text)]">Aún no hay info general</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
+                  Cuenta horarios, normas, qué traer o cómo llegar. Se ve aquí y en la página pública del evento.
+                </p>
+                <button
+                  onClick={openEditModal}
+                  className="mt-4 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  Añadir info
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === "activity" && (
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
             <ActivityFeed
@@ -752,9 +807,19 @@ function EventDetailPageInner() {
                   className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={200} />
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Descripción</label>
-                <EmojiField value={editDescription} onChange={setEditDescription} rows={3}
+                <label className="block text-xs text-[var(--text-secondary)] mb-1">Descripción corta</label>
+                <EmojiField value={editDescription} onChange={setEditDescription} rows={2}
+                  placeholder="Una frase que resuma el evento"
                   className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-none transition-all duration-200" maxLength={2000} />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-secondary)] mb-1">Info general</label>
+                <EmojiField value={editAbout} onChange={setEditAbout} rows={8}
+                  placeholder={"Horarios, normas, qué traer, cómo llegar…\n\n## Horarios\n- Sábado de 10:00 a 22:00"}
+                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-y transition-all duration-200" maxLength={EVENT_ABOUT_MAX} />
+                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                  Se ve en la pestaña Info general y en la página pública. Usa <code>## </code> para títulos, <code>- </code> para listas y <code>**texto**</code> para negrita; los enlaces se detectan solos.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

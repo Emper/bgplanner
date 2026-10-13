@@ -12,8 +12,12 @@ import HomeDashboard from "@/components/HomeDashboard";
 // quien viene de fuera (y para que los buscadores vean el contenido).
 export const dynamic = "force-dynamic";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
+
 export const metadata: Metadata = {
   title: "BG Planner · Decide con tus amigos a qué jugar",
+  // Una sola dirección para la portada aunque llegue con ?redirect=…
+  alternates: { canonical: APP_URL },
   description:
     "Juntad vuestras colecciones de BoardGameGeek, votad vuestros juegos de mesa favoritos y dejad que el ranking decida la próxima partida. Ordena tu ludoteca y encuentra eventos donde apuntar qué quieres jugar.",
   openGraph: {
@@ -31,6 +35,32 @@ export const metadata: Metadata = {
     description:
       "Grupos, votaciones, ranking, tu colección en estantería y eventos de juegos de mesa. Gratis y sin contraseñas.",
   },
+};
+
+// Quién somos para los buscadores: el sitio (con su nombre, para que Google
+// no lo enseñe como "bgplanner.app") y la aplicación, gratuita.
+const SITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${APP_URL}/#website`,
+      url: APP_URL,
+      name: "BG Planner",
+      inLanguage: "es-ES",
+    },
+    {
+      "@type": "WebApplication",
+      name: "BG Planner",
+      url: APP_URL,
+      applicationCategory: "GameApplication",
+      operatingSystem: "Web",
+      inLanguage: "es-ES",
+      description:
+        "Juntad vuestras colecciones de BoardGameGeek, votad vuestros juegos de mesa favoritos y dejad que el ranking decida la próxima partida.",
+      offers: { "@type": "Offer", price: 0, priceCurrency: "EUR" },
+    },
+  ],
 };
 
 // Las fechas se formatean aquí, en hora de España, para que servidor y
@@ -79,5 +109,15 @@ export default async function Home({
   const events = await getUpcomingPublicEvents(3).catch(() => []);
   const loginHref = target ? `/login?redirect=${encodeURIComponent(target)}` : "/login";
 
-  return <Landing events={events.map(toLandingEvent)} loginHref={loginHref} />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(SITE_JSON_LD).replace(/</g, "\\u003c"),
+        }}
+      />
+      <Landing events={events.map(toLandingEvent)} loginHref={loginHref} />
+    </>
+  );
 }

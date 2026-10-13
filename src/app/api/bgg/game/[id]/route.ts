@@ -26,7 +26,11 @@ export async function GET(
         { status: 404 }
       );
     }
-    return NextResponse.json(game);
+    // La ficha de un juego apenas cambia: que el navegador no vuelva a
+    // preguntar en un rato (privada: la ruta pide sesión)
+    return NextResponse.json(game, {
+      headers: { "Cache-Control": "private, max-age=3600" },
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error al obtener juego";

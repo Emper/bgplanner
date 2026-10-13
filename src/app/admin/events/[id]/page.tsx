@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { formatActivity } from "@/lib/activity";
+import { toDateTimeLocalInput } from "@/lib/format";
 
 interface AdminEventDetail {
   id: string;
@@ -40,14 +41,6 @@ interface AdminEventDetail {
   }[];
 }
 
-function toLocalInput(d: string | null): string {
-  if (!d) return "";
-  const date = new Date(d);
-  const off = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - off * 60_000);
-  return local.toISOString().slice(0, 16);
-}
-
 export default function AdminEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -74,8 +67,8 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
         setForm({
           name: d.name,
           description: d.description || "",
-          date: toLocalInput(d.date),
-          endDate: toLocalInput(d.endDate),
+          date: toDateTimeLocalInput(d.date),
+          endDate: toDateTimeLocalInput(d.endDate),
           location: d.location || "",
           maxAttendees: d.maxAttendees ? String(d.maxAttendees) : "",
           visibility: d.visibility,

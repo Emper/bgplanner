@@ -62,9 +62,14 @@ export async function isSuperadmin(
     where: { id: session.userId },
     select: { role: true },
   });
-  if (user?.role === "superadmin") return true;
+  return isSuperadminRole(user?.role, session.email);
+}
+
+/** Lo mismo que isSuperadmin, para cuando ya se tiene el rol a mano. */
+export function isSuperadminRole(role: string | null | undefined, email: string): boolean {
+  if (role === "superadmin") return true;
   const fallback = process.env.SUPERADMIN_EMAIL;
-  return !!fallback && fallback.toLowerCase() === session.email.toLowerCase();
+  return !!fallback && fallback.toLowerCase() === email.toLowerCase();
 }
 
 export function sessionCookieOptions(token: string) {

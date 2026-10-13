@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { getSession, isSuperadminRole } from "@/lib/auth";
 import { profileSchema } from "@/lib/validations";
 import { validateBggUsername } from "@/lib/bgg";
 import { slugifyUsername } from "@/lib/users";
@@ -44,25 +44,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  // ?lite=1 es lo que pide la cabecera en cada página: sin el avatar (va
+  // incrustado y pesa) ni datos que no pinta.
+  const lite = request.nextUrl.searchParams.get("lite") === "1";
+
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: {
       id: true,
-      email: true,
+      email: !lite,
       name: true,
-      surname: true,
-      location: true,
+      surname: !lite,
+      location: !lite,
       bggUsername: true,
-      avatarUrl: true,
+      avatarUrl: !lite,
       displayName: true,
       slug: true,
       role: true,
     },
   });
 
-  const superadmin = await isSuperadmin(session);
+  // Un token válido de una cuenta que ya no existe no cuenta como sesión
+  if (!user) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
 
-  return NextResponse.json({ ...user, isSuperadmin: superadmin });
+  // El rol ya viene en la fila: sin volver a leerla para saber si es admin
+  return NextResponse.json({ ...user, isSuperadmin: isSuperadminRole(user.role, session.email) });
 }
 
 export async function PUT(request: NextRequest) {

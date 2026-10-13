@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { GROUP_TYPE_IDS } from "./groupTypes";
-import { sanitizeUserText } from "./text";
+import { sanitizeUserText, EVENT_ABOUT_MAX } from "./text";
 import { FEATURE_STATUS_IDS } from "./features";
 
 // Los textos libres del usuario pueden llevar emojis sin problema. Lo único
@@ -121,6 +121,7 @@ export const eventReviewSchema = z.object({
 export const createEventSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(200).transform(clean),
   description: z.string().max(2000).transform(clean).optional(),
+  about: z.string().max(EVENT_ABOUT_MAX, `La info general admite ${EVENT_ABOUT_MAX} caracteres como máximo`).transform(clean).optional(),
   date: z.string().min(1, "La fecha es obligatoria"),
   endDate: z.string().optional(),
   location: z.string().max(300).transform(clean).optional(),
@@ -132,6 +133,7 @@ export const createEventSchema = z.object({
 export const updateEventSchema = z.object({
   name: z.string().min(1).max(200).transform(clean).optional(),
   description: z.string().max(2000).transform(clean).nullable().optional(),
+  about: z.string().max(EVENT_ABOUT_MAX, `La info general admite ${EVENT_ABOUT_MAX} caracteres como máximo`).transform(clean).nullable().optional(),
   date: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
   location: z.string().max(300).transform(clean).nullable().optional(),

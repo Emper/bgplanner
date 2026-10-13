@@ -22,5 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   const thumbnails = await getBggThumbnails(ids);
-  return NextResponse.json(thumbnails);
+  return NextResponse.json(thumbnails, {
+    headers: { "Cache-Control": "private, max-age=3600" },
+  });
 }

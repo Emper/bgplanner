@@ -4,12 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { createEventSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
-// List events: public events + events user attends/created
+// List events: public events + events user attends/created.
+// ?upcoming=1 → solo los que aún no han empezado (lo que pinta el inicio).
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+
+  const upcoming = request.nextUrl.searchParams.get("upcoming") === "1";
 
   const events = await prisma.event.findMany({
     where: {
@@ -18,35 +21,32 @@ export async function GET(request: NextRequest) {
         { createdById: session.userId },
         { attendees: { some: { userId: session.userId } } },
       ],
+      ...(upcoming ? { date: { gte: new Date() } } : {}),
     },
-    include: {
+    // Campos a mano: ni la info general (larga) ni el código de invitación,
+    // que solo ve quien gestiona el evento, salen en el listado
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      date: true,
+      endDate: true,
+      location: true,
+      maxAttendees: true,
+      // El inicio no pinta carteles, y van incrustados: mejor no mandarlos
+      imageUrl: !upcoming,
+      visibility: true,
+      createdById: true,
       createdBy: { select: { name: true, displayName: true } },
-      attendees: {
-        // Campos a mano: el enlace de la lista compartida no sale de aquí
-        select: {
-          id: true,
-          eventId: true,
-          userId: true,
-          status: true,
-          joinedAt: true,
-          user: { select: { name: true, displayName: true, avatarUrl: true } },
-        },
-        take: 5,
-      },
+      // Si quien pide va o no
+      attendees: { where: { userId: session.userId }, select: { status: true } },
       _count: { select: { attendees: true, games: true } },
     },
     orderBy: { date: "asc" },
   });
 
-  // Si quien pide va o no: con la vista previa de 5 asistentes no se sabe
-  const mine = await prisma.eventAttendee.findMany({
-    where: { userId: session.userId, eventId: { in: events.map((e) => e.id) } },
-    select: { eventId: true, status: true },
-  });
-  const myStatus = new Map(mine.map((a) => [a.eventId, a.status]));
-
   return NextResponse.json(
-    events.map((e) => ({ ...e, myStatus: myStatus.get(e.id) ?? null }))
+    events.map(({ attendees, ...e }) => ({ ...e, myStatus: attendees[0]?.status ?? null }))
   );
 }
 
@@ -63,12 +63,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { name, description, date, endDate, location, maxAttendees, visibility, imageUrl } = parsed.data;
+  const { name, description, about, date, endDate, location, maxAttendees, visibility, imageUrl } = parsed.data;
 
   const event = await prisma.event.create({
     data: {
       name,
       description,
+      about: about || null,
       date: new Date(date),
       endDate: endDate ? new Date(endDate) : null,
       location,

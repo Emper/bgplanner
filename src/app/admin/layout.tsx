@@ -4,6 +4,7 @@ import AdminNavbar from "@/components/AdminNavbar";
 
 export const metadata = {
   title: "BG Planner · Admin",
+  robots: { index: false, follow: false },
 };
 
 export default async function AdminLayout({
@@ -12,7 +13,8 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  if (!session) redirect("/auth");
+  // /auth no existe (solo /auth/verify): sin sesión, a entrar y de vuelta aquí
+  if (!session) redirect("/login?redirect=/admin");
   if (!(await isSuperadmin(session))) notFound();
 
   return (
