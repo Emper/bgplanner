@@ -239,7 +239,7 @@ export default async function PublicProfilePage({
                   {profile.isSelf && (
                     <Link
                       href="/profile"
-                      className="shrink-0 text-xs text-[var(--primary)] hover:underline"
+                      className="shrink-0 px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-medium text-[var(--primary)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200"
                     >
                       Editar perfil
                     </Link>

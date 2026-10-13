@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import AnimatedLogo from "./AnimatedLogo";
 import NotificationBell from "./NotificationBell";
 import { useTheme } from "@/lib/theme";
+import { profileHref } from "@/lib/users";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -19,6 +20,9 @@ export default function Navbar() {
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  // "Perfil" lleva al perfil público, que es el que se enseña; editarlo está
+  // a un clic desde allí. Hasta que sabemos quiénes somos, al formulario.
+  const [myProfile, setMyProfile] = useState("/profile");
 
   useEffect(() => {
     fetch("/api/profile")
@@ -26,6 +30,7 @@ export default function Navbar() {
       .then((data) => {
         setBggUsername(data?.bggUsername || "");
         setIsSuperadmin(!!data?.isSuperadmin);
+        if (data?.id) setMyProfile(profileHref(data));
       })
       .catch(() => setBggUsername(""));
   }, []);
@@ -58,6 +63,8 @@ export default function Navbar() {
   ];
 
   const isConnected = bggUsername !== null && bggUsername !== "";
+  const profileActive =
+    pathname.startsWith("/profile") || pathname === myProfile;
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -153,15 +160,15 @@ export default function Navbar() {
             })}
             {/* Desktop: Perfil + Admin + theme */}
             <Link
-              href="/profile"
+              href={myProfile}
               prefetch={false}
               className={`hidden sm:inline relative text-xs sm:text-sm font-medium transition-colors whitespace-nowrap group ${
-                pathname.startsWith("/profile") ? "text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--primary)]"
+                profileActive ? "text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--primary)]"
               }`}
             >
               Perfil
               <span className={`absolute -bottom-1 left-0 h-0.5 bg-[var(--primary)] rounded-full transition-all duration-300 ${
-                pathname.startsWith("/profile") ? "w-full" : "w-0 group-hover:w-full"
+                profileActive ? "w-full" : "w-0 group-hover:w-full"
               }`} />
             </Link>
             {isSuperadmin && (
@@ -280,10 +287,10 @@ export default function Navbar() {
               </Link>
 
               <Link
-                href="/profile"
+                href={myProfile}
                 onClick={() => setMenuOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  pathname.startsWith("/profile")
+                  profileActive
                     ? "bg-[var(--accent-soft)] text-[var(--primary)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 }`}
