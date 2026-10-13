@@ -24,7 +24,7 @@ function LoginForm() {
       try {
         const res = await fetch("/api/profile", { credentials: "include" });
         if (res.ok) {
-          router.replace(redirect || "/home");
+          router.replace(redirect || "/");
           return;
         }
       } catch {

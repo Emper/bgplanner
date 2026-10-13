@@ -256,7 +256,7 @@ function ProfileForm() {
         throw new Error(data.error || "Error al guardar el perfil");
       }
 
-      router.push(redirect || "/home");
+      router.push(redirect || "/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {

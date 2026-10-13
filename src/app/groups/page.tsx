@@ -9,7 +9,7 @@ import PageLoader from "@/components/PageLoader";
 import { spotlightMove } from "@/components/motion";
 import { getGroupType } from "@/lib/groupTypes";
 
-// Todos tus grupos. La portada con la actividad vive en /home.
+// Todos tus grupos. La portada con la actividad es / (con sesión).
 
 interface GroupMemberPreview {
   user: { name: string | null; displayName: string | null; avatarUrl: string | null };

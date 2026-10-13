@@ -14,7 +14,7 @@ import { getGroupType } from "@/lib/groupTypes";
 import { useFriends } from "@/lib/friends";
 import { profileHref } from "@/lib/users";
 
-// La portada de quien tiene cuenta. En escritorio, una barra lateral con
+// La portada de quien tiene cuenta (la pinta / cuando hay sesión). En escritorio, una barra lateral con
 // accesos directos (grupos › eventos › amigos) y a la derecha lo que se mueve:
 // los últimos juegos y la actividad. En el móvil la barra se convierte en
 // tiras horizontales encima del feed.
@@ -313,7 +313,7 @@ function RecentGameCard({ item }: { item: RecentGame }) {
 
 // ── Página ────────────────────────────────────────────────────────────────
 
-export default function HomePage() {
+export default function HomeDashboard() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);

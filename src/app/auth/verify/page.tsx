@@ -88,7 +88,7 @@ function VerifyForm() {
       } else if (redirect) {
         router.push(redirect);
       } else {
-        router.push("/home");
+        router.push("/");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");

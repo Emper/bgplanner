@@ -1044,7 +1044,7 @@ function GroupDashboardPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Error al eliminar el grupo");
       }
-      router.push("/home");
+      router.push("/");
     } catch (err: unknown) {
       setDeleteError(err instanceof Error ? err.message : "Error inesperado");
       setDeleting(false);

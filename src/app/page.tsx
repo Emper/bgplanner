@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getUpcomingPublicEvents } from "@/lib/publicLinks";
 import { safeRedirect } from "@/lib/safeRedirect";
 import Landing, { type LandingEvent } from "@/components/landing/Landing";
+import HomeDashboard from "@/components/HomeDashboard";
 
-// Con sesión se salta la portada; sin ella, la portada con los próximos
-// eventos abiertos. Se decide en el servidor para no enseñar un loader a
+// Con sesión, tu inicio (grupos, eventos, amigos y actividad); sin ella, la
+// portada con los próximos eventos abiertos. Se decide en el servidor para no enseñar un loader a
 // quien viene de fuera (y para que los buscadores vean el contenido).
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,10 @@ export default async function Home({
       where: { id: session.userId },
       select: { id: true },
     });
-    if (user) redirect(target || "/home");
+    if (user) {
+      if (target) redirect(target);
+      return <HomeDashboard />;
+    }
   }
 
   const events = await getUpcomingPublicEvents(3).catch(() => []);
