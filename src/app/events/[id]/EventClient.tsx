@@ -563,7 +563,7 @@ function EventDetailPageInner() {
             {isAttending ? (
               <div className="flex items-center gap-3">
                 <span className="text-sm text-emerald-400 font-medium">Estás apuntado</span>
-                {!event.isCreator && (
+                {!event.isAdmin && (
                   <button
                     onClick={handleLeave}
                     className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"

@@ -140,6 +140,10 @@ export const updateEventSchema = z.object({
   imageUrl: z.string().nullable().optional(),
 });
 
+export const eventAttendSchema = z.object({
+  status: z.enum(["attending", "maybe"], { error: "Estado no válido" }).default("attending"),
+});
+
 export const eventAttendeeRoleSchema = z.object({
   role: z.enum(["attendee", "admin"], { error: "Rol inválido" }),
 });
