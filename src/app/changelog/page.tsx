@@ -12,6 +12,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "15 octubre 2026",
+    version: "1.50",
+    title: "Cabeceras a dieta",
+    changes: [
+      { type: "new", text: "En el ordenador, tu inicial arriba a la derecha abre tu cuenta: perfil, BGG, el tema claro, oscuro o el de tu sistema, y por fin cerrar sesión" },
+      { type: "improved", text: "La cabecera ocupa todo el ancho de la página y se queda con lo que de verdad usas" },
+      { type: "improved", text: "Sin cuenta, Eventos y Comunidad se ven siempre con su nombre, también en el móvil" },
+    ],
+  },
+  {
+    date: "15 octubre 2026",
     version: "1.49",
     title: "Las normas de la casa",
     changes: [

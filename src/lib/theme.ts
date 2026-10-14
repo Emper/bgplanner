@@ -48,6 +48,8 @@ const NOOP_SUBSCRIBE = () => () => {};
 const getMountedClient = () => true;
 const getMountedServer = () => false;
 
+export type { Theme };
+
 export function useTheme() {
   const theme = useSyncExternalStore(
     subscribeTheme,
@@ -74,10 +76,16 @@ export function useTheme() {
     applyTheme(t);
   }, []);
 
-  const toggleTheme = useCallback(
-    (e?: React.MouseEvent) => {
-      const resolved = theme === "system" ? getSystemTheme() : theme;
-      const next: Theme = resolved === "dark" ? "light" : "dark";
+  // Cambia a `next` con un revelado circular desde donde se ha pulsado, si
+  // el cambio se nota (de «Sistema» a su mismo color no hay nada que animar).
+  const pickTheme = useCallback(
+    (next: Theme, e?: React.MouseEvent) => {
+      const from = theme === "system" ? getSystemTheme() : theme;
+      const to = next === "system" ? getSystemTheme() : next;
+      if (from === to) {
+        setTheme(next);
+        return;
+      }
 
       // View Transitions API con animación de revelado circular
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,8 +128,16 @@ export function useTheme() {
     [theme, setTheme]
   );
 
+  const toggleTheme = useCallback(
+    (e?: React.MouseEvent) => {
+      const resolved = theme === "system" ? getSystemTheme() : theme;
+      pickTheme(resolved === "dark" ? "light" : "dark", e);
+    },
+    [theme, pickTheme]
+  );
+
   const resolvedTheme: "light" | "dark" =
     theme === "system" ? getSystemTheme() : theme;
 
-  return { theme, resolvedTheme, setTheme, toggleTheme, mounted };
+  return { theme, resolvedTheme, setTheme, pickTheme, toggleTheme, mounted };
 }
