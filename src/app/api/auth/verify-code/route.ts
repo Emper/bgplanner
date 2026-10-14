@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { signToken, sessionCookieOptions } from "@/lib/auth";
+import { signToken, sessionCookieOptions, reviewLoginCode } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 import { otpSchema } from "@/lib/validations";
 
 export async function POST(request: NextRequest) {
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
     update: {},
     create: { email },
   });
+
+  if (reviewLoginCode(email)) logActivity("review_login", user.id);
 
   const token = await signToken({ userId: user.id, email: user.email });
   const cookie = sessionCookieOptions(token);

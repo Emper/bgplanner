@@ -52,5 +52,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${APP_URL}/changelog`, changeFrequency: "weekly", priority: 0.4 },
     { url: `${APP_URL}/roadmap`, changeFrequency: "weekly", priority: 0.4 },
     { url: `${APP_URL}/contact`, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${APP_URL}/privacy`, changeFrequency: "yearly", priority: 0.2 },
   ];
 }

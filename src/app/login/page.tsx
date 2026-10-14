@@ -134,6 +134,14 @@ function LoginForm() {
             >
               {loading ? "Enviando..." : "Enviar código de acceso"}
             </button>
+
+            <p className="text-xs text-[var(--text-muted)] text-center leading-relaxed">
+              Al entrar aceptas que guardemos tus datos como contamos en la{" "}
+              <Link href="/privacy" className="text-[var(--text-secondary)] underline hover:text-[var(--primary)]">
+                política de privacidad
+              </Link>
+              .
+            </p>
           </form>
         </div>
 

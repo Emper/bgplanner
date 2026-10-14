@@ -13,7 +13,8 @@ export type ActivityType =
   | "feedback_sent" | "feature_voted"
   | "friend_added"
   | "community_thread_created" | "community_replied"
-  | "push_enabled";
+  | "push_enabled"
+  | "account_deleted" | "review_login";
 
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
@@ -131,6 +132,9 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   community_thread_created: (m) => `abrió el hilo "${m.threadTitle || ""}" en la comunidad 💬`,
   community_replied: (m) => `respondió en el hilo "${m.threadTitle || ""}" de la comunidad 💬`,
   push_enabled: () => "activó los avisos en un dispositivo 📲",
+  // Sin datos de la persona: queda a nombre de su usuario fantasma.
+  account_deleted: () => "borró su cuenta",
+  review_login: () => "entró con el acceso de revisión de las tiendas de apps 🔑",
   event_photo_added: (m) => {
     const n = typeof m.photoCount === "number" && m.photoCount > 1 ? ` (${m.photoCount})` : "";
     return `subió ${m.photoCount && m.photoCount > 1 ? "fotos" : "una foto"} a la galería${n}`;

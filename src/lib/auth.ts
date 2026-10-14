@@ -43,6 +43,21 @@ export async function getSession(
   return verifyToken(token);
 }
 
+/**
+ * Acceso para quien revisa la app en App Store y Google Play, que no puede
+ * recibir nuestros emails: si el email es REVIEW_LOGIN_EMAIL, el código de
+ * acceso es siempre REVIEW_LOGIN_CODE (6 dígitos) y no se manda email. Solo
+ * para ese email, y sin las dos variables definidas no hace nada. El código
+ * sigue pasando por OtpCode, así que caduca, es de un solo uso y cuenta para
+ * el límite de 3 cada 5 minutos como cualquier otro.
+ */
+export function reviewLoginCode(email: string): string | null {
+  const reviewEmail = process.env.REVIEW_LOGIN_EMAIL?.trim().toLowerCase();
+  const code = process.env.REVIEW_LOGIN_CODE?.trim();
+  if (!reviewEmail || !code || !/^\d{6}$/.test(code)) return null;
+  return email.trim().toLowerCase() === reviewEmail ? code : null;
+}
+
 export async function getSuperadminEmails(): Promise<string[]> {
   const superadmins = await prisma.user.findMany({
     where: { role: "superadmin" },

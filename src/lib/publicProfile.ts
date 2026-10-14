@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { withGameCovers } from "@/lib/activityCovers";
+import { DELETED_USER_ROLE } from "@/lib/users";
 
 // Perfil público de un jugador. Se ve SIN cuenta, así que lo que sale de aquí
 // es lo que cualquiera puede leer en internet. Deliberadamente NO sale:
@@ -99,8 +100,10 @@ const findProfileUser = cache(async (param: string) => {
   });
   if (bySlug) return bySlug;
 
+  // Los «Usuario eliminado» que firman lo que dejó una cuenta borrada no
+  // tienen perfil: 404 como si no existieran.
   return prisma.user.findUnique({
-    where: { id: param },
+    where: { id: param, role: { not: DELETED_USER_ROLE } },
     select: PROFILE_SELECT,
   });
 });

@@ -1,7 +1,9 @@
+import { randomInt } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resend } from "@/lib/resend";
 import { emailSchema } from "@/lib/validations";
+import { reviewLoginCode } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -31,7 +33,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  // La cuenta de revisión de las tiendas tiene un código fijo y no recibe email
+  const reviewCode = reviewLoginCode(email);
+  const code = reviewCode ?? randomInt(100000, 1000000).toString();
 
   await prisma.otpCode.create({
     data: {
@@ -40,6 +44,10 @@ export async function POST(request: NextRequest) {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     },
   });
+
+  if (reviewCode) {
+    return NextResponse.json({ success: true });
+  }
 
   await resend.emails.send({
     from: "BG Planner <cesar@tiradacritica.es>",

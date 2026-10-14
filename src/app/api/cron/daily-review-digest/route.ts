@@ -186,6 +186,14 @@ export async function GET(request: NextRequest) {
   const purged = await prisma.notification.deleteMany({
     where: { createdAt: { lt: new Date(now.getTime() - NOTIFICATION_TTL_DAYS * 86_400_000) } },
   });
+  // Ni los códigos de acceso ni los cambios de email pendientes sirven de
+  // nada pasado un día (caducan a los 10 minutos), y llevan el email dentro.
+  // Así lo cuenta la política de privacidad.
+  const dayAgo = new Date(now.getTime() - 86_400_000);
+  const [otpsPurged] = await Promise.all([
+    prisma.otpCode.deleteMany({ where: { createdAt: { lt: dayAgo } } }).then((r) => r.count),
+    prisma.emailChangeRequest.deleteMany({ where: { createdAt: { lt: dayAgo } } }),
+  ]);
 
   return NextResponse.json({
     ok: true,
@@ -195,5 +203,6 @@ export async function GET(request: NextRequest) {
     eventsEnded: endedEvents.length,
     eventReminders,
     notificationsPurged: purged.count,
+    otpsPurged,
   });
 }

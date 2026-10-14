@@ -1,6 +1,11 @@
 // Helpers del perfil público. Sin dependencias de servidor: esto lo importan
 // también componentes de cliente.
 
+// Cuenta borrada: lo que dejó en sitios compartidos pasa a un usuario
+// «fantasma» con este nombre y este rol (ver src/lib/accountDeletion.ts).
+export const DELETED_USER_NAME = "Usuario eliminado";
+export const DELETED_USER_ROLE = "deleted";
+
 /**
  * Enlace al perfil público de un jugador: su slug si lo tiene, y si no su id,
  * que siempre funciona como enlace permanente.

@@ -320,3 +320,13 @@ export const pushSubscriptionSchema = z.object({
 export const pushUnsubscribeSchema = z.object({
   endpoint: z.string().min(1, "Falta la suscripción").max(1000, "Suscripción no válida"),
 });
+
+// Borrar la cuenta: hay que escribir la palabra a mano (sin importar
+// mayúsculas ni espacios) para que no se haga de un clic despistado.
+export const accountDeleteSchema = z.object({
+  confirm: z
+    .string({ error: "Escribe BORRAR para confirmar" })
+    .max(20, "Escribe BORRAR para confirmar")
+    .refine((v) => v.trim().toUpperCase() === "BORRAR", "Escribe BORRAR para confirmar"),
+  removePhotos: z.boolean().optional().default(false),
+});

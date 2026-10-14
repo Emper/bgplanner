@@ -19,7 +19,9 @@ export type NotificationType =
   | "review_games"
   | "review_event"
   | "community_reply"
-  | "community_participant_reply";
+  | "community_participant_reply"
+  | "group_inherited"
+  | "event_inherited";
 
 // Las que pueden llegar en ráfaga (un admin añade diez juegos seguidos) se
 // funden en una sola mientras siga sin leer: se acumulan los juegos y sube
@@ -360,6 +362,18 @@ export function presentNotification(n: NotificationRow): PresentedNotification {
       href = `/community/${String(m.threadId ?? "")}${m.replyId ? `#reply-${String(m.replyId)}` : ""}`;
       break;
     }
+    // Quien lo llevaba ha borrado su cuenta y el grupo o el evento pasa a
+    // quien más tiempo llevaba en él. No hay actor: esa cuenta ya no existe.
+    case "group_inherited":
+      emoji = "👑";
+      parts = [{ text: "Ahora llevas tú " }, groupName, { text: ": la persona que lo gestionaba ha borrado su cuenta" }];
+      href = `${groupHref}?tab=members`;
+      break;
+    case "event_inherited":
+      emoji = "👑";
+      parts = [{ text: "Ahora gestionas tú " }, eventName, { text: ": la persona que lo organizaba ha borrado su cuenta" }];
+      href = eventHref;
+      break;
     default:
       parts = [{ text: "Tienes una novedad" }];
   }

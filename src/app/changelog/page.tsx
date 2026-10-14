@@ -13,6 +13,16 @@ const CHANGELOG: ChangelogEntry[] = [
   {
     date: "15 octubre 2026",
     version: "1.46",
+    title: "Tus datos, en tus manos",
+    changes: [
+      { type: "new", text: "Puedes borrar tu cuenta desde tu perfil: antes de confirmar te enseñamos qué se va y qué se queda" },
+      { type: "new", text: "Si te vas, tus grupos y eventos pasan a quien más tiempo lleva en ellos y tus mensajes quedan como «Usuario eliminado», para no dejar conversaciones a medias" },
+      { type: "new", text: "Nueva página de privacidad, clara y sin letra pequeña: qué guardamos, para qué y cuánto tiempo" },
+    ],
+  },
+  {
+    date: "15 octubre 2026",
+    version: "1.46",
     title: "Todo a mano del pulgar",
     changes: [
       { type: "new", text: "En el móvil, Grupos, Eventos, Comunidad y tu Perfil viven en una barra abajo, como en cualquier app: un toque y estás" },

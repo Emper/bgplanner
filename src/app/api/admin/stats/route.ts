@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperadmin } from "@/lib/auth";
+import { DELETED_USER_ROLE } from "@/lib/users";
 
 const DAYS = 30;
 
@@ -56,14 +57,18 @@ export async function GET(request: NextRequest) {
     otpsLast24h,
     recentActivity,
   ] = await Promise.all([
-    prisma.user.count(),
+    // Sin los «Usuario eliminado» de las cuentas borradas
+    prisma.user.count({ where: { role: { not: DELETED_USER_ROLE } } }),
     prisma.group.count(),
     prisma.event.count({ where: { visibility: "public" } }),
     prisma.event.count({ where: { visibility: "private" } }),
     prisma.game.count(),
     prisma.vote.count(),
     prisma.gameSession.count(),
-    prisma.user.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+    prisma.user.findMany({
+      where: { createdAt: { gte: since }, role: { not: DELETED_USER_ROLE } },
+      select: { createdAt: true },
+    }),
     prisma.group.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
     prisma.event.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
     prisma.vote.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),

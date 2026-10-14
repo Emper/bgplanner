@@ -4,13 +4,28 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
-import { refreshNavUser } from "@/lib/navUser";
+import { clearNavUser, refreshNavUser } from "@/lib/navUser";
+import { disablePush } from "@/lib/pushClient";
 import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
 import ProfileShowcase from "@/components/ProfileShowcase";
 import { resizeImage } from "@/lib/image";
 import { safeRedirect } from "@/lib/safeRedirect";
+
+interface Handover {
+  id: string;
+  name: string;
+  heir: { userId: string; name: string } | null;
+}
+
+interface DeletionPlan {
+  groups: Handover[];
+  events: Handover[];
+  kept: { posts: number; reviews: number; comments: number; photos: number };
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 interface Profile {
   name: string;
@@ -51,6 +66,15 @@ function ProfileForm() {
   const [emailError, setEmailError] = useState("");
   const [toast, setToast] = useState("");
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Borrar la cuenta: el modal enseña antes qué pasa con grupos, eventos y
+  // lo publicado, y pide escribir BORRAR.
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deletePhotos, setDeletePhotos] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -226,6 +250,52 @@ function ProfileForm() {
       setError("Error al subir la imagen");
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const openDeleteModal = async () => {
+    setDeleteOpen(true);
+    setDeleteConfirm("");
+    setDeletePhotos(false);
+    setDeleteError("");
+    setDeletePlan(null);
+    try {
+      const res = await fetch("/api/profile/account", { credentials: "include" });
+      if (!res.ok) throw new Error();
+      setDeletePlan(await res.json());
+    } catch {
+      setDeleteError("No hemos podido preparar el borrado. Recarga la página e inténtalo de nuevo.");
+    }
+  };
+
+  const closeDeleteModal = () => {
+    if (!deleteBusy) setDeleteOpen(false);
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
+    setDeleteBusy(true);
+    try {
+      const res = await fetch("/api/profile/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ confirm: deleteConfirm, removePhotos: deletePhotos }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "No hemos podido borrar la cuenta");
+      }
+      // La sesión ya está cerrada (y las suscripciones borradas en el
+      // servidor): solo falta soltar el push de este navegador.
+      await disablePush().catch(() => {});
+      clearNavUser();
+      router.push("/");
+      router.refresh();
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : "Error inesperado");
+      setDeleteBusy(false);
     }
   };
 
@@ -493,8 +563,189 @@ function ProfileForm() {
           </div>
 
           <ProfileShowcase />
+
+          {/* Zona de peligro */}
+          <div className="mt-10 rounded-2xl border border-red-500/30 p-6">
+            <h2 className="text-base font-semibold text-red-400 mb-1">Borrar mi cuenta</h2>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+              Se borran tus datos, tu colección, tus votos y tus amigos. Lo que publicaste en
+              grupos, eventos y la Comunidad se queda, pero firmado como «Usuario eliminado».
+              No se puede deshacer.{" "}
+              <Link href="/privacy" className="text-[var(--primary)] hover:underline">
+                Más detalles en la política de privacidad
+              </Link>
+              .
+            </p>
+            <button
+              type="button"
+              onClick={openDeleteModal}
+              className="px-4 py-2.5 border border-red-500/50 text-red-400 rounded-xl hover:bg-red-500/10 font-semibold text-sm transition-all duration-200"
+            >
+              Borrar mi cuenta…
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Modal de borrar la cuenta */}
+      {deleteOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={closeDeleteModal}
+        >
+          <div
+            className="bg-[var(--surface)] rounded-2xl border border-red-500/40 p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-[var(--card-shadow)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-red-400">Borrar tu cuenta</h2>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                aria-label="Cerrar"
+                className="text-[var(--text-secondary)] hover:text-[var(--text)]"
+              >
+                ✕
+              </button>
+            </div>
+
+            {!deletePlan && !deleteError && (
+              <p className="text-sm text-[var(--text-muted)] py-6 text-center animate-pulse">
+                Mirando qué hay que hacer…
+              </p>
+            )}
+
+            {deletePlan && (
+              <form onSubmit={handleDeleteAccount} className="space-y-4 text-sm">
+                <div>
+                  <p className="font-medium text-[var(--text)] mb-1">Se borra para siempre</p>
+                  <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-secondary)]">
+                    <li>Tu email, tu nombre, tu foto y tu usuario de BGG</li>
+                    <li>Tu colección, tus notas y tu vitrina</li>
+                    <li>Tus votos en los rankings de los grupos</li>
+                    <li>Tus amigos, tus avisos y los dispositivos con avisos activados</li>
+                  </ul>
+                </div>
+
+                {(deletePlan.kept.posts > 0 ||
+                  deletePlan.kept.reviews > 0 ||
+                  deletePlan.kept.comments > 0 ||
+                  (deletePlan.kept.photos > 0 && !deletePhotos)) && (
+                  <div>
+                    <p className="font-medium text-[var(--text)] mb-1">
+                      Se queda, firmado como «Usuario eliminado»
+                    </p>
+                    <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-secondary)]">
+                      {deletePlan.kept.posts > 0 && (
+                        <li>{plural(deletePlan.kept.posts, "mensaje", "mensajes")} en la Comunidad</li>
+                      )}
+                      {deletePlan.kept.reviews > 0 && (
+                        <li>{plural(deletePlan.kept.reviews, "opinión o valoración", "opiniones y valoraciones")}</li>
+                      )}
+                      {deletePlan.kept.comments > 0 && (
+                        <li>{plural(deletePlan.kept.comments, "comentario", "comentarios")} en juegos de tus grupos</li>
+                      )}
+                      {deletePlan.kept.photos > 0 && !deletePhotos && (
+                        <li>{plural(deletePlan.kept.photos, "foto", "fotos")} en galerías y opiniones</li>
+                      )}
+                    </ul>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      Así las conversaciones y las galerías de los demás no se quedan cojas.
+                    </p>
+                  </div>
+                )}
+
+                {(deletePlan.groups.length > 0 || deletePlan.events.length > 0) && (
+                  <div>
+                    <p className="font-medium text-[var(--text)] mb-1">Lo que gestionas</p>
+                    <ul className="space-y-1 text-[var(--text-secondary)]">
+                      {deletePlan.groups.map((g) => (
+                        <li key={g.id}>
+                          👥 <strong className="text-[var(--text)]">{g.name}</strong>{" "}
+                          {g.heir ? (
+                            <>pasa a {g.heir.name}</>
+                          ) : (
+                            <span className="text-red-400">se borra: no queda nadie más</span>
+                          )}
+                        </li>
+                      ))}
+                      {deletePlan.events.map((e) => (
+                        <li key={e.id}>
+                          📅 <strong className="text-[var(--text)]">{e.name}</strong>{" "}
+                          {e.heir ? (
+                            <>pasa a {e.heir.name}</>
+                          ) : (
+                            <span className="text-red-400">se borra: no hay más asistentes</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      Pasan al admin que más tiempo lleva dentro o, si no hay admins, a quien
+                      más tiempo lleva. Si prefieres a otra persona, hazla admin antes.
+                    </p>
+                  </div>
+                )}
+
+                {deletePlan.kept.photos > 0 && (
+                  <label className="flex items-start gap-2 text-[var(--text-secondary)] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={deletePhotos}
+                      onChange={(e) => setDeletePhotos(e.target.checked)}
+                      disabled={deleteBusy}
+                      className="mt-0.5 accent-red-500"
+                    />
+                    <span>
+                      Borrar también mis {plural(deletePlan.kept.photos, "foto", "fotos")} de las
+                      galerías y opiniones
+                    </span>
+                  </label>
+                )}
+
+                <div>
+                  <label className="block text-xs text-[var(--text-secondary)] mb-1.5">
+                    Para confirmar, escribe <span className="font-mono font-semibold text-[var(--text)]">BORRAR</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    placeholder="BORRAR"
+                    autoFocus
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    disabled={deleteBusy}
+                    className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-red-500/40 focus:border-red-500 focus:outline-none transition-all duration-200"
+                  />
+                </div>
+
+                {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeDeleteModal}
+                    disabled={deleteBusy}
+                    className="flex-1 px-4 py-3 bg-[var(--input-bg)] text-[var(--text-secondary)] border border-[var(--input-border)] rounded-xl hover:text-[var(--text)] disabled:opacity-50 font-semibold transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={deleteBusy || deleteConfirm.trim().toUpperCase() !== "BORRAR"}
+                    className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-all duration-200 shadow-sm"
+                  >
+                    {deleteBusy ? "Borrando..." : "Borrar mi cuenta"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {!deletePlan && deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Modal de cambio de email */}
       {emailModal && (
