@@ -21,7 +21,7 @@ App para que grupos de amigos organicen sus partidas de juegos de mesa: importas
 
 - **No hay carpeta `prisma/migrations/`**. Flujo: editar `schema.prisma` → aplicar el cambio en Supabase → `npx prisma generate`. Adecuado para MVP con un único entorno real; asume riesgo de no tener historial de migraciones.
 - `DATABASE_URL` = pooler Supabase; `DIRECT_URL` = conexión directa (necesaria para `prisma generate`).
-- Modelos principales: `User`, `OtpCode`, `Group`, `GroupMember`, `GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameSession`, `GameSessionGame`, `Event`, `EventAttendee`, `EventGame`, `EventGameInterest`, `CollectionGame` (caché por usuario BGG), `ActivityLog`, `Feedback`, `Feature` (roadmap público), `FeatureVote`.
+- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameSession`, `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply` (foro `/community`), `Feedback`, `Feature`/`FeatureVote` (roadmap público).
 
 ### Seguridad con la base de datos — IMPORTANTE
 
@@ -131,6 +131,39 @@ NextResponse.json(...)
 Descriptivo pero **sin explicar cómo funciona por dentro**: se trata de enseñar "cosas chulas nuevas", no detalles de implementación. Texto en español, orientado al valor que aporta al usuario. Evita tecnicismos tipo "caché", "rate limit", "campo X", "optimización de queries".
 
 **Breve**: 1-4 puntos por entrada, una frase corta cada uno. Solo lo que el usuario nota; las mejoras internas, retoques menores y fixes sin impacto visible no entran.
+
+## Checklist de una feature nueva — OBLIGATORIO
+
+La app tiene muchos sitios transversales y es fácil que una feature nueva se quede encerrada en su página. Antes de cerrar una feature, **repasar esta lista punto por punto** y decidir en cada uno si aplica. Lo que no aplique se descarta conscientemente; lo que se deje para más adelante va a `BACKLOG.md` o se propone como tarea aparte.
+
+**Navegación**
+- Cabecera con sesión ([Navbar.tsx](src/components/Navbar.tsx)): enlace, icono en móvil/tablet y entrada en el menú lateral. Medir que cabe a 360, 375, 640, 768 y 1024 px de ancho (con campana y botón de admin).
+- Cabecera sin sesión ([SmartNav.tsx](src/components/SmartNav.tsx)) y menú de la portada (`NAV_LINKS` en [Landing.tsx](src/components/landing/Landing.tsx)), si la feature se puede ver sin cuenta.
+- Pie ([Footer.tsx](src/components/Footer.tsx)).
+
+**Escaparates**
+- Portada pública ([Landing.tsx](src/components/landing/Landing.tsx), datos desde [src/app/page.tsx](src/app/page.tsx)): sección propia, tarjeta en «Y además» o mención en los textos. Los textos de la portada no pueden contradecir lo que hace hoy la app (p. ej. si un aviso deja de ir por email).
+- Inicio con sesión ([HomeDashboard.tsx](src/components/HomeDashboard.tsx)): bloque, atajo en la barra lateral o cifra en el saludo.
+
+**Avisos y actividad**
+- Notificaciones de la campana ([notifications.ts](src/lib/notifications.ts)): ¿hay alguien a quien avisar? Tipo nuevo, texto en `presentNotification` y, si puede llegar en ráfaga, fusión. El email, solo si de verdad merece salir de la app.
+- Activity log ([activity.ts](src/lib/activity.ts)): tipo + template, y si va al feed público (`PUBLIC_TYPES`).
+
+**Conexiones con el resto**
+- Perfil público e insignias ([publicProfile.ts](src/lib/publicProfile.ts) + [profileBadges.ts](src/lib/profileBadges.ts)).
+- Grupos, eventos, colección y amigos ([friends.ts](src/lib/friends.ts)): ¿hay un atajo natural desde o hacia ellos? Ejemplo: «Anúncialo en la Comunidad» desde un evento abierto.
+- Panel de admin (`src/app/admin`) si hay contenido de usuarios que moderar. Cron (`src/app/api/cron`) si hay limpieza o recordatorios.
+
+**Público y SEO** (solo si se ve sin cuenta)
+- [proxy.ts](src/proxy.ts): rutas protegidas frente a públicas, tanto la página como su API.
+- El contenido tiene que salir **pintado del servidor** (página de servidor que pasa `initial` a un componente de cliente), no pedido desde el navegador: si no, los buscadores ven un loader. Lo que falte devuelve 404 de verdad (`notFound()`).
+- `generateMetadata` con título, descripción y canonical; JSON-LD si hay un tipo de schema.org que encaje; [sitemap.ts](src/app/sitemap.ts) y [robots.ts](src/app/robots.ts); `opengraph-image` si se va a compartir.
+- Sin sesión: `SignupBanner` con su variante, y el login vuelve a donde estaba (`?redirect=`).
+- No enlazar perfiles sin `nofollow` mientras siga abierto el punto 5 de `BACKLOG.md`.
+
+**Cierre**
+- Changelog (ver abajo) y, si la feature venía del roadmap, avisar para marcar la propuesta como hecha.
+- Actualizar este fichero si cambia un patrón o aparece un modelo nuevo.
 
 ## Comandos
 

@@ -2,108 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { threadUpdateSchema } from "@/lib/validations";
-import { AUTHOR_SELECT, findLiveThread, publicAuthor } from "@/lib/communityServer";
+import { findLiveThread, getThreadDetail } from "@/lib/communityServer";
 
 const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 
-// Tope de respuestas que se devuelven de una vez. Holgado para un foro de
-// este tamaño; si algún hilo lo roza, toca paginar.
-const MAX_REPLIES = 500;
-
-// Hilo completo con sus respuestas, en orden cronológico. Se lee sin cuenta.
-// Las respuestas borradas se devuelven sin texto ni autor para que quede su
-// hueco en la conversación.
+// Hilo completo con sus respuestas. Se lee sin cuenta (ver getThreadDetail).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const session = await getSession(request);
+  const [detail, isAdmin] = await Promise.all([getThreadDetail(id), isSuperadmin(session)]);
 
-  const [thread, isAdmin] = await Promise.all([
-    prisma.communityThread.findFirst({
-      where: { id, deletedAt: null },
-      select: {
-        id: true,
-        title: true,
-        body: true,
-        tag: true,
-        pinned: true,
-        createdAt: true,
-        editedAt: true,
-        author: { select: AUTHOR_SELECT },
-        replies: {
-          orderBy: { createdAt: "asc" },
-          take: MAX_REPLIES,
-          select: {
-            id: true,
-            body: true,
-            createdAt: true,
-            editedAt: true,
-            deletedAt: true,
-            author: { select: AUTHOR_SELECT },
-          },
-        },
-      },
-    }),
-    isSuperadmin(session),
-  ]);
-
-  if (!thread) {
+  if (!detail) {
     return NextResponse.json({ error: "Este hilo no existe o lo han borrado" }, { status: 404 });
   }
 
-  const viewerId = session?.userId ?? null;
-
-  // Abrir el hilo da por vistos sus avisos de respuestas. Se devuelve el
-  // recuento para que la campana se ponga al día sin esperar a su sondeo.
-  let unreadNotifications: number | undefined;
-  if (viewerId) {
-    const marked = await prisma.notification.updateMany({
-      where: {
-        userId: viewerId,
-        readAt: null,
-        type: { in: ["community_reply", "community_participant_reply"] },
-        metadata: { path: ["threadId"], equals: id },
-      },
-      data: { readAt: new Date() },
-    });
-    if (marked.count > 0) {
-      unreadNotifications = await prisma.notification.count({
-        where: { userId: viewerId, readAt: null },
-      });
-    }
-  }
-
   return NextResponse.json(
-    {
-      isLoggedIn: !!session,
-      isAdmin,
-      viewerId,
-      unreadNotifications,
-      thread: {
-        id: thread.id,
-        title: thread.title,
-        body: thread.body,
-        tag: thread.tag,
-        pinned: thread.pinned,
-        createdAt: thread.createdAt,
-        editedAt: thread.editedAt,
-        author: publicAuthor(thread.author),
-      },
-      replies: thread.replies.map((r) =>
-        r.deletedAt
-          ? { id: r.id, deleted: true as const, createdAt: r.createdAt }
-          : {
-              id: r.id,
-              deleted: false as const,
-              body: r.body,
-              createdAt: r.createdAt,
-              editedAt: r.editedAt,
-              author: publicAuthor(r.author),
-            }
-      ),
-    },
+    { isLoggedIn: !!session, isAdmin, viewerId: session?.userId ?? null, ...detail },
     NO_STORE
   );
 }

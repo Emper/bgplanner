@@ -7,7 +7,7 @@ import Link from "next/link";
 // que está mirando, para que suene a "esto también puede ser tuyo" y no a
 // un anuncio genérico.
 
-type Variant = "profile" | "collection" | "event";
+type Variant = "profile" | "collection" | "event" | "community";
 
 const COPY: Record<
   Variant,
@@ -24,6 +24,12 @@ const COPY: Record<
     title: "¿Tu estantería también da para presumir?",
     text: (name) =>
       `Trae tu colección de BGG a BG Planner y compártela${name ? ` como ${name}` : ""}. Luego, que tu grupo vote a qué se juega.`,
+  },
+  community: {
+    emoji: "💬",
+    title: "¿Te animas a meter baza?",
+    text: () =>
+      "Leer es libre. Para abrir hilos y responder, entra con tu email: sin contraseñas y en un minuto.",
   },
   event: {
     emoji: "🎉",

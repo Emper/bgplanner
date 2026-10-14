@@ -19,7 +19,8 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Nueva insignia para tu perfil por participar en la Comunidad: de «Rompehielos» a «Voz de la Comunidad»" },
       { type: "new", text: "Si organizas un evento abierto, anúncialo en la Comunidad con un clic: el hilo para buscar jugadores sale ya escrito, con la fecha, el sitio y el enlace" },
       { type: "improved", text: "La portada presenta la Comunidad con las conversaciones más recientes" },
-      { type: "improved", text: "Las conversaciones de la Comunidad se pueden encontrar desde Google" },
+      { type: "improved", text: "Las conversaciones de la Comunidad se pueden encontrar desde Google y se leen enteras sin tener cuenta" },
+      { type: "improved", text: "Sin cuenta también llegas a la Comunidad y a los eventos abiertos desde la cabecera, también en el móvil" },
     ],
   },
   {
