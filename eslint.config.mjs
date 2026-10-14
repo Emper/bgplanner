@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Copias del repo que crean las sesiones de Claude Code: no son código
+    // nuestro de verdad y llenaban `npm run lint` de miles de avisos.
+    ".claude/**",
   ]),
 ]);
 
