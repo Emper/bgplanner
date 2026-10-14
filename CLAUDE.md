@@ -104,7 +104,8 @@ NextResponse.json(...)
 ### BGG API
 - Centralizado en [src/lib/bgg.ts](src/lib/bgg.ts). Cualquier acceso a BGG pasa por aquí.
 - BGG devuelve **202** cuando está preparando datos (colecciones grandes). Hay retry con backoff exponencial (max 6 intentos, ~15 s). No reintentar fuera del helper.
-- Búsqueda: cascada Geekdo JSON → XML API → DB local (`Game` y `CollectionGame`). Evita dejar al usuario esperando a BGG.
+- Búsqueda: XML API2 oficial → DB local (`Game` y `CollectionGame`) si BGG no responde. Nada de APIs privadas (`api.geekdo.com`): las condiciones de BGG no las licencian.
+- Condiciones de uso: app registrada en boardgamegeek.com/applications con token `BGG_API_TOKEN` (cabecera Bearer, peticiones siempre desde el servidor). Licencia no comercial: si la app pasa a cobrar, mostrar anuncios o publicarse a nombre de una empresa, hace falta licencia comercial. Logo «Powered by BGG» enlazado en el Footer, no modificar los datos de BGG y prohibido usarlos para entrenar IA.
 - Colecciones: caché DB 24 h (`CollectionGame.fetchedAt`). `forceRefresh` solo bajo acción explícita del usuario.
 
 ### Rate limiting
@@ -192,5 +193,5 @@ Cuando detectemos al pasar por un fichero **cualquier error** — funcional, de 
 
 - **Next.js 16**: warning de middleware deprecation (pide usar "proxy"). El middleware actual funciona.
 - **Node 20.11.1**: no soporta Prisma 7 (requiere 20.19+). No actualizar Prisma más allá de 5.x mientras siga este Node.
-- **Imágenes remotas**: [next.config.ts](next.config.ts) solo permite `cf.geekdo-images.com`. Si se añade otra fuente hay que listarla.
+- **Imágenes remotas**: [next.config.ts](next.config.ts) solo permite `cf.geekdo-images.com` y `*.supabase.co`. Si se añade otra fuente hay que listarla.
 - **`currentDate` del entorno** puede adelantarse al calendario real — no basar lógica en él.
