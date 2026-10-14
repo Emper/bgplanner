@@ -9,6 +9,7 @@ import PageLoader from "@/components/PageLoader";
 import SmartNav from "@/components/SmartNav";
 import Avatar from "@/components/Avatar";
 import { AuthorLink, PostText, TagChip, type CommunityAuthor } from "@/components/CommunityBits";
+import { announceUnread } from "@/components/NotificationList";
 import {
   COMMUNITY_TAGS,
   REPLY_BODY_MAX,
@@ -114,10 +115,26 @@ export default function CommunityThreadPage() {
         setReplies(data.replies);
         setViewerId(data.viewerId);
         setIsAdmin(data.isAdmin);
+        if (typeof data.unreadNotifications === "number") announceUnread(data.unreadNotifications);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Al llegar desde un aviso (#reply-…), la respuesta aún no estaba pintada
+  // cuando el navegador buscó el ancla: se lleva a la vista y se resalta.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#reply-")) return;
+    const el = document.getElementById(hash.slice(1));
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightId(hash.slice("#reply-".length));
+    const t = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const isLoggedIn = !!viewerId;
   const isThreadAuthor = !!thread && thread.author.id === viewerId;
@@ -396,7 +413,9 @@ export default function CommunityThreadPage() {
                 <li
                   key={r.id}
                   id={`reply-${r.id}`}
-                  className="flex gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24"
+                  className={`flex gap-3 bg-[var(--surface)] border rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24 transition-colors duration-700 ${
+                    highlightId === r.id ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/30" : "border-[var(--border)]"
+                  }`}
                 >
                   <div className="shrink-0 hidden sm:block">
                     <Avatar name={r.author.name} avatarUrl={r.author.avatarUrl} size="sm" />

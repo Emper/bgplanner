@@ -15,7 +15,9 @@ export type NotificationType =
   | "event_role_changed"
   | "event_game_added"
   | "review_games"
-  | "review_event";
+  | "review_event"
+  | "community_reply"
+  | "community_participant_reply";
 
 // Las que pueden llegar en ráfaga (un admin añade diez juegos seguidos) se
 // funden en una sola mientras siga sin leer: se acumulan los juegos y sube
@@ -23,6 +25,14 @@ export type NotificationType =
 const MERGEABLE = new Set<NotificationType>(["event_game_added"]);
 const MERGE_WINDOW_MS = 12 * 60 * 60 * 1000;
 const MAX_MERGED_GAMES = 20;
+
+// Respuestas en un hilo de la Comunidad: un solo aviso por hilo mientras siga
+// sin leer, sin importar quién responda («Marta y 2 más han respondido…»). El
+// enlace apunta a la primera respuesta que aún no has visto.
+const THREAD_MERGEABLE = new Set<NotificationType>([
+  "community_reply",
+  "community_participant_reply",
+]);
 
 // Las de más de esto se borran en el cron diario.
 export const NOTIFICATION_TTL_DAYS = 90;
@@ -47,7 +57,42 @@ async function createOrMerge(userId: string, input: NotifyInput) {
     groupId: input.groupId ?? null,
     eventId: input.eventId ?? null,
   };
-  const metadata = (input.metadata ?? {}) as Meta;
+  let metadata = (input.metadata ?? {}) as Meta;
+
+  if (THREAD_MERGEABLE.has(input.type) && typeof metadata.threadId === "string") {
+    const previous = await prisma.notification.findFirst({
+      where: {
+        userId,
+        type: input.type,
+        readAt: null,
+        metadata: { path: ["threadId"], equals: metadata.threadId },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, metadata: true },
+    });
+    const actorId = input.actorId ?? null;
+    if (previous) {
+      const prev = (previous.metadata ?? {}) as Meta;
+      const prevActors = Array.isArray(prev.actorIds) ? (prev.actorIds as string[]) : [];
+      const actorIds = [...new Set([...prevActors, ...(actorId ? [actorId] : [])])];
+      await prisma.notification.update({
+        where: { id: previous.id },
+        data: {
+          actorId,
+          // `replyId` se queda el de la primera: ahí empieza lo que no has leído.
+          metadata: {
+            ...prev,
+            threadTitle: metadata.threadTitle ?? prev.threadTitle,
+            actorIds,
+            replies: (typeof prev.replies === "number" ? prev.replies : 1) + 1,
+          } as object,
+          createdAt: new Date(),
+        },
+      });
+      return;
+    }
+    metadata = { ...metadata, actorIds: actorId ? [actorId] : [], replies: 1 };
+  }
 
   if (MERGEABLE.has(input.type)) {
     const previous = await prisma.notification.findFirst({
@@ -239,6 +284,23 @@ export function presentNotification(n: NotificationRow): PresentedNotification {
       parts = [eventName, { text: " ya ha terminado. ¿Qué tal fue? Valóralo y sube tus fotos" }];
       href = `${eventHref}?review=1`;
       break;
+    case "community_reply":
+    case "community_participant_reply": {
+      emoji = "💬";
+      const others = Math.max(0, (Array.isArray(m.actorIds) ? m.actorIds.length : 1) - 1);
+      const many = others > 0;
+      const title = { text: `«${String(m.threadTitle ?? "un hilo")}»`, strong: true };
+      parts = [
+        actor,
+        ...(many ? [{ text: ` y ${others} más` }] : []),
+        n.type === "community_reply"
+          ? { text: many ? " han respondido a tu hilo " : " ha respondido a tu hilo " }
+          : { text: many ? " también han respondido en " : " también ha respondido en " },
+        title,
+      ];
+      href = `/community/${String(m.threadId ?? "")}${m.replyId ? `#reply-${String(m.replyId)}` : ""}`;
+      break;
+    }
     default:
       parts = [{ text: "Tienes una novedad" }];
   }

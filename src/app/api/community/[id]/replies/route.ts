@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
+import { notify } from "@/lib/notifications";
 import { replySchema } from "@/lib/validations";
 import {
   AUTHOR_SELECT,
@@ -56,7 +57,50 @@ export async function POST(
     replyId: reply.id,
   });
 
+  notifyThreadReply({
+    threadId: id,
+    threadTitle: thread.title,
+    threadAuthorId: thread.authorId,
+    replyId: reply.id,
+    actorId: session.userId,
+  });
+
   return NextResponse.json({
     reply: { ...reply, deleted: false, author: publicAuthor(reply.author) },
   });
+}
+
+// Avisa al autor del hilo y a quienes ya habían respondido en él (cada uno con
+// su texto). Fire-and-forget: nunca retrasa ni hace fallar la respuesta.
+function notifyThreadReply(opts: {
+  threadId: string;
+  threadTitle: string;
+  threadAuthorId: string;
+  replyId: string;
+  actorId: string;
+}) {
+  const metadata = { threadId: opts.threadId, threadTitle: opts.threadTitle, replyId: opts.replyId };
+
+  notify({
+    type: "community_reply",
+    userIds: [opts.threadAuthorId],
+    actorId: opts.actorId,
+    metadata,
+  });
+
+  prisma.communityReply
+    .findMany({
+      where: { threadId: opts.threadId, deletedAt: null },
+      select: { authorId: true },
+      distinct: ["authorId"],
+    })
+    .then((rows) =>
+      notify({
+        type: "community_participant_reply",
+        userIds: rows.map((r) => r.authorId).filter((uid) => uid !== opts.threadAuthorId),
+        actorId: opts.actorId,
+        metadata,
+      })
+    )
+    .catch(() => {});
 }

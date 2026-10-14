@@ -19,6 +19,8 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Cada hilo lleva su etiqueta —Buscar partida, Crónicas, Opiniones, Dudas de reglas, Novedades u Offtopic— para que encuentres justo lo que te apetece leer" },
       { type: "new", text: "Buscador para dar con esa conversación sobre aquel juego, y los hilos con respuestas nuevas suben solos al principio" },
       { type: "new", text: "Puedes editar o borrar lo que hayas escrito, y los enlaces que pegues se pueden abrir directamente" },
+      { type: "new", text: "Te avisamos en la campana cuando alguien responde a tu hilo o en una conversación en la que has participado, y el aviso te lleva directo a la respuesta" },
+      { type: "fixed", text: "La barra de arriba ya no se sale de la pantalla en móviles y tablets: todo cabe a la primera" },
     ],
   },
   {

@@ -55,11 +55,32 @@ export async function GET(
 
   const viewerId = session?.userId ?? null;
 
+  // Abrir el hilo da por vistos sus avisos de respuestas. Se devuelve el
+  // recuento para que la campana se ponga al día sin esperar a su sondeo.
+  let unreadNotifications: number | undefined;
+  if (viewerId) {
+    const marked = await prisma.notification.updateMany({
+      where: {
+        userId: viewerId,
+        readAt: null,
+        type: { in: ["community_reply", "community_participant_reply"] },
+        metadata: { path: ["threadId"], equals: id },
+      },
+      data: { readAt: new Date() },
+    });
+    if (marked.count > 0) {
+      unreadNotifications = await prisma.notification.count({
+        where: { userId: viewerId, readAt: null },
+      });
+    }
+  }
+
   return NextResponse.json(
     {
       isLoggedIn: !!session,
       isAdmin,
       viewerId,
+      unreadNotifications,
       thread: {
         id: thread.id,
         title: thread.title,
