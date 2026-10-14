@@ -52,10 +52,12 @@ function listJsonLd(page: ThreadPage) {
 export default async function CommunityPage({ searchParams }: { searchParams: SearchParams }) {
   const { tag: tagParam, cursor } = await searchParams;
   const tag = isCommunityTag(tagParam) ? tagParam : null;
-  const [session, list] = await Promise.all([
-    getSession(),
-    listThreads({ tag, cursor }).catch(() => ({ threads: [], nextCursor: null, tagCounts: {} })),
-  ]);
+  const session = await getSession();
+  const list = await listThreads({ tag, cursor, viewerId: session?.userId }).catch(() => ({
+    threads: [],
+    nextCursor: null,
+    tagCounts: {},
+  }));
   // Fechas a texto, igual que llegarían por la API.
   const initial = JSON.parse(JSON.stringify(list)) as ThreadPage;
 

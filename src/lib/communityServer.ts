@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { truncateChars } from "./text";
 import { THREADS_PAGE_SIZE } from "./community";
+import { getAutoHiddenCommunityIds, getBlockedIds } from "./moderation";
 
 // Lo único que se enseña del autor de un hilo o respuesta: el foro se lee sin
 // cuenta, así que nunca sale el email.
@@ -51,6 +52,18 @@ export function findLiveThread(id: string) {
 
 // ── Listados ────────────────────────────────────────────────────────────
 
+/**
+ * Lo que no sale en los listados: hilos con denuncias de sobra pendientes de
+ * revisar (para todo el mundo) y los de quien el lector ha bloqueado.
+ */
+async function hiddenFromListing(viewerId: string | null | undefined): Promise<Prisma.CommunityThreadWhereInput> {
+  const [hidden, blocked] = await Promise.all([getAutoHiddenCommunityIds(), getBlockedIds(viewerId)]);
+  return {
+    ...(hidden.threads.size > 0 ? { id: { notIn: [...hidden.threads] } } : {}),
+    ...(blocked.length > 0 ? { authorId: { notIn: blocked } } : {}),
+  };
+}
+
 const EXCERPT_CHARS = 220;
 export const THREAD_LIST_SELECT = {
   id: true,
@@ -94,9 +107,9 @@ export type ThreadListItem = ReturnType<typeof toThreadListItem>;
  * Los hilos con movimiento más reciente, fijados incluidos como uno más: para
  * escaparates (portada, inicio) donde un hilo de normas fijo arriba no aporta.
  */
-export async function getLatestThreads(limit: number) {
+export async function getLatestThreads(limit: number, viewerId?: string | null) {
   const rows = await prisma.communityThread.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...(await hiddenFromListing(viewerId)) },
     orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
     take: limit,
     select: THREAD_LIST_SELECT,
@@ -125,15 +138,19 @@ export async function listThreads({
   tag,
   q,
   cursor: rawCursor,
+  viewerId,
 }: {
   tag?: string | null;
   q?: string | null;
   cursor?: string | null;
+  /** Quien mira: sus bloqueados no salen. */
+  viewerId?: string | null;
 }) {
   const query = (q || "").trim().slice(0, 100);
   const cursor = parseThreadCursor(rawCursor);
   const base: Prisma.CommunityThreadWhereInput = {
     deletedAt: null,
+    ...(await hiddenFromListing(viewerId)),
     ...(tag ? { tag } : {}),
     ...(query
       ? {
@@ -204,9 +221,13 @@ const MAX_REPLIES = 500;
 
 /**
  * Un hilo con sus respuestas en orden. Las borradas van sin texto ni autor
- * para que quede su hueco en la conversación. null si no existe o se borró.
+ * para que quede su hueco en la conversación, y lo mismo las ocultas por
+ * denuncias mientras se revisan (`hidden`). null si no existe, se borró o
+ * está oculto entero.
  */
 export async function getThreadDetail(id: string) {
+  const hidden = await getAutoHiddenCommunityIds();
+  if (hidden.threads.has(id)) return null;
   const thread = await prisma.communityThread.findFirst({
     where: { id, deletedAt: null },
     select: {
@@ -245,8 +266,8 @@ export async function getThreadDetail(id: string) {
       author: publicAuthor(thread.author),
     },
     replies: thread.replies.map((r) =>
-      r.deletedAt
-        ? { id: r.id, deleted: true as const, createdAt: r.createdAt }
+      r.deletedAt || hidden.replies.has(r.id)
+        ? { id: r.id, deleted: true as const, hidden: !r.deletedAt, createdAt: r.createdAt }
         : {
             id: r.id,
             deleted: false as const,

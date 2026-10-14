@@ -8,6 +8,7 @@ import {
   THREAD_BODY_MAX,
   THREAD_TITLE_MAX,
 } from "./community";
+import { REPORT_REASON_IDS, REPORT_TARGET_TYPES, REPORT_TEXT_MAX } from "./reports";
 
 // Los textos libres del usuario pueden llevar emojis sin problema. Lo único
 // que se limpia (siempre al final de la cadena, tras validar longitudes) son
@@ -329,4 +330,28 @@ export const accountDeleteSchema = z.object({
     .max(20, "Escribe BORRAR para confirmar")
     .refine((v) => v.trim().toUpperCase() === "BORRAR", "Escribe BORRAR para confirmar"),
   removePhotos: z.boolean().optional().default(false),
+});
+
+// Denunciar algo (ver src/lib/reports.ts para los tipos y motivos).
+export const reportSchema = z.object({
+  targetType: z.enum(REPORT_TARGET_TYPES, { error: "No se puede denunciar esto" }),
+  targetId: z.string().trim().min(1, "Falta qué denunciar").max(64, "Contenido no válido"),
+  reason: z.enum(REPORT_REASON_IDS, { error: "Elige un motivo" }),
+  text: z
+    .string()
+    .trim()
+    .max(REPORT_TEXT_MAX, `Máximo ${REPORT_TEXT_MAX} caracteres`)
+    .transform(clean)
+    .optional()
+    .nullable(),
+});
+
+// Qué hace el superadmin con una denuncia: retirar lo denunciado, cerrarla
+// sin retirar nada (las de usuarios) o descartarla.
+export const reportActionSchema = z.object({
+  action: z.enum(["remove", "resolve", "dismiss"], { error: "Acción no válida" }),
+});
+
+export const blockSchema = z.object({
+  userId: z.string().trim().min(1, "Falta a quién bloquear").max(64, "Usuario no válido"),
 });

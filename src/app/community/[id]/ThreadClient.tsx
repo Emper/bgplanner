@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import EmojiField from "@/components/EmojiField";
 import Avatar from "@/components/Avatar";
-import { AuthorLink, PostText, TagChip, type CommunityAuthor } from "@/components/CommunityBits";
+import {
+  AuthorLink,
+  ModerationNote,
+  PostText,
+  TagChip,
+  type CommunityAuthor,
+} from "@/components/CommunityBits";
+import { BlockModal, MoreMenu, ReportModal, unblockUser, type MoreMenuItem } from "@/components/Moderation";
 import { announceUnread } from "@/components/NotificationList";
 import {
   COMMUNITY_TAGS,
@@ -29,7 +36,8 @@ interface Thread {
 }
 
 type Reply =
-  | { id: string; deleted: true; createdAt: string }
+  // `hidden`: oculta por denuncias mientras se revisa
+  | { id: string; deleted: true; hidden?: boolean; createdAt: string }
   | {
       id: string;
       deleted: false;
@@ -74,11 +82,14 @@ export default function ThreadClient({
   initial,
   viewerId,
   isAdmin,
+  initialBlockedIds = [],
   banner,
 }: {
   initial: ThreadInitial;
   viewerId: string | null;
   isAdmin: boolean;
+  /** A quién ha bloqueado quien mira: sus mensajes salen plegados. */
+  initialBlockedIds?: string[];
   /** Lo que va arriba del todo (la invitación a registrarse, sin sesión). */
   banner?: React.ReactNode;
 }) {
@@ -107,6 +118,13 @@ export default function ThreadClient({
 
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Moderación: denunciar, bloquear y los mensajes de bloqueados que se han
+  // desplegado a mano
+  const [blockedIds, setBlockedIds] = useState<string[]>(initialBlockedIds);
+  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [reporting, setReporting] = useState<{ type: "thread" | "reply"; id: string } | null>(null);
+  const [blocking, setBlocking] = useState<CommunityAuthor | null>(null);
 
   const showToast = useCallback((text: string) => {
     setToast(text);
@@ -143,6 +161,27 @@ export default function ThreadClient({
   }, []);
 
   const isLoggedIn = !!viewerId;
+  const isBlocked = (authorId: string) => blockedIds.includes(authorId);
+
+  // Lo que ofrece el «⋯» de un mensaje ajeno: denunciarlo y bloquear (o
+  // desbloquear) a quien lo escribe.
+  const moderationItems = (kind: "thread" | "reply", id: string, author: CommunityAuthor): MoreMenuItem[] => {
+    if (!viewerId || author.id === viewerId) return [];
+    return [
+      { label: kind === "thread" ? "🚩 Denunciar hilo" : "🚩 Denunciar respuesta", onClick: () => setReporting({ type: kind, id }) },
+      isBlocked(author.id)
+        ? {
+            label: `Desbloquear a ${author.name}`,
+            onClick: async () => {
+              if (!(await unblockUser(author.id))) return showToast("No se pudo desbloquear");
+              setBlockedIds((prev) => prev.filter((b) => b !== author.id));
+              showToast(`Has desbloqueado a ${author.name}`);
+            },
+          }
+        : { label: `🚫 Bloquear a ${author.name}`, onClick: () => setBlocking(author), danger: true },
+    ];
+  };
+
   const isThreadAuthor = !!thread && thread.author.id === viewerId;
   const liveReplies = replies.filter((r) => !r.deleted).length;
 
@@ -349,8 +388,19 @@ export default function ThreadClient({
                 <AuthorLink author={thread.author} size="sm" className="text-sm" />
                 <span className="text-[var(--text-muted)] text-xs">·</span>
                 <Timestamp createdAt={thread.createdAt} editedAt={thread.editedAt} />
+                <MoreMenu
+                  items={moderationItems("thread", thread.id, thread.author)}
+                  className="ml-auto -my-1"
+                />
               </div>
-              <PostText text={thread.body} className="text-[15px] text-[var(--text)]" />
+              {isBlocked(thread.author.id) && !revealed.has(thread.id) ? (
+                <BlockedNotice
+                  what="Este hilo es de un usuario que has bloqueado."
+                  onShow={() => setRevealed((prev) => new Set(prev).add(thread.id))}
+                />
+              ) : (
+                <PostText text={thread.body} className="text-[15px] text-[var(--text)]" />
+              )}
 
               {(isThreadAuthor || isAdmin) && (
                 <div className="flex flex-wrap justify-end gap-1 mt-5 pt-3 border-t border-[var(--border)]">
@@ -387,7 +437,18 @@ export default function ThreadClient({
                   id={`reply-${r.id}`}
                   className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-3 text-sm italic text-[var(--text-muted)]"
                 >
-                  Mensaje eliminado
+                  {r.hidden ? "Mensaje oculto mientras lo revisamos" : "Mensaje eliminado"}
+                </li>
+              ) : isBlocked(r.author.id) && !revealed.has(r.id) ? (
+                <li
+                  key={r.id}
+                  id={`reply-${r.id}`}
+                  className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-3"
+                >
+                  <BlockedNotice
+                    what="Mensaje de un usuario bloqueado."
+                    onShow={() => setRevealed((prev) => new Set(prev).add(r.id))}
+                  />
                 </li>
               ) : (
                 <li
@@ -414,6 +475,7 @@ export default function ThreadClient({
                       >
                         #{i + 1}
                       </a>
+                      <MoreMenu items={moderationItems("reply", r.id, r.author)} className="-my-1.5 -mr-1.5" />
                     </div>
 
                     {editingReplyId === r.id ? (
@@ -513,7 +575,26 @@ export default function ThreadClient({
             </div>
           )}
         </div>
+
+        <ModerationNote />
       </main>
+
+      {reporting && (
+        <ReportModal targetType={reporting.type} targetId={reporting.id} onClose={() => setReporting(null)} />
+      )}
+
+      {blocking && (
+        <BlockModal
+          user={blocking}
+          onClose={() => setBlocking(null)}
+          onBlocked={() => {
+            const name = blocking.name;
+            setBlockedIds((prev) => [...prev, blocking.id]);
+            setBlocking(null);
+            showToast(`Has bloqueado a ${name}. Ya no verás sus mensajes`);
+          }}
+        />
+      )}
 
       {pendingDelete && (
         <div
@@ -560,5 +641,21 @@ export default function ThreadClient({
         </div>
       )}
     </>
+  );
+}
+
+/** Lo que queda en lugar de un mensaje de alguien bloqueado. */
+function BlockedNotice({ what, onShow }: { what: string; onShow: () => void }) {
+  return (
+    <p className="text-sm italic text-[var(--text-muted)]">
+      🚫 {what}{" "}
+      <button
+        type="button"
+        onClick={onShow}
+        className="not-italic font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] underline underline-offset-2"
+      >
+        Mostrar
+      </button>
+    </p>
   );
 }

@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
 import ProfileShowcase from "@/components/ProfileShowcase";
+import BlockedUsers from "@/components/BlockedUsers";
 import { resizeImage } from "@/lib/image";
 import { safeRedirect } from "@/lib/safeRedirect";
 
@@ -563,6 +564,8 @@ function ProfileForm() {
           </div>
 
           <ProfileShowcase />
+
+          <BlockedUsers />
 
           {/* Zona de peligro */}
           <div className="mt-10 rounded-2xl border border-red-500/30 p-6">

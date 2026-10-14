@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Avatar from "./Avatar";
+import { MoreMenu, ReportModal } from "./Moderation";
 import { resizeImageToBlob } from "@/lib/image";
 
 interface Photo {
   id: string;
   url: string;
+  /** Quien la subió (solo en las fotos sueltas). */
+  userId?: string;
 }
 interface Review {
   id: string;
@@ -58,7 +61,13 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   const [deleting, setDeleting] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
-  const [lightbox, setLightbox] = useState<{ photos: Photo[]; index: number } | null>(null);
+  // `review`: las fotos son de esa opinión (y lo que se denuncia es la opinión)
+  const [lightbox, setLightbox] = useState<{
+    photos: Photo[];
+    index: number;
+    review?: { id: string; userId: string };
+  } | null>(null);
+  const [reporting, setReporting] = useState<{ type: "group_photo" | "review"; id: string } | null>(null);
 
   // Selector de juego para "Añadir opinión"
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -168,7 +177,20 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   const filteredGames = games.filter((g) =>
     g.game.name.toLowerCase().includes(gameSearch.trim().toLowerCase())
   );
-  const photoList: Photo[] = photos.map((p) => ({ id: p.id, url: p.url }));
+  const photoList: Photo[] = photos.map((p) => ({ id: p.id, url: p.url, userId: p.userId }));
+
+  // Lo que se puede denunciar desde el visor: la foto suelta o la opinión
+  // entera, siempre que no sea tuya.
+  const lightboxPhoto = lightbox ? lightbox.photos[lightbox.index] : null;
+  const lightboxReport: { type: "group_photo" | "review"; id: string } | null = !lightbox
+    ? null
+    : lightbox.review
+      ? lightbox.review.userId !== currentUserId
+        ? { type: "review", id: lightbox.review.id }
+        : null
+      : lightboxPhoto?.userId && lightboxPhoto.userId !== currentUserId
+        ? { type: "group_photo", id: lightboxPhoto.id }
+        : null;
 
   let body: ReactNode;
   if (loading) {
@@ -262,16 +284,26 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
                               en <span className="font-medium">{r.game.name}</span>
                             </span>
                           </p>
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDeleteReview(r.id)}
-                              disabled={deleting === r.id}
-                              className="text-xs shrink-0"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {deleting === r.id ? "…" : "Borrar"}
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteReview(r.id)}
+                                disabled={deleting === r.id}
+                                className="text-xs shrink-0"
+                                style={{ color: "var(--text-muted)" }}
+                              >
+                                {deleting === r.id ? "…" : "Borrar"}
+                              </button>
+                            )}
+                            {r.userId !== currentUserId && (
+                              <MoreMenu
+                                className="-my-1.5 -mr-1.5"
+                                items={[
+                                  { label: "🚩 Denunciar opinión", onClick: () => setReporting({ type: "review", id: r.id }) },
+                                ]}
+                              />
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                           {fmtDate(r.createdAt)}
@@ -292,7 +324,9 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
                             {r.photos.map((p, i) => (
                               <button
                                 key={p.id}
-                                onClick={() => setLightbox({ photos: r.photos, index: i })}
+                                onClick={() =>
+                                  setLightbox({ photos: r.photos, index: i, review: { id: r.id, userId: r.userId } })
+                                }
                                 className="relative aspect-square rounded-xl overflow-hidden"
                               >
                                 <Image
@@ -436,6 +470,18 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
           >
             ×
           </button>
+          {lightboxReport && (
+            <MoreMenu
+              tone="dark"
+              className="absolute top-4 left-4 z-10"
+              items={[
+                {
+                  label: lightboxReport.type === "review" ? "🚩 Denunciar opinión" : "🚩 Denunciar foto",
+                  onClick: () => setReporting(lightboxReport),
+                },
+              ]}
+            />
+          )}
           {lightbox.photos.length > 1 && (
             <button
               className="absolute left-4 text-white text-4xl leading-none px-2"
@@ -480,6 +526,10 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
             </button>
           )}
         </div>
+      )}
+
+      {reporting && (
+        <ReportModal targetType={reporting.type} targetId={reporting.id} onClose={() => setReporting(null)} />
       )}
     </div>
   );

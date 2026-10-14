@@ -118,6 +118,13 @@ export async function removeFriend(friendId: string): Promise<boolean> {
   }
 }
 
+/** Lo quita de la lista sin llamar al servidor (al bloquear, que ya deshace la amistad). */
+export function forgetFriend(friendId: string) {
+  if (state.friends.some((f) => f.id === friendId)) {
+    setState({ ...state, friends: state.friends.filter((f) => f.id !== friendId) });
+  }
+}
+
 /** Se queda solo con lo que la lista de amigos necesita (nada de email). */
 export function toFriend(user: Friend): Friend {
   return {

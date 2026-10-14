@@ -16,7 +16,8 @@ import ActivityFeed from "@/components/ActivityFeed";
 import GameShelf from "@/components/GameShelf";
 import SignupBanner from "@/components/SignupBanner";
 import BadgeCarousel from "@/components/BadgeCarousel";
-import FriendButton from "@/components/FriendButton";
+import ProfileActions from "@/components/ProfileActions";
+import { hasBlocked } from "@/lib/moderation";
 import { profileBadges } from "@/lib/profileBadges";
 import { formatDateShort } from "@/lib/format";
 import { getGroupType } from "@/lib/groupTypes";
@@ -200,6 +201,9 @@ export default async function PublicProfilePage({
 
   if (!profile || !header) return <NotFound />;
 
+  const blockedByViewer =
+    !!session && !profile.isSelf && (await hasBlocked(session.userId, profile.id));
+
   const badges = profileBadges(header.stats, { hasBgg: !!profile.bggUsername });
   const earned = badges.filter((b) => b.tier > 0).length;
 
@@ -298,25 +302,19 @@ export default async function PublicProfilePage({
               </Link>
             )}
 
-            {/* Amigos: el botón solo sale con sesión y en el perfil de otro */}
+            {/* Amigos, denunciar y bloquear: solo con sesión y en el perfil de otro */}
             {session && !profile.isSelf && (
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-                <FriendButton
-                  variant="pill"
-                  user={{
-                    id: profile.id,
-                    name: null,
-                    displayName: profile.displayName,
-                    avatarUrl: profile.avatarUrl,
-                    slug: profile.slug,
-                  }}
-                />
-                {profile.addedViewer && (
-                  <span className="text-xs text-[var(--text-muted)]">
-                    🤝 Te tiene entre sus amigos
-                  </span>
-                )}
-              </div>
+              <ProfileActions
+                user={{
+                  id: profile.id,
+                  name: null,
+                  displayName: profile.displayName,
+                  avatarUrl: profile.avatarUrl,
+                  slug: profile.slug,
+                }}
+                addedViewer={profile.addedViewer}
+                initialBlocked={blockedByViewer}
+              />
             )}
 
             {/* Grupos en común */}

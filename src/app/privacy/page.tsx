@@ -65,6 +65,10 @@ const DATA = [
     text: "a quién has añadido a tu lista de amigos.",
   },
   {
+    label: "Denuncias y bloqueos",
+    text: "a quién bloqueas (no se lo decimos) y lo que denuncias, con el motivo y el texto que añadas. Las denuncias solo las ve quien modera, y nunca le decimos a nadie quién le ha denunciado.",
+  },
+  {
     label: "Avisos",
     text: "las notificaciones de la campana y, si activas los avisos en un dispositivo, la suscripción que nos da su navegador para mandárselos (una dirección técnica del servicio de avisos y unas claves de cifrado) y qué navegador es.",
   },

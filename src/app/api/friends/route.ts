@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { friendAddSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notifications";
+import { hasBlocked } from "@/lib/moderation";
 
 // Solo lo que hace falta para pintar el acceso a su perfil: nada de email.
 const FRIEND_SELECT = {
@@ -57,6 +58,21 @@ export async function POST(request: NextRequest) {
   });
   if (!friend) {
     return NextResponse.json({ error: "Ese jugador no existe" }, { status: 404 });
+  }
+
+  // Bloqueos: en ningún sentido hay amistad posible
+  const [blockedByThem, blockedByMe] = await Promise.all([
+    hasBlocked(friendId, session.userId),
+    hasBlocked(session.userId, friendId),
+  ]);
+  if (blockedByMe) {
+    return NextResponse.json(
+      { error: "Has bloqueado a este jugador. Desbloquéalo antes desde tu perfil" },
+      { status: 409 }
+    );
+  }
+  if (blockedByThem) {
+    return NextResponse.json({ error: "No puedes añadir a este jugador" }, { status: 403 });
   }
 
   const existing = await prisma.friendship.findUnique({

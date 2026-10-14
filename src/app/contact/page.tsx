@@ -4,6 +4,7 @@ import { useState } from "react";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
 import EmojiField from "@/components/EmojiField";
+import { MODERATION_EMAIL } from "@/lib/reports";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -132,6 +133,28 @@ export default function ContactPage() {
             </div>
           </form>
         )}
+
+        {/* Lo piden App Store y Google Play: un contacto visible para moderación */}
+        <section
+          id="moderacion"
+          className="mt-12 scroll-mt-24 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-[var(--card-shadow)]"
+        >
+          <h2 className="text-lg font-semibold mb-2">🛡️ Moderación y denuncias</h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+            ¿Has visto algo que no debería estar en BG Planner, como spam, acoso o fotos inapropiadas? Usa
+            «Denunciar» en el menú <span aria-label="tres puntos">⋯</span> de cualquier hilo, respuesta, foto,
+            opinión o perfil. Si alguien te molesta, también puedes bloquearle: dejarás de ver lo que escribe en la
+            Comunidad y de recibir sus avisos.
+          </p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            Para cualquier otra cosa de moderación, escríbenos a{" "}
+            <a href={`mailto:${MODERATION_EMAIL}`} className="font-medium text-[var(--primary)] hover:underline">
+              {MODERATION_EMAIL}
+            </a>{" "}
+            o usa el formulario de arriba. Revisamos cada denuncia lo antes posible y retiramos lo que incumpla las
+            normas.
+          </p>
+        </section>
       </main>
 
       <Footer />

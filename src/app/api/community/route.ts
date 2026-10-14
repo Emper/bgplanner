@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   // ?limit=N: solo los N hilos con movimiento más reciente, para el inicio.
   const limitParam = Number(params.get("limit"));
   if (Number.isInteger(limitParam) && limitParam > 0) {
-    const threads = await getLatestThreads(Math.min(limitParam, THREADS_PAGE_SIZE));
+    const threads = await getLatestThreads(Math.min(limitParam, THREADS_PAGE_SIZE), session?.userId);
     return NextResponse.json({ isLoggedIn: !!session, threads }, NO_STORE);
   }
 
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       tag: isCommunityTag(tagParam) ? tagParam : null,
       q: params.get("q"),
       cursor: params.get("cursor"),
+      viewerId: session?.userId,
     }),
     isSuperadmin(session),
   ]);

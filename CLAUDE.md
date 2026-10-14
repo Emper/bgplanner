@@ -21,7 +21,7 @@ App para que grupos de amigos organicen sus partidas de juegos de mesa: importas
 
 - **No hay carpeta `prisma/migrations/`**. Flujo: editar `schema.prisma` → aplicar el cambio en Supabase → `npx prisma generate`. Adecuado para MVP con un único entorno real; asume riesgo de no tener historial de migraciones.
 - `DATABASE_URL` = pooler Supabase; `DIRECT_URL` = conexión directa (necesaria para `prisma generate`).
-- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameSession`, `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply` (foro `/community`), `Feedback`, `Feature`/`FeatureVote` (roadmap público).
+- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameSession`, `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply` (foro `/community`), `Feedback`, `Feature`/`FeatureVote` (roadmap público), `Report`/`UserBlock` (moderación).
 
 ### Seguridad con la base de datos — IMPORTANTE
 
@@ -50,7 +50,8 @@ Cuando haya que migrar datos asociados a un cambio de esquema, **plantear al usu
 
 ## Auth
 
-- OTP-only (sin contraseñas). Envío 6 dígitos por email, rate-limit **3 códigos / 5 min**, expira en **10 min**.
+- OTP-only (sin contraseñas). Envío 6 dígitos por email, rate-limit **3 códigos / 5 min**, expira en **10 min**. Solo vale el **último** código pedido.
+- Emails siempre normalizados (trim + minúsculas) con `normalizedEmail()` de [validations.ts](src/lib/validations.ts) antes de guardar o buscar. Cualquier schema nuevo que reciba un email lo usa.
 - JWT HS256 en cookie httpOnly `session`, 60 días (sin refresh).
 - Helper central: `getSession(request?)` en [src/lib/auth.ts](src/lib/auth.ts). Siempre se usa al principio del handler → `401` si null.
 - Superadmin: `role = "superadmin"` en DB o fallback `SUPERADMIN_EMAIL` env.
@@ -108,8 +109,15 @@ NextResponse.json(...)
 - Condiciones de uso: app registrada en boardgamegeek.com/applications con token `BGG_API_TOKEN` (cabecera Bearer, peticiones siempre desde el servidor). Licencia no comercial: si la app pasa a cobrar, mostrar anuncios o publicarse a nombre de una empresa, hace falta licencia comercial. Logo «Powered by BGG» enlazado en el Footer, no modificar los datos de BGG y prohibido usarlos para entrenar IA.
 - Colecciones: caché DB 24 h (`CollectionGame.fetchedAt`). `forceRefresh` solo bajo acción explícita del usuario.
 
+### Moderación (denuncias y bloqueos)
+- Lo exigen App Store (guideline 1.2) y Google Play para el contenido de usuarios. Constantes compartidas en [src/lib/reports.ts](src/lib/reports.ts); servidor en [src/lib/moderation.ts](src/lib/moderation.ts).
+- Contenido nuevo que suban los usuarios y vean otros → añadir su tipo a `REPORT_TARGET_TYPES`, a `describeReportTarget` y a `removeReportTarget`, y un «🚩 Denunciar» en su menú `MoreMenu` ([Moderation.tsx](src/components/Moderation.tsx)).
+- Bloquear: `notifyNow` ya descarta a quien ha bloqueado al actor; la Comunidad oculta/pliega lo de bloqueados. En grupos y eventos no se esconde nada.
+- Hilos y respuestas con `AUTO_HIDE_REPORTS` denuncias pendientes se ocultan solos hasta que se revisan en `/admin/reports`.
+
 ### Rate limiting
 - OTP: `prisma.otpCode.count({ email, createdAt >= ahora - 5min })` → 429 si ≥ 3.
+- Verificar OTP: `OtpCode.attempts` se incrementa **antes** de comparar (seguro ante peticiones en paralelo). 5 intentos por código y 10 por hora y email (429).
 - Ping (convocatoria): campo `GroupMember.lastPingedAt`, cooldown 7 días. 429 con `nextAvailableAt` para que la UI muestre la fecha.
 
 ## Changelog — OBLIGATORIO

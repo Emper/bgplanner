@@ -12,6 +12,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "15 octubre 2026",
+    version: "1.48",
+    title: "Un sitio tranquilo para jugar",
+    changes: [
+      { type: "new", text: "Denuncia hilos, respuestas, fotos, opiniones o perfiles desde su menú ⋯ y lo revisaremos" },
+      { type: "new", text: "Bloquea a quien te moleste: no verás sus mensajes en la Comunidad ni te llegarán sus avisos" },
+      { type: "new", text: "Gestiona a quién has bloqueado desde tu perfil" },
+    ],
+  },
+  {
+    date: "15 octubre 2026",
     version: "1.47",
     title: "Tus datos, en tus manos",
     changes: [

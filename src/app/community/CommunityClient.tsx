@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EmojiField from "@/components/EmojiField";
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
-import { AuthorLink, TagChip, type CommunityAuthor } from "@/components/CommunityBits";
+import { AuthorLink, ModerationNote, TagChip, type CommunityAuthor } from "@/components/CommunityBits";
 import { spotlightMove } from "@/components/motion";
 import {
   COMMUNITY_TAGS,
@@ -411,6 +411,8 @@ export default function CommunityClient({
           </a>
         </div>
       )}
+
+      <ModerationNote />
     </main>
   );
 }

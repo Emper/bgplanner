@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { prisma } from "./prisma";
 import { profileHref } from "./users";
 import { deliverPush, type PushPayload } from "./push";
+import { blockersAmong } from "./moderation";
 
 // Notificaciones dentro de la web: lo que le pasa a alguien y no merece un
 // email. Se crean con `notify` (fire-and-forget, como logActivity) y se
@@ -20,6 +21,7 @@ export type NotificationType =
   | "review_event"
   | "community_reply"
   | "community_participant_reply"
+  | "report_created"
   | "group_inherited"
   | "event_inherited";
 
@@ -37,6 +39,10 @@ const THREAD_MERGEABLE = new Set<NotificationType>([
   "community_reply",
   "community_participant_reply",
 ]);
+
+// Denuncias nuevas para quien modera: una sola entrada mientras siga sin leer
+// («Tienes 3 denuncias nuevas»), que apunta a la cola de /admin.
+const REPORT_MERGEABLE = new Set<NotificationType>(["report_created"]);
 
 // Un aviso fundido vuelve a sonar en el móvil solo si el anterior push del
 // mismo aviso tiene ya este tiempo: diez respuestas seguidas en un hilo son
@@ -107,6 +113,30 @@ async function createOrMerge(
     metadata = { ...metadata, actorIds: actorId ? [actorId] : [], replies: 1 };
   }
 
+  if (REPORT_MERGEABLE.has(input.type)) {
+    const previous = await prisma.notification.findFirst({
+      where: { userId, type: input.type, readAt: null },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, metadata: true, createdAt: true },
+    });
+    if (previous) {
+      const prev = (previous.metadata ?? {}) as Meta;
+      await prisma.notification.update({
+        where: { id: previous.id },
+        data: {
+          actorId: input.actorId ?? null,
+          metadata: {
+            ...metadata,
+            count: (typeof prev.count === "number" ? prev.count : 1) + 1,
+          } as object,
+          createdAt: new Date(),
+        },
+      });
+      return { id: previous.id, push: pushAgain(previous.createdAt) };
+    }
+    metadata = { ...metadata, count: 1 };
+  }
+
   if (MERGEABLE.has(input.type)) {
     const previous = await prisma.notification.findFirst({
       where: {
@@ -164,7 +194,10 @@ async function pushPayload(notificationId: string, userId: string): Promise<Push
   const text = n.parts.map((p) => p.text).join("");
   return {
     // Arriba, dónde ha pasado; debajo, qué ha pasado
-    title: row.group?.name ?? row.event?.name ?? (n.type.startsWith("community_") ? "Comunidad" : "BG Planner"),
+    title:
+      row.group?.name ??
+      row.event?.name ??
+      (n.type.startsWith("community_") ? "Comunidad" : n.type.startsWith("report_") ? "Moderación" : "BG Planner"),
     body: `${n.emoji} ${text}`,
     url: n.href,
     tag: notificationId,
@@ -174,7 +207,14 @@ async function pushPayload(notificationId: string, userId: string): Promise<Push
 
 /** Avisa y espera a que quede guardado (para el cron, que no puede soltarlo). */
 export async function notifyNow(input: NotifyInput): Promise<number> {
-  const recipients = [...new Set(input.userIds)].filter((id) => id && id !== input.actorId);
+  let recipients = [...new Set(input.userIds)].filter((id) => id && id !== input.actorId);
+  // A quien ha bloqueado al actor no le llega nada suyo: ni campana ni push.
+  // Tampoco en los grupos y eventos que compartan. Las denuncias sí llegan
+  // siempre a quien modera.
+  if (input.actorId && recipients.length > 0 && input.type !== "report_created") {
+    const blockers = await blockersAmong(input.actorId, recipients);
+    if (blockers.size > 0) recipients = recipients.filter((id) => !blockers.has(id));
+  }
   await Promise.all(
     recipients.map(async (userId) => {
       const { id, push } = await createOrMerge(userId, input);
@@ -374,6 +414,16 @@ export function presentNotification(n: NotificationRow): PresentedNotification {
       parts = [{ text: "Ahora gestionas tú " }, eventName, { text: ": la persona que lo organizaba ha borrado su cuenta" }];
       href = eventHref;
       break;
+    case "report_created": {
+      emoji = "🚩";
+      const count = typeof m.count === "number" ? m.count : 1;
+      parts =
+        count > 1
+          ? [{ text: "Tienes " }, { text: `${count} denuncias nuevas`, strong: true }, { text: " por revisar" }]
+          : [actor, { text: ` ha denunciado ${String(m.targetLabel ?? "un contenido")}` }, { text: ". Revísalo" }];
+      href = "/admin/reports";
+      break;
+    }
     default:
       parts = [{ text: "Tienes una novedad" }];
   }

@@ -4,6 +4,7 @@ import { cache } from "react";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { getCommunityTag } from "@/lib/community";
 import { getThreadDetail } from "@/lib/communityServer";
+import { getBlockedIds } from "@/lib/moderation";
 import { excerpt } from "@/lib/text";
 import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
@@ -85,7 +86,7 @@ export default async function CommunityThreadPage({
   const { id } = await params;
   const [detail, session] = await Promise.all([getThreadMeta(id).catch(() => null), getSession()]);
   if (!detail) notFound();
-  const isAdmin = await isSuperadmin(session);
+  const [isAdmin, blockedIds] = await Promise.all([isSuperadmin(session), getBlockedIds(session?.userId)]);
   // Fechas a texto, igual que llegarían por la API.
   const initial = JSON.parse(JSON.stringify(detail)) as ThreadInitial;
 
@@ -100,6 +101,7 @@ export default async function CommunityThreadPage({
         initial={initial}
         viewerId={session?.userId ?? null}
         isAdmin={isAdmin}
+        initialBlockedIds={blockedIds}
         banner={!session && <SignupBanner variant="community" redirect={`/community/${id}`} />}
       />
       <Footer />

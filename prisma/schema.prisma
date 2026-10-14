@@ -57,6 +57,11 @@ model User {
   communityThreads  CommunityThread[]
   communityReplies  CommunityReply[]
   pushSubscriptions PushSubscription[]
+  reportsMade       Report[]      @relation("ReportReporter")
+  reportsReceived   Report[]      @relation("ReportTargetUser")
+  reportsResolved   Report[]      @relation("ReportResolver")
+  blocksMade        UserBlock[]   @relation("BlockBlocker")
+  blockedBy         UserBlock[]   @relation("BlockBlocked")
 }
 
 model OtpCode {
@@ -744,4 +749,49 @@ model CommunityReply {
 
   @@index([threadId, createdAt])
   @@index([authorId])
+}
+
+// Denuncia de un contenido (hilo, respuesta, foto, opinión) o de un usuario.
+// Lo exigen App Store y Google Play para el contenido que suben los usuarios.
+// `targetType` es uno de REPORT_TARGET_TYPES (src/lib/reports.ts) y
+// `targetId`, el id de esa fila; `targetUserId` es su autor, para la cola de
+// /admin. Una por persona y objetivo. Se cierra entera (todas las pendientes
+// del mismo objetivo) al retirar el contenido o al descartarla.
+model Report {
+  id           String    @id @default(cuid())
+  reporterId   String
+  targetType   String
+  targetId     String
+  targetUserId String?
+  reason       String    // spam | offensive | inappropriate | other
+  text         String?   @db.Text
+  status       String    @default("pending") // pending | resolved | dismissed
+  createdAt    DateTime  @default(now())
+  resolvedById String?
+  resolvedAt   DateTime?
+
+  reporter   User  @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  resolvedBy User? @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([targetUserId])
+}
+
+// Bloqueo entre usuarios: quien bloquea deja de ver en la Comunidad lo que
+// escribe el otro, de recibir sus avisos y de poder ser añadido por él a
+// amigos. En grupos y eventos compartidos no se esconde nada.
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Avatar from "./Avatar";
 import EmojiField from "./EmojiField";
+import { MoreMenu, ReportModal } from "./Moderation";
 import { resizeImageToBlob } from "@/lib/image";
 
 interface EventPhoto {
@@ -46,6 +47,7 @@ export default function EventGallery({
   const [uploading, setUploading] = useState(false);
   const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [reportingPhoto, setReportingPhoto] = useState<string | null>(null);
 
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -352,6 +354,13 @@ export default function EventGallery({
           >
             ×
           </button>
+          {photos[lightbox].userId !== currentUserId && (
+            <MoreMenu
+              tone="dark"
+              className="absolute top-4 left-4 z-10"
+              items={[{ label: "🚩 Denunciar foto", onClick: () => setReportingPhoto(photos[lightbox].id) }]}
+            />
+          )}
           {photos.length > 1 && (
             <button
               className="absolute left-4 text-white text-4xl leading-none px-2"
@@ -387,6 +396,10 @@ export default function EventGallery({
             </button>
           )}
         </div>
+      )}
+
+      {reportingPhoto && (
+        <ReportModal targetType="event_photo" targetId={reportingPhoto} onClose={() => setReportingPhoto(null)} />
       )}
     </div>
   );

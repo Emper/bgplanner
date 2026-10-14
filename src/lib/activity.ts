@@ -14,6 +14,7 @@ export type ActivityType =
   | "friend_added"
   | "community_thread_created" | "community_replied"
   | "push_enabled"
+  | "report_created" | "report_resolved" | "user_blocked"
   | "account_deleted" | "review_login";
 
 const PUBLIC_TYPES = new Set<ActivityType>([
@@ -132,6 +133,11 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   community_thread_created: (m) => `abrió el hilo "${m.threadTitle || ""}" en la comunidad 💬`,
   community_replied: (m) => `respondió en el hilo "${m.threadTitle || ""}" de la comunidad 💬`,
   push_enabled: () => "activó los avisos en un dispositivo 📲",
+  // Moderación: nunca públicas, y sin decir a quién se bloquea ni quién denuncia
+  report_created: (m) => `denunció ${m.targetLabel || "un contenido"} 🚩`,
+  report_resolved: (m) =>
+    `${m.action === "remove" ? "retiró" : m.action === "dismiss" ? "descartó la denuncia de" : "cerró la denuncia de"} ${m.targetLabel || "un contenido"} 🛡️`,
+  user_blocked: () => "bloqueó a un usuario 🚫",
   // Sin datos de la persona: queda a nombre de su usuario fantasma.
   account_deleted: () => "borró su cuenta",
   review_login: () => "entró con el acceso de revisión de las tiendas de apps 🔑",
