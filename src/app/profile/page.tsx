@@ -350,10 +350,10 @@ function ProfileForm() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-        <div className="max-w-lg mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-form">
           <div className="flex items-center justify-between gap-3 mb-6">
-            <h1 className="text-2xl font-bold text-[var(--text)]">Mi Perfil</h1>
+            <h1 className="page-title">Mi perfil</h1>
             {profileSlug && (
               <Link
                 href={`/users/${encodeURIComponent(profileSlug)}`}

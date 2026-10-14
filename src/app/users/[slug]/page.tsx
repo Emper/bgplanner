@@ -217,8 +217,8 @@ export default async function PublicProfilePage({
   return (
     <>
       <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] py-6 px-3 sm:px-4">
-        <div className="max-w-2xl mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-main">
           {!session && (
             <SignupBanner
               variant="profile"
@@ -237,7 +237,7 @@ export default async function PublicProfilePage({
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-3">
-                  <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)] break-words leading-tight">
+                  <h1 className="page-title break-words leading-tight">
                     {profile.displayName}
                   </h1>
                   {profile.isSelf && (

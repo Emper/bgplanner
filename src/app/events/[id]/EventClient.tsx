@@ -545,7 +545,7 @@ function EventDetailPageInner() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
-      <div className="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="page-main page-pad">
         {/* Event image */}
         {(event.imageUrl || event.isAdmin) && (
           <div className="mb-4 relative group">
@@ -605,7 +605,7 @@ function EventDetailPageInner() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold">{event.name}</h1>
+            <h1 className="page-title">{event.name}</h1>
             {event.isAdmin && (
               <button
                 onClick={openEditModal}

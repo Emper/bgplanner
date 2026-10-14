@@ -312,7 +312,7 @@ export default function ThreadClient({
 
   return (
     <>
-      <main className="max-w-3xl mx-auto py-6 sm:py-10 px-4">
+      <main className="page-main page-pad">
         {banner}
         <Link
           href="/community"
@@ -383,7 +383,7 @@ export default function ThreadClient({
                 )}
                 <TagChip tag={thread.tag} />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold leading-tight mb-4">{thread.title}</h1>
+              <h1 className="page-title leading-tight mb-4">{thread.title}</h1>
               <div className="flex items-center gap-2 mb-5">
                 <AuthorLink author={thread.author} size="sm" className="text-sm" />
                 <span className="text-[var(--text-muted)] text-xs">·</span>

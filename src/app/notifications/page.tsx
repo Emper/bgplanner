@@ -81,11 +81,11 @@ export default function NotificationsPageView() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-text">
+          <div className="flex items-center justify-between gap-3 mb-6">
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-[var(--text)]">Notificaciones</h1>
+              <h1 className="page-title">Notificaciones</h1>
               {!loading && !error && (
                 <p className="text-sm text-[var(--text-muted)] mt-0.5">
                   {unread > 0 ? `${unread} sin leer` : "Estás al día"}

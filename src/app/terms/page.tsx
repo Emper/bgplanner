@@ -61,8 +61,8 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <SmartNav />
 
-      <main className="max-w-3xl mx-auto py-8 sm:py-12 px-4">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Términos de uso</h1>
+      <main className="page-text page-pad">
+        <h1 className="page-title mb-2">Términos de uso</h1>
         <p className="text-sm text-[var(--text-muted)] mb-8">Última actualización: {UPDATED}</p>
 
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 mb-10 shadow-[var(--card-shadow)]">

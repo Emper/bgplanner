@@ -126,16 +126,16 @@ export default async function SharedCollectionPage({
   return (
     <>
       <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-5">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-wide">
+          <div className="mb-6">
             <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] mb-1">
               Colección compartida
             </p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text)]">
+            <h1 className="page-title">
               La colección de {ownerName}
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+            <p className="page-lead mt-1">
               {isSelf
                 ? "Esto es lo que ve quien abra tu enlace. Aquí no se puede puntuar."
                 : `Puedes mirar y filtrar, pero las puntuaciones son de ${ownerName} y solo ${ownerName} puede cambiarlas.`}

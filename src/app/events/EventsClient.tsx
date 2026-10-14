@@ -49,9 +49,9 @@ export default function EventsClient() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
-      <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+      <div className="page-main page-pad">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Eventos</h1>
+          <h1 className="page-title">Eventos</h1>
           <Link
             href="/events/new"
             className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-4 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"

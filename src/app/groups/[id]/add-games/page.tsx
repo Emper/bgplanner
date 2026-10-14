@@ -373,8 +373,8 @@ export default function AddGamesPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-main">
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <Link
@@ -384,7 +384,7 @@ export default function AddGamesPage() {
             >
               &larr; Volver
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">
+            <h1 className="page-title">
               Añadir juegos
             </h1>
           </div>

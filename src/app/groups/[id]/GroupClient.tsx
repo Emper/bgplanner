@@ -1271,13 +1271,13 @@ function GroupDashboardPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-4 sm:py-6 px-3 sm:px-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-main">
           {/* Header */}
-          <div className="mb-4 sm:mb-6 flex items-start justify-between gap-3">
+          <div className="mb-6 flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)]">{group.name}</h1>
+                <h1 className="page-title">{group.name}</h1>
                 <span
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/20"
                   title={groupTypeCfg.description}

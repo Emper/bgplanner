@@ -236,15 +236,15 @@ function CollectionPageInner() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
-        <div className="max-w-5xl mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-wide">
           {/* Cabecera */}
-          <div className="flex items-start justify-between gap-3 mb-5">
+          <div className="flex items-start justify-between gap-3 mb-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text)]">
+              <h1 className="page-title">
                 Mi colección
               </h1>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+              <p className="page-lead mt-1">
                 Puntúa cada juego según lo seguro que estés de que se queda
                 contigo.
               </p>

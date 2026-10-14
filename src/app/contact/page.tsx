@@ -45,8 +45,8 @@ export default function ContactPage() {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <SmartNav />
 
-      <main className="max-w-2xl mx-auto py-8 sm:py-12 px-4">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Contacto</h1>
+      <main className="page-text page-pad">
+        <h1 className="page-title mb-2">Contacto</h1>
         <p className="text-[var(--text-secondary)] mb-8">
           ¿Tienes alguna pregunta, quieres saber más sobre BG Planner o simplemente quieres saludar? Escríbenos y te responderemos lo antes posible.
         </p>

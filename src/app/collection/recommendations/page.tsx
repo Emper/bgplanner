@@ -283,8 +283,8 @@ export default function RecommendationsPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
-        <div className="max-w-5xl mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-wide">
           <Link
             href="/collection"
             className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors mb-3"
@@ -292,11 +292,11 @@ export default function RecommendationsPage() {
             ← Mi colección
           </Link>
 
-          <div className="mb-5">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text)]">
+          <div className="mb-6">
+            <h1 className="page-title">
               Recomendaciones para ti
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+            <p className="page-lead mt-1">
               Juegos que no tienes, no has tenido y no has jugado, elegidos a
               partir de tu colección y tus valoraciones.
             </p>

@@ -141,8 +141,8 @@ export default function RoadmapPage() {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <SmartNav />
 
-      <main className="max-w-3xl mx-auto py-8 sm:py-12 px-4">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Ideas y mejoras</h1>
+      <main className="page-text page-pad">
+        <h1 className="page-title mb-2">Ideas y mejoras</h1>
         <p className="text-[var(--text-secondary)] mb-6">
           ¿Echas algo en falta? ¿Te has encontrado un error? Cuéntanoslo y se publica aquí mismo para que
           los demás lo voten: cuantos más votos tenga una idea, antes nos ponemos con ella.

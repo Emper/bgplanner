@@ -475,8 +475,8 @@ export default function HomeDashboard() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-6 sm:py-8 px-4">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-wide">
           {loading && <PageLoader withNavbar />}
           {error && <p className="text-sm text-red-400">{error}</p>}
 

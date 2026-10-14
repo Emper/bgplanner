@@ -127,11 +127,11 @@ export default async function SharedListPage({
   return (
     <>
       <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] py-6 px-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-5">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-main">
+          <div className="mb-6">
             <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] mb-1">Lista compartida</p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text)]">La lista de {list.ownerName}</h1>
+            <h1 className="page-title">La lista de {list.ownerName}</h1>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
               Para{" "}
               <Link href={`/events/${list.event.id}`} className="font-semibold text-[var(--text)] hover:text-[var(--primary)] transition-colors">

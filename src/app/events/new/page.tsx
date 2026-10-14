@@ -75,8 +75,8 @@ export default function NewEventPage() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <Navbar />
-      <div className="max-w-2xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
-        <h1 className="text-2xl font-bold mb-6">Crear evento</h1>
+      <div className="page-form page-pad">
+        <h1 className="page-title mb-6">Crear evento</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

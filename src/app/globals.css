@@ -82,6 +82,47 @@ body {
     "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+/* ── Páginas internas: anchos, márgenes y titular ─────────────────
+   Cuatro anchos según el tipo de página, para que no baile al navegar:
+   - page-wide (6xl, el de la cabecera): Inicio y la ludoteca (colección,
+     recomendaciones, colección compartida), que van llenas de portadas.
+   - page-main (4xl): las secciones de las pestañas y sus detalles (grupos,
+     eventos, comunidad, perfil). Mismo ancho al pasar de una a otra.
+   - page-text (3xl): páginas de leer (changelog, ideas, legales…).
+   - page-form (2xl): formularios (crear grupo, crear evento, tu perfil).
+   El ancho es el del contenido (content-box): da igual que el margen
+   page-pad vaya en el mismo elemento o en su padre. */
+@utility page-wide {
+  box-sizing: content-box;
+  max-width: var(--container-6xl);
+  margin-inline: auto;
+}
+@utility page-main {
+  box-sizing: content-box;
+  max-width: var(--container-4xl);
+  margin-inline: auto;
+}
+@utility page-text {
+  box-sizing: content-box;
+  max-width: var(--container-3xl);
+  margin-inline: auto;
+}
+@utility page-form {
+  box-sizing: content-box;
+  max-width: var(--container-2xl);
+  margin-inline: auto;
+}
+@utility page-pad {
+  @apply px-4 py-6 sm:py-8;
+}
+/* El titular de cada página (el saludo de Inicio va aparte) */
+@utility page-title {
+  @apply text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)];
+}
+@utility page-lead {
+  @apply text-sm sm:text-base text-[var(--text-secondary)];
+}
+
 /* ── Safe areas (notch, isla, barra de inicio) ─────────────────────
    Con viewport-fit=cover la página llega hasta los bordes del móvil; esto
    aparta lo importante de ellos. Fuera de un móvil con notch todo vale 0 y

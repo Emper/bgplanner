@@ -85,14 +85,13 @@ export default async function EventsPage() {
         />
       )}
       <SmartNav />
-      <main className="min-h-screen bg-[var(--bg)] text-[var(--text)] py-8 sm:py-10 px-4">
-        {/* Mismo ancho que la cabecera de visitante */}
-        <div className="max-w-3xl mx-auto">
+      <main className="min-h-screen bg-[var(--bg)] text-[var(--text)] page-pad">
+        <div className="page-main">
           <SignupBanner variant="event" redirect="/events" />
-          <h1 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight">
+          <h1 className="mt-4 page-title">
             Próximos eventos de juegos de mesa
           </h1>
-          <p className="mt-2 text-[var(--text-secondary)] max-w-2xl">
+          <p className="mt-2 page-lead max-w-2xl">
             Jornadas, quedadas y convenciones abiertas a todo el mundo. Entra en
             cualquiera para ver cuándo y dónde es, y apúntate para decir qué
             juegos te apetecen.

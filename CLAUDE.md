@@ -95,6 +95,7 @@ NextResponse.json(...)
 - **Modales**: inline en el mismo fichero, patrón `fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4` con `onClick` de backdrop que cierra + `stopPropagation` en el contenido.
 - **Toasts**: `useState("")` + `setTimeout(() => setState(""), 4000)`. No hay librería tipo Sonner. Posición `fixed bottom-6` (o `bottom-4`): `globals.css` los sube solos por encima de la barra de inicio y de la barra de pestañas.
 - **Estilos**: variables CSS (`var(--primary)`, `var(--surface)`, `var(--text)`, `var(--text-secondary)`, `var(--text-muted)`, `var(--border)`, `var(--input-bg)`, `var(--input-border)`, `var(--card-shadow)`). Definidas en [src/app/globals.css](src/app/globals.css). Light y dark definidos con `.dark` toggle.
+- **Páginas internas**: utilidades de [globals.css](src/app/globals.css), nada de `max-w-*` sueltos. Fondo `min-h-screen bg-[var(--bg)] page-pad` y dentro uno de los cuatro anchos: `page-wide` (6xl, Inicio y ludoteca), `page-main` (4xl, secciones de las pestañas y sus detalles), `page-text` (3xl, páginas de leer y notificaciones) o `page-form` (2xl, formularios). Titular con `page-title` y entradilla con `page-lead`; bloque de cabecera con `mb-6`.
 - Bordes redondeados = `rounded-xl` (botones/inputs) o `rounded-2xl` (tarjetas/modales).
 - Fuentes: Bricolage Grotesque (display), DM Sans (body), Geist Mono (mono).
 

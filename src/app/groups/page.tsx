@@ -42,10 +42,10 @@ export default function GroupsPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-[var(--text)]">Mis Grupos</h1>
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-main">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="page-title">Mis grupos</h1>
             <Link
               href="/groups/new"
               prefetch={false}

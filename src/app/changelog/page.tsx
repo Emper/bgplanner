@@ -18,6 +18,7 @@ const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "En el ordenador, tu inicial arriba a la derecha abre tu cuenta: perfil, BGG, el tema claro, oscuro o el de tu sistema, y por fin cerrar sesión" },
       { type: "improved", text: "La cabecera ocupa todo el ancho de la página y se queda con lo que de verdad usas" },
       { type: "improved", text: "Sin cuenta, Eventos y Comunidad se ven siempre con su nombre, también en el móvil" },
+      { type: "improved", text: "Todas las páginas comparten ancho, márgenes y titulares: se acabaron los saltos al cambiar de sección" },
     ],
   },
   {
@@ -583,8 +584,8 @@ export default function ChangelogPage() {
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <SmartNav />
 
-      <main className="max-w-3xl mx-auto py-8 sm:py-12 px-4">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Changelog</h1>
+      <main className="page-text page-pad">
+        <h1 className="page-title mb-2">Changelog</h1>
         <p className="text-[var(--text-secondary)] mb-10">
           Historial de cambios y mejoras de BG Planner.
         </p>

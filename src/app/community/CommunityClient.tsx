@@ -216,10 +216,10 @@ export default function CommunityClient({
   const totalThreads = Object.values(tagCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <main className="max-w-3xl mx-auto py-8 sm:py-12 px-4">
+    <main className="page-main page-pad">
       {banner}
-      <h1 className="text-3xl sm:text-4xl font-bold mb-2">Comunidad</h1>
-      <p className="text-[var(--text-secondary)] mb-6">
+      <h1 className="page-title mb-2">Comunidad</h1>
+      <p className="page-lead mb-6">
         La mesa grande de BG Planner: busca gente para jugar, cuenta qué tal fue esa partida épica o
         pregunta la regla que nadie en tu grupo recuerda.
       </p>

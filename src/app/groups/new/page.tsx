@@ -44,9 +44,9 @@ export default function NewGroupPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold text-[var(--text)] mb-2">
+      <div className="min-h-screen bg-[var(--bg)] page-pad">
+        <div className="page-form">
+          <h1 className="page-title mb-2">
             Crear nuevo grupo
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mb-6">
