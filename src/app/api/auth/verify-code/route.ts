@@ -1,11 +1,25 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signToken, sessionCookieOptions, reviewLoginCode } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { otpSchema } from "@/lib/validations";
 
+// Contra adivinar el código a ciegas: solo vale el último que se ha pedido,
+// cada código aguanta 5 intentos y cada email 10 por hora. El intento se
+// apunta ANTES de comparar, así que lanzar muchas peticiones a la vez no
+// sirve para colarse por debajo del límite.
+const MAX_ATTEMPTS_PER_CODE = 5;
+const MAX_ATTEMPTS_PER_HOUR = 10;
+
+function sameCode(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = otpSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -16,28 +30,69 @@ export async function POST(request: NextRequest) {
   }
 
   const { email, code } = parsed.data;
+  const now = new Date();
 
-  const otpCode = await prisma.otpCode.findFirst({
-    where: {
-      email,
-      code,
-      used: false,
-      expiresAt: { gte: new Date() },
-    },
+  const latest = await prisma.otpCode.findFirst({
+    where: { email, used: false, expiresAt: { gte: now } },
     orderBy: { createdAt: "desc" },
+    select: { id: true },
   });
 
-  if (!otpCode) {
+  if (!latest) {
     return NextResponse.json(
-      { error: "Código inválido o expirado" },
+      { error: "El código ha caducado. Pide uno nuevo." },
       { status: 401 }
     );
   }
 
-  await prisma.otpCode.update({
-    where: { id: otpCode.id },
+  const attempt = await prisma.otpCode.update({
+    where: { id: latest.id },
+    data: { attempts: { increment: 1 } },
+    select: { code: true, attempts: true },
+  });
+
+  const lastHour = await prisma.otpCode.aggregate({
+    where: { email, createdAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
+    _sum: { attempts: true },
+  });
+  if ((lastHour._sum.attempts ?? 0) > MAX_ATTEMPTS_PER_HOUR) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Espera un rato antes de volver a probar." },
+      { status: 429 }
+    );
+  }
+
+  if (attempt.attempts > MAX_ATTEMPTS_PER_CODE) {
+    return NextResponse.json(
+      { error: "Demasiados intentos con este código. Pide uno nuevo." },
+      { status: 401 }
+    );
+  }
+
+  if (!sameCode(attempt.code, code)) {
+    const left = MAX_ATTEMPTS_PER_CODE - attempt.attempts;
+    return NextResponse.json(
+      {
+        error:
+          left > 0
+            ? `Código incorrecto. ${left === 1 ? "Te queda 1 intento" : `Te quedan ${left} intentos`}. Usa el último que te hemos enviado.`
+            : "Código incorrecto. Pide uno nuevo.",
+      },
+      { status: 401 }
+    );
+  }
+
+  // De un solo uso aunque lleguen dos peticiones a la vez con el código bueno
+  const claimed = await prisma.otpCode.updateMany({
+    where: { id: latest.id, used: false },
     data: { used: true },
   });
+  if (claimed.count === 0) {
+    return NextResponse.json(
+      { error: "Este código ya se ha usado. Pide uno nuevo." },
+      { status: 401 }
+    );
+  }
 
   const user = await prisma.user.upsert({
     where: { email },

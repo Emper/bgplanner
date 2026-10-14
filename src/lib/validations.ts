@@ -16,13 +16,19 @@ import { REPORT_REASON_IDS, REPORT_TARGET_TYPES, REPORT_TEXT_MAX } from "./repor
 // cuando el cliente corta un texto por medio de un carácter.
 const clean = sanitizeUserText;
 
+// Los emails se guardan y se buscan siempre sin espacios y en minúsculas:
+// si no, «Ana@x.com» y «ana@x.com» acababan siendo dos cuentas distintas y
+// el límite de códigos se saltaba cambiando una mayúscula.
+const normalizedEmail = () =>
+  z.string().trim().toLowerCase().email("Email no válido").max(255, "Email demasiado largo");
+
 export const emailSchema = z.object({
-  email: z.string().email("Email no válido"),
+  email: normalizedEmail(),
 });
 
 export const otpSchema = z.object({
-  email: z.string().email(),
-  code: z.string().length(6, "El código debe tener 6 dígitos"),
+  email: normalizedEmail(),
+  code: z.string().trim().regex(/^\d{6}$/, "El código debe tener 6 dígitos"),
 });
 
 // Cambio de email del usuario logueado: se pide el nuevo email y luego se
@@ -61,7 +67,7 @@ export const groupSchema = z.object({
 });
 
 export const inviteSchema = z.object({
-  email: z.string().email("Email no válido"),
+  email: normalizedEmail(),
 });
 
 export const pingSchema = z.object({

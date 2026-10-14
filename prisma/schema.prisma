@@ -64,15 +64,19 @@ model User {
   blockedBy         UserBlock[]   @relation("BlockBlocked")
 }
 
+// Código de acceso por email. Solo vale el último que se ha pedido, y
+// `attempts` cuenta cuántas veces se ha probado contra él (ver verify-code).
 model OtpCode {
   id        String   @id @default(cuid())
   email     String
   code      String
   expiresAt DateTime
   used      Boolean  @default(false)
+  attempts  Int      @default(0)
   createdAt DateTime @default(now())
 
   @@index([email, code])
+  @@index([email, createdAt])
 }
 
 // Solicitud de cambio de email de un usuario ya logueado. El código se manda
