@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
 import EmojiField from "@/components/EmojiField";
@@ -151,8 +152,11 @@ export default function ContactPage() {
             <a href={`mailto:${MODERATION_EMAIL}`} className="font-medium text-[var(--primary)] hover:underline">
               {MODERATION_EMAIL}
             </a>{" "}
-            o usa el formulario de arriba. Revisamos cada denuncia lo antes posible y retiramos lo que incumpla las
-            normas.
+            o usa el formulario de arriba. Revisamos cada denuncia en menos de 24 horas, retiramos lo que incumpla{" "}
+            <Link href="/terms#normas" className="font-medium text-[var(--primary)] hover:underline">
+              los términos de uso
+            </Link>{" "}
+            y expulsamos a quien lo publicó.
           </p>
         </section>
       </main>

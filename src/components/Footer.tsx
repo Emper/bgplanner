@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/changelog", label: "Changelog" },
   { href: "/roadmap", label: "Ideas y mejoras" },
   { href: "/contact", label: "Contacto" },
+  { href: "/terms", label: "Términos" },
   { href: "/privacy", label: "Privacidad" },
 ];
 

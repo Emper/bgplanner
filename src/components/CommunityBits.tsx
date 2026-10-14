@@ -104,9 +104,9 @@ export function ModerationNote({ className = "" }: { className?: string }) {
       <a href={`mailto:${MODERATION_EMAIL}`} className="underline underline-offset-2 hover:text-[var(--primary)]">
         {MODERATION_EMAIL}
       </a>
-      . Lo revisamos lo antes posible.{" "}
-      <Link href="/contact#moderacion" className="underline underline-offset-2 hover:text-[var(--primary)]">
-        Más sobre moderación
+      . Lo revisamos en menos de 24 horas.{" "}
+      <Link href="/terms#normas" className="underline underline-offset-2 hover:text-[var(--primary)]">
+        Normas de la Comunidad
       </Link>
     </p>
   );

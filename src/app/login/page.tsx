@@ -136,11 +136,15 @@ function LoginForm() {
             </button>
 
             <p className="text-xs text-[var(--text-muted)] text-center leading-relaxed">
-              Al entrar aceptas que guardemos tus datos como contamos en la{" "}
+              Al entrar aceptas los{" "}
+              <Link href="/terms" className="text-[var(--text-secondary)] underline hover:text-[var(--primary)]">
+                términos de uso
+              </Link>{" "}
+              y la{" "}
               <Link href="/privacy" className="text-[var(--text-secondary)] underline hover:text-[var(--primary)]">
                 política de privacidad
               </Link>
-              .
+              . No hay sitio para el acoso ni el contenido ofensivo.
             </p>
           </form>
         </div>

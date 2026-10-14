@@ -12,6 +12,14 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "15 octubre 2026",
+    version: "1.49",
+    title: "Las normas de la casa",
+    changes: [
+      { type: "new", text: "Nuevos términos de uso, en cristiano: tolerancia cero con el acoso y el contenido ofensivo, cómo denunciar y qué pasa si alguien se pasa de la raya" },
+    ],
+  },
+  {
+    date: "15 octubre 2026",
     version: "1.48",
     title: "Un sitio tranquilo para jugar",
     changes: [
