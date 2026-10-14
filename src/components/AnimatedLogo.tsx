@@ -70,7 +70,7 @@ export default function AnimatedLogo() {
       fill="none"
       width={168}
       height={33}
-      className="w-[132px] sm:w-[168px] h-auto"
+      className="w-[118px] min-[380px]:w-[132px] sm:w-[168px] h-auto"
       role="img"
       aria-label="BG Planner"
     >

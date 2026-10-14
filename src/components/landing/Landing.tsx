@@ -3,12 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import AnimatedLogo from "@/components/AnimatedLogo";
+import PublicNav from "@/components/PublicNav";
 import Avatar from "@/components/Avatar";
 import { TagChip } from "@/components/CommunityBits";
 import { COMMUNITY_TAGS } from "@/lib/community";
 import Footer from "@/components/Footer";
-import { useTheme } from "@/lib/theme";
 import { MARQUEE_BOTTOM, MARQUEE_TOP, DEMO_GAMES, type DemoGame } from "./games";
 import { Reveal, ScrollProgress, usePrefersReducedMotion } from "@/components/motion";
 import {
@@ -68,77 +67,7 @@ const NAV_LINKS = [
 ];
 
 function Nav({ loginHref }: { loginHref: string }) {
-  const { resolvedTheme, toggleTheme, mounted } = useTheme();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  return (
-    <nav
-      className={`sticky top-0 z-50 px-4 sm:px-6 transition-all duration-300 ${
-        scrolled
-          ? "py-2.5 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--border)]"
-          : "py-4 border-b border-transparent"
-      }`}
-    >
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-        <AnimatedLogo />
-        <div className="hidden md:flex items-center gap-1 text-sm">
-          {NAV_LINKS.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-colors"
-            >
-              {l.label}
-            </a>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* En móvil el menú de secciones no cabe: la Comunidad, que se puede
-              recorrer sin cuenta, sigue a un toque. */}
-          <Link
-            href="/community"
-            title="Comunidad"
-            className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-            </svg>
-            <span className="sr-only">Comunidad</span>
-          </Link>
-          <button
-            onClick={toggleTheme}
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200"
-            title={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
-          >
-            {!mounted ? (
-              <span className="w-[18px] h-[18px]" />
-            ) : resolvedTheme === "dark" ? (
-              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
-          </button>
-          <Link
-            href={loginHref}
-            className="px-4 sm:px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            Entrar
-          </Link>
-        </div>
-      </div>
-    </nav>
-  );
+  return <PublicNav loginHref={loginHref} sections={NAV_LINKS} wide />;
 }
 
 // ── Piezas sueltas ──────────────────────────────────────────────────────
