@@ -258,6 +258,9 @@ export async function deleteAccount(
       await tx.groupMember.deleteMany({ where: { userId } });
       await tx.eventAttendee.deleteMany({ where: { userId } });
       await tx.vote.deleteMany({ where: { userId } });
+      // A mano y no por la cascada: así no depende de cómo quedó la clave
+      // ajena en Supabase (la de blockedId llegó a estar como SET NULL).
+      await tx.userBlock.deleteMany({ where: { OR: [{ blockerId: userId }, { blockedId: userId }] } });
       await tx.otpCode.deleteMany({ where: { email: { equals: user.email, mode: "insensitive" } } });
       await tx.groupInvitation.deleteMany({ where: { email: { equals: user.email, mode: "insensitive" } } });
       if (opts.removePhotos) {
