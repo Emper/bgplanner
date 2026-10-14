@@ -99,6 +99,28 @@ body {
   bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
+/* ── Barra de pestañas (móvil, con sesión) ─────────────────────────
+   Mide --tabbar-h más la barra de inicio. Mientras está, el final de la
+   página deja su hueco y los avisos flotantes suben por encima de ella. */
+:root {
+  --tabbar-h: 3.5rem;
+}
+.mobile-tabbar-spacer {
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+}
+@media (max-width: 639.98px) {
+  body:has(.mobile-tabbar) .fixed.bottom-6 {
+    bottom: calc(1rem + var(--tabbar-h) + env(safe-area-inset-bottom));
+  }
+  body:has(.mobile-tabbar) .fixed.bottom-4 {
+    bottom: calc(0.75rem + var(--tabbar-h) + env(safe-area-inset-bottom));
+  }
+  /* La barra de inicio ya la salva el hueco de la barra de pestañas */
+  body:has(.mobile-tabbar) footer {
+    padding-bottom: 2rem;
+  }
+}
+
 /* Los modales (fixed inset-0 … p-4) no se meten bajo el notch ni la barra */
 .fixed.inset-0.p-4 {
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))

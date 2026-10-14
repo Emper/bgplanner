@@ -12,6 +12,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "15 octubre 2026",
+    version: "1.46",
+    title: "Todo a mano del pulgar",
+    changes: [
+      { type: "new", text: "En el móvil, Grupos, Eventos, Comunidad y tu Perfil viven en una barra abajo, como en cualquier app: un toque y estás" },
+      { type: "new", text: "Toca otra vez la pestaña en la que estás y vuelves arriba del todo" },
+      { type: "improved", text: "La cabecera del móvil respira: el logo te lleva al inicio y tu colección está a un toque desde tu perfil" },
+    ],
+  },
+  {
+    date: "15 octubre 2026",
     version: "1.45",
     title: "Que no se te escape ni una",
     changes: [

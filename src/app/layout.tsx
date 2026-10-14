@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, DM_Sans, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import PushPrompt from "@/components/PushPrompt";
+import MobileTabBar from "@/components/MobileTabBar";
 import "./globals.css";
 
 // Las dos son fuentes variables: sin lista de pesos, Next descarga un único
@@ -92,6 +93,7 @@ export default function RootLayout({
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
         {children}
+        <MobileTabBar />
         <ServiceWorkerRegister />
         <PushPrompt />
         <Analytics />

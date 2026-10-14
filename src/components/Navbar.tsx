@@ -39,28 +39,26 @@ export default function Navbar() {
   }, [menuOpen]);
 
   // Hasta pantallas anchas (lg) "Mi colección" y "Comunidad" van con su icono
-  // en vez del nombre, para que quepa todo junto a la campana. En móvil ni el
-  // icono de Comunidad cabe: ahí vive solo en el menú lateral, como el resto
-  // de cosas con nombre largo.
+  // en vez del nombre, para que quepa todo junto a la campana. En móvil no
+  // sale ninguno: las secciones van en la barra de pestañas de abajo
+  // (MobileTabBar) y la colección, en el perfil y el menú lateral.
   const navItems = [
     {
       href: "/collection",
       label: "Mi colección",
       match: "/collection",
-      className: "",
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
         </svg>
       ),
     },
-    { href: "/groups", label: "Grupos", match: "/groups", icon: null, className: "" },
-    { href: "/events", label: "Eventos", match: "/events", icon: null, className: "" },
+    { href: "/groups", label: "Grupos", match: "/groups", icon: null },
+    { href: "/events", label: "Eventos", match: "/events", icon: null },
     {
       href: "/community",
       label: "Comunidad",
       match: "/community",
-      className: "hidden sm:inline",
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
@@ -149,7 +147,7 @@ export default function Navbar() {
                   key={item.href}
                   href={item.href}
                   prefetch={false}
-                  className={`relative text-xs sm:text-sm font-medium transition-colors whitespace-nowrap group ${item.className} ${
+                  className={`hidden sm:inline relative text-sm font-medium transition-colors whitespace-nowrap group ${
                     isActive ? "text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--primary)]"
                   }`}
                 >
@@ -213,7 +211,7 @@ export default function Navbar() {
                 </svg>
               )}
             </button>
-            {/* Mobile: hamburger */}
+            {/* Móvil: menú con lo que no cabe en la barra de abajo */}
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="Abrir menú"
@@ -227,7 +225,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile drawer */}
+      {/* Menú lateral del móvil: lo que no está en la barra de pestañas */}
       {menuOpen && (
         <div
           className="fixed inset-0 z-50 sm:hidden"
@@ -295,36 +293,6 @@ export default function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </svg>
                 Mi colección
-              </Link>
-
-              <Link
-                href="/community"
-                onClick={() => setMenuOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  pathname.startsWith("/community")
-                    ? "bg-[var(--accent-soft)] text-[var(--primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-                </svg>
-                Comunidad
-              </Link>
-
-              <Link
-                href={myProfile}
-                onClick={() => setMenuOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  profileActive
-                    ? "bg-[var(--accent-soft)] text-[var(--primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                </svg>
-                Perfil
               </Link>
 
               {isSuperadmin && (

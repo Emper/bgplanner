@@ -277,6 +277,27 @@ export default async function PublicProfilePage({
               </div>
             </div>
 
+            {/* En el móvil la colección no tiene pestaña propia: cuelga de aquí */}
+            {profile.isSelf && (
+              <Link
+                href="/collection"
+                className="mt-4 flex items-center gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 group"
+              >
+                <span className="text-xl" aria-hidden>🎲</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors">
+                    Mi colección
+                  </span>
+                  <span className="block text-xs text-[var(--text-muted)] truncate">
+                    Tus juegos, tu vitrina y qué estrenar después
+                  </span>
+                </span>
+                <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            )}
+
             {/* Amigos: el botón solo sale con sesión y en el perfil de otro */}
             {session && !profile.isSelf && (
               <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
