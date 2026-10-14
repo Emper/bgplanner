@@ -2,6 +2,12 @@ import { z } from "zod";
 import { GROUP_TYPE_IDS } from "./groupTypes";
 import { sanitizeUserText, EVENT_ABOUT_MAX } from "./text";
 import { FEATURE_STATUS_IDS } from "./features";
+import {
+  COMMUNITY_TAG_IDS,
+  REPLY_BODY_MAX,
+  THREAD_BODY_MAX,
+  THREAD_TITLE_MAX,
+} from "./community";
 
 // Los textos libres del usuario pueden llevar emojis sin problema. Lo único
 // que se limpia (siempre al final de la cadena, tras validar longitudes) son
@@ -209,6 +215,46 @@ export const featureUpdateSchema = z
     status: z.enum(FEATURE_STATUS_IDS).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: "No hay nada que actualizar" });
+
+// Hilos y respuestas de /community. El trim va antes de validar para que un
+// mensaje de solo espacios cuente como vacío.
+const threadTitle = z
+  .string()
+  .trim()
+  .min(3, "El título es demasiado corto")
+  .max(THREAD_TITLE_MAX, `El título no puede pasar de ${THREAD_TITLE_MAX} caracteres`)
+  .transform(clean);
+const threadBody = z
+  .string()
+  .trim()
+  .min(1, "Escribe algo para abrir el hilo")
+  .max(THREAD_BODY_MAX, "El mensaje es demasiado largo")
+  .transform(clean);
+const threadTag = z.enum(COMMUNITY_TAG_IDS, "Elige una etiqueta");
+
+export const threadCreateSchema = z.object({
+  title: threadTitle,
+  body: threadBody,
+  tag: threadTag,
+});
+
+export const threadUpdateSchema = z
+  .object({
+    title: threadTitle.optional(),
+    body: threadBody.optional(),
+    tag: threadTag.optional(),
+    pinned: z.boolean().optional(), // solo superadmin
+  })
+  .refine((d) => Object.keys(d).length > 0, { message: "No hay nada que actualizar" });
+
+export const replySchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, "La respuesta está vacía")
+    .max(REPLY_BODY_MAX, "La respuesta es demasiado larga")
+    .transform(clean),
+});
 
 export const contactSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(100).transform(clean),

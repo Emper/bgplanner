@@ -37,21 +37,35 @@ export default function Navbar() {
     }
   }, [menuOpen]);
 
-  // "Mi colección" no cabe escrito junto a los otros dos en una pantalla
-  // pequeña, así que ahí va con su icono (y con nombre en el menú lateral).
+  // "Mi colección" y "Comunidad" no caben escritos junto a los otros dos en
+  // una pantalla pequeña, así que ahí van con su icono (y con nombre en el
+  // menú lateral). En los móviles más estrechos ni el icono de Comunidad
+  // cabe: ahí queda solo en el menú lateral.
   const navItems = [
     {
       href: "/collection",
       label: "Mi colección",
       match: "/collection",
+      className: "",
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
         </svg>
       ),
     },
-    { href: "/groups", label: "Grupos", match: "/groups", icon: null },
-    { href: "/events", label: "Eventos", match: "/events", icon: null },
+    { href: "/groups", label: "Grupos", match: "/groups", icon: null, className: "" },
+    { href: "/events", label: "Eventos", match: "/events", icon: null, className: "" },
+    {
+      href: "/community",
+      label: "Comunidad",
+      match: "/community",
+      className: "max-[369px]:hidden",
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+        </svg>
+      ),
+    },
   ];
 
   const isConnected = bggUsername !== null && bggUsername !== "";
@@ -131,7 +145,7 @@ export default function Navbar() {
                   key={item.href}
                   href={item.href}
                   prefetch={false}
-                  className={`relative text-xs sm:text-sm font-medium transition-colors whitespace-nowrap group ${
+                  className={`relative text-xs sm:text-sm font-medium transition-colors whitespace-nowrap group ${item.className} ${
                     isActive ? "text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--primary)]"
                   }`}
                 >
@@ -277,6 +291,21 @@ export default function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                 </svg>
                 Mi colección
+              </Link>
+
+              <Link
+                href="/community"
+                onClick={() => setMenuOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  pathname.startsWith("/community")
+                    ? "bg-[var(--accent-soft)] text-[var(--primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+                </svg>
+                Comunidad
               </Link>
 
               <Link

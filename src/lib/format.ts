@@ -67,3 +67,14 @@ export function toDateTimeLocalInput(d: string | null | undefined): string {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
 }
+
+/** "ahora", "hace 5 min", "hace 3 h", y a partir de un día como formatRelativeShort */
+export function formatRelativeTime(dateStr: string | Date) {
+  const then = typeof dateStr === "string" ? new Date(dateStr).getTime() : dateStr.getTime();
+  const minutes = Math.floor((Date.now() - then) / 60000);
+  if (minutes < 1) return "ahora";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  return formatRelativeShort(dateStr);
+}

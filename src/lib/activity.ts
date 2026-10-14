@@ -11,7 +11,8 @@ export type ActivityType =
   | "event_reviewed" | "event_photo_added"
   | "email_changed"
   | "feedback_sent" | "feature_voted"
-  | "friend_added";
+  | "friend_added"
+  | "community_thread_created" | "community_replied";
 
 const PUBLIC_TYPES = new Set<ActivityType>([
   "group_created",
@@ -126,6 +127,8 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   feedback_sent: (m) => `propuso "${m.subject || "una idea"}" 💡`,
   feature_voted: (m) => `votó la propuesta "${m.featureTitle || ""}" del roadmap 🗳️`,
   friend_added: (m) => `añadió a ${m.friendName || "alguien"} a sus amigos 🤝`,
+  community_thread_created: (m) => `abrió el hilo "${m.threadTitle || ""}" en la comunidad 💬`,
+  community_replied: (m) => `respondió en el hilo "${m.threadTitle || ""}" de la comunidad 💬`,
   event_photo_added: (m) => {
     const n = typeof m.photoCount === "number" && m.photoCount > 1 ? ` (${m.photoCount})` : "";
     return `subió ${m.photoCount && m.photoCount > 1 ? "fotos" : "una foto"} a la galería${n}`;

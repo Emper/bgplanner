@@ -6,6 +6,7 @@ import Image from "next/image";
 // Enlaces fijos para todo el mundo, con o sin sesión: antes se consultaba el
 // perfil antes de pintarlos y aparecían tarde (o no aparecían).
 const LINKS = [
+  { href: "/community", label: "Comunidad" },
   { href: "/changelog", label: "Changelog" },
   { href: "/roadmap", label: "Ideas y mejoras" },
   { href: "/contact", label: "Contacto" },

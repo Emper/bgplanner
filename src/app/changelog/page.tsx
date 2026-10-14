@@ -11,6 +11,17 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "14 octubre 2026",
+    version: "1.42",
+    title: "Abrimos la Comunidad",
+    changes: [
+      { type: "new", text: "Nueva sección Comunidad: un foro para hablar con el resto de jugadores de BG Planner, más allá de tus grupos. Abre un hilo con su título y su mensaje, y la conversación sigue con las respuestas de los demás" },
+      { type: "new", text: "Cada hilo lleva su etiqueta —Buscar partida, Crónicas, Opiniones, Dudas de reglas, Novedades u Offtopic— para que encuentres justo lo que te apetece leer" },
+      { type: "new", text: "Buscador para dar con esa conversación sobre aquel juego, y los hilos con respuestas nuevas suben solos al principio" },
+      { type: "new", text: "Puedes editar o borrar lo que hayas escrito, y los enlaces que pegues se pueden abrir directamente" },
+    ],
+  },
+  {
     date: "13 octubre 2026",
     version: "1.41",
     title: "Eventos con toda la info",
