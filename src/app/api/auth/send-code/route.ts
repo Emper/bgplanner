@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { resend } from "@/lib/resend";
 import { emailSchema } from "@/lib/validations";
 import { reviewLoginCode } from "@/lib/auth";
+import { BANNED_MESSAGE, isEmailBanned } from "@/lib/moderation";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -17,6 +18,11 @@ export async function POST(request: NextRequest) {
   }
 
   const { email } = parsed.data;
+
+  // Quien fue expulsado no puede volver a entrar (ver /terms)
+  if (await isEmailBanned(email)) {
+    return NextResponse.json({ error: BANNED_MESSAGE }, { status: 403 });
+  }
 
   // Rate limit: max 3 codes in last 5 minutes
   const recentCodes = await prisma.otpCode.count({

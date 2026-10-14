@@ -21,7 +21,7 @@ App para que grupos de amigos organicen sus partidas de juegos de mesa: importas
 
 - **No hay carpeta `prisma/migrations/`**. Flujo: editar `schema.prisma` → aplicar el cambio en Supabase → `npx prisma generate`. Adecuado para MVP con un único entorno real; asume riesgo de no tener historial de migraciones.
 - `DATABASE_URL` = pooler Supabase; `DIRECT_URL` = conexión directa (necesaria para `prisma generate`).
-- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameSession`, `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply` (foro `/community`), `Feedback`, `Feature`/`FeatureVote` (roadmap público), `Report`/`UserBlock` (moderación).
+- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameSession`, `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply` (foro `/community`), `Feedback`, `Feature`/`FeatureVote` (roadmap público), `Report`/`UserBlock`/`BannedEmail` (moderación).
 
 ### Seguridad con la base de datos — IMPORTANTE
 
@@ -114,6 +114,7 @@ NextResponse.json(...)
 - Contenido nuevo que suban los usuarios y vean otros → añadir su tipo a `REPORT_TARGET_TYPES`, a `describeReportTarget` y a `removeReportTarget`, y un «🚩 Denunciar» en su menú `MoreMenu` ([Moderation.tsx](src/components/Moderation.tsx)).
 - Bloquear: `notifyNow` ya descarta a quien ha bloqueado al actor; la Comunidad oculta/pliega lo de bloqueados. En grupos y eventos no se esconde nada.
 - Hilos y respuestas con `AUTO_HIDE_REPORTS` denuncias pendientes se ocultan solos hasta que se revisan en `/admin/reports`.
+- Expulsar (`expelUser` en moderation.ts, desde una denuncia en `/admin/reports`): veta el email en `BannedEmail` y borra la cuenta con `deleteAccount`. Cualquier sitio nuevo por el que se pueda entrar o cambiar de email comprueba `isEmailBanned`.
 
 ### Rate limiting
 - OTP: `prisma.otpCode.count({ email, createdAt >= ahora - 5min })` → 429 si ≥ 3.

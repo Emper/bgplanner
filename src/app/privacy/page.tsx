@@ -66,7 +66,7 @@ const DATA = [
   },
   {
     label: "Denuncias y bloqueos",
-    text: "a quién bloqueas (no se lo decimos) y lo que denuncias, con el motivo y el texto que añadas. Las denuncias solo las ve quien modera, y nunca le decimos a nadie quién le ha denunciado.",
+    text: "a quién bloqueas (no se lo decimos) y lo que denuncias, con el motivo y el texto que añadas. Las denuncias solo las ve quien modera, y nunca le decimos a nadie quién le ha denunciado. Si expulsamos a alguien por incumplir los términos de uso, guardamos su email y su nombre para que no pueda volver.",
   },
   {
     label: "Avisos",
@@ -123,6 +123,10 @@ const RETENTION = [
   {
     label: "Avisos en un dispositivo",
     text: "hasta que los desactivas, cierras sesión en él o el navegador deja de aceptarlos. Como mucho guardamos 10 dispositivos por cuenta.",
+  },
+  {
+    label: "Si te expulsamos",
+    text: "tu cuenta se borra igual que si lo hicieras tú, pero tu email, tu nombre y el motivo se quedan en la lista de expulsados mientras dure la expulsión.",
   },
   {
     label: "Tu colección de BGG",

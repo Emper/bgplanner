@@ -354,8 +354,16 @@ export const reportSchema = z.object({
 
 // Qué hace el superadmin con una denuncia: retirar lo denunciado, cerrarla
 // sin retirar nada (las de usuarios) o descartarla.
+// Expulsar (expel) además borra la cuenta de su autor y veta su email;
+// removeContent retira también sus mensajes de la Comunidad y sus fotos.
 export const reportActionSchema = z.object({
-  action: z.enum(["remove", "resolve", "dismiss"], { error: "Acción no válida" }),
+  action: z.enum(["remove", "resolve", "dismiss", "expel"], { error: "Acción no válida" }),
+  removeContent: z.boolean().optional(),
+});
+
+// Readmitir a alguien expulsado: se quita su email de la lista.
+export const readmitSchema = z.object({
+  email: normalizedEmail(),
 });
 
 export const blockSchema = z.object({

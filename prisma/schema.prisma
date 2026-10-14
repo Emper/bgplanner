@@ -799,3 +799,15 @@ model UserBlock {
   @@unique([blockerId, blockedId])
   @@index([blockedId])
 }
+
+// Emails expulsados por incumplir los términos de uso (/terms). La cuenta se
+// borra al expulsar (como al borrarla uno mismo) y el email se queda aquí para
+// que no pueda volver a entrar ni cambiarse a él. `name` y `reason` son para
+// la lista de /admin/reports; se quita la fila al readmitir.
+model BannedEmail {
+  email      String   @id // normalizado (trim + minúsculas)
+  name       String?
+  reason     String?  @db.Text
+  bannedById String?
+  createdAt  DateTime @default(now())
+}

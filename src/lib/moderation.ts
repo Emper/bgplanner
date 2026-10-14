@@ -1,4 +1,6 @@
 import { prisma } from "./prisma";
+import { isSuperadminRole } from "./auth";
+import { deleteAccount } from "./accountDeletion";
 import { profileHref, DELETED_USER_ROLE } from "./users";
 import { excerpt } from "./text";
 import { getEventParticipation } from "./events";
@@ -293,4 +295,71 @@ export async function moderatorIds(): Promise<string[]> {
     select: { id: true },
   });
   return rows.map((r) => r.id);
+}
+
+// ── Expulsiones ─────────────────────────────────────────────────────────────
+
+export const BANNED_MESSAGE =
+  "Esta cuenta se cerró por incumplir los términos de uso de BG Planner. Si crees que es un error, escríbenos desde Contacto.";
+
+/**
+ * Si este email está expulsado. Si la consulta falla (por ejemplo, la tabla
+ * aún no existe), se deja pasar: mejor no dejar a nadie fuera por un error.
+ */
+export async function isEmailBanned(email: string): Promise<boolean> {
+  const row = await softly(
+    () => prisma.bannedEmail.findUnique({ where: { email: email.trim().toLowerCase() }, select: { email: true } }),
+    null
+  );
+  return !!row;
+}
+
+export class ExpelError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+/**
+ * Expulsa a alguien: veta su email, cierra las denuncias pendientes contra él
+ * (antes de borrar, que después ya no se sabe que eran suyas) y borra la
+ * cuenta igual que si la borrara él mismo, así que sus sesiones abiertas
+ * dejan de servir. Con removeContent se retiran además sus hilos y
+ * respuestas de la Comunidad y todas sus fotos; lo demás que compartió
+ * (opiniones, comentarios) queda como «Usuario eliminado».
+ */
+export async function expelUser(
+  userId: string,
+  adminId: string,
+  opts: { removeContent: boolean; reason: string }
+): Promise<{ email: string; name: string | null }> {
+  if (userId === adminId) throw new ExpelError("No puedes expulsarte a ti mismo", 400);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, name: true, displayName: true, role: true },
+  });
+  if (!user) throw new ExpelError("Esa cuenta ya no existe", 404);
+  if (user.role === DELETED_USER_ROLE) throw new ExpelError("Esa cuenta ya está borrada", 400);
+  if (isSuperadminRole(user.role, user.email)) throw new ExpelError("No se puede expulsar a un superadmin", 400);
+
+  const email = user.email.trim().toLowerCase();
+  const name = user.displayName || user.name || null;
+  const now = new Date();
+
+  await prisma.bannedEmail.upsert({
+    where: { email },
+    create: { email, name, reason: opts.reason, bannedById: adminId },
+    update: { name, reason: opts.reason, bannedById: adminId, createdAt: now },
+  });
+  await prisma.report.updateMany({
+    where: { targetUserId: userId, status: "pending" },
+    data: { status: "resolved", resolvedById: adminId, resolvedAt: now },
+  });
+  if (opts.removeContent) {
+    await prisma.communityThread.updateMany({ where: { authorId: userId, deletedAt: null }, data: { deletedAt: now } });
+    await prisma.communityReply.updateMany({ where: { authorId: userId, deletedAt: null }, data: { deletedAt: now } });
+  }
+  await deleteAccount(userId, { removePhotos: opts.removeContent });
+
+  return { email, name };
 }

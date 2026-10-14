@@ -5,6 +5,7 @@ import { getSession, signToken, sessionCookieOptions } from "@/lib/auth";
 import { resend } from "@/lib/resend";
 import { escapeHtml } from "@/lib/html";
 import { logActivity } from "@/lib/activity";
+import { isEmailBanned } from "@/lib/moderation";
 import {
   emailChangeConfirmSchema,
   emailChangeRequestSchema,
@@ -138,7 +139,8 @@ export async function POST(request: NextRequest) {
     },
     select: { id: true },
   });
-  if (taken) {
+  // Un email expulsado responde igual que uno ocupado: no se dice por qué.
+  if (taken || (await isEmailBanned(newEmail))) {
     return NextResponse.json(
       { error: "Ya hay una cuenta con ese email" },
       { status: 409 }

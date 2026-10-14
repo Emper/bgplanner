@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { signToken, sessionCookieOptions, reviewLoginCode } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { otpSchema } from "@/lib/validations";
+import { BANNED_MESSAGE, isEmailBanned } from "@/lib/moderation";
 
 // Contra adivinar el código a ciegas: solo vale el último que se ha pedido,
 // cada código aguanta 5 intentos y cada email 10 por hora. El intento se
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
 
   const { email, code } = parsed.data;
   const now = new Date();
+
+  // Por si pidió el código justo antes de que le expulsaran
+  if (await isEmailBanned(email)) {
+    return NextResponse.json({ error: BANNED_MESSAGE }, { status: 403 });
+  }
 
   const latest = await prisma.otpCode.findFirst({
     where: { email, used: false, expiresAt: { gte: now } },

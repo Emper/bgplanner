@@ -136,7 +136,11 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   // Moderación: nunca públicas, y sin decir a quién se bloquea ni quién denuncia
   report_created: (m) => `denunció ${m.targetLabel || "un contenido"} 🚩`,
   report_resolved: (m) =>
-    `${m.action === "remove" ? "retiró" : m.action === "dismiss" ? "descartó la denuncia de" : "cerró la denuncia de"} ${m.targetLabel || "un contenido"} 🛡️`,
+    m.action === "expel"
+      ? m.targetType === "user"
+        ? "expulsó a un usuario 🛡️"
+        : `retiró ${m.targetLabel || "un contenido"} y expulsó a su autor 🛡️`
+      : `${m.action === "remove" ? "retiró" : m.action === "dismiss" ? "descartó la denuncia de" : "cerró la denuncia de"} ${m.targetLabel || "un contenido"} 🛡️`,
   user_blocked: () => "bloqueó a un usuario 🚫",
   // Sin datos de la persona: queda a nombre de su usuario fantasma.
   account_deleted: () => "borró su cuenta",
