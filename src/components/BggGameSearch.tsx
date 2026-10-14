@@ -38,11 +38,8 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      setIsOpen(false);
-      return;
-    }
+    // Con menos de 2 letras no se busca (el desplegable lo cierra el onChange).
+    if (query.trim().length < 2) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const abortController = new AbortController();
@@ -138,7 +135,13 @@ export default function BggGameSearch({ onSelect, placeholder = "Buscar juego en
       <input
         type="text"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          if (e.target.value.trim().length < 2) {
+            setResults([]);
+            setIsOpen(false);
+          }
+        }}
         placeholder={placeholder}
         disabled={disabled}
         className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] text-sm transition-all duration-200"

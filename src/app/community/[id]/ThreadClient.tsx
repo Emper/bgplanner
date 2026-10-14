@@ -126,17 +126,19 @@ export default function ThreadClient({
   }, [threadId, viewerId]);
 
   // Al llegar desde un aviso (#reply-…) se lleva la respuesta a la vista y se
-  // resalta un momento.
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  // resalta un momento (con `data-highlight`, que pinta las clases data-[…]).
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash.startsWith("#reply-")) return;
     const el = document.getElementById(hash.slice(1));
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setHighlightId(hash.slice("#reply-".length));
-    const t = setTimeout(() => setHighlightId(null), 2500);
-    return () => clearTimeout(t);
+    el.setAttribute("data-highlight", "");
+    const t = setTimeout(() => el.removeAttribute("data-highlight"), 2500);
+    return () => {
+      clearTimeout(t);
+      el.removeAttribute("data-highlight");
+    };
   }, []);
 
   const isLoggedIn = !!viewerId;
@@ -389,9 +391,7 @@ export default function ThreadClient({
                 <li
                   key={r.id}
                   id={`reply-${r.id}`}
-                  className={`flex gap-3 bg-[var(--surface)] border rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24 transition-colors duration-700 ${
-                    highlightId === r.id ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/30" : "border-[var(--border)]"
-                  }`}
+                  className="flex gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24 transition-colors duration-700 data-[highlight]:border-[var(--primary)] data-[highlight]:ring-2 data-[highlight]:ring-[var(--primary)]/30"
                 >
                   <div className="shrink-0 hidden sm:block">
                     <Avatar name={r.author.name} avatarUrl={r.author.avatarUrl} size="sm" />

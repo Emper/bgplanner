@@ -54,29 +54,28 @@ export default function EventGallery({
   const [reviewMsg, setReviewMsg] = useState("");
   const reviewRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [pr, rr] = await Promise.all([
-        fetch(`/api/events/${eventId}/photos`),
-        fetch(`/api/events/${eventId}/reviews`),
-      ]);
-      const pd = await pr.json();
-      const rd = await rr.json();
-      if (pr.ok) setPhotos(pd.photos);
-      if (rr.ok) {
-        setReviews(rd.reviews);
-        const mine = (rd.reviews as EventReview[]).find((r) => r.userId === currentUserId);
-        setRating(mine?.rating ?? 0);
-        setReviewText(mine?.text ?? "");
-      }
-    } catch {
-      setError("Error al cargar la galería");
-    } finally {
-      setLoading(false);
-    }
-  }, [eventId, currentUserId]);
+  // Al recargar (tras guardar la valoración, p. ej.) no se vuelve a «Cargando…»:
+  // se refresca en el sitio.
+  const load = useCallback(
+    () =>
+      Promise.all([
+        fetch(`/api/events/${eventId}/photos`).then((res) => (res.ok ? res.json() : null)),
+        fetch(`/api/events/${eventId}/reviews`).then((res) => (res.ok ? res.json() : null)),
+      ])
+        .then(([pd, rd]) => {
+          setError("");
+          if (pd) setPhotos(pd.photos);
+          if (rd) {
+            setReviews(rd.reviews);
+            const mine = (rd.reviews as EventReview[]).find((r) => r.userId === currentUserId);
+            setRating(mine?.rating ?? 0);
+            setReviewText(mine?.text ?? "");
+          }
+        })
+        .catch(() => setError("Error al cargar la galería"))
+        .finally(() => setLoading(false)),
+    [eventId, currentUserId]
+  );
 
   useEffect(() => {
     load();

@@ -109,11 +109,16 @@ export default function CommunityClient({
   // cambiar de etiqueta (los filtros son enlaces y la navegación ya trae la
   // página nueva pintada). Solo la búsqueda va por la API.
   const loadedKey = useRef(`${initialKey}|`);
-  useEffect(() => {
-    loadedKey.current = `${initialKey}|`;
+  // Cuando la navegación trae otra página pintada, se adopta en el mismo render.
+  const [shownInitial, setShownInitial] = useState(initial);
+  if (shownInitial !== initial) {
+    setShownInitial(initial);
     setThreads(initial.threads);
     setNextCursor(initial.nextCursor);
     if (initial.tagCounts) setTagCounts(initial.tagCounts);
+  }
+  useEffect(() => {
+    loadedKey.current = `${initialKey}|`;
   }, [initial, initialKey]);
   useEffect(() => {
     const key = `${activeTag ?? ""}|${query}`;
@@ -185,19 +190,21 @@ export default function CommunityClient({
   // Enlace para abrir un hilo ya rellenado (?nuevo=1&tag=…&titulo=…&texto=…),
   // p. ej. «Anúncialo en la Comunidad» desde un evento. Se aplica una vez, en
   // cuanto sabemos que hay sesión, y se limpia la URL para no repetirlo.
-  const prefillApplied = useRef(false);
+  const [prefillApplied, setPrefillApplied] = useState(false);
   const wantsPrefill = searchParams.get("nuevo") === "1";
-  useEffect(() => {
-    if (!wantsPrefill || !isLoggedIn || prefillApplied.current) return;
-    prefillApplied.current = true;
+  if (wantsPrefill && isLoggedIn && !prefillApplied) {
+    setPrefillApplied(true);
     const t = searchParams.get("titulo");
     const b = searchParams.get("texto");
     if (t) setTitle(t.slice(0, THREAD_TITLE_MAX));
     if (b) setBody(b.slice(0, THREAD_BODY_MAX));
     if (activeTag) setNewTag(activeTag);
     setFormOpen(true);
+  }
+  useEffect(() => {
+    if (!prefillApplied || !wantsPrefill) return;
     router.replace(activeTag ? `${pathname}?tag=${activeTag}` : pathname, { scroll: false });
-  }, [wantsPrefill, isLoggedIn, searchParams, activeTag, pathname, router]);
+  }, [prefillApplied, wantsPrefill, activeTag, pathname, router]);
 
   // Sin sesión, el login vuelve aquí con lo que traía la URL (filtro o
   // borrador de hilo incluidos).

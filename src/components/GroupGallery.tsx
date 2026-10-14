@@ -66,25 +66,27 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gameSearch, setGameSearch] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [rv, ph] = await Promise.all([
-        fetch(`/api/groups/${groupId}/reviews`),
-        fetch(`/api/groups/${groupId}/gallery-photos`),
-      ]);
-      const rd = await rv.json();
-      if (!rv.ok) throw new Error(rd.error || "Error al cargar la galería");
-      setReviews(rd.reviews);
-      const pd = await ph.json();
-      if (ph.ok) setPhotos(pd.photos);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId]);
+  // Al recargar (cuando cambia `reloadKey`) no se vuelve a «Cargando…»: se
+  // refresca en el sitio.
+  const load = useCallback(
+    () =>
+      Promise.all([
+        fetch(`/api/groups/${groupId}/reviews`).then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Error al cargar la galería");
+          return data;
+        }),
+        fetch(`/api/groups/${groupId}/gallery-photos`).then((res) => (res.ok ? res.json() : null)),
+      ])
+        .then(([rd, pd]) => {
+          setError("");
+          setReviews(rd.reviews);
+          if (pd) setPhotos(pd.photos);
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : "Error"))
+        .finally(() => setLoading(false)),
+    [groupId]
+  );
 
   useEffect(() => {
     load();

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggRating from "@/components/BggRating";
@@ -88,7 +88,6 @@ export default function AddGamesPage() {
   const [addedGameIds, setAddedGameIds] = useState<Set<number>>(new Set());
   const [selectedUsername, setSelectedUsername] = useState(initialUsername);
   const [loadingGroup, setLoadingGroup] = useState(true);
-  const [loadingCollection, setLoadingCollection] = useState(false);
   const [addingGame, setAddingGame] = useState<number | null>(null);
   const [error, setError] = useState("");
 
@@ -170,54 +169,70 @@ export default function AddGamesPage() {
   }, [groupId, initialUsername]);
 
   // Fetch collection (paginated)
+  // La página de colección que toca según usuario, orden, filtros y página.
+  const collectionUrl = useMemo(() => {
+    if (!selectedUsername) return null;
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(PAGE_SIZE),
+      sort,
+    });
+    if (sortDir) params.set("order", sortDir);
+    if (searchDebounced) params.set("search", searchDebounced);
+    if (minPlayers) params.set("minPlayers", minPlayers);
+    if (maxPlayers) params.set("maxPlayers", maxPlayers);
+    if (minWeight) params.set("minWeight", minWeight);
+    if (maxWeight) params.set("maxWeight", maxWeight);
+    if (maxRank) params.set("maxRank", maxRank);
+    if (unplayed) params.set("unplayed", "true");
+    else if (minPlays) params.set("minPlays", minPlays);
+    return `/api/bgg/collection/${encodeURIComponent(selectedUsername)}?${params}`;
+  }, [selectedUsername, page, sort, sortDir, searchDebounced, minPlayers, maxPlayers, minWeight, maxWeight, maxRank, minPlays, unplayed]);
+
+  // Está cargando mientras la página que toca no ha respondido todavía, o
+  // mientras se refresca a mano desde BGG. Las respuestas de una página que
+  // ya no toca (cambiaste de filtro a medias) se descartan.
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const loadingCollection = refreshing || (collectionUrl !== null && collectionUrl !== loadedUrl);
+  const wantedUrl = useRef<string | null>(null);
+
   const loadCollection = useCallback(
-    async (refresh = false) => {
-      if (!selectedUsername) return;
-      setLoadingCollection(true);
-      setError("");
-
-      try {
-        const params = new URLSearchParams({
-          page: String(page),
-          pageSize: String(PAGE_SIZE),
-          sort,
-        });
-        if (sortDir) params.set("order", sortDir);
-        if (refresh) params.set("refresh", "true");
-        if (searchDebounced) params.set("search", searchDebounced);
-        if (minPlayers) params.set("minPlayers", minPlayers);
-        if (maxPlayers) params.set("maxPlayers", maxPlayers);
-        if (minWeight) params.set("minWeight", minWeight);
-        if (maxWeight) params.set("maxWeight", maxWeight);
-        if (maxRank) params.set("maxRank", maxRank);
-        if (unplayed) params.set("unplayed", "true");
-        else if (minPlays) params.set("minPlays", minPlays);
-
-        const url = `/api/bgg/collection/${encodeURIComponent(selectedUsername)}?${params}`;
-        const res = await fetch(url, { credentials: "include" });
-
-        if (!res.ok) {
+    (url: string, refresh = false) =>
+      fetch(refresh ? `${url}&refresh=true` : url, { credentials: "include" })
+        .then(async (res) => {
           const data = await res.json();
-          throw new Error(data.error || "Error al cargar colección");
-        }
-
-        const data: PaginatedResponse = await res.json();
-        setItems(data.items);
-        setTotal(data.total);
-        setTotalPages(data.totalPages);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Error inesperado");
-      } finally {
-        setLoadingCollection(false);
-      }
-    },
-    [selectedUsername, page, sort, sortDir, searchDebounced, minPlayers, maxPlayers, minWeight, maxWeight, maxRank, minPlays, unplayed]
+          if (!res.ok) throw new Error(data.error || "Error al cargar colección");
+          return data as PaginatedResponse;
+        })
+        .then((data) => {
+          if (url !== wantedUrl.current) return;
+          setItems(data.items);
+          setTotal(data.total);
+          setTotalPages(data.totalPages);
+          setError("");
+        })
+        .catch((err: unknown) => {
+          if (url !== wantedUrl.current) return;
+          setError(err instanceof Error ? err.message : "Error inesperado");
+        })
+        .finally(() => {
+          if (url === wantedUrl.current) setLoadedUrl(url);
+        }),
+    []
   );
 
   // Re-fetch when params change
   useEffect(() => {
-    loadCollection();
-  }, [loadCollection]);
+    wantedUrl.current = collectionUrl;
+    if (collectionUrl) loadCollection(collectionUrl);
+  }, [collectionUrl, loadCollection]);
+
+  const refreshCollection = () => {
+    if (!collectionUrl) return;
+    setRefreshing(true);
+    loadCollection(collectionUrl, true).finally(() => setRefreshing(false));
+  };
 
   // Lanza una búsqueda en todo BGG (endpoint que anota qué miembros lo tienen).
   const searchAllBgg = useCallback(async () => {
@@ -411,7 +426,7 @@ export default function AddGamesPage() {
                       ))}
                     </select>
                     <button
-                      onClick={() => loadCollection(true)}
+                      onClick={refreshCollection}
                       disabled={loadingCollection}
                       title="Actualizar colección desde BGG"
                       className="px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] disabled:opacity-50 transition-all duration-200"

@@ -51,8 +51,8 @@ export default function AdminRoadmapPage() {
     setTimeout(() => setToast(""), 4000);
   }, []);
 
+  // Al recargar tras guardar no se vuelve a «Cargando…»: se refresca en el sitio.
   const load = useCallback(() => {
-    setLoading(true);
     fetch("/api/admin/features")
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data) => {

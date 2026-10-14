@@ -488,27 +488,38 @@ export function PodiumMock({ active }: { active: boolean }) {
 const REEL = [G.brass, G.root, G.arkNova, G.wyrmspan, G.viticulture, G.dune, G.arnak];
 const CONFETTI_COLORS = ["#f59e0b", "#fbbf24", "#34d399", "#60a5fa", "#c084fc", "#f87171"];
 
+/**
+ * Confeti de una tirada. Pseudoaleatorio a partir del número de tirada
+ * (mulberry32): cada tirada cae distinto, pero el render sigue siendo puro y
+ * servidor y navegador pintan lo mismo.
+ */
+function makeConfetti(seed: number) {
+  let s = (seed + 1) * 0x9e3779b9;
+  const rand = () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return Array.from({ length: 26 }, (_, i) => ({
+    left: rand() * 100,
+    size: 5 + rand() * 5,
+    delay: rand() * 0.3,
+    duration: 1.4 + rand() * 0.9,
+    drift: (rand() - 0.5) * 120,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    round: i % 3 === 0,
+  }));
+}
+
 export function PickMock({ active }: { active: boolean }) {
   const reduced = usePrefersReducedMotion();
   const [idx, setIdx] = useState(1);
   const [done, setDone] = useState(true);
   const [round, setRound] = useState(0);
 
-  const confetti = useMemo(
-    () =>
-      Array.from({ length: 26 }, (_, i) => ({
-        left: Math.random() * 100,
-        size: 5 + Math.random() * 5,
-        delay: Math.random() * 0.3,
-        duration: 1.4 + Math.random() * 0.9,
-        drift: (Math.random() - 0.5) * 120,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        round: i % 3 === 0,
-      })),
-    // Un confeti nuevo en cada tirada.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [round]
-  );
+  // Un confeti nuevo en cada tirada.
+  const confetti = useMemo(() => makeConfetti(round), [round]);
 
   useEffect(() => {
     if (!active || reduced) return;

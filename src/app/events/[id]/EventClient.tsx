@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -125,7 +125,8 @@ function EventDetailPageInner() {
     return tab && TABS.includes(tab) ? tab : "activity";
   });
   const [openReviewSignal, setOpenReviewSignal] = useState(0);
-  const reviewDeepLinkHandled = useRef(false);
+  // Para saber si el evento ya ha terminado. Se fija al abrir la página.
+  const [now] = useState(() => Date.now());
   const [addingGame, setAddingGame] = useState(false);
   const [joiningEvent, setJoiningEvent] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -164,13 +165,14 @@ function EventDetailPageInner() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const fetchEventFeed = useCallback(async (cursor?: string) => {
-    setFeedLoading(true);
-    try {
-      const url = `/api/events/${eventId}/feed?limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
+  // Quien pide más páginas o recarga marca antes `feedLoading`; la primera
+  // carga no hace falta, porque sin feed cargado ya se pinta como cargando.
+  const fetchEventFeed = useCallback((cursor?: string) => {
+    const url = `/api/events/${eventId}/feed?limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    return fetch(url)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
         if (cursor) {
           setFeedItems((prev) => {
             const seen = new Set(prev.map((i: { id: string }) => i.id));
@@ -184,29 +186,26 @@ function EventDetailPageInner() {
         }
         setFeedCursor(data.nextCursor);
         setFeedHasMore(!!data.nextCursor);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setFeedLoading(false);
         setFeedLoaded(true);
-      }
-    } finally {
-      setFeedLoading(false);
-    }
+      });
   }, [eventId]);
 
-  const fetchEvent = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/events/${eventId}`);
-      if (!res.ok) {
-        router.push("/events");
-        return;
-      }
-      const data = await res.json();
-      setEvent(data);
-      if (data.inviteCode) setInviteCode(data.inviteCode);
-    } catch {
-      router.push("/events");
-    } finally {
-      setLoading(false);
-    }
-  }, [eventId, router]);
+  const fetchEvent = useCallback(
+    () =>
+      fetch(`/api/events/${eventId}`)
+        .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+        .then((data) => {
+          setEvent(data);
+          if (data.inviteCode) setInviteCode(data.inviteCode);
+        })
+        .catch(() => router.push("/events"))
+        .finally(() => setLoading(false)),
+    [eventId, router]
+  );
 
   useEffect(() => {
     fetchEvent();
@@ -215,6 +214,12 @@ function EventDetailPageInner() {
   useEffect(() => {
     if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
   }, [activeTab, feedLoaded, fetchEventFeed]);
+
+  const loadMoreFeed = () => {
+    if (!feedCursor) return;
+    setFeedLoading(true);
+    fetchEventFeed(feedCursor);
+  };
 
   // "Armar mesa" (pestaña Asistentes): ids de asistente, en la URL para
   // poder pasar el enlace a quien se sienta contigo
@@ -239,8 +244,12 @@ function EventDetailPageInner() {
     setActiveTab(tab);
     setMesa(null);
     router.replace(`/events/${eventId}${tab !== "activity" ? `?tab=${tab}` : ""}`, { scroll: false });
-    if (tab === "activity") fetchEventFeed();
-  }, [router, eventId, fetchEventFeed]);
+    // La primera vez lo carga el efecto de arriba; aquí solo se refresca.
+    if (tab === "activity" && feedLoaded) {
+      setFeedLoading(true);
+      fetchEventFeed();
+    }
+  }, [router, eventId, feedLoaded, fetchEventFeed]);
 
   const toggleInvite = () => {
     setInviteOpen((open) => {
@@ -262,28 +271,26 @@ function EventDetailPageInner() {
   // Con info general y sin pestaña en el enlace, se entra por la info: es lo
   // primero que quiere ver quien llega (horarios, cómo llegar…). Sin info, la
   // pestaña solo existe para quien puede rellenarla.
-  const defaultTabResolved = useRef(false);
-  useEffect(() => {
-    if (!event || defaultTabResolved.current) return;
-    defaultTabResolved.current = true;
+  // Se decide una sola vez, en el render en que llega el evento.
+  const [defaultTabResolved, setDefaultTabResolved] = useState(false);
+  if (event && !defaultTabResolved) {
+    setDefaultTabResolved(true);
     const hasAbout = !!event.about?.trim();
     if (!searchParams.get("tab") && !searchParams.get("review") && hasAbout) {
       setActiveTab("info");
     } else if (searchParams.get("tab") === "info" && !hasAbout && !event.isAdmin) {
       setActiveTab("activity");
     }
-  }, [event, searchParams]);
+  }
 
   // Deep-link ?review=1 (desde el email de "valora el evento"): abre la galería
   // y hace scroll al formulario de valoración.
-  useEffect(() => {
-    if (reviewDeepLinkHandled.current || !event) return;
-    if (searchParams.get("review")) {
-      reviewDeepLinkHandled.current = true;
-      setActiveTab("gallery");
-      setOpenReviewSignal((n) => n + 1);
-    }
-  }, [event, searchParams]);
+  const [reviewDeepLinkHandled, setReviewDeepLinkHandled] = useState(false);
+  if (event && !reviewDeepLinkHandled && searchParams.get("review")) {
+    setReviewDeepLinkHandled(true);
+    setActiveTab("gallery");
+    setOpenReviewSignal((n) => n + 1);
+  }
 
   const openEditModal = () => {
     if (!event) return;
@@ -521,7 +528,7 @@ function EventDetailPageInner() {
   if (!event) return null;
 
   const isAttending = !!event.currentAttendeeId;
-  const eventIsOver = new Date(event.endDate ?? event.date).getTime() < Date.now();
+  const eventIsOver = new Date(event.endDate ?? event.date).getTime() < now;
 
   // Games the current user has rated (for My List tab)
   const myInterests = event.games
@@ -777,9 +784,9 @@ function EventDetailPageInner() {
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
             <ActivityFeed
               items={feedItems}
-              onLoadMore={() => feedCursor && fetchEventFeed(feedCursor)}
+              onLoadMore={loadMoreFeed}
               hasMore={feedHasMore}
-              loading={feedLoading}
+              loading={feedLoading || !feedLoaded}
             />
           </div>
         )}
