@@ -27,7 +27,7 @@ function isIos() {
   return /iPhone|iPad|iPod/.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1);
 }
 
-function isStandalone() {
+export function isStandalone() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
@@ -66,8 +66,11 @@ export async function getPushState(): Promise<PushState> {
   return sub && data.subscribed && Notification.permission === "granted" ? "on" : "off";
 }
 
+/** Desde dónde se activan los avisos (se apunta para medir qué convence). */
+export type PushSource = "settings" | "bell" | "launch" | "community" | "event" | "group";
+
 /** Pide permiso (tiene que venir de un clic) y apunta este dispositivo. */
-export async function enablePush(): Promise<PushState> {
+export async function enablePush(source?: PushSource): Promise<PushState> {
   const permission = await Notification.requestPermission();
   if (permission === "denied") return "denied";
   if (permission !== "granted") return "off";
@@ -91,7 +94,7 @@ export async function enablePush(): Promise<PushState> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(sub.toJSON()),
+    body: JSON.stringify({ ...sub.toJSON(), source }),
   });
   if (!saved.ok) {
     const data = await saved.json().catch(() => ({}));

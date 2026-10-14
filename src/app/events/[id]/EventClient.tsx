@@ -20,6 +20,7 @@ import { profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
 import FriendButton from "@/components/FriendButton";
 import { INTENSITY_LABELS, INTENSITY_COLORS } from "@/lib/intensity";
+import { nudgePush } from "@/lib/pushNudge";
 
 interface Game {
   id: string;
@@ -401,6 +402,7 @@ function EventDetailPageInner() {
       if (res.ok) {
         // Need full refresh to get attendeeId
         fetchEvent();
+        nudgePush("event");
       }
     } finally {
       setJoiningEvent(false);

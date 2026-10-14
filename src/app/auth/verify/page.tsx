@@ -6,6 +6,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
 import { safeRedirect } from "@/lib/safeRedirect";
+import { nudgePush } from "@/lib/pushNudge";
 
 function VerifyForm() {
   const router = useRouter();
@@ -81,6 +82,8 @@ function VerifyForm() {
       }
 
       const data = await res.json();
+      // En la app instalada, el mejor momento para ofrecer los avisos
+      nudgePush("launch");
 
       if (data.isNewUser) {
         const profileUrl = redirect ? `/profile?redirect=${encodeURIComponent(redirect)}` : "/profile";

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
+import { nudgePush } from "@/lib/pushNudge";
 
 export default function JoinEventPage() {
   const { code } = useParams<{ code: string }>();
@@ -71,6 +72,7 @@ export default function JoinEventPage() {
 
       setJoined(true);
       setEventId(data.eventId);
+      nudgePush("event");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {

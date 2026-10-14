@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { disablePush, enablePush, getPushState, type PushState } from "@/lib/pushClient";
+import { silenceNudges } from "@/lib/pushNudge";
 
 // «Avisarme en este dispositivo»: las notificaciones de la campana también
 // como push. Cada dispositivo se activa por separado, y el permiso solo se
@@ -25,7 +26,13 @@ export default function PushToggle() {
     setBusy(true);
     setError("");
     try {
-      setState(on ? await disablePush() : await enablePush());
+      if (on) {
+        setState(await disablePush());
+        // Apagados a mano: no volvemos a ofrecerlos por nuestra cuenta
+        silenceNudges();
+      } else {
+        setState(await enablePush("settings"));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se han podido cambiar los avisos");
       setTimeout(() => setError(""), 4000);

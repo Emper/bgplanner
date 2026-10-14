@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { pushSubscriptionSchema, pushUnsubscribeSchema } from "@/lib/validations";
 import { vapidPublicKey } from "@/lib/push";
+import { logActivity } from "@/lib/activity";
 
 // Como mucho estos dispositivos por persona; al pasarse se olvidan los que
 // llevan más tiempo sin recibir nada.
@@ -44,8 +45,10 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { endpoint, keys } = parsed.data;
+  const { endpoint, keys, source } = parsed.data;
   const userAgent = request.headers.get("user-agent")?.slice(0, 300) ?? null;
+  // Solo cuenta como activación si este dispositivo no estaba ya apuntado a ti
+  const known = await prisma.pushSubscription.count({ where: { endpoint, userId: session.userId } });
 
   await prisma.pushSubscription.upsert({
     where: { endpoint },
@@ -68,6 +71,8 @@ export async function POST(request: NextRequest) {
   if (stale.length > 0) {
     await prisma.pushSubscription.deleteMany({ where: { id: { in: stale.map((s) => s.id) } } });
   }
+
+  if (known === 0) logActivity("push_enabled", session.userId, { source: source ?? "settings" });
 
   return NextResponse.json({ subscribed: true });
 }

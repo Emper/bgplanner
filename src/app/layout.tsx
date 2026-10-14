@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import PushPrompt from "@/components/PushPrompt";
 import "./globals.css";
 
 // Las dos son fuentes variables: sin lista de pesos, Next descarga un único
@@ -92,6 +93,7 @@ export default function RootLayout({
       >
         {children}
         <ServiceWorkerRegister />
+        <PushPrompt />
         <Analytics />
       </body>
     </html>

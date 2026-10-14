@@ -313,6 +313,8 @@ export const pushSubscriptionSchema = z.object({
     p256dh: z.string().min(1, "Suscripción no válida").max(200, "Suscripción no válida"),
     auth: z.string().min(1, "Suscripción no válida").max(100, "Suscripción no válida"),
   }),
+  // Desde dónde se activó (para medir qué aviso convence más)
+  source: z.enum(["settings", "bell", "launch", "community", "event", "group"]).optional(),
 });
 
 export const pushUnsubscribeSchema = z.object({

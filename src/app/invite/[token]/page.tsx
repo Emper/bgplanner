@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
+import { nudgePush } from "@/lib/pushNudge";
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -92,6 +93,7 @@ export default function InvitePage() {
       }
 
       router.push(`/groups/${data.groupId}`);
+      nudgePush("group");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {

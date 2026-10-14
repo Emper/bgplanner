@@ -11,6 +11,16 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "15 octubre 2026",
+    version: "1.45",
+    title: "Que no se te escape ni una",
+    changes: [
+      { type: "new", text: "Después de publicar en la Comunidad, apuntarte a un evento o unirte a un grupo, te ofrecemos los avisos al móvil justo cuando más falta hacen" },
+      { type: "new", text: "Desde la campana puedes activar los avisos en este móvil con un solo toque" },
+      { type: "improved", text: "Al entrar en la app instalada te proponemos los avisos una vez, sin insistir: si dices «Ahora no», te dejamos en paz una temporada" },
+    ],
+  },
+  {
     date: "14 octubre 2026",
     version: "1.44",
     title: "BG Planner, en tu bolsillo",

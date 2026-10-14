@@ -12,6 +12,7 @@ import {
   type NotificationItemData,
   type NotificationsPage,
 } from "./NotificationList";
+import { enablePush, getPushState, type PushState } from "@/lib/pushClient";
 
 // Sin tiempo real: se mira al cargar la página, al volver a la pestaña y cada
 // minuto mientras está a la vista. De sobra para una app de quedar a jugar.
@@ -49,6 +50,10 @@ export default function NotificationBell() {
   // `position: fixed` de dentro (el fondo para cerrar no taparía la página).
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   const buttonRef = useRef<HTMLButtonElement>(null);
+  // Para la fila de «Recibir avisos en este móvil» al pie del panel
+  const [pushState, setPushState] = useState<PushState>("loading");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushJustOn, setPushJustOn] = useState(false);
 
   const refreshCount = useCallback(async () => {
     try {
@@ -108,6 +113,11 @@ export default function NotificationBell() {
     );
     setOpen(true);
     setLoading(true);
+    if (pushState === "loading" || pushState === "off") {
+      getPushState()
+        .then(setPushState)
+        .catch(() => setPushState("unavailable"));
+    }
     try {
       const res = await fetch(`/api/notifications?limit=${PANEL_LIMIT}`, { credentials: "include" });
       if (res.ok) {
@@ -128,6 +138,22 @@ export default function NotificationBell() {
       markNotificationsRead([item.id]);
     }
     router.push(item.href);
+  };
+
+  // Desde la campana se activa directamente: el clic ya es el gesto que pide
+  // el navegador para enseñar su diálogo de permiso.
+  const activatePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const next = await enablePush("bell");
+      setPushState(next);
+      setPushJustOn(next === "on");
+    } catch {
+      setPushState("off");
+    } finally {
+      setPushBusy(false);
+    }
   };
 
   const markAll = async () => {
@@ -202,6 +228,34 @@ export default function NotificationBell() {
                 items.map((item) => <NotificationItem key={item.id} item={item} onOpen={openItem} />)
               )}
             </div>
+            {pushState === "off" && (
+              <button
+                type="button"
+                onClick={activatePush}
+                disabled={pushBusy}
+                className="w-full flex items-center justify-center gap-2 text-xs font-medium py-2.5 border-t border-[var(--border)] text-[var(--primary)] hover:bg-[var(--accent-soft)] disabled:opacity-60 transition-colors"
+              >
+                <span aria-hidden>📲</span>
+                {pushBusy ? "Activando…" : `Recibir avisos en este ${isPhone() ? "móvil" : "dispositivo"}`}
+              </button>
+            )}
+            {pushState === "on" && pushJustOn && (
+              <p className="flex items-center justify-center gap-2 text-xs font-medium py-2.5 border-t border-[var(--border)] text-emerald-500">
+                <span aria-hidden>✅</span>
+                Listo: te avisaremos aquí aunque cierres la app
+              </p>
+            )}
+            {pushState === "needs-install" && (
+              <Link
+                href="/notifications"
+                prefetch={false}
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center gap-2 text-xs font-medium py-2.5 border-t border-[var(--border)] text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-colors"
+              >
+                <span aria-hidden>📲</span>
+                Recibir avisos en este móvil
+              </Link>
+            )}
             <Link
               href="/notifications"
               prefetch={false}
@@ -216,4 +270,8 @@ export default function NotificationBell() {
       )}
     </div>
   );
+}
+
+function isPhone() {
+  return window.matchMedia("(pointer: coarse)").matches;
 }

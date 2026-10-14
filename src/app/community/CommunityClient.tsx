@@ -16,6 +16,7 @@ import {
   type CommunityTag,
 } from "@/lib/community";
 import { formatRelativeTime } from "@/lib/format";
+import { nudgePush } from "@/lib/pushNudge";
 
 interface ThreadItem {
   id: string;
@@ -181,6 +182,7 @@ export default function CommunityClient({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "No se pudo publicar");
       router.push(`/community/${data.id}`);
+      nudgePush("community-thread");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudo publicar");
       setSending(false);

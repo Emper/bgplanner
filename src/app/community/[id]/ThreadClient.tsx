@@ -15,6 +15,7 @@ import {
   type CommunityTag,
 } from "@/lib/community";
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
+import { nudgePush } from "@/lib/pushNudge";
 
 interface Thread {
   id: string;
@@ -206,6 +207,7 @@ export default function ThreadClient({
       if (!res.ok) throw new Error(data.error || "No se pudo publicar");
       setReplies((prev) => [...prev, data.reply]);
       setReplyText("");
+      nudgePush("community-reply");
       // Deja la respuesta recién publicada a la vista.
       requestAnimationFrame(() =>
         document.getElementById(`reply-${data.reply.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
