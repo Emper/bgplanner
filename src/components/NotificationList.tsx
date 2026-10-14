@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Avatar from "./Avatar";
+import { syncAppBadge } from "@/lib/pushClient";
 
 // Piezas compartidas por la campana del navbar y la página /notifications.
 
@@ -29,6 +30,7 @@ export const NOTIFICATIONS_EVENT = "bgp:notifications";
 
 export function announceUnread(unread: number) {
   window.dispatchEvent(new CustomEvent(NOTIFICATIONS_EVENT, { detail: { unread } }));
+  syncAppBadge(unread);
 }
 
 export async function markNotificationsRead(ids?: string[]): Promise<number | null> {

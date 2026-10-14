@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
-import { notify } from "@/lib/notifications";
+import { inBackground, notify, notifyNow } from "@/lib/notifications";
 import { replySchema } from "@/lib/validations";
 import {
   AUTHOR_SELECT,
@@ -88,19 +88,17 @@ function notifyThreadReply(opts: {
     metadata,
   });
 
-  prisma.communityReply
-    .findMany({
+  inBackground(async () => {
+    const rows = await prisma.communityReply.findMany({
       where: { threadId: opts.threadId, deletedAt: null },
       select: { authorId: true },
       distinct: ["authorId"],
-    })
-    .then((rows) =>
-      notify({
-        type: "community_participant_reply",
-        userIds: rows.map((r) => r.authorId).filter((uid) => uid !== opts.threadAuthorId),
-        actorId: opts.actorId,
-        metadata,
-      })
-    )
-    .catch(() => {});
+    });
+    await notifyNow({
+      type: "community_participant_reply",
+      userIds: rows.map((r) => r.authorId).filter((uid) => uid !== opts.threadAuthorId),
+      actorId: opts.actorId,
+      metadata,
+    });
+  });
 }

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sin conexión · BG Planner</title>
+  <meta name="theme-color" content="#151118" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <script>
+    // El mismo tema que hayas elegido en la app (ver themeScript en layout.tsx)
+    try {
+      var t = localStorage.getItem("theme");
+      if (t === "dark" || t === "light") document.documentElement.classList.add(t);
+    } catch (e) {}
+  </script>
+  <style>
+    :root {
+      --bg: #faf8f5; --surface: #ffffff; --border: #e8e0d8;
+      --text: #1a1612; --muted: #5c534a; --primary: #c87a1a; --primary-text: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not(.light) {
+        --bg: #151118; --surface: #23202b; --border: #3a3548;
+        --text: #f0ece8; --muted: #a09890; --primary: #e8a840; --primary-text: #151118;
+      }
+    }
+    :root.dark {
+      --bg: #151118; --surface: #23202b; --border: #3a3548;
+      --text: #f0ece8; --muted: #a09890; --primary: #e8a840; --primary-text: #151118;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+               max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .card {
+      max-width: 380px; width: 100%; text-align: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px 24px;
+    }
+    .dice { font-size: 48px; line-height: 1; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { color: var(--muted); font-size: 15px; line-height: 1.5; margin: 0 0 24px; }
+    button {
+      font: inherit; font-weight: 600; font-size: 15px; cursor: pointer;
+      background: var(--primary); color: var(--primary-text);
+      border: 0; border-radius: 12px; padding: 12px 20px; width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="dice" aria-hidden="true">🎲</div>
+    <h1>Te has quedado sin conexión</h1>
+    <p>Parece que la mesa se ha quedado sin wifi. En cuanto vuelva la red, seguimos donde lo dejaste.</p>
+    <button type="button" onclick="location.reload()">Reintentar</button>
+  </main>
+  <script>
+    window.addEventListener("online", function () { location.reload(); });
+  </script>
+</body>
+</html>

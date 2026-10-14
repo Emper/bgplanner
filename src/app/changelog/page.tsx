@@ -12,6 +12,18 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "14 octubre 2026",
+    version: "1.44",
+    title: "BG Planner, en tu bolsillo",
+    changes: [
+      { type: "new", text: "Instala BG Planner en el móvil como una app más: desde el navegador, «Añadir a pantalla de inicio», y se abre a pantalla completa con su propio icono" },
+      { type: "new", text: "Avisos al móvil: activa «Avisarme en este dispositivo» en Notificaciones y te enterarás de convocatorias, respuestas en la Comunidad o juegos nuevos en tus eventos aunque tengas la app cerrada" },
+      { type: "new", text: "El icono de la app instalada lleva el número de avisos que tienes sin leer" },
+      { type: "improved", text: "Si te quedas sin cobertura, en vez de una página rota verás un aviso para volver a intentarlo" },
+      { type: "improved", text: "En móviles con notch o barra de inicio, nada queda tapado por los bordes de la pantalla" },
+    ],
+  },
+  {
+    date: "14 octubre 2026",
     version: "1.43",
     title: "La Comunidad, por toda la casa",
     changes: [

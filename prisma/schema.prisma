@@ -56,6 +56,7 @@ model User {
   sentNotifications Notification[] @relation("NotificationActor")
   communityThreads  CommunityThread[]
   communityReplies  CommunityReply[]
+  pushSubscriptions PushSubscription[]
 }
 
 model OtpCode {
@@ -680,6 +681,25 @@ model Notification {
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@index([createdAt])
+}
+
+// Un dispositivo (navegador o PWA instalada) que ha pedido recibir las
+// notificaciones como push. `endpoint` lo da el servicio de push del
+// navegador (FCM, Apple, Mozilla…) y es único por dispositivo; si en ese
+// dispositivo entra otra cuenta, la suscripción pasa a ser suya.
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Hilo del foro público (/community): título + primer mensaje, con una

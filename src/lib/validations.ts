@@ -279,3 +279,42 @@ export const friendAddSchema = z.object({
 export const notificationsReadSchema = z.object({
   ids: z.array(z.string().min(1).max(64)).max(100, "Demasiadas notificaciones").optional(),
 });
+
+// Solo endpoints de los servicios de push de los navegadores: el servidor
+// hace POST a esta URL, así que no puede ser una cualquiera (SSRF).
+const PUSH_HOST_SUFFIXES = [
+  ".googleapis.com", // Chrome, Edge Android, Samsung, Opera (FCM)
+  ".push.apple.com", // Safari e iOS
+  ".mozilla.com", // Firefox
+  ".notify.windows.com", // Edge en Windows
+];
+
+function isPushServiceUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      PUSH_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))
+    );
+  } catch {
+    return false;
+  }
+}
+
+export const pushSubscriptionSchema = z.object({
+  endpoint: z
+    .string()
+    .max(1000, "Suscripción no válida")
+    .refine(isPushServiceUrl, "Este navegador usa un servicio de avisos que no admitimos"),
+  keys: z.object({
+    p256dh: z.string().min(1, "Suscripción no válida").max(200, "Suscripción no válida"),
+    auth: z.string().min(1, "Suscripción no válida").max(100, "Suscripción no válida"),
+  }),
+});
+
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().min(1, "Falta la suscripción").max(1000, "Suscripción no válida"),
+});

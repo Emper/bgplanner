@@ -8,6 +8,7 @@ import AnimatedLogo from "./AnimatedLogo";
 import NotificationBell from "./NotificationBell";
 import { useTheme } from "@/lib/theme";
 import { useNavUser, clearNavUser } from "@/lib/navUser";
+import { disablePush } from "@/lib/pushClient";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -75,6 +76,9 @@ export default function Navbar() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      // Antes de cerrar la sesión, que hace falta para desapuntar el
+      // dispositivo: si no, seguirían llegando los avisos de esta cuenta.
+      await disablePush().catch(() => {});
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
       clearNavUser();
       // "/" pinta tu inicio o la portada según haya sesión: que no se quede
@@ -233,7 +237,7 @@ export default function Navbar() {
         >
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
-            className="absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col"
+            className="absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col pb-[env(safe-area-inset-bottom)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">

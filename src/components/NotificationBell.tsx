@@ -73,10 +73,16 @@ export default function NotificationBell() {
       if (typeof detail?.unread === "number") setUnread(detail.unread);
     };
     window.addEventListener(NOTIFICATIONS_EVENT, onChange);
+    // Un push que llega con la app abierta (lo reenvía public/sw.js)
+    const onPush = (e: MessageEvent) => {
+      if (e.data?.type === "bgp:push" && typeof e.data.unread === "number") setUnread(e.data.unread);
+    };
+    navigator.serviceWorker?.addEventListener("message", onPush);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", tick);
       window.removeEventListener(NOTIFICATIONS_EVENT, onChange);
+      navigator.serviceWorker?.removeEventListener("message", onPush);
     };
   }, [refreshCount]);
 

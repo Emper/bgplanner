@@ -82,6 +82,29 @@ body {
     "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+/* ── Safe areas (notch, isla, barra de inicio) ─────────────────────
+   Con viewport-fit=cover la página llega hasta los bordes del móvil; esto
+   aparta lo importante de ellos. Fuera de un móvil con notch todo vale 0 y
+   no cambia nada. Van sin @layer para ganar a las utilidades de Tailwind. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Los avisos flotantes de abajo, por encima de la barra de inicio de iOS */
+.fixed.bottom-6 {
+  bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+.fixed.bottom-4 {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+/* Los modales (fixed inset-0 … p-4) no se meten bajo el notch ni la barra */
+.fixed.inset-0.p-4 {
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
+
 /* ── Display headings ─────────────────────────────────────────── */
 h1, h2, h3 {
   font-family: var(--font-display), system-ui, "Apple Color Emoji",

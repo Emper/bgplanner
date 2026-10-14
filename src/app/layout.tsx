@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 // Las dos son fuentes variables: sin lista de pesos, Next descarga un único
@@ -43,10 +44,21 @@ export const metadata: Metadata = {
     locale: "es_ES",
     type: "website",
   },
+  // Instalada en la pantalla de inicio de iOS: a pantalla completa. La barra
+  // de estado va aparte (no encima de la cabecera) y toma el theme-color.
+  appleWebApp: {
+    capable: true,
+    title: "BG Planner",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
 };
 
-// El color de la barra del navegador en móvil, a juego con el fondo
+// El color de la barra del navegador en móvil, a juego con el fondo.
+// `viewport-fit=cover` deja pintar bajo el notch; las safe areas de
+// globals.css se encargan de que nada importante quede debajo.
 export const viewport: Viewport = {
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#faf8f5" },
     { media: "(prefers-color-scheme: dark)", color: "#151118" },
@@ -79,6 +91,7 @@ export default function RootLayout({
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
         {children}
+        <ServiceWorkerRegister />
         <Analytics />
       </body>
     </html>

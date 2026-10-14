@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { prisma } from "./prisma";
 import { profileHref } from "./users";
+import { deliverPush, type PushPayload } from "./push";
 
 // Notificaciones dentro de la web: lo que le pasa a alguien y no merece un
 // email. Se crean con `notify` (fire-and-forget, como logActivity) y se
@@ -34,6 +36,11 @@ const THREAD_MERGEABLE = new Set<NotificationType>([
   "community_participant_reply",
 ]);
 
+// Un aviso fundido vuelve a sonar en el móvil solo si el anterior push del
+// mismo aviso tiene ya este tiempo: diez respuestas seguidas en un hilo son
+// un push, no diez. Entre medias se actualiza en la campana sin hacer ruido.
+const PUSH_MERGE_COOLDOWN_MS = 15 * 60 * 1000;
+
 // Las de más de esto se borran en el cron diario.
 export const NOTIFICATION_TTL_DAYS = 90;
 
@@ -49,7 +56,11 @@ interface NotifyInput {
   metadata?: Meta;
 }
 
-async function createOrMerge(userId: string, input: NotifyInput) {
+/** La notificación creada o actualizada, y si merece push. */
+async function createOrMerge(
+  userId: string,
+  input: NotifyInput
+): Promise<{ id: string; push: boolean }> {
   const base = {
     userId,
     actorId: input.actorId ?? null,
@@ -68,7 +79,7 @@ async function createOrMerge(userId: string, input: NotifyInput) {
         metadata: { path: ["threadId"], equals: metadata.threadId },
       },
       orderBy: { createdAt: "desc" },
-      select: { id: true, metadata: true },
+      select: { id: true, metadata: true, createdAt: true },
     });
     const actorId = input.actorId ?? null;
     if (previous) {
@@ -89,7 +100,7 @@ async function createOrMerge(userId: string, input: NotifyInput) {
           createdAt: new Date(),
         },
       });
-      return;
+      return { id: previous.id, push: pushAgain(previous.createdAt) };
     }
     metadata = { ...metadata, actorIds: actorId ? [actorId] : [], replies: 1 };
   }
@@ -102,7 +113,7 @@ async function createOrMerge(userId: string, input: NotifyInput) {
         createdAt: { gte: new Date(Date.now() - MERGE_WINDOW_MS) },
       },
       orderBy: { createdAt: "desc" },
-      select: { id: true, metadata: true },
+      select: { id: true, metadata: true, createdAt: true },
     });
     if (previous) {
       const prev = (previous.metadata ?? {}) as Meta;
@@ -124,23 +135,71 @@ async function createOrMerge(userId: string, input: NotifyInput) {
           createdAt: new Date(),
         },
       });
-      return;
+      return { id: previous.id, push: pushAgain(previous.createdAt) };
     }
   }
 
-  await prisma.notification.create({ data: { ...base, metadata: metadata as object } });
+  const created = await prisma.notification.create({
+    data: { ...base, metadata: metadata as object },
+    select: { id: true },
+  });
+  return { id: created.id, push: true };
+}
+
+// `createdAt` de un aviso fundido es la última vez que se actualizó (y sonó).
+function pushAgain(lastUpdate: Date) {
+  return Date.now() - lastUpdate.getTime() >= PUSH_MERGE_COOLDOWN_MS;
+}
+
+/** El aviso tal cual sale en la campana, en forma de push. */
+async function pushPayload(notificationId: string, userId: string): Promise<PushPayload> {
+  const [row, unread] = await Promise.all([
+    prisma.notification.findUnique({ where: { id: notificationId }, select: NOTIFICATION_SELECT }),
+    prisma.notification.count({ where: { userId, readAt: null } }),
+  ]);
+  if (!row) return { title: "BG Planner", body: "Tienes una novedad", url: "/notifications", unread };
+  const n = presentNotification(row);
+  const text = n.parts.map((p) => p.text).join("");
+  return {
+    // Arriba, dónde ha pasado; debajo, qué ha pasado
+    title: row.group?.name ?? row.event?.name ?? (n.type.startsWith("community_") ? "Comunidad" : "BG Planner"),
+    body: `${n.emoji} ${text}`,
+    url: n.href,
+    tag: notificationId,
+    unread,
+  };
 }
 
 /** Avisa y espera a que quede guardado (para el cron, que no puede soltarlo). */
 export async function notifyNow(input: NotifyInput): Promise<number> {
   const recipients = [...new Set(input.userIds)].filter((id) => id && id !== input.actorId);
-  await Promise.all(recipients.map((userId) => createOrMerge(userId, input)));
+  await Promise.all(
+    recipients.map(async (userId) => {
+      const { id, push } = await createOrMerge(userId, input);
+      if (push) await deliverPush(userId, () => pushPayload(id, userId));
+    })
+  );
   return recipients.length;
 }
 
-/** Avisa a cada destinatario. Nunca bloquea ni hace fallar la respuesta. */
+/**
+ * Avisa a cada destinatario. Nunca bloquea ni hace fallar la respuesta: se
+ * hace con `after`, que deja terminar el trabajo después de responder (sin
+ * él, en Vercel la función se congela al responder y el push podía perderse).
+ */
 export function notify(input: NotifyInput) {
-  notifyNow(input).catch(() => {});
+  inBackground(() => notifyNow(input));
+}
+
+/** Trabajo para después de responder (avisos que necesitan consultas antes). */
+export function inBackground(task: () => Promise<unknown>) {
+  const run = () => task().catch(() => {});
+  try {
+    after(run);
+  } catch {
+    // Fuera de una petición (scripts): a la antigua
+    void run();
+  }
 }
 
 // ── Presentación ────────────────────────────────────────────────────────────
@@ -346,9 +405,10 @@ export function notifyManagers(
   scope: { groupId: string } | { eventId: string },
   input: Omit<NotifyInput, "userIds" | "groupId" | "eventId">
 ) {
-  const lookup =
-    "groupId" in scope ? groupManagerIds(scope.groupId) : eventManagerIds(scope.eventId);
-  lookup
-    .then((userIds) => notify({ ...input, ...scope, userIds }))
-    .catch(() => {});
+  inBackground(async () => {
+    const userIds = await ("groupId" in scope
+      ? groupManagerIds(scope.groupId)
+      : eventManagerIds(scope.eventId));
+    await notifyNow({ ...input, ...scope, userIds });
+  });
 }

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
+import PushToggle from "@/components/PushToggle";
 import {
   NotificationItem,
   NotificationsEmpty,
@@ -102,6 +103,8 @@ export default function NotificationsPageView() {
               </button>
             )}
           </div>
+
+          <PushToggle />
 
           {loading && <PageLoader withNavbar />}
           {error && <p className="text-sm text-red-400">{error}</p>}
