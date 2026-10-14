@@ -12,7 +12,7 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "15 octubre 2026",
-    version: "1.46",
+    version: "1.47",
     title: "Tus datos, en tus manos",
     changes: [
       { type: "new", text: "Puedes borrar tu cuenta desde tu perfil: antes de confirmar te enseñamos qué se va y qué se queda" },
