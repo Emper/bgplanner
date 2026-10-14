@@ -5,49 +5,17 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { threadCreateSchema } from "@/lib/validations";
 import { THREADS_PAGE_SIZE, isCommunityTag } from "@/lib/community";
-import { AUTHOR_SELECT, countRecentThreads, publicAuthor } from "@/lib/communityServer";
-import { truncateChars } from "@/lib/text";
+import {
+  THREAD_LIST_SELECT as LIST_SELECT,
+  countRecentThreads,
+  getLatestThreads,
+  toThreadListItem as toListItem,
+  type ThreadListRow as ListRow,
+} from "@/lib/communityServer";
 
 const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 
-const EXCERPT_CHARS = 220;
 const MAX_THREADS_PER_HOUR = 5;
-
-const LIST_SELECT = {
-  id: true,
-  title: true,
-  body: true,
-  tag: true,
-  pinned: true,
-  createdAt: true,
-  lastActivityAt: true,
-  author: { select: AUTHOR_SELECT },
-  _count: { select: { replies: { where: { deletedAt: null } } } },
-  replies: {
-    where: { deletedAt: null },
-    orderBy: { createdAt: "desc" },
-    take: 1,
-    select: { createdAt: true, author: { select: AUTHOR_SELECT } },
-  },
-} satisfies Prisma.CommunityThreadSelect;
-
-type ListRow = Prisma.CommunityThreadGetPayload<{ select: typeof LIST_SELECT }>;
-
-function toListItem(t: ListRow) {
-  const last = t.replies[0];
-  return {
-    id: t.id,
-    title: t.title,
-    excerpt: truncateChars(t.body.replace(/\s+/g, " ").trim(), EXCERPT_CHARS),
-    tag: t.tag,
-    pinned: t.pinned,
-    createdAt: t.createdAt,
-    lastActivityAt: t.lastActivityAt,
-    author: publicAuthor(t.author),
-    replyCount: t._count.replies,
-    lastReply: last ? { createdAt: last.createdAt, author: publicAuthor(last.author) } : null,
-  };
-}
 
 // El cursor es "<lastActivityAt ISO>_<id>": la fecha sola puede repetirse.
 function parseCursor(raw: string | null) {
@@ -66,6 +34,13 @@ function parseCursor(raw: string | null) {
 export async function GET(request: NextRequest) {
   const session = await getSession(request);
   const params = request.nextUrl.searchParams;
+
+  // ?limit=N: solo los N hilos con movimiento más reciente, para el inicio.
+  const limitParam = Number(params.get("limit"));
+  if (Number.isInteger(limitParam) && limitParam > 0) {
+    const threads = await getLatestThreads(Math.min(limitParam, THREADS_PAGE_SIZE));
+    return NextResponse.json({ isLoggedIn: !!session, threads }, NO_STORE);
+  }
   const tagParam = params.get("tag");
   const tag = isCommunityTag(tagParam) ? tagParam : null;
   const q = (params.get("q") || "").trim().slice(0, 100);

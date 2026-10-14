@@ -4,6 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
+import Avatar from "@/components/Avatar";
+import { TagChip } from "@/components/CommunityBits";
+import { COMMUNITY_TAGS } from "@/lib/community";
 import Footer from "@/components/Footer";
 import { useTheme } from "@/lib/theme";
 import { MARQUEE_BOTTOM, MARQUEE_TOP, DEMO_GAMES, type DemoGame } from "./games";
@@ -41,12 +44,24 @@ export interface LandingEvent {
   imageUrl: string | null;
 }
 
+export interface LandingThread {
+  id: string;
+  title: string;
+  tag: string;
+  authorName: string;
+  authorAvatar: string | null;
+  replyCount: number;
+  /** "hace 12 min", ya formateado en el servidor */
+  when: string;
+}
+
 // ── Navegación ──────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
   { href: "#grupos", label: "Grupos" },
   { href: "#coleccion", label: "Colección" },
   { href: "#eventos", label: "Eventos" },
+  { href: "#comunidad", label: "Comunidad" },
   { href: "#mas", label: "Y más" },
 ];
 
@@ -709,6 +724,128 @@ function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHre
   );
 }
 
+// ── Comunidad ───────────────────────────────────────────────────────────
+
+// Mientras haya poco movimiento real, el escaparate enseña conversaciones de
+// muestra: tres hilos sueltos no venden un foro.
+const MIN_REAL_THREADS = 3;
+
+const SAMPLE_THREADS: LandingThread[] = [
+  { id: "s1", tag: "buscar-partida", title: "Buscamos cuarto para Brass: Birmingham el sábado en Lavapiés", authorName: "Marta", authorAvatar: null, replyCount: 7, when: "hace 12 min" },
+  { id: "s2", tag: "reglas", title: "¿El puerto de Catán se puede usar dos veces en el mismo turno?", authorName: "Iker", authorAvatar: null, replyCount: 3, when: "hace 1 h" },
+  { id: "s3", tag: "cronicas", title: "Crónica: nuestra campaña de Gloomhaven terminó en drama (y en pizza)", authorName: "Dani", authorAvatar: null, replyCount: 12, when: "ayer" },
+  { id: "s4", tag: "opiniones", title: "¿Wyrmspan aporta algo si ya tienes Wingspan?", authorName: "Sofía", authorAvatar: null, replyCount: 9, when: "hace 2 días" },
+];
+
+function ThreadRow({ thread, href }: { thread: LandingThread; href?: string }) {
+  const body = (
+    <>
+      <div className="min-w-0 flex-1">
+        <TagChip tag={thread.tag} />
+        <div className="mt-1.5 font-semibold text-sm leading-snug text-[var(--text)] line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
+          {thread.title}
+        </div>
+        <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+          <Avatar name={thread.authorName} avatarUrl={thread.authorAvatar} size="xs" />
+          <span className="font-medium text-[var(--text-secondary)] truncate">{thread.authorName}</span>
+          <span>· {thread.when}</span>
+        </div>
+      </div>
+      <span className="shrink-0 self-center flex flex-col items-center w-10 rounded-lg py-1 border border-[var(--primary)]/30 bg-[var(--accent-soft)] text-[var(--primary)]">
+        <span className="text-xs" aria-hidden>💬</span>
+        <span className="text-xs font-bold tabular-nums">{thread.replyCount}</span>
+      </span>
+    </>
+  );
+  const cls = "group flex gap-3 px-4 py-3.5 border-b border-[var(--border)] last:border-b-0";
+  return href ? (
+    <Link href={href} className={`${cls} hover:bg-[var(--surface-hover)] transition-colors`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+function CommunitySection({ threads }: { threads: LandingThread[] }) {
+  const real = threads.length >= MIN_REAL_THREADS;
+  const shown = real ? threads : SAMPLE_THREADS;
+  return (
+    <section id="comunidad" className="relative px-4 py-20 sm:py-28 scroll-mt-16 overflow-hidden">
+      <div className="absolute top-1/4 -right-40 w-[500px] h-[500px] bg-[var(--glow)] rounded-full blur-[120px] pointer-events-none" />
+      <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1fr_1.05fr] gap-12 lg:gap-16 items-center">
+        <div>
+          <Reveal>
+            <div className="flex items-center gap-2">
+              <Kicker>💬 Comunidad</Kicker>
+              <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--primary)] text-[var(--primary-text)]">
+                Nuevo
+              </span>
+            </div>
+            <h2 className="mt-5 text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+              Una mesa más grande
+              <br />
+              que tu grupo
+            </h2>
+            <p className="mt-4 text-lg text-[var(--text-secondary)] leading-relaxed">
+              El foro de toda la vida, pero de juegos de mesa: busca gente cuando os falta uno, cuenta esa partida que
+              acabó a gritos o pregunta la regla que nadie en tu mesa recuerda.
+            </p>
+          </Reveal>
+          <Reveal delay={120}>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {COMMUNITY_TAGS.map((t) => (
+                <span
+                  key={t.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium"
+                  style={{ color: t.accent, borderColor: `${t.accent}55`, backgroundColor: `${t.accent}14` }}
+                >
+                  <span aria-hidden>{t.emoji}</span>
+                  {t.label}
+                </span>
+              ))}
+            </div>
+            <ul className="mt-6 space-y-2.5">
+              <Check>Se lee sin cuenta; para escribir, entras con tu email en un momento</Check>
+              <Check>Los hilos con respuestas nuevas suben solos arriba</Check>
+              <Check>Te avisamos en la campana cuando alguien te responde</Check>
+            </ul>
+            <Link
+              href="/community"
+              className="group mt-8 inline-flex items-center gap-2 font-semibold text-[var(--primary)] hover:text-[var(--primary-hover)]"
+            >
+              Echa un vistazo a la Comunidad
+              <Arrow className="w-4 h-4" />
+            </Link>
+          </Reveal>
+        </div>
+
+        <Reveal variant="right" className="relative">
+          <AppWindow path="/community">
+            <div>
+              {shown.map((t) => (
+                <ThreadRow key={t.id} thread={t} href={real ? `/community/${t.id}` : undefined} />
+              ))}
+            </div>
+          </AppWindow>
+          <div className="hidden sm:block absolute -bottom-6 -left-6 animate-float">
+            <div className="flex items-center gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.35)] px-3 py-2.5">
+              <span className="relative text-lg" aria-hidden>
+                🔔
+                <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center">1</span>
+              </span>
+              <div className="text-xs leading-snug">
+                <div className="font-semibold text-[var(--text)]">Iker ha respondido a tu hilo</div>
+                <div className="text-[var(--text-muted)]">«¡Yo me apunto el sábado!»</div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 // ── Y además ────────────────────────────────────────────────────────────
 
 const EXTRAS: { title: string; text: string; mini: ReactNode }[] = [
@@ -895,7 +1032,15 @@ function FinalCta({ loginHref }: { loginHref: string }) {
 
 // ── Página ──────────────────────────────────────────────────────────────
 
-export default function Landing({ events, loginHref }: { events: LandingEvent[]; loginHref: string }) {
+export default function Landing({
+  events,
+  threads,
+  loginHref,
+}: {
+  events: LandingEvent[];
+  threads: LandingThread[];
+  loginHref: string;
+}) {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <ScrollProgress />
@@ -906,6 +1051,7 @@ export default function Landing({ events, loginHref }: { events: LandingEvent[];
         <GroupsStory />
         <CollectionSection />
         <EventsSection events={events} loginHref={loginHref} />
+        <CommunitySection threads={threads} />
         <ExtrasSection />
         <StepsSection />
         <FinalCta loginHref={loginHref} />

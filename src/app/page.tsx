@@ -4,7 +4,9 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUpcomingPublicEvents } from "@/lib/publicLinks";
 import { safeRedirect } from "@/lib/safeRedirect";
-import Landing, { type LandingEvent } from "@/components/landing/Landing";
+import Landing, { type LandingEvent, type LandingThread } from "@/components/landing/Landing";
+import { getLatestThreads, type ThreadListItem } from "@/lib/communityServer";
+import { formatRelativeTime } from "@/lib/format";
 import HomeDashboard from "@/components/HomeDashboard";
 
 // Con sesión, tu inicio (grupos, eventos, amigos y actividad); sin ella, la
@@ -85,6 +87,18 @@ function toLandingEvent(e: Awaited<ReturnType<typeof getUpcomingPublicEvents>>[n
   };
 }
 
+function toLandingThread(t: ThreadListItem): LandingThread {
+  return {
+    id: t.id,
+    title: t.title,
+    tag: t.tag,
+    authorName: t.author.name,
+    authorAvatar: t.author.avatarUrl,
+    replyCount: t.replyCount,
+    when: formatRelativeTime(t.lastActivityAt),
+  };
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -106,7 +120,10 @@ export default async function Home({
     }
   }
 
-  const events = await getUpcomingPublicEvents(3).catch(() => []);
+  const [events, threads] = await Promise.all([
+    getUpcomingPublicEvents(3).catch(() => []),
+    getLatestThreads(4).catch(() => []),
+  ]);
   const loginHref = target ? `/login?redirect=${encodeURIComponent(target)}` : "/login";
 
   return (
@@ -117,7 +134,11 @@ export default async function Home({
           __html: JSON.stringify(SITE_JSON_LD).replace(/</g, "\\u003c"),
         }}
       />
-      <Landing events={events.map(toLandingEvent)} loginHref={loginHref} />
+      <Landing
+        events={events.map(toLandingEvent)}
+        threads={threads.map(toLandingThread)}
+        loginHref={loginHref}
+      />
     </>
   );
 }

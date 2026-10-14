@@ -12,6 +12,18 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "14 octubre 2026",
+    version: "1.43",
+    title: "La Comunidad, por toda la casa",
+    changes: [
+      { type: "new", text: "Tu inicio enseña lo último que se habla en la Comunidad, con acceso directo para abrir un hilo" },
+      { type: "new", text: "Nueva insignia para tu perfil por participar en la Comunidad: de «Rompehielos» a «Voz de la Comunidad»" },
+      { type: "new", text: "Si organizas un evento abierto, anúncialo en la Comunidad con un clic: el hilo para buscar jugadores sale ya escrito, con la fecha, el sitio y el enlace" },
+      { type: "improved", text: "La portada presenta la Comunidad con las conversaciones más recientes" },
+      { type: "improved", text: "Las conversaciones de la Comunidad se pueden encontrar desde Google" },
+    ],
+  },
+  {
+    date: "14 octubre 2026",
     version: "1.42",
     title: "Abrimos la Comunidad",
     changes: [

@@ -29,7 +29,11 @@ export function TagChip({ tag, className = "" }: { tag: string; className?: stri
   );
 }
 
-/** Avatar + nombre enlazando al perfil público. */
+/**
+ * Avatar + nombre enlazando al perfil público. Con `nofollow`: la Comunidad
+ * es indexable y no queremos que sea la puerta de los buscadores a los
+ * perfiles (ver el punto 5 de BACKLOG.md).
+ */
 export function AuthorLink({
   author,
   size = "xs",
@@ -44,6 +48,7 @@ export function AuthorLink({
   return (
     <Link
       href={profileHref(author)}
+      rel="nofollow"
       className={`inline-flex items-center gap-2 min-w-0 font-medium text-[var(--text)] hover:text-[var(--primary)] transition-colors ${className}`}
     >
       <Avatar name={author.name} avatarUrl={author.avatarUrl} size={size} className={avatarClassName} />

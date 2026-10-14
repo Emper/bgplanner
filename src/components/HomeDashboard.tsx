@@ -14,6 +14,8 @@ import { getGroupType } from "@/lib/groupTypes";
 import { useFriends } from "@/lib/friends";
 import { profileHref } from "@/lib/users";
 import { useNavUser } from "@/lib/navUser";
+import { TagChip, type CommunityAuthor } from "@/components/CommunityBits";
+import { formatRelativeTime } from "@/lib/format";
 
 // La portada de quien tiene cuenta (la pinta / cuando hay sesión). En escritorio, una barra lateral con
 // accesos directos (grupos › eventos › amigos) y a la derecha lo que se mueve:
@@ -45,6 +47,16 @@ interface UpcomingEvent {
   location: string | null;
   myStatus: string | null;
   _count: { attendees: number; games: number };
+}
+
+interface CommunityThread {
+  id: string;
+  title: string;
+  tag: string;
+  lastActivityAt: string;
+  author: CommunityAuthor;
+  replyCount: number;
+  lastReply: { createdAt: string; author: CommunityAuthor } | null;
 }
 
 // «Buenos días» a las 9 y «buenas noches» a las 23: la app se usa mucho
@@ -279,6 +291,68 @@ function FriendsSection() {
   );
 }
 
+// ── Comunidad: lo último que se habla en el foro ─────────────────────────
+
+function CommunitySection({ threads }: { threads: CommunityThread[] }) {
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h2 className="text-xl font-bold text-[var(--text)]">En la Comunidad</h2>
+        <div className="flex items-center gap-3">
+          <SideLink href="/community?nuevo=1">+ Abrir hilo</SideLink>
+          <SideLink href="/community">Ver todo</SideLink>
+        </div>
+      </div>
+      {threads.length === 0 ? (
+        <Link
+          href="/community?nuevo=1"
+          prefetch={false}
+          className="block rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--text-secondary)] hover:border-[var(--primary)]/40 transition-colors"
+        >
+          💬 La Comunidad acaba de abrir: busca gente para jugar, cuenta una partida o pregunta una regla.{" "}
+          <span className="font-semibold text-[var(--primary)]">Abre el primer hilo →</span>
+        </Link>
+      ) : (
+        <ul className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] divide-y divide-[var(--border)] overflow-hidden">
+          {threads.map((t) => {
+            const who = t.lastReply ?? { author: t.author, createdAt: t.lastActivityAt };
+            return (
+              <li key={t.id}>
+                <Link
+                  href={`/community/${t.id}`}
+                  prefetch={false}
+                  className="group/thread flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors"
+                >
+                  <Avatar name={who.author.name} avatarUrl={who.author.avatarUrl} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <TagChip tag={t.tag} className="shrink-0" />
+                      <span className="text-sm font-semibold text-[var(--text)] truncate group-hover/thread:text-[var(--primary)] transition-colors">
+                        {t.title}
+                      </span>
+                    </span>
+                    <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
+                      {t.lastReply ? "Respuesta de " : "Hilo de "}
+                      <span className="text-[var(--text-secondary)]">{who.author.name}</span> ·{" "}
+                      {formatRelativeTime(who.createdAt)}
+                    </span>
+                  </span>
+                  <span
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-[var(--text-muted)]"
+                    title={`${t.replyCount} respuesta${t.replyCount === 1 ? "" : "s"}`}
+                  >
+                    💬 {t.replyCount}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 // ── Juegos recientes: tarjetones con la caja ──────────────────────────────
 
 function RecentGameCard({ item }: { item: RecentGame }) {
@@ -318,6 +392,7 @@ export default function HomeDashboard() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [threads, setThreads] = useState<CommunityThread[]>([]);
   const [loading, setLoading] = useState(true);
   const navUser = useNavUser();
   const firstName = navUser?.name.trim().split(/\s+/)[0] || null;
@@ -332,11 +407,12 @@ export default function HomeDashboard() {
     const fetchData = async () => {
       try {
         // El nombre para saludar sale de lo que ya ha pedido la cabecera
-        const [groupsRes, gamesRes, eventsRes, feedRes] = await Promise.all([
+        const [groupsRes, gamesRes, eventsRes, feedRes, communityRes] = await Promise.all([
           fetch("/api/groups", { credentials: "include" }),
           fetch("/api/profile/recent-games", { credentials: "include" }),
           fetch("/api/events?upcoming=1", { credentials: "include" }),
           fetch("/api/feed?limit=10", { credentials: "include" }),
+          fetch("/api/community?limit=4", { credentials: "include" }).catch(() => null),
         ]);
 
         if (!groupsRes.ok) throw new Error("Error al cargar tu inicio");
@@ -352,6 +428,8 @@ export default function HomeDashboard() {
               .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
           );
         }
+
+        if (communityRes?.ok) setThreads((await communityRes.json()).threads ?? []);
 
         if (feedRes.ok) {
           const feedData = await feedRes.json();
@@ -464,6 +542,8 @@ export default function HomeDashboard() {
                       </div>
                     </section>
                   )}
+
+                  <CommunitySection threads={threads} />
 
                   {/* Actividad reciente */}
                   <section>

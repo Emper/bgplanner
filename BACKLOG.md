@@ -65,12 +65,14 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 
 **Tipo:** SEO / producto · **Impacto:** medio · **Esfuerzo:** bajo · **Toca BD:** no (o un campo si se hace opcional)
 
-**Situación.** Los perfiles `/users/<slug>` ya son públicos e indexables (canonical, tarjeta para compartir), pero ninguna página pública enlaza a ellos y no están en `src/app/sitemap.ts`. En la práctica Google solo los encuentra si alguien comparte el enlace.
+**Situación.** Los perfiles `/users/<slug>` ya son públicos e indexables (canonical, tarjeta para compartir), pero no están en `src/app/sitemap.ts`. La única página pública que enlaza a ellos es la Comunidad (autor de cada hilo y respuesta), y lo hace con `rel="nofollow"` y sin la URL del perfil en los datos estructurados del hilo, para no adelantar esta decisión. En la práctica Google solo los encuentra si alguien comparte el enlace.
 
 **Decisión pendiente.** Incluirlos en el sitemap supone empujar activamente a todos los usuarios a los buscadores. Opciones:
 - No incluirlos (estado actual).
 - Incluirlos todos.
 - Añadir una opción en el perfil («Que mi perfil aparezca en buscadores»), incluir solo a quien la active y poner `noindex` al resto. Necesita un campo nuevo en `User`.
+
+Si se decide indexarlos, quitar el `nofollow` de `AuthorLink` (`src/components/CommunityBits.tsx`) y añadir `author.url` en `src/app/community/[id]/layout.tsx`.
 
 ---
 

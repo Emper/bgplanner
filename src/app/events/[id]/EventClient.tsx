@@ -97,6 +97,23 @@ const INVITE_OPEN_KEY = "event-invite-open";
 
 const formatDate = formatDateFull;
 
+// Enlace a /community con un hilo de «Buscar partida» ya redactado.
+function communityAnnounceHref(event: EventData): string {
+  const when = formatDateFull(event.date);
+  const lines = [
+    `¡Hola! Organizamos «${event.name}» el ${when}${event.location ? ` en ${event.location}` : ""} y buscamos más gente para jugar.`,
+    event.description?.trim() || "",
+    `Toda la info y para apuntarse: ${window.location.origin}/events/${event.id}`,
+  ].filter(Boolean);
+  const params = new URLSearchParams({
+    nuevo: "1",
+    tag: "buscar-partida",
+    titulo: `Buscamos jugadores para «${event.name.slice(0, 100)}»`,
+    texto: lines.join("\n\n"),
+  });
+  return `/community?${params.toString()}`;
+}
+
 function EventDetailPageInner() {
   const { id: eventId } = useParams<{ id: string }>();
   const router = useRouter();
@@ -504,6 +521,7 @@ function EventDetailPageInner() {
   if (!event) return null;
 
   const isAttending = !!event.currentAttendeeId;
+  const eventIsOver = new Date(event.endDate ?? event.date).getTime() < Date.now();
 
   // Games the current user has rated (for My List tab)
   const myInterests = event.games
@@ -692,6 +710,17 @@ function EventDetailPageInner() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Evento abierto y por venir: un atajo para buscar gente en la
+              Comunidad, con el hilo ya escrito y el enlace al evento. */}
+          {event.isAdmin && event.visibility === "public" && !eventIsOver && (
+            <Link
+              href={communityAnnounceHref(event)}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
+            >
+              📣 Anúncialo en la Comunidad para buscar más jugadores
+            </Link>
           )}
         </div>
 

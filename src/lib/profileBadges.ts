@@ -128,6 +128,18 @@ const BADGES: BadgeDef[] = [
     ],
     hint: "Escribe una crónica",
   },
+  {
+    key: "community",
+    emoji: "💬",
+    value: (s) => s.communityPosts,
+    text: (n) => `${plural(n, "mensaje", "mensajes")} en la Comunidad`,
+    tiers: [
+      [1, "Rompehielos"],
+      [25, "Tertuliano"],
+      [100, "Voz de la Comunidad"],
+    ],
+    hint: "Escribe en la Comunidad",
+  },
 ];
 
 /**

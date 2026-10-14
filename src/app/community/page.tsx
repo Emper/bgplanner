@@ -156,6 +156,28 @@ function CommunityPage() {
     }
   };
 
+  // Enlace para abrir un hilo ya rellenado (?nuevo=1&tag=…&titulo=…&texto=…),
+  // p. ej. «Anúncialo en la Comunidad» desde un evento. Se aplica una vez, en
+  // cuanto sabemos que hay sesión, y se limpia la URL para no repetirlo.
+  const prefillApplied = useRef(false);
+  const wantsPrefill = searchParams.get("nuevo") === "1";
+  useEffect(() => {
+    if (!wantsPrefill || !isLoggedIn || prefillApplied.current) return;
+    prefillApplied.current = true;
+    const t = searchParams.get("titulo");
+    const b = searchParams.get("texto");
+    if (t) setTitle(t.slice(0, THREAD_TITLE_MAX));
+    if (b) setBody(b.slice(0, THREAD_BODY_MAX));
+    if (activeTag) setNewTag(activeTag);
+    setFormOpen(true);
+    router.replace(activeTag ? `${pathname}?tag=${activeTag}` : pathname, { scroll: false });
+  }, [wantsPrefill, isLoggedIn, searchParams, activeTag, pathname, router]);
+
+  // Sin sesión, el login vuelve aquí con lo que traía la URL (filtro o
+  // borrador de hilo incluidos).
+  const query_ = searchParams.toString();
+  const loginHref = `/login?redirect=${encodeURIComponent(`${pathname}${query_ ? `?${query_}` : ""}`)}`;
+
   const totalThreads = Object.values(tagCounts).reduce((a, b) => a + b, 0);
 
   return (
@@ -181,7 +203,7 @@ function CommunityPage() {
           ) : (
             !loading && (
               <Link
-                href="/login?redirect=/community"
+                href={loginHref}
                 className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Entra para participar
