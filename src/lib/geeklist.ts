@@ -13,7 +13,7 @@ import { inBackground, notify } from "./notifications";
 // GEEKLIST_REFRESH_MS), una vez al día desde el cron y a mano desde la
 // pestaña Juegos.
 
-export const GEEKLIST_REFRESH_MS = 30 * 60 * 1000;
+export const GEEKLIST_REFRESH_MS = 60 * 60 * 1000;
 // A mano no hace falta esperar, pero tampoco importar dos veces seguidas
 const GEEKLIST_MANUAL_GAP_MS = 60 * 1000;
 // Pasado el evento la lista ya no cambia nada

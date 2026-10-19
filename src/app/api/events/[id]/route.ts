@@ -24,6 +24,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     include: {
       createdBy: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
       games: {
+        // Orden de llegada, estable: es el orden «por defecto» de la pestaña
+        orderBy: [{ addedAt: "asc" }, { id: "asc" }],
         include: {
           game: true,
           interests: {

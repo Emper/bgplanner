@@ -988,10 +988,68 @@ function GamesTab({
 }) {
   const isAttending = !!event.currentAttendeeId;
   const linked = !!event.bggGeeklistId;
-  // Los que han salido de la lista, al final
-  const games = linked
-    ? [...event.games].sort((a, b) => Number(!!a.leftGeeklistAt) - Number(!!b.leftGeeklistAt))
-    : event.games;
+  const [sort, setSort] = useState<GameSort>(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem(GAME_SORT_KEY) : null;
+      return GAME_SORTS.some((o) => o.key === saved) ? (saved as GameSort) : "added";
+    } catch {
+      return "added";
+    }
+  });
+  const [openGone, setOpenGone] = useState<string | null>(null);
+
+  const chooseSort = (key: GameSort) => {
+    setSort(key);
+    try {
+      localStorage.setItem(GAME_SORT_KEY, key);
+    } catch {
+      // Sin almacenamiento: se queda para esta visita
+    }
+  };
+
+  const myInterestIn = (eg: EventGame) => eg.interests.find((i) => i.attendeeId === event.currentAttendeeId);
+  // «Sin valorar» solo tiene sentido para quien va al evento
+  const activeSort: GameSort = sort === "unrated" && !isAttending ? "added" : sort;
+  const sorted = sortEventGames(event.games, activeSort, (eg) => !!myInterestIn(eg));
+  // Lo que ha salido de la lista va siempre al final, aparte
+  const isGone = (eg: EventGame) => linked && !!eg.leftGeeklistAt;
+  const games = sorted.filter((eg) => !isGone(eg));
+  const gone = sorted.filter(isGone);
+  const unratedCount = isAttending ? games.filter((eg) => !myInterestIn(eg)).length : 0;
+
+  const intensityPicker = (eg: EventGame, myInterest: Interest | undefined) => (
+    <div className="flex flex-wrap gap-1.5">
+      {[5, 4, 3, 2, 1].map((level) => (
+        <button
+          key={level}
+          onClick={() =>
+            myInterest?.intensity === level
+              ? onRemoveInterest(eg.id)
+              : onSetInterest(eg.id, level)
+          }
+          className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
+            myInterest?.intensity === level
+              ? INTENSITY_COLORS[level]
+              : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+          }`}
+          title={INTENSITY_LABELS[level]}
+        >
+          <span className="sm:hidden">{level}</span>
+          <span className="hidden sm:inline">{level}. {INTENSITY_LABELS[level]}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const removeButton = (eg: EventGame, small = false) => (
+    <button
+      onClick={() => onRemoveGame(eg.game.id)}
+      className={`shrink-0 ${small ? "w-7 h-7 text-xs" : "w-8 h-8 text-sm"} flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-500/50 transition-colors`}
+      title="Eliminar del evento"
+    >
+      🗑
+    </button>
+  );
 
   return (
     <div>
@@ -1007,7 +1065,32 @@ function GamesTab({
         <GeeklistNotice event={event} />
       )}
 
-      {games.length === 0 ? (
+      {games.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Ordenar juegos">
+          <span className="text-xs text-[var(--text-muted)] mr-1">Ordenar:</span>
+          {GAME_SORTS.filter((o) => o.key !== "unrated" || isAttending).map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              role="radio"
+              aria-checked={activeSort === o.key}
+              onClick={() => chooseSort(o.key)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                activeSort === o.key
+                  ? "border-[var(--primary)] bg-[var(--primary)]/15 text-[var(--primary)]"
+                  : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              }`}
+            >
+              {o.label}
+              {o.key === "unrated" && unratedCount > 0 && (
+                <span className="ml-1 opacity-75">({unratedCount})</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {games.length === 0 && gone.length === 0 ? (
         <p className="text-[var(--text-secondary)] text-center py-8">
           {linked
             ? event.geeklistSyncedAt
@@ -1020,9 +1103,7 @@ function GamesTab({
       ) : (
         <div className="space-y-3">
           {games.map((eg) => {
-            const myInterest = eg.interests.find(
-              (i) => i.attendeeId === event.currentAttendeeId
-            );
+            const myInterest = myInterestIn(eg);
             const totalInterested = eg.interests.length;
 
             return (
@@ -1078,53 +1159,119 @@ function GamesTab({
                           {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
                         </span>
                       )}
-                      {linked && eg.leftGeeklistAt && <LeftGeeklistBadge />}
                     </div>
                   </div>
-                  {/* Remove button for creator. Con lista, solo lo que ya ha
-                      salido de ella: lo demás volvería en la siguiente importación */}
-                  {event.isAdmin && (!linked || eg.leftGeeklistAt) && (
-                    <button
-                      onClick={() => onRemoveGame(eg.game.id)}
-                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-500/50 transition-colors text-sm"
-                      title="Eliminar del evento"
-                    >
-                      🗑
-                    </button>
-                  )}
+                  {/* Remove button for creator. Con lista, lo que está en ella
+                      volvería en la siguiente importación */}
+                  {event.isAdmin && !linked && removeButton(eg)}
                 </div>
 
                 {/* Intensity picker for attending users */}
-                {isAttending && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {[5, 4, 3, 2, 1].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() =>
-                          myInterest?.intensity === level
-                            ? onRemoveInterest(eg.id)
-                            : onSetInterest(eg.id, level)
-                        }
-                        className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
-                          myInterest?.intensity === level
-                            ? INTENSITY_COLORS[level]
-                            : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-                        }`}
-                        title={INTENSITY_LABELS[level]}
-                      >
-                        <span className="sm:hidden">{level}</span>
-                        <span className="hidden sm:inline">{level}. {INTENSITY_LABELS[level]}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {isAttending && <div className="mt-3">{intensityPicker(eg, myInterest)}</div>}
               </div>
             );
           })}
+
+          {gone.length > 0 && (
+            <div className="!mt-6 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/40">
+              <div className="px-3 sm:px-4 pt-3 pb-2">
+                <div className="text-sm font-semibold text-[var(--text-secondary)]">
+                  Ya no están en la lista de BGG ({gone.length})
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Se quedan porque alguien había marcado interés, pero puede que no estén en el evento.
+                </p>
+              </div>
+              <ul className="divide-y divide-[var(--border)]">
+                {gone.map((eg) => {
+                  const myInterest = myInterestIn(eg);
+                  const open = openGone === eg.id;
+                  return (
+                    <li key={eg.id} className="px-3 sm:px-4 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 shrink-0 rounded-md overflow-hidden bg-[var(--surface-hover)] grayscale opacity-50">
+                          {eg.game.thumbnail ? (
+                            <Image src={eg.game.thumbnail} alt={eg.game.name} width={32} height={32} className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 text-sm text-[var(--text-muted)] leading-tight">
+                          <a
+                            href={`https://boardgamegeek.com/boardgame/${eg.game.bggId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
+                          >
+                            {eg.game.name}
+                          </a>
+                          <span className="text-xs ml-1.5">
+                            {eg.interests.length} interesado{eg.interests.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        {isAttending && (
+                          <button
+                            type="button"
+                            onClick={() => setOpenGone(open ? null : eg.id)}
+                            aria-expanded={open}
+                            className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                              myInterest
+                                ? `${INTENSITY_COLORS[myInterest.intensity]} opacity-70`
+                                : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+                            }`}
+                            title={myInterest ? INTENSITY_LABELS[myInterest.intensity] : "Marcar cuánto te apetece"}
+                          >
+                            {myInterest ? (
+                              <>
+                                <span className="sm:hidden">{myInterest.intensity}</span>
+                                <span className="hidden sm:inline">{myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}</span>
+                              </>
+                            ) : (
+                              "Mi interés"
+                            )}
+                            <span aria-hidden className={`transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+                          </button>
+                        )}
+                        {event.isAdmin && removeButton(eg, true)}
+                      </div>
+                      {open && isAttending && <div className="mt-2 sm:pl-[42px]">{intensityPicker(eg, myInterest)}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+type GameSort = "added" | "name" | "rank" | "unrated";
+const GAME_SORT_KEY = "event-games-sort";
+const GAME_SORTS: { key: GameSort; label: string }[] = [
+  { key: "added", label: "Por llegada" },
+  { key: "name", label: "A–Z" },
+  { key: "rank", label: "Ranking BGG" },
+  { key: "unrated", label: "Sin valorar" },
+];
+
+// Estable: a igualdad, se queda el orden de llegada
+function sortEventGames(games: EventGame[], sort: GameSort, rated: (eg: EventGame) => boolean): EventGame[] {
+  const byName = (a: EventGame, b: EventGame) =>
+    a.game.name.localeCompare(b.game.name, "es", { sensitivity: "base", numeric: true });
+  const list = [...games];
+  if (sort === "name") return list.sort(byName);
+  if (sort === "rank") {
+    return list.sort(
+      (a, b) =>
+        (a.game.bggRank ?? Infinity) - (b.game.bggRank ?? Infinity) ||
+        (b.game.bggRating ?? 0) - (a.game.bggRating ?? 0) ||
+        byName(a, b)
+    );
+  }
+  if (sort === "unrated") return list.sort((a, b) => Number(rated(a)) - Number(rated(b)));
+  return list;
 }
 
 function LeftGeeklistBadge() {

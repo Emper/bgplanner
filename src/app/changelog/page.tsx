@@ -12,6 +12,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "20 octubre 2026",
+    version: "1.52",
+    title: "Cada juego en su sitio",
+    changes: [
+      { type: "new", text: "Ordena los juegos de un evento por nombre, por ranking de BGG o con los que aún no has valorado primero" },
+      { type: "improved", text: "Los juegos que salen de la lista de BGG se recogen al final en una caja compacta, para que no estorben" },
+    ],
+  },
+  {
+    date: "20 octubre 2026",
     version: "1.51",
     title: "La ludoteca se escribe sola",
     changes: [
