@@ -24,6 +24,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Solo quien gestiona el evento puede añadir juegos" }, { status: 403 });
   }
 
+  if (event.bggGeeklistId) {
+    return NextResponse.json(
+      { error: "Los juegos de este evento salen de una lista de BGG. Añádelos allí o vuelve a elegirlos a mano." },
+      { status: 409 }
+    );
+  }
+
   const body = await request.json();
   const parsed = addGameSchema.safeParse(body);
   if (!parsed.success) {

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchBggGameDetails } from "@/lib/bgg";
 
-type GameRecord = {
+export type GameRecord = {
   id: string;
   bggId: number;
   name: string;
@@ -48,6 +48,7 @@ export async function findOrCreateGame(
             yearPublished: details.yearPublished,
             minPlayers: details.minPlayers,
             maxPlayers: details.maxPlayers,
+            playingTime: details.playingTime,
             bggRating: details.bggRating,
             bggRank: details.bggRank,
             weight: details.weight,
@@ -94,6 +95,7 @@ export async function findOrCreateGame(
           yearPublished: details.yearPublished,
           minPlayers: details.minPlayers,
           maxPlayers: details.maxPlayers,
+          playingTime: details.playingTime,
           bggRating: details.bggRating,
           bggRank: details.bggRank,
           weight: details.weight,
@@ -112,4 +114,82 @@ export async function findOrCreateGame(
   }
 
   return null;
+}
+
+/**
+ * findOrCreateGame para muchos juegos a la vez (p. ej. una geeklist entera):
+ * lo que no está en `Game` se saca de las colecciones cacheadas y, lo que
+ * falte, de BGG en lotes de 20. Si BGG falla, se crean con el nombre que
+ * traen. No refresca los que ya existen.
+ */
+export async function ensureGames(
+  items: { bggId: number; name: string }[]
+): Promise<Map<number, GameRecord>> {
+  const ids = [...new Set(items.map((i) => i.bggId))];
+  const byId = new Map<number, GameRecord>();
+  const load = async (bggIds: number[]) => {
+    if (bggIds.length === 0) return;
+    const games = await prisma.game.findMany({ where: { bggId: { in: bggIds } } });
+    for (const g of games) byId.set(g.bggId, g);
+  };
+  const missing = () => ids.filter((id) => !byId.has(id));
+
+  await load(ids);
+
+  if (missing().length > 0) {
+    const cached = await prisma.collectionGame.findMany({
+      where: { bggId: { in: missing() } },
+      distinct: ["bggId"],
+      select: {
+        bggId: true,
+        name: true,
+        thumbnail: true,
+        yearPublished: true,
+        minPlayers: true,
+        maxPlayers: true,
+        playingTime: true,
+        bggRating: true,
+        bggRank: true,
+        weight: true,
+      },
+    });
+    await prisma.game.createMany({ data: cached, skipDuplicates: true });
+    await load(cached.map((c) => c.bggId));
+  }
+
+  if (missing().length > 0) {
+    try {
+      const details = await fetchBggGameDetails(missing());
+      await prisma.game.createMany({
+        data: details.map((d) => ({
+          bggId: d.bggId,
+          name: d.name,
+          thumbnail: d.thumbnail,
+          yearPublished: d.yearPublished,
+          minPlayers: d.minPlayers,
+          maxPlayers: d.maxPlayers,
+          playingTime: d.playingTime,
+          bggRating: d.bggRating,
+          bggRank: d.bggRank,
+          weight: d.weight,
+        })),
+        skipDuplicates: true,
+      });
+      await load(details.map((d) => d.bggId));
+    } catch (err) {
+      console.log("[ensureGames] BGG API unavailable:", err);
+    }
+  }
+
+  const rest = missing();
+  if (rest.length > 0) {
+    const names = new Map(items.map((i) => [i.bggId, i.name]));
+    await prisma.game.createMany({
+      data: rest.map((bggId) => ({ bggId, name: names.get(bggId) ?? `Juego ${bggId}` })),
+      skipDuplicates: true,
+    });
+    await load(rest);
+  }
+
+  return byId;
 }

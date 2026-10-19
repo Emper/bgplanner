@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { updateEventSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 import { isEventAdmin } from "@/lib/events";
+import { refreshGeeklistIfStale } from "@/lib/geeklist";
+
+// Si el evento toma sus juegos de una lista de BGG, al abrirlo se reimporta
+// después de responder: necesita margen por si BGG tarda en prepararla.
+export const maxDuration = 300;
 
 // Get event detail with games, attendees, and current user's interests
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -81,6 +86,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }));
 
   const isAdmin = isCreator || currentAttendee?.role === "admin";
+
+  refreshGeeklistIfStale(event);
 
   return NextResponse.json({
     ...event,

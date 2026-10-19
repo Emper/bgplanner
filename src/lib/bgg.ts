@@ -1039,3 +1039,81 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
 
   return results;
 }
+
+// ── Geeklists ────────────────────────────────────────────────────────────
+// Solo existen en la XML API v1 (legacy), que acepta el mismo token. La
+// primera vez que se pide una lista BGG responde 202 mientras la prepara
+// (en la de APCON fueron ~30 s); luego sale al momento durante un rato.
+
+export type BggGeeklist = {
+  id: number;
+  title: string;
+  username: string;
+  items: { bggId: number; name: string }[];
+};
+
+// BGG tardó en preparar la lista más de lo que esperamos: se puede volver a
+// intentar en un par de minutos.
+export class GeeklistPendingError extends Error {
+  constructor() {
+    super("BGG aún está preparando la lista. Vuelve a intentarlo en un par de minutos.");
+  }
+}
+
+const GEEKLIST_MAX_ITEMS = 1000;
+// En una lista hay juegos, pero también personas, editoriales, rol…
+const GEEKLIST_SUBTYPES = new Set(["boardgame", "boardgameexpansion"]);
+
+/** Saca el id de un enlace a una geeklist (o del número suelto). */
+export function parseGeeklistId(input: string): number | null {
+  const text = input.trim();
+  const match = text.match(/boardgamegeek\.com\/geeklist\/(\d+)/i) ?? text.match(/^(\d+)$/);
+  const id = match ? parseInt(match[1], 10) : NaN;
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** Interpreta el XML de /xmlapi/geeklist. null si BGG aún la está preparando. */
+export async function parseGeeklistXml(xml: string): Promise<BggGeeklist | null> {
+  const parsed = await parseStringPromise(xml, { explicitArray: false });
+  if (parsed?.message) return null;
+  const list = parsed?.geeklist;
+  if (!list?.$?.id) throw new Error("No encontramos esa lista en BGG. Revisa el enlace.");
+
+  const raw = list.item ? (Array.isArray(list.item) ? list.item : [list.item]) : [];
+  const seen = new Set<number>();
+  const items: BggGeeklist["items"] = [];
+  for (const item of raw) {
+    const a = item?.$;
+    if (a?.objecttype !== "thing" || !GEEKLIST_SUBTYPES.has(a?.subtype)) continue;
+    const bggId = parseInt(a.objectid, 10);
+    if (!Number.isInteger(bggId) || seen.has(bggId)) continue;
+    seen.add(bggId);
+    items.push({ bggId, name: String(a.objectname ?? "").trim() || `Juego ${bggId}` });
+    if (items.length >= GEEKLIST_MAX_ITEMS) break;
+  }
+
+  return {
+    id: parseInt(list.$.id, 10),
+    title: String(list.title ?? "").trim(),
+    username: String(list.username ?? "").trim(),
+    items,
+  };
+}
+
+/** Descarga una geeklist. Lanza GeeklistPendingError si BGG no la tiene lista. */
+export async function fetchBggGeeklist(id: number): Promise<BggGeeklist> {
+  let response: Response;
+  try {
+    // Más intentos que en las colecciones: ~85 s de margen para el primer 202
+    response = await fetchWithRetry(`https://boardgamegeek.com/xmlapi/geeklist/${id}`, 8);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("autenticar")) throw err;
+    throw new GeeklistPendingError();
+  }
+  if (response.status === 404) throw new Error("No encontramos esa lista en BGG. Revisa el enlace.");
+  if (!response.ok) throw new Error(`BGG no ha devuelto la lista (error ${response.status}).`);
+
+  const list = await parseGeeklistXml(await response.text());
+  if (!list) throw new GeeklistPendingError();
+  return list;
+}

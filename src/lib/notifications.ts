@@ -17,6 +17,7 @@ export type NotificationType =
   | "event_attendee_joined"
   | "event_role_changed"
   | "event_game_added"
+  | "event_geeklist_games"
   | "review_games"
   | "review_event"
   | "community_reply"
@@ -28,7 +29,7 @@ export type NotificationType =
 // Las que pueden llegar en ráfaga (un admin añade diez juegos seguidos) se
 // funden en una sola mientras siga sin leer: se acumulan los juegos y sube
 // arriba. Así una tarde de trabajo en un evento no son diez avisos.
-const MERGEABLE = new Set<NotificationType>(["event_game_added"]);
+const MERGEABLE = new Set<NotificationType>(["event_game_added", "event_geeklist_games"]);
 const MERGE_WINDOW_MS = 12 * 60 * 60 * 1000;
 const MAX_MERGED_GAMES = 20;
 
@@ -160,10 +161,24 @@ async function createOrMerge(
         seen.add(key);
         return true;
       });
+      // Si traen `count` (cuántos son en total, aunque solo se guarden unos
+      // pocos), se suman: «y 82 más» tiene que seguir siendo verdad.
+      const prevCount = typeof prev.count === "number" ? prev.count : null;
+      const newCount = typeof metadata.count === "number" ? metadata.count : null;
+      const count =
+        prevCount !== null || newCount !== null
+          ? (prevCount ?? (Array.isArray(prev.games) ? prev.games.length : 0)) +
+            (newCount ?? (Array.isArray(metadata.games) ? metadata.games.length : 0))
+          : undefined;
       await prisma.notification.update({
         where: { id: previous.id },
         data: {
-          metadata: { ...prev, ...metadata, games: unique.slice(-MAX_MERGED_GAMES) } as object,
+          metadata: {
+            ...prev,
+            ...metadata,
+            games: unique.slice(-MAX_MERGED_GAMES),
+            ...(count !== undefined ? { count } : {}),
+          } as object,
           createdAt: new Date(),
         },
       });
@@ -291,11 +306,12 @@ export const NOTIFICATION_SELECT = {
   event: { select: { id: true, name: true } },
 } as const;
 
-function gameList(games: Meta[]): { text: string; strong?: boolean }[] {
+// `total`: cuántos son de verdad, si en `games` solo van los primeros.
+function gameList(games: Meta[], total?: unknown): { text: string; strong?: boolean }[] {
   const names = games.map((g) => String(g.name ?? "")).filter(Boolean);
   if (names.length === 0) return [{ text: "un juego" }];
   const shown = names.slice(0, 2);
-  const rest = names.length - shown.length;
+  const rest = Math.max(typeof total === "number" ? total : names.length, names.length) - shown.length;
   const out: { text: string; strong?: boolean }[] = [];
   shown.forEach((n, i) => {
     if (i > 0) out.push({ text: i === shown.length - 1 && rest === 0 ? " y " : ", " });
@@ -371,6 +387,16 @@ export function presentNotification(n: NotificationRow): PresentedNotification {
     case "event_game_added":
       emoji = "🎲";
       parts = [actor, { text: " ha añadido " }, ...gameList(games), { text: " a " }, eventName];
+      href = `${eventHref}?tab=games`;
+      break;
+    case "event_geeklist_games":
+      emoji = "📋";
+      parts = [
+        { text: Math.max(Number(m.count) || 0, games.length) === 1 ? "Llega " : "Llegan " },
+        ...gameList(games, m.count),
+        { text: " a la ludoteca de " },
+        eventName,
+      ];
       href = `${eventHref}?tab=games`;
       break;
     case "review_games": {

@@ -29,6 +29,13 @@ export async function DELETE(
   if (!eventGame) {
     return NextResponse.json({ error: "Juego no encontrado en el evento" }, { status: 404 });
   }
+  // Volvería en la siguiente importación: se quita de la lista, en BGG
+  if (event.bggGeeklistId && eventGame.fromGeeklist && !eventGame.leftGeeklistAt) {
+    return NextResponse.json(
+      { error: "Este juego viene de la lista de BGG vinculada: para quitarlo, quítalo de la lista" },
+      { status: 409 }
+    );
+  }
 
   await prisma.eventGame.delete({ where: { id: eventGame.id } });
 

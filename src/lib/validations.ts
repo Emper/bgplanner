@@ -87,6 +87,18 @@ export const addGameSchema = z.object({
   bggId: z.number().int().positive(),
 });
 
+// Enlace a una geeklist de BGG (o su número) para tomar de ella los juegos
+export const geeklistLinkSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .min(1, "Pega el enlace de la lista de BGG")
+    .max(500, "Ese enlace es demasiado largo")
+    .refine((v) => /boardgamegeek\.com\/geeklist\/\d+/i.test(v) || /^\d+$/.test(v), {
+      message: "Eso no parece un enlace a una lista de BGG (boardgamegeek.com/geeklist/…)",
+    }),
+});
+
 export const voteSchema = z.object({
   value: z.number().int().min(-10).max(10),
 });

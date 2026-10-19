@@ -103,6 +103,8 @@ const TYPE_BADGES: Record<string, string> = {
   event_joined: "🙋",
   event_left: "👋",
   event_game_added: "🎲",
+  event_geeklist_linked: "📋",
+  event_geeklist_synced: "📋",
   event_interest_set: "💛",
   event_reviewed: "⭐",
   event_photo_added: "📷",

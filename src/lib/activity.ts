@@ -7,7 +7,7 @@ export type ActivityType =
   | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
-  | "event_game_added" | "event_interest_set"
+  | "event_game_added" | "event_interest_set" | "event_geeklist_linked" | "event_geeklist_synced"
   | "event_reviewed" | "event_photo_added"
   | "email_changed"
   | "feedback_sent" | "feature_voted"
@@ -120,6 +120,9 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   event_joined: (m) => `se apuntó al evento "${m.eventName || ""}"`,
   event_left: (m) => `se desapuntó del evento "${m.eventName || ""}"`,
   event_game_added: (m) => `añadió "${m.gameName || "un juego"}" al evento`,
+  event_geeklist_linked: (m) => `vinculó el evento a la lista "${m.listTitle || "de BGG"}"`,
+  event_geeklist_synced: (m) =>
+    `trajo ${m.added === 1 ? "1 juego nuevo" : `${m.added || "varios"} juegos nuevos`} de la lista "${m.listTitle || "de BGG"}"`,
   event_interest_set: (m) => `marcó interés en "${m.gameName || "un juego"}"`,
   event_reviewed: (m) => {
     const stars = typeof m.rating === "number" && m.rating > 0 ? ` ${"★".repeat(m.rating)}` : "";

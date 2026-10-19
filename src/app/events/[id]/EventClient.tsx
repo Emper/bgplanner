@@ -21,6 +21,7 @@ import { toFriend } from "@/lib/friends";
 import FriendButton from "@/components/FriendButton";
 import { INTENSITY_LABELS, INTENSITY_COLORS } from "@/lib/intensity";
 import { nudgePush } from "@/lib/pushNudge";
+import GeeklistPanel, { GeeklistNotice } from "./GeeklistPanel";
 
 interface Game {
   id: string;
@@ -53,6 +54,9 @@ interface EventGame {
   gameId: string;
   game: Game;
   interests: Interest[];
+  fromGeeklist: boolean;
+  /** Ha salido de la lista de BGG pero se queda porque tenía intereses */
+  leftGeeklistAt: string | null;
 }
 
 interface Attendee {
@@ -78,6 +82,10 @@ interface EventData {
   inviteCode: string | null;
   createdById: string;
   createdBy: { id: string; name: string | null; displayName: string | null };
+  bggGeeklistId: number | null;
+  geeklistTitle: string | null;
+  geeklistSyncedAt: string | null;
+  geeklistError: string | null;
   games: EventGame[];
   attendees: Attendee[];
   currentUserId: string;
@@ -795,6 +803,7 @@ function EventDetailPageInner() {
         {activeTab === "games" && (
           <GamesTab
             event={event}
+            onGeeklistChanged={fetchEvent}
             onAddGame={handleAddGame}
             onRemoveGame={handleRemoveGame}
             onSetInterest={handleSetInterest}
@@ -962,6 +971,7 @@ export default function EventClient() {
 
 function GamesTab({
   event,
+  onGeeklistChanged,
   onAddGame,
   onRemoveGame,
   onSetInterest,
@@ -969,6 +979,7 @@ function GamesTab({
   addingGame,
 }: {
   event: EventData;
+  onGeeklistChanged: () => void;
   onAddGame: (game: { bggId: number }) => void;
   onRemoveGame: (gameId: string) => void;
   onSetInterest: (eventGameId: string, intensity: number) => void;
@@ -976,29 +987,39 @@ function GamesTab({
   addingGame: boolean;
 }) {
   const isAttending = !!event.currentAttendeeId;
+  const linked = !!event.bggGeeklistId;
+  // Los que han salido de la lista, al final
+  const games = linked
+    ? [...event.games].sort((a, b) => Number(!!a.leftGeeklistAt) - Number(!!b.leftGeeklistAt))
+    : event.games;
 
   return (
     <div>
-      {/* Search bar for creator */}
-      {event.isAdmin && (
-        <div className="mb-4">
+      {event.isAdmin ? (
+        <GeeklistPanel eventId={event.id} event={event} onChanged={onGeeklistChanged}>
           <BggGameSearch
             onSelect={onAddGame}
             placeholder="Buscar juego en BGG para añadir..."
             disabled={addingGame}
           />
-        </div>
+        </GeeklistPanel>
+      ) : (
+        <GeeklistNotice event={event} />
       )}
 
-      {event.games.length === 0 ? (
+      {games.length === 0 ? (
         <p className="text-[var(--text-secondary)] text-center py-8">
-          {event.isAdmin
-            ? "Usa el buscador para añadir juegos al evento"
-            : "Aún no se han añadido juegos"}
+          {linked
+            ? event.geeklistSyncedAt
+              ? "La lista de BGG aún no tiene juegos"
+              : "Los juegos llegarán en cuanto BGG tenga lista la geeklist"
+            : event.isAdmin
+              ? "Usa el buscador para añadir juegos al evento"
+              : "Aún no se han añadido juegos"}
         </p>
       ) : (
         <div className="space-y-3">
-          {event.games.map((eg) => {
+          {games.map((eg) => {
             const myInterest = eg.interests.find(
               (i) => i.attendeeId === event.currentAttendeeId
             );
@@ -1057,10 +1078,12 @@ function GamesTab({
                           {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
                         </span>
                       )}
+                      {linked && eg.leftGeeklistAt && <LeftGeeklistBadge />}
                     </div>
                   </div>
-                  {/* Remove button for creator */}
-                  {event.isAdmin && (
+                  {/* Remove button for creator. Con lista, solo lo que ya ha
+                      salido de ella: lo demás volvería en la siguiente importación */}
+                  {event.isAdmin && (!linked || eg.leftGeeklistAt) && (
                     <button
                       onClick={() => onRemoveGame(eg.game.id)}
                       className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-500/50 transition-colors text-sm"
@@ -1101,6 +1124,17 @@ function GamesTab({
         </div>
       )}
     </div>
+  );
+}
+
+function LeftGeeklistBadge() {
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-400"
+      title="Ha salido de la lista de BGG. Se queda porque alguien había marcado interés, pero puede que no esté en el evento."
+    >
+      Ya no está en la lista
+    </span>
   );
 }
 
@@ -1154,7 +1188,7 @@ function MyListTab({
     setEditingNotes(null);
   };
 
-  const renderRow = ({ id: eventGameId, game, myInterest }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
+  const renderRow = ({ id: eventGameId, game, myInterest, leftGeeklistAt }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
     <li key={eventGameId} className="flex items-start gap-3 py-2.5">
       <button
         type="button"
@@ -1192,6 +1226,7 @@ function MyListTab({
             <span className="sm:hidden">{myInterest.intensity}</span>
             <span className="hidden sm:inline">{myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}</span>
           </span>
+          {event.bggGeeklistId && leftGeeklistAt && <LeftGeeklistBadge />}
         </div>
 
         {editingNotes === eventGameId ? (

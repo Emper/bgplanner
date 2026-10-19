@@ -11,6 +11,17 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "20 octubre 2026",
+    version: "1.51",
+    title: "La ludoteca se escribe sola",
+    changes: [
+      { type: "new", text: "Quien organiza un evento puede vincular una lista de BGG y sus juegos se convierten en la ludoteca del evento" },
+      { type: "new", text: "La ludoteca se mantiene al día: lo que entra en la lista aparece en el evento, y si hay prisa, se reimporta con un botón" },
+      { type: "improved", text: "Lo que ya habías marcado en juegos que están en la lista sigue ahí, y si alguno sale de ella, te avisamos en vez de borrártelo" },
+      { type: "new", text: "Te avisamos en la campana cuando llegan juegos nuevos a la ludoteca de un evento al que vas" },
+    ],
+  },
+  {
     date: "15 octubre 2026",
     version: "1.50",
     title: "Cabeceras a dieta",

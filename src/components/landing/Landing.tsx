@@ -590,6 +590,7 @@ function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHre
             <Reveal delay={120}>
               <ul className="mt-6 space-y-2.5">
                 <Check>Eventos abiertos o privados, con cartel, lugar y plazas</Check>
+                <Check>La ludoteca, elegida a mano o al día con una lista de BGG</Check>
                 <Check>Tu lista de prioridades, con notas que solo ves tú</Check>
                 <Check>Mira qué quiere jugar el resto de asistentes</Check>
                 <Check>Después, galería de fotos y valoraciones del evento</Check>

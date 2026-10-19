@@ -460,6 +460,14 @@ model Event {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  // Juegos tomados de una geeklist de BGG en vez de elegidos a mano. null =
+  // a mano. La lista se reimporta sola (ver lib/geeklist.ts).
+  bggGeeklistId     Int?
+  geeklistTitle     String?
+  geeklistSyncedAt  DateTime? // última importación buena
+  geeklistCheckedAt DateTime? // último intento: evita importar dos veces a la vez
+  geeklistError     String?   // por qué falló el último intento, si falló
+
   createdBy User            @relation("EventCreator", fields: [createdById], references: [id])
   games     EventGame[]
   reviews   EventReview[]
@@ -478,6 +486,11 @@ model EventGame {
   gameId    String
   addedById String
   addedAt   DateTime @default(now())
+  // Ha llegado desde la geeklist vinculada al evento
+  fromGeeklist   Boolean   @default(false)
+  // Ha salido de la lista pero alguien había marcado interés: se queda,
+  // señalado, en vez de borrarse con sus intereses
+  leftGeeklistAt DateTime?
 
   event     Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   game      Game                @relation(fields: [gameId], references: [id])
