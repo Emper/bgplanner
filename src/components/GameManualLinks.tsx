@@ -81,7 +81,7 @@ export default function GameManualLinks({
   // A la derecha de la fila. El formulario se abre como un desplegable para
   // no descuadrarla.
   return (
-    <div className="relative shrink-0 flex flex-col items-end pt-1 text-xs text-right">
+    <div className="relative shrink-0 self-center flex flex-col items-end text-xs text-right">
       {game.manualUrl ? (
         <span className="inline-flex items-center gap-0.5">
           <a
