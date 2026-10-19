@@ -15,8 +15,7 @@ const CHANGELOG: ChangelogEntry[] = [
     version: "1.53",
     title: "Reglas a mano",
     changes: [
-      { type: "new", text: "En «Mi lista» de un evento, cada juego lleva a sus ficheros de BGG para encontrar el reglamento en un momento" },
-      { type: "new", text: "Si encuentras el manual, en BGG, Drive, Dropbox o la web de la editorial, enlázalo y todo el que tenga ese juego lo tendrá a un clic" },
+      { type: "new", text: "En «Mi lista» de un evento, enlaza el manual de un juego (en BGG, Drive, Dropbox o la web de la editorial) y todo el que tenga ese juego lo tendrá a un clic" },
     ],
   },
   {

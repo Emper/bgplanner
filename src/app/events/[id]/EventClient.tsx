@@ -1372,9 +1372,14 @@ function MyListTab({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
-          <span className={`font-semibold text-sm sm:text-base ${isPlayed ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"}`}>
+          <a
+            href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`font-semibold text-sm sm:text-base hover:text-[var(--primary)] transition-colors ${isPlayed ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"}`}
+          >
             {game.name}
-          </span>
+          </a>
           <span
             className={`inline-flex items-center px-1.5 py-px rounded text-[11px] font-medium border ${INTENSITY_COLORS[myInterest.intensity]} ${isPlayed ? "opacity-60" : ""}`}
             title={INTENSITY_LABELS[myInterest.intensity]}

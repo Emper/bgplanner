@@ -1,23 +1,5 @@
-// Enlaces a páginas de BGG que se pintan tanto en el cliente como en el
-// servidor (sin prisma).
-
-// BGG pone el nombre del juego en la URL; si no coincide redirige, así que
-// basta con una aproximación.
-function bggSlug(name: string) {
-  return (
-    name
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "game"
-  );
-}
-
-/** La pestaña «Files» de un juego en BGG, donde suelen estar las reglas. */
-export function bggFilesUrl(bggId: number, name: string) {
-  return `https://boardgamegeek.com/boardgame/${bggId}/${bggSlug(name)}/files`;
-}
+// El enlace al manual de un juego: lo que se valida igual en el cliente y en
+// el servidor (sin prisma).
 
 const FILEPAGE_RE = /^\/filepage\/(\d+)(?:\/([a-z0-9-]*))?\/?$/i;
 
