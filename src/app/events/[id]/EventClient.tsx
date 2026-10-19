@@ -540,8 +540,12 @@ function EventDetailPageInner() {
   const isAttending = !!event.currentAttendeeId;
   const eventIsOver = new Date(event.endDate ?? event.date).getTime() < now;
 
+  // Los que han salido de la lista de BGG solo se ven, recogidos, en la
+  // pestaña Juegos: ni en Mi Lista ni al armar mesa
+  const listedGames = event.bggGeeklistId ? event.games.filter((eg) => !eg.leftGeeklistAt) : event.games;
+
   // Games the current user has rated (for My List tab)
-  const myInterests = event.games
+  const myInterests = listedGames
     .map((eg) => {
       const myInterest = eg.interests.find((i) => i.attendeeId === event.currentAttendeeId);
       return myInterest ? { ...eg, myInterest } : null;
@@ -1274,17 +1278,6 @@ function sortEventGames(games: EventGame[], sort: GameSort, rated: (eg: EventGam
   return list;
 }
 
-function LeftGeeklistBadge() {
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-400"
-      title="Ha salido de la lista de BGG. Se queda porque alguien había marcado interés, pero puede que no esté en el evento."
-    >
-      Ya no está en la lista
-    </span>
-  );
-}
-
 // ── My List Tab ───────────────────────────────────────────────────────────
 
 function MyListTab({
@@ -1335,7 +1328,7 @@ function MyListTab({
     setEditingNotes(null);
   };
 
-  const renderRow = ({ id: eventGameId, game, myInterest, leftGeeklistAt }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
+  const renderRow = ({ id: eventGameId, game, myInterest }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
     <li key={eventGameId} className="flex items-start gap-3 py-2.5">
       <button
         type="button"
@@ -1373,7 +1366,6 @@ function MyListTab({
             <span className="sm:hidden">{myInterest.intensity}</span>
             <span className="hidden sm:inline">{myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}</span>
           </span>
-          {event.bggGeeklistId && leftGeeklistAt && <LeftGeeklistBadge />}
         </div>
 
         {editingNotes === eventGameId ? (
@@ -1645,7 +1637,7 @@ function AttendeesTab({
       <div>
         <MesaView
           members={mesaMembers}
-          games={event.games}
+          games={event.bggGeeklistId ? event.games.filter((eg) => !eg.leftGeeklistAt) : event.games}
           currentAttendeeId={me}
           shareUrl={`${window.location.origin}/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`}
           onClose={onCloseMesa}

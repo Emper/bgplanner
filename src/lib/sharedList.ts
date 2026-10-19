@@ -10,7 +10,7 @@ export const findSharedList = cache(async (token: string) => {
       userId: true,
       user: { select: { name: true, displayName: true } },
       event: {
-        select: { id: true, name: true, date: true, location: true, visibility: true },
+        select: { id: true, name: true, date: true, location: true, visibility: true, bggGeeklistId: true },
       },
       interests: {
         select: {
@@ -19,6 +19,7 @@ export const findSharedList = cache(async (token: string) => {
           eventGame: {
             select: {
               id: true,
+              leftGeeklistAt: true,
               game: { select: { name: true, thumbnail: true, bggId: true } },
             },
           },
@@ -28,7 +29,11 @@ export const findSharedList = cache(async (token: string) => {
   });
   if (!attendee) return null;
 
-  const items = attendee.interests.map((i) => ({
+  // Lo que ha salido de la lista de BGG del evento ya no cuenta
+  const listed = attendee.event.bggGeeklistId
+    ? attendee.interests.filter((i) => !i.eventGame.leftGeeklistAt)
+    : attendee.interests;
+  const items = listed.map((i) => ({
     id: i.eventGame.id,
     intensity: i.intensity,
     playedAt: i.playedAt,
@@ -47,7 +52,14 @@ export const findSharedList = cache(async (token: string) => {
   return {
     ownerId: attendee.userId,
     ownerName: attendee.user.displayName || attendee.user.name || "Alguien",
-    event: { ...attendee.event, isPublic: attendee.event.visibility === "public" },
+    event: {
+      id: attendee.event.id,
+      name: attendee.event.name,
+      date: attendee.event.date,
+      location: attendee.event.location,
+      visibility: attendee.event.visibility,
+      isPublic: attendee.event.visibility === "public",
+    },
     pending,
     played,
   };
