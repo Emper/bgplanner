@@ -104,6 +104,12 @@ const TABS: Tab[] = ["info", "activity", "games", "mylist", "attendees", "galler
 
 const INVITE_OPEN_KEY = "event-invite-open";
 
+// Los que han salido de la lista de BGG solo se ven, recogidos, en la
+// pestaña Juegos: ni en Mi Lista, ni en los asistentes, ni al armar mesa
+function listedGames(event: EventData): EventGame[] {
+  return event.bggGeeklistId ? event.games.filter((eg) => !eg.leftGeeklistAt) : event.games;
+}
+
 const formatDate = formatDateFull;
 
 // Enlace a /community con un hilo de «Buscar partida» ya redactado.
@@ -540,12 +546,8 @@ function EventDetailPageInner() {
   const isAttending = !!event.currentAttendeeId;
   const eventIsOver = new Date(event.endDate ?? event.date).getTime() < now;
 
-  // Los que han salido de la lista de BGG solo se ven, recogidos, en la
-  // pestaña Juegos: ni en Mi Lista ni al armar mesa
-  const listedGames = event.bggGeeklistId ? event.games.filter((eg) => !eg.leftGeeklistAt) : event.games;
-
   // Games the current user has rated (for My List tab)
-  const myInterests = listedGames
+  const myInterests = listedGames(event)
     .map((eg) => {
       const myInterest = eg.interests.find((i) => i.attendeeId === event.currentAttendeeId);
       return myInterest ? { ...eg, myInterest } : null;
@@ -1637,7 +1639,7 @@ function AttendeesTab({
       <div>
         <MesaView
           members={mesaMembers}
-          games={event.bggGeeklistId ? event.games.filter((eg) => !eg.leftGeeklistAt) : event.games}
+          games={listedGames(event)}
           currentAttendeeId={me}
           shareUrl={`${window.location.origin}/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`}
           onClose={onCloseMesa}
@@ -1680,7 +1682,7 @@ function AttendeesTab({
             const canDemote = event.isCreator && isAdmin;
             const isPicked = picked.has(att.id);
             // Collect this attendee's interests across all games
-            const attendeeInterests = event.games
+            const attendeeInterests = listedGames(event)
               .map((eg) => {
                 const interest = eg.interests.find((i) => i.attendeeId === att.id);
                 return interest ? { game: eg.game, interest } : null;
