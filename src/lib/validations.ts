@@ -2,7 +2,7 @@ import { z } from "zod";
 import { GROUP_TYPE_IDS } from "./groupTypes";
 import { sanitizeUserText, EVENT_ABOUT_MAX } from "./text";
 import { FEATURE_STATUS_IDS } from "./features";
-import { normalizeManualUrl } from "./bggLinks";
+import { checkManualUrl } from "./bggLinks";
 import {
   COMMUNITY_TAG_IDS,
   REPLY_BODY_MAX,
@@ -88,15 +88,16 @@ export const addGameSchema = z.object({
   bggId: z.number().int().positive(),
 });
 
-// Enlace a la página del manual de un juego en BGG (nunca al PDF)
+// Enlace al manual de un juego: BGG, Drive, Dropbox… pero nada que caduque
 export const gameManualSchema = z.object({
   url: z
     .string()
     .trim()
-    .min(1, "Pega el enlace a la página del manual en BGG")
+    .min(1, "Pega el enlace al manual")
     .max(500, "Ese enlace es demasiado largo")
-    .refine((v) => normalizeManualUrl(v) !== null, {
-      message: "Tiene que ser la página del fichero en BGG (boardgamegeek.com/filepage/…), no el PDF",
+    .superRefine((v, ctx) => {
+      const check = checkManualUrl(v);
+      if (!check.ok) ctx.addIssue({ code: "custom", message: check.error });
     }),
 });
 

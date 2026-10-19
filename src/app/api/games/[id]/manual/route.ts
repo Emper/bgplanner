@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { gameManualSchema } from "@/lib/validations";
-import { normalizeManualUrl } from "@/lib/bggLinks";
+import { checkManualUrl } from "@/lib/bggLinks";
 import { logActivity } from "@/lib/activity";
 
 // El enlace al manual es del juego (sirve en todos los grupos y eventos).
@@ -38,7 +38,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const manualUrl = normalizeManualUrl(parsed.data.url)!;
+  const check = checkManualUrl(parsed.data.url);
+  if (!check.ok) {
+    return NextResponse.json({ error: check.error }, { status: 400 });
+  }
+  const manualUrl = check.url;
 
   const updated = await prisma.game.update({
     where: { id },

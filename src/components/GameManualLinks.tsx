@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MoreMenu, ReportModal } from "@/components/Moderation";
-import { bggFilesUrl, manualTitleFromUrl, normalizeManualUrl } from "@/lib/bggLinks";
+import { bggFilesUrl, checkManualUrl, manualSourceLabel, manualTitleFromUrl } from "@/lib/bggLinks";
 
 export interface ManualGame {
   id: string;
@@ -14,7 +14,7 @@ export interface ManualGame {
 
 /**
  * Bajo un juego: «📄 Ficheros en BGG» siempre y, si alguien lo ha enlazado,
- * «📖 Manual» directo a su página en BGG. Si no hay, cualquiera puede
+ * «📖 Manual» directo (en BGG, Drive, Dropbox…). Si no hay, cualquiera puede
  * enlazarlo; cambiarlo o quitarlo, quien lo puso. Lo de los demás se denuncia.
  */
 export default function GameManualLinks({
@@ -40,8 +40,9 @@ export default function GameManualLinks({
   };
 
   const save = async () => {
-    if (!normalizeManualUrl(value)) {
-      setError("Tiene que ser la página del fichero en BGG (boardgamegeek.com/filepage/…), no el PDF");
+    const check = checkManualUrl(value);
+    if (!check.ok) {
+      setError(check.error);
       return;
     }
     setSaving(true);
@@ -74,6 +75,7 @@ export default function GameManualLinks({
 
   const linkClass = "text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors";
   const manualTitle = game.manualUrl ? manualTitleFromUrl(game.manualUrl) : null;
+  const manualSource = game.manualUrl ? manualSourceLabel(game.manualUrl) : "";
 
   return (
     <div className="mt-1">
@@ -83,11 +85,12 @@ export default function GameManualLinks({
             <a
               href={game.manualUrl}
               target="_blank"
-              rel="noopener noreferrer nofollow"
-              title={manualTitle ? `Manual: ${manualTitle}` : "Manual en BGG"}
+              rel="noopener noreferrer nofollow ugc"
+              title={manualTitle ? `Manual: ${manualTitle}` : `Manual en ${manualSource || "la web"}`}
               className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
             >
               📖 Manual
+              {manualSource && <span className="font-normal text-[var(--text-muted)]"> · {manualSource}</span>}
             </a>
             <MoreMenu
               label="Opciones del manual"
@@ -136,7 +139,7 @@ export default function GameManualLinks({
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="https://boardgamegeek.com/filepage/…"
+              placeholder="Enlace al manual (BGG, Drive, Dropbox…)"
               disabled={saving}
               className="flex-1 min-w-0 px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
             />
@@ -157,7 +160,7 @@ export default function GameManualLinks({
           </form>
           <p className={`mt-1 text-[11px] ${error ? "text-red-400" : "text-[var(--text-muted)]"}`}>
             {error ||
-              "Abre «Ficheros en BGG», entra en el del reglamento y copia su dirección. Servirá a todo el que tenga este juego."}
+              "La página del reglamento en «Ficheros en BGG», o un enlace de Drive, Dropbox o la editorial. No vale el de descarga de BGG, que caduca. Servirá a todo el que tenga este juego."}
           </p>
         </div>
       )}
