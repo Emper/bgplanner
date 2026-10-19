@@ -233,6 +233,21 @@ export async function describeReportTarget(
         gone: u.role === DELETED_USER_ROLE,
       };
     }
+    case "game_manual": {
+      const g = await prisma.game.findUnique({
+        where: { id },
+        select: { bggId: true, name: true, manualUrl: true, manualAddedById: true },
+      });
+      if (!g || (viewerId && !g.manualUrl)) return null;
+      return {
+        authorId: g.manualAddedById,
+        preview: g.manualUrl,
+        imageUrl: null,
+        href: g.manualUrl ?? `https://boardgamegeek.com/boardgame/${g.bggId}`,
+        context: `Manual de «${g.name}»`,
+        gone: !g.manualUrl,
+      };
+    }
   }
 }
 
@@ -278,6 +293,12 @@ export async function removeReportTarget(type: ReportTargetType, id: string): Pr
       return;
     }
     case "user":
+      return;
+    case "game_manual":
+      await prisma.game.updateMany({
+        where: { id },
+        data: { manualUrl: null, manualAddedById: null, manualAddedAt: null },
+      });
       return;
   }
 }

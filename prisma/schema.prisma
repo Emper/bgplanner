@@ -39,6 +39,7 @@ model User {
   createdEvents    Event[]        @relation("EventCreator")
   eventAttendances EventAttendee[]
   addedEventGames  EventGame[]    @relation("EventGameAdder")
+  addedManuals     Game[]         @relation("GameManualAdder")
   eventReviews     EventReview[]
   eventPhotos      EventPhoto[]
   groupPhotos      GroupPhoto[]
@@ -159,6 +160,14 @@ model Game {
   bggRank       Int?
   weight        Float?
   updatedAt     DateTime @updatedAt
+
+  // Página del manual en BGG (boardgamegeek.com/filepage/…), que aporta
+  // cualquiera: la API de BGG no da los ficheros de un juego. Se puede
+  // denunciar (tipo "game_manual").
+  manualUrl       String?
+  manualAddedById String?
+  manualAddedAt   DateTime?
+  manualAddedBy   User?     @relation("GameManualAdder", fields: [manualAddedById], references: [id], onDelete: SetNull)
 
   groupGames   GroupGame[]
   sessionGames GameSessionGame[]

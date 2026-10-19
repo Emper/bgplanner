@@ -53,5 +53,6 @@ export const config = {
     "/api/groups/:path*",
     "/api/events/:path*",
     "/api/bgg/:path*",
+    "/api/games/:path*",
   ],
 };

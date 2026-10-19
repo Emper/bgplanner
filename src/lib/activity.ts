@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 export type ActivityType =
   | "group_created" | "group_joined" | "group_deleted" | "group_pinged" | "votes_reset" | "member_promoted" | "member_demoted"
   | "game_added" | "game_removed" | "game_marked_played" | "game_returned_pending" | "game_archived"
-  | "game_reviewed" | "group_photo_added"
+  | "game_reviewed" | "group_photo_added" | "game_manual_added"
   | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
@@ -120,6 +120,7 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   event_joined: (m) => `se apuntó al evento "${m.eventName || ""}"`,
   event_left: (m) => `se desapuntó del evento "${m.eventName || ""}"`,
   event_game_added: (m) => `añadió "${m.gameName || "un juego"}" al evento`,
+  game_manual_added: (m) => `enlazó el manual de "${m.gameName || "un juego"}"`,
   event_geeklist_linked: (m) => `vinculó el evento a la lista "${m.listTitle || "de BGG"}"`,
   event_geeklist_synced: (m) =>
     `trajo ${m.added === 1 ? "1 juego nuevo" : `${m.added || "varios"} juegos nuevos`} de la lista "${m.listTitle || "de BGG"}"`,

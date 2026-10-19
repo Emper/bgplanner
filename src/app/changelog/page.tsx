@@ -12,6 +12,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "20 octubre 2026",
+    version: "1.53",
+    title: "Reglas a mano",
+    changes: [
+      { type: "new", text: "En «Mi lista» de un evento, cada juego lleva a sus ficheros de BGG para encontrar el reglamento en un momento" },
+      { type: "new", text: "Si encuentras el manual, enlázalo y todo el que tenga ese juego lo tendrá a un clic" },
+    ],
+  },
+  {
+    date: "20 octubre 2026",
     version: "1.52",
     title: "Cada juego en su sitio",
     changes: [

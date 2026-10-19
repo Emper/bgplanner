@@ -8,6 +8,7 @@ export const REPORT_TARGET_TYPES = [
   "event_photo", // EventPhoto
   "review", // GameReview (opinión de un juego, con sus fotos)
   "user", // User (el perfil entero)
+  "game_manual", // Game (su enlace al manual, que pone cualquiera)
 ] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
@@ -19,6 +20,7 @@ export const REPORT_TARGET_LABELS: Record<ReportTargetType, { this: string; a: s
   event_photo: { this: "esta foto", a: "una foto", noun: "Foto de evento" },
   review: { this: "esta opinión", a: "una opinión", noun: "Opinión" },
   user: { this: "a este usuario", a: "un usuario", noun: "Usuario" },
+  game_manual: { this: "este enlace al manual", a: "un enlace a un manual", noun: "Enlace a manual" },
 };
 
 export const REPORT_REASONS = [

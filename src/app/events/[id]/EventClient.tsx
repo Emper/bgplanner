@@ -22,6 +22,7 @@ import FriendButton from "@/components/FriendButton";
 import { INTENSITY_LABELS, INTENSITY_COLORS } from "@/lib/intensity";
 import { nudgePush } from "@/lib/pushNudge";
 import GeeklistPanel, { GeeklistNotice } from "./GeeklistPanel";
+import GameManualLinks from "@/components/GameManualLinks";
 
 interface Game {
   id: string;
@@ -35,6 +36,8 @@ interface Game {
   bggRating: number | null;
   bggRank: number | null;
   weight: number | null;
+  manualUrl: string | null;
+  manualAddedById: string | null;
 }
 
 interface Interest {
@@ -477,6 +480,14 @@ function EventDetailPageInner() {
     });
   };
 
+  // El manual es del juego: se actualiza donde salga ese juego
+  const handleManualChanged = (gameId: string, manual: { manualUrl: string | null; manualAddedById: string | null }) => {
+    setEvent((prev) => prev ? {
+      ...prev,
+      games: prev.games.map((eg) => eg.game.id === gameId ? { ...eg, game: { ...eg.game, ...manual } } : eg),
+    } : prev);
+  };
+
   const handleUpdateNotes = async (eventGameId: string, intensity: number, notes: string) => {
     // Optimistic: update notes locally
     setEvent((prev) => {
@@ -823,6 +834,7 @@ function EventDetailPageInner() {
             event={event}
             onUpdateNotes={handleUpdateNotes}
             onTogglePlayed={handleTogglePlayed}
+            onManualChanged={handleManualChanged}
           />
         )}
         {activeTab === "attendees" && (
@@ -1287,11 +1299,13 @@ function MyListTab({
   event,
   onUpdateNotes,
   onTogglePlayed,
+  onManualChanged,
 }: {
   myInterests: (EventGame & { myInterest: Interest })[];
   event: EventData;
   onUpdateNotes: (eventGameId: string, intensity: number, notes: string) => void;
   onTogglePlayed: (eventGameId: string, intensity: number, played: boolean) => void;
+  onManualChanged: (gameId: string, manual: { manualUrl: string | null; manualAddedById: string | null }) => void;
 }) {
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState("");
@@ -1406,6 +1420,12 @@ function MyListTab({
             {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
           </button>
         )}
+
+        <GameManualLinks
+          game={game}
+          currentUserId={event.currentUserId}
+          onChange={(manual) => onManualChanged(game.id, manual)}
+        />
       </div>
     </li>
   );

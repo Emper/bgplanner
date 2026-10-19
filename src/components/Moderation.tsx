@@ -20,16 +20,22 @@ export interface MoreMenuItem {
   danger?: boolean;
 }
 
-/** Botón «⋯» con un menú desplegable. `tone="dark"` para fondos oscuros (visor de fotos). */
+/**
+ * Botón «⋯» con un menú desplegable. `tone="dark"` para fondos oscuros (visor
+ * de fotos); `align="left"` si el botón queda a la izquierda y el menú, que
+ * por defecto se abre hacia ese lado, se saldría de la pantalla.
+ */
 export function MoreMenu({
   items,
   label = "Más opciones",
   tone = "default",
+  align = "right",
   className = "",
 }: {
   items: MoreMenuItem[];
   label?: string;
   tone?: "default" | "dark";
+  align?: "left" | "right";
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -81,7 +87,7 @@ export function MoreMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 z-40 min-w-[190px] py-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg text-left"
+          className={`absolute ${align === "left" ? "left-0" : "right-0"} top-full mt-1 z-40 min-w-[190px] py-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg text-left`}
         >
           {items.map((item) => (
             <button
