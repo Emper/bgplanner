@@ -77,11 +77,27 @@ export default function GameManualLinks({
   const manualTitle = game.manualUrl ? manualTitleFromUrl(game.manualUrl) : null;
   const manualSource = game.manualUrl ? manualSourceLabel(game.manualUrl) : "";
 
+  const filesLink = (
+    <a
+      href={bggFilesUrl(game.bggId, game.name)}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Reglas, ayudas y traducciones que ha subido la gente a BGG"
+      className={linkClass}
+    >
+      📄 <span className="sm:hidden">Ficheros</span>
+      <span className="hidden sm:inline">Ficheros en BGG</span>
+    </a>
+  );
+
+  // Una columnita a la derecha de la fila: el manual (si lo hay) y los
+  // ficheros; sin manual, los ficheros y debajo «Enlazar manual». El
+  // formulario se abre como un desplegable para no descuadrar la fila.
   return (
-    <div className="mt-1">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        {game.manualUrl ? (
-          <span className="inline-flex items-center gap-0.5">
+    <div className="relative shrink-0 flex flex-col items-end gap-1 pt-1 text-xs text-right">
+      {game.manualUrl ? (
+        <>
+          <span className="inline-flex items-center">
             <a
               href={game.manualUrl}
               target="_blank"
@@ -90,12 +106,13 @@ export default function GameManualLinks({
               className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
             >
               📖 Manual
-              {manualSource && <span className="font-normal text-[var(--text-muted)]"> · {manualSource}</span>}
+              {manualSource && (
+                <span className="hidden sm:inline font-normal text-[var(--text-muted)]"> · {manualSource}</span>
+              )}
             </a>
             <MoreMenu
               label="Opciones del manual"
-              align="left"
-              className="-my-1.5"
+              className="-my-2 -mr-2"
               items={
                 mine
                   ? [
@@ -106,32 +123,25 @@ export default function GameManualLinks({
               }
             />
           </span>
-        ) : (
-          !editing && (
-            <button type="button" onClick={startEditing} className={linkClass}>
-              ＋ Enlazar manual
-            </button>
-          )
-        )}
-        <a
-          href={bggFilesUrl(game.bggId, game.name)}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Reglas, ayudas y traducciones que ha subido la gente a BGG"
-          className={linkClass}
-        >
-          📄 Ficheros en BGG
-        </a>
-      </div>
+          {filesLink}
+        </>
+      ) : (
+        <>
+          {filesLink}
+          <button type="button" onClick={editing ? () => setEditing(false) : startEditing} className={linkClass}>
+            ＋ <span className="sm:hidden">Manual</span>
+            <span className="hidden sm:inline">Enlazar manual</span>
+          </button>
+        </>
+      )}
 
       {editing && (
-        <div className="mt-1.5">
+        <div className="absolute right-0 top-full mt-1.5 z-30 w-80 max-w-[calc(100vw-3rem)] p-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg text-left">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!saving) save();
             }}
-            className="flex gap-2"
           >
             <input
               type="url"
@@ -139,29 +149,32 @@ export default function GameManualLinks({
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
               placeholder="Enlace al manual (BGG, Drive, Dropbox…)"
               disabled={saving}
-              className="flex-1 min-w-0 px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+              className="w-full px-2.5 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
             />
-            <button
-              type="submit"
-              disabled={saving || !value.trim()}
-              className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-all duration-200"
-            >
-              {saving ? "Guardando…" : "Guardar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="px-2 py-1 rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-            >
-              Cancelar
-            </button>
+            <p className={`mt-1.5 text-[11px] leading-snug ${error ? "text-red-400" : "text-[var(--text-muted)]"}`}>
+              {error ||
+                "La página del reglamento en «Ficheros en BGG», o un enlace de Drive, Dropbox o la editorial. No vale el de descarga de BGG, que caduca. Servirá a todo el que tenga este juego."}
+            </p>
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="px-2.5 py-1 rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !value.trim()}
+                className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-all duration-200"
+              >
+                {saving ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
           </form>
-          <p className={`mt-1 text-[11px] ${error ? "text-red-400" : "text-[var(--text-muted)]"}`}>
-            {error ||
-              "La página del reglamento en «Ficheros en BGG», o un enlace de Drive, Dropbox o la editorial. No vale el de descarga de BGG, que caduca. Servirá a todo el que tenga este juego."}
-          </p>
         </div>
       )}
 

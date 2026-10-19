@@ -1420,13 +1420,12 @@ function MyListTab({
             {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
           </button>
         )}
-
-        <GameManualLinks
-          game={game}
-          currentUserId={event.currentUserId}
-          onChange={(manual) => onManualChanged(game.id, manual)}
-        />
       </div>
+      <GameManualLinks
+        game={game}
+        currentUserId={event.currentUserId}
+        onChange={(manual) => onManualChanged(game.id, manual)}
+      />
     </li>
   );
 
