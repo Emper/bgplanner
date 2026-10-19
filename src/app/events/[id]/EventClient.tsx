@@ -759,7 +759,7 @@ function EventDetailPageInner() {
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]"
               }`}
             >
-              {tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${event.games.length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
+              {tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${listedGames(event).length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
             </button>
           ))}
         </div>
