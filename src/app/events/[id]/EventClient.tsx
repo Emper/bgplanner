@@ -19,7 +19,7 @@ import { resizeImage } from "@/lib/image";
 import { profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
 import FriendButton from "@/components/FriendButton";
-import { INTENSITY_LABELS, INTENSITY_COLORS } from "@/lib/intensity";
+import { INTENSITY_LABELS, INTENSITY_COLORS, INTENSITY_LEVELS, isVeto, intensityMark, intensityText } from "@/lib/intensity";
 import { nudgePush } from "@/lib/pushNudge";
 import GeeklistPanel, { GeeklistNotice } from "./GeeklistPanel";
 import GameManualLinks from "@/components/GameManualLinks";
@@ -770,7 +770,7 @@ function EventDetailPageInner() {
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]"
               }`}
             >
-              {tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${listedGames(event).length})` : tab === "mylist" ? `Mi Lista (${myInterests.length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
+              {tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${listedGames(event).length})` : tab === "mylist" ? `Mi Lista (${myInterests.filter((i) => !isVeto(i.myInterest.intensity)).length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
             </button>
           ))}
         </div>
@@ -1031,13 +1031,19 @@ function GamesTab({
   const sorted = sortEventGames(event.games, activeSort, (eg) => !!myInterestIn(eg));
   // Lo que ha salido de la lista va siempre al final, aparte
   const isGone = (eg: EventGame) => linked && !!eg.leftGeeklistAt;
-  const games = sorted.filter((eg) => !isGone(eg));
+  // Lo que he vetado también va al final, tachado
+  const vetoedByMe = (eg: EventGame) => {
+    const mine = myInterestIn(eg);
+    return !!mine && isVeto(mine.intensity);
+  };
+  const listed = sorted.filter((eg) => !isGone(eg));
+  const games = [...listed.filter((eg) => !vetoedByMe(eg)), ...listed.filter(vetoedByMe)];
   const gone = sorted.filter(isGone);
   const unratedCount = isAttending ? games.filter((eg) => !myInterestIn(eg)).length : 0;
 
   const intensityPicker = (eg: EventGame, myInterest: Interest | undefined) => (
     <div className="flex flex-wrap gap-1.5">
-      {[5, 4, 3, 2, 1].map((level) => (
+      {INTENSITY_LEVELS.map((level) => (
         <button
           key={level}
           onClick={() =>
@@ -1048,12 +1054,14 @@ function GamesTab({
           className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
             myInterest?.intensity === level
               ? INTENSITY_COLORS[level]
-              : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-          }`}
+              : isVeto(level)
+                ? "border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+                : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+          } ${isVeto(level) ? "sm:ml-1.5" : ""}`}
           title={INTENSITY_LABELS[level]}
         >
-          <span className="sm:hidden">{level}</span>
-          <span className="hidden sm:inline">{level}. {INTENSITY_LABELS[level]}</span>
+          <span className="sm:hidden">{intensityMark(level)}</span>
+          <span className="hidden sm:inline">{intensityText(level)}</span>
         </button>
       ))}
     </div>
@@ -1122,15 +1130,19 @@ function GamesTab({
         <div className="space-y-3">
           {games.map((eg) => {
             const myInterest = myInterestIn(eg);
-            const totalInterested = eg.interests.length;
+            const totalInterested = eg.interests.filter((i) => !isVeto(i.intensity)).length;
+            const totalVetoes = eg.interests.length - totalInterested;
+            const vetoed = vetoedByMe(eg);
 
             return (
               <div
                 key={eg.id}
-                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200"
+                className={`bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200 ${
+                  vetoed ? "opacity-70" : ""
+                }`}
               >
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-11 h-11 sm:w-[80px] sm:h-[80px] shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
+                  <div className={`w-11 h-11 sm:w-[80px] sm:h-[80px] shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${vetoed ? "grayscale" : ""}`}>
                     {eg.game.thumbnail ? (
                       <Image src={eg.game.thumbnail} alt={eg.game.name} width={80} height={80} className="w-full h-full object-contain" />
                     ) : (
@@ -1143,7 +1155,7 @@ function GamesTab({
                         href={`https://boardgamegeek.com/boardgame/${eg.game.bggId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-[var(--primary)] transition-colors"
+                        className={`hover:text-[var(--primary)] transition-colors ${vetoed ? "line-through decoration-[var(--text-muted)]" : ""}`}
                       >
                         {eg.game.name}
                       </a>
@@ -1175,6 +1187,14 @@ function GamesTab({
                       {totalInterested > 0 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
                           {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {totalVetoes > 0 && (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-muted)]"
+                          title={`${totalVetoes} ${totalVetoes === 1 ? "persona no quiere" : "personas no quieren"} jugarlo`}
+                        >
+                          🚫 {totalVetoes}
                         </span>
                       )}
                     </div>
@@ -1224,7 +1244,10 @@ function GamesTab({
                             {eg.game.name}
                           </a>
                           <span className="text-xs ml-1.5">
-                            {eg.interests.length} interesado{eg.interests.length !== 1 ? "s" : ""}
+                            {(() => {
+                              const n = eg.interests.filter((i) => !isVeto(i.intensity)).length;
+                              return `${n} interesado${n !== 1 ? "s" : ""}`;
+                            })()}
                           </span>
                         </div>
                         {isAttending && (
@@ -1241,8 +1264,8 @@ function GamesTab({
                           >
                             {myInterest ? (
                               <>
-                                <span className="sm:hidden">{myInterest.intensity}</span>
-                                <span className="hidden sm:inline">{myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}</span>
+                                <span className="sm:hidden">{intensityMark(myInterest.intensity)}</span>
+                                <span className="hidden sm:inline">{intensityText(myInterest.intensity)}</span>
                               </>
                             ) : (
                               "Mi interés"
@@ -1333,7 +1356,9 @@ function MyListTab({
     );
   }
 
-  const pending = myInterests.filter((i) => !i.myInterest.playedAt);
+  const pending = myInterests.filter((i) => !i.myInterest.playedAt && !isVeto(i.myInterest.intensity));
+  // Los vetados, aparte y al final: no son para jugar, pero se pueden cambiar
+  const vetoed = myInterests.filter((i) => !i.myInterest.playedAt && isVeto(i.myInterest.intensity));
   // Los jugados, en el orden en que se marcaron
   const played = myInterests
     .filter((i) => i.myInterest.playedAt)
@@ -1344,95 +1369,102 @@ function MyListTab({
     setEditingNotes(null);
   };
 
-  const renderRow = ({ id: eventGameId, game, myInterest }: EventGame & { myInterest: Interest }, isPlayed: boolean) => (
-    <li key={eventGameId} className="flex items-start gap-3 py-2.5">
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={isPlayed}
-        aria-label={isPlayed ? `Desmarcar ${game.name} como jugado` : `Marcar ${game.name} como jugado`}
-        title={isPlayed ? "Desmarcar" : "Marcar como jugado"}
-        onClick={() => onTogglePlayed(eventGameId, myInterest.intensity, !isPlayed)}
-        className={`w-7 h-7 mt-1.5 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
-          isPlayed
-            ? "bg-emerald-500 border-emerald-500 text-white"
-            : "border-[var(--border-strong)] bg-[var(--input-bg)] text-transparent hover:border-emerald-400 hover:text-emerald-400/50"
-        }`}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-          <path d="M5 12.5l4.5 4.5L19 7.5" />
-        </svg>
-      </button>
-      <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${isPlayed ? "opacity-60" : ""}`}>
-        {game.thumbnail ? (
-          <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-contain" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
-          <a
-            href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`font-semibold text-sm sm:text-base hover:text-[var(--primary)] transition-colors ${isPlayed ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"}`}
-          >
-            {game.name}
-          </a>
-          <span
-            className={`inline-flex items-center px-1.5 py-px rounded text-[11px] font-medium border ${INTENSITY_COLORS[myInterest.intensity]} ${isPlayed ? "opacity-60" : ""}`}
-            title={INTENSITY_LABELS[myInterest.intensity]}
-          >
-            <span className="sm:hidden">{myInterest.intensity}</span>
-            <span className="hidden sm:inline">{myInterest.intensity}. {INTENSITY_LABELS[myInterest.intensity]}</span>
-          </span>
-        </div>
-
-        {editingNotes === eventGameId ? (
-          <div className="flex gap-2 mt-1.5">
-            <EmojiField
-              multiline={false}
-              value={notesValue}
-              onChange={setNotesValue}
-              maxLength={500}
-              placeholder="Notas privadas..."
-              wrapperClassName="flex-1"
-              className="w-full px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveNotes(eventGameId, myInterest.intensity);
-              }}
-            />
-            <button
-              onClick={() => saveNotes(eventGameId, myInterest.intensity)}
-              className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              Guardar
-            </button>
-          </div>
+  const renderRow = ({ id: eventGameId, game, myInterest }: EventGame & { myInterest: Interest }, isPlayed: boolean) => {
+    const vetoed = isVeto(myInterest.intensity) && !isPlayed;
+    return (
+      <li key={eventGameId} className="flex items-start gap-3 py-2.5">
+        {vetoed ? (
+          <span aria-hidden className="w-7 h-7 mt-1.5 shrink-0 flex items-center justify-center text-base">🚫</span>
         ) : (
           <button
-            onClick={() => {
-              setEditingNotes(eventGameId);
-              setNotesValue(myInterest.notes || "");
-            }}
-            className={`block text-left text-xs mt-0.5 transition-colors ${
-              myInterest.notes
-                ? "text-[var(--text-secondary)] hover:text-[var(--text)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            type="button"
+            role="checkbox"
+            aria-checked={isPlayed}
+            aria-label={isPlayed ? `Desmarcar ${game.name} como jugado` : `Marcar ${game.name} como jugado`}
+            title={isPlayed ? "Desmarcar" : "Marcar como jugado"}
+            onClick={() => onTogglePlayed(eventGameId, myInterest.intensity, !isPlayed)}
+            className={`w-7 h-7 mt-1.5 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
+              isPlayed
+                ? "bg-emerald-500 border-emerald-500 text-white"
+                : "border-[var(--border-strong)] bg-[var(--input-bg)] text-transparent hover:border-emerald-400 hover:text-emerald-400/50"
             }`}
           >
-            {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
           </button>
         )}
-      </div>
-      <GameManualLinks
-        game={game}
-        currentUserId={event.currentUserId}
-        onChange={(manual) => onManualChanged(game.id, manual)}
-      />
-    </li>
-  );
+        <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${isPlayed ? "opacity-60" : ""} ${vetoed ? "opacity-60 grayscale" : ""}`}>
+          {game.thumbnail ? (
+            <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-contain" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
+            <a
+              href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`font-semibold text-sm sm:text-base hover:text-[var(--primary)] transition-colors ${isPlayed || vetoed ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"}`}
+            >
+              {game.name}
+            </a>
+            <span
+              className={`inline-flex items-center px-1.5 py-px rounded text-[11px] font-medium border ${INTENSITY_COLORS[myInterest.intensity]} ${isPlayed ? "opacity-60" : ""}`}
+              title={INTENSITY_LABELS[myInterest.intensity]}
+            >
+              <span className="sm:hidden">{intensityMark(myInterest.intensity)}</span>
+              <span className="hidden sm:inline">{intensityText(myInterest.intensity)}</span>
+            </span>
+          </div>
+
+          {editingNotes === eventGameId ? (
+            <div className="flex gap-2 mt-1.5">
+              <EmojiField
+                multiline={false}
+                value={notesValue}
+                onChange={setNotesValue}
+                maxLength={500}
+                placeholder="Notas privadas..."
+                wrapperClassName="flex-1"
+                className="w-full px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveNotes(eventGameId, myInterest.intensity);
+                }}
+              />
+              <button
+                onClick={() => saveNotes(eventGameId, myInterest.intensity)}
+                className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                Guardar
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setEditingNotes(eventGameId);
+                setNotesValue(myInterest.notes || "");
+              }}
+              className={`block text-left text-xs mt-0.5 transition-colors ${
+                myInterest.notes
+                  ? "text-[var(--text-secondary)] hover:text-[var(--text)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+              }`}
+            >
+              {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
+            </button>
+          )}
+        </div>
+        <GameManualLinks
+          game={game}
+          currentUserId={event.currentUserId}
+          onChange={(manual) => onManualChanged(game.id, manual)}
+        />
+      </li>
+    );
+  };
 
   return (
     <div>
@@ -1453,8 +1485,12 @@ function MyListTab({
             {pending.map((item) => renderRow(item, false))}
           </ul>
         </div>
-      ) : (
+      ) : played.length > 0 ? (
         <p className="text-[var(--text-secondary)] text-center py-6">¡Ya has jugado todo lo de tu lista! 🎉</p>
+      ) : (
+        <p className="text-[var(--text-secondary)] text-center py-6">
+          De momento solo has descartado juegos. Marca en «Juegos» los que te apetecen
+        </p>
       )}
 
       {played.length > 0 && (
@@ -1464,6 +1500,17 @@ function MyListTab({
           </h3>
           <ul className="divide-y divide-[var(--border)]">
             {played.map((item) => renderRow(item, true))}
+          </ul>
+        </div>
+      )}
+
+      {vetoed.length > 0 && (
+        <div className="mt-6 bg-[var(--surface)] rounded-2xl border border-dashed border-[var(--border)] px-3 sm:px-4 py-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
+            No quiero jugarlos ({vetoed.length})
+          </h3>
+          <ul className="divide-y divide-[var(--border)]">
+            {vetoed.map((item) => renderRow(item, false))}
           </ul>
         </div>
       )}
@@ -1816,8 +1863,8 @@ function AttendeesTab({
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${INTENSITY_COLORS[interest.intensity]}`}
                         title={`${INTENSITY_LABELS[interest.intensity]}`}
                       >
-                        <span className="font-bold">{interest.intensity}</span>
-                        <span className="max-w-[100px] sm:max-w-[150px] truncate">{game.name}</span>
+                        <span className="font-bold">{intensityMark(interest.intensity)}</span>
+                        <span className={`max-w-[100px] sm:max-w-[150px] truncate ${isVeto(interest.intensity) ? "line-through" : ""}`}>{game.name}</span>
                       </span>
                     ))}
                   </div>

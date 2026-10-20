@@ -3,6 +3,7 @@ import { fetchBggGeeklist, type BggGeeklist } from "./bgg";
 import { ensureGames } from "./games";
 import { logActivity } from "./activity";
 import { inBackground, notify } from "./notifications";
+import { VETO } from "./intensity";
 
 // Un evento puede tomar sus juegos de una geeklist de BGG en vez de elegirlos
 // a mano. La lista manda: lo que entra en ella aparece en el evento y lo que
@@ -54,7 +55,7 @@ export async function applyGeeklist(
 
   const current = await prisma.eventGame.findMany({
     where: { eventId },
-    select: { id: true, gameId: true, fromGeeklist: true, leftGeeklistAt: true, _count: { select: { interests: true } } },
+    select: { id: true, gameId: true, fromGeeklist: true, leftGeeklistAt: true, _count: { select: { interests: { where: { intensity: { gt: VETO } } } } } },
   });
   // Una lista que se queda vacía de golpe huele a fallo de BGG: mejor no
   // vaciar la ludoteca por ello
@@ -88,11 +89,12 @@ export async function applyGeeklist(
   });
 
   const gone = current.filter((c) => !listGameIds.has(c.gameId));
-  // Se vuelve a mirar al borrar: alguien puede marcar interés entretanto
+  // Se vuelve a mirar al borrar: alguien puede marcar interés entretanto. Un
+  // veto no es interés: no retiene el juego
   const { count: removed } = await prisma.eventGame.deleteMany({
     where: {
       id: { in: gone.filter((c) => c._count.interests === 0).map((c) => c.id) },
-      interests: { none: {} },
+      interests: { none: { intensity: { gt: VETO } } },
     },
   });
   const toFlag = gone.filter((c) => c._count.interests > 0 && !c.leftGeeklistAt).map((c) => c.id);

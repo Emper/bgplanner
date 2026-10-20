@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import { findSharedList, type SharedList } from "@/lib/sharedList";
 import { formatEventWhen } from "@/lib/publicLinks";
-import { INTENSITY_COLORS, INTENSITY_LABELS } from "@/lib/intensity";
+import { INTENSITY_COLORS, intensityText, isVeto } from "@/lib/intensity";
 import SmartNav from "@/components/SmartNav";
 import Footer from "@/components/Footer";
 import SignupBanner from "@/components/SignupBanner";
@@ -47,6 +47,7 @@ export async function generateMetadata({
 }
 
 function Row({ item, played }: { item: SharedList["pending"][number]; played: boolean }) {
+  const struck = played || isVeto(item.intensity);
   return (
     <li className="flex items-center gap-3 py-2.5">
       {played && (
@@ -56,7 +57,7 @@ function Row({ item, played }: { item: SharedList["pending"][number]; played: bo
           </svg>
         </span>
       )}
-      <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${played ? "opacity-60" : ""}`}>
+      <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${struck ? "opacity-60" : ""} ${isVeto(item.intensity) ? "grayscale" : ""}`}>
         {item.game.thumbnail ? (
           <Image src={item.game.thumbnail} alt={item.game.name} width={40} height={40} className="w-full h-full object-contain" />
         ) : (
@@ -69,7 +70,7 @@ function Row({ item, played }: { item: SharedList["pending"][number]; played: bo
           target="_blank"
           rel="noopener noreferrer"
           className={`font-semibold text-sm sm:text-base hover:text-[var(--primary)] transition-colors ${
-            played ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"
+            struck ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"
           }`}
         >
           {item.game.name}
@@ -77,7 +78,7 @@ function Row({ item, played }: { item: SharedList["pending"][number]; played: bo
         <span
           className={`inline-flex items-center px-1.5 py-px rounded text-[11px] font-medium border ${INTENSITY_COLORS[item.intensity]} ${played ? "opacity-60" : ""}`}
         >
-          {item.intensity}. {INTENSITY_LABELS[item.intensity]}
+          {intensityText(item.intensity)}
         </span>
       </div>
     </li>
@@ -122,7 +123,7 @@ export default async function SharedListPage({
   }
 
   const isSelf = list.ownerId === session?.userId;
-  const empty = list.pending.length === 0 && list.played.length === 0;
+  const empty = list.pending.length === 0 && list.played.length === 0 && list.vetoed.length === 0;
 
   return (
     <>
@@ -162,9 +163,9 @@ export default async function SharedListPage({
                     {list.pending.map((item) => <Row key={item.id} item={item} played={false} />)}
                   </ul>
                 </div>
-              ) : (
+              ) : list.played.length > 0 ? (
                 <p className="text-[var(--text-secondary)] text-center py-6">¡Ya lo ha jugado todo! 🎉</p>
-              )}
+              ) : null}
 
               {list.played.length > 0 && (
                 <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2">
@@ -173,6 +174,17 @@ export default async function SharedListPage({
                   </h2>
                   <ul className="divide-y divide-[var(--border)]">
                     {list.played.map((item) => <Row key={item.id} item={item} played />)}
+                  </ul>
+                </div>
+              )}
+
+              {list.vetoed.length > 0 && (
+                <div className="bg-[var(--surface)] rounded-2xl border border-dashed border-[var(--border)] px-3 sm:px-4 py-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
+                    No quiere jugarlos ({list.vetoed.length})
+                  </h2>
+                  <ul className="divide-y divide-[var(--border)]">
+                    {list.vetoed.map((item) => <Row key={item.id} item={item} played={false} />)}
                   </ul>
                 </div>
               )}

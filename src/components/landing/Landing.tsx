@@ -582,8 +582,8 @@ function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHre
                 Jornadas y quedadas, pero con plan
               </h2>
               <p className="mt-4 text-lg text-[var(--text-secondary)] leading-relaxed">
-                Encuentra eventos abiertos, apúntate con un clic y marca qué juegos quieres jugar allí, del 1 «Solo si no
-                queda otra» al 5 «Máxima prioridad». Llegas sabiendo con quién compartirás mesa… y quien organiza sabe qué
+                Encuentra eventos abiertos, apúntate con un clic y marca qué juegos quieres jugar allí, del 5 «Necesito
+                jugarlo» al 1 «Solo si no queda otra» (o vétalo sin más). Llegas sabiendo con quién compartirás mesa… y quien organiza sabe qué
                 mesas montar.
               </p>
             </Reveal>

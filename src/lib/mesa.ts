@@ -3,7 +3,10 @@
 //
 // El orden no es la suma de ganas: un juego que a dos les encanta y a otro le
 // da igual no debería ganar a uno que les gusta a todos. Manda la persona que
-// menos ganas tiene ("que nadie se aburra") y desempata la media.
+// menos ganas tiene ("que nadie se aburra") y desempata la media. Y si alguien
+// lo ha vetado (0), no se juega en esa mesa: va aparte, al final.
+
+import { isVeto } from "./intensity";
 
 export interface MesaInterest {
   attendeeId: string;
@@ -37,12 +40,15 @@ export interface MesaRow<G extends MesaGameInput> {
   missing: string[];
   /** Miembros que ya lo han jugado. */
   playedBy: string[];
+  /** Miembros que no quieren jugarlo. */
+  vetoedBy: string[];
 }
 
 export interface MesaResult<G extends MesaGameInput> {
   all: MesaRow<G>[];
   almost: MesaRow<G>[];
   played: MesaRow<G>[];
+  vetoed: MesaRow<G>[];
 }
 
 function moodOf(values: number[]): MesaMood {
@@ -78,35 +84,45 @@ function compareRows<G extends MesaGameInput>(a: MesaRow<G>, b: MesaRow<G>): num
  */
 export function buildMesa<G extends MesaGameInput>(games: G[], members: string[]): MesaResult<G> {
   const size = members.length;
-  const result: MesaResult<G> = { all: [], almost: [], played: [] };
+  const result: MesaResult<G> = { all: [], almost: [], played: [], vetoed: [] };
 
   for (const eg of games) {
     const byAttendee = new Map(eg.interests.map((i) => [i.attendeeId, i]));
     const intensities = members.map((id) => byAttendee.get(id)?.intensity ?? null);
-    const values = intensities.filter((v): v is number => v !== null);
-    if (values.length === 0) continue;
+    const marked = intensities.filter((v): v is number => v !== null);
+    if (marked.length === 0) continue;
+    // Las ganas de quien sí quiere jugarlo
+    const values = marked.filter((v) => !isVeto(v));
 
     const missing = members.filter((id) => !byAttendee.has(id));
     const playedBy = members.filter((id) => byAttendee.get(id)?.playedAt);
+    const vetoedBy = members.filter((id) => {
+      const interest = byAttendee.get(id);
+      return interest ? isVeto(interest.intensity) : false;
+    });
 
     // "Casi" es que falte uno solo, y solo tiene sentido a partir de tres: con
     // dos, que falte uno es que solo lo quiere el otro.
     const isAll = missing.length === 0;
     const isAlmost = size >= 3 && missing.length === 1;
     if (!isAll && !isAlmost) continue;
+    // Vetado por todos los que lo marcaron: aquí no se lo pide nadie
+    if (values.length === 0) continue;
 
     const row: MesaRow<G> = {
       eventGame: eg,
       intensities,
-      min: Math.min(...values),
-      mean: values.reduce((sum, v) => sum + v, 0) / values.length,
-      mood: isAll ? moodOf(values) : null,
+      min: values.length ? Math.min(...values) : 0,
+      mean: values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0,
+      mood: isAll && vetoedBy.length === 0 ? moodOf(values) : null,
       playersWarning: playersWarningOf(size, eg.game),
       missing,
       playedBy,
+      vetoedBy,
     };
 
-    if (playedBy.length > 0) result.played.push(row);
+    if (vetoedBy.length > 0) result.vetoed.push(row);
+    else if (playedBy.length > 0) result.played.push(row);
     else if (isAll) result.all.push(row);
     else result.almost.push(row);
   }
@@ -114,5 +130,7 @@ export function buildMesa<G extends MesaGameInput>(games: G[], members: string[]
   result.all.sort(compareRows);
   result.almost.sort(compareRows);
   result.played.sort(compareRows);
+  // Primero los que menos vetos tienen: son los más fáciles de reconducir
+  result.vetoed.sort((a, b) => a.vetoedBy.length - b.vetoedBy.length || compareRows(a, b));
   return result;
 }

@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
 import GameShelf, { type ShelfGame } from "@/components/GameShelf";
 import { KEEP_CLASSES, KEEP_EMOJI, KEEP_LABELS, KEEP_SCORES } from "@/lib/collection";
+import { INTENSITY_COLORS, INTENSITY_LABELS, INTENSITY_LEVELS, intensityMark } from "@/lib/intensity";
 import { DEMO_GAMES, type DemoGame } from "./games";
 import { usePrefersReducedMotion } from "@/components/motion";
 
@@ -683,18 +684,10 @@ export function CollectionMock() {
 
 // ── Eventos ─────────────────────────────────────────────────────────────
 
-const INTENSITY: Record<number, { label: string; cls: string }> = {
-  5: { label: "Máxima prioridad", cls: "bg-red-500/15 text-red-600 dark:text-red-300 border-red-500" },
-  4: { label: "Tengo que probarlo", cls: "bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500" },
-  3: { label: "Me encantaría", cls: "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]" },
-  2: { label: "Si surge, me va bien", cls: "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500" },
-  1: { label: "Solo si no queda otra", cls: "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)]" },
-};
-
 const EVENT_GAMES = [
   { game: G.dune, mine: 5, people: 14 },
   { game: G.seti, mine: 4, people: 9 },
-  { game: G.altaTension, mine: 2, people: 6 },
+  { game: G.altaTension, mine: 0, people: 6 },
 ];
 
 export function EventMock({ active }: { active: boolean }) {
@@ -752,18 +745,18 @@ export function EventMock({ active }: { active: boolean }) {
                   <span className="text-[10px] text-[var(--text-muted)] shrink-0">{eg.people} interesados</span>
                 </div>
                 <div className="mt-1 flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((l) => (
+                  {INTENSITY_LEVELS.map((l) => (
                     <span
                       key={l}
                       className={`w-6 h-6 rounded-md border text-[11px] font-bold flex items-center justify-center transition-all duration-300 ${
-                        l === level ? `${INTENSITY[l].cls} scale-110` : "border-[var(--border)] text-[var(--text-muted)]"
+                        l === level ? `${INTENSITY_COLORS[l]} scale-110` : "border-[var(--border)] text-[var(--text-muted)]"
                       }`}
                     >
-                      {l}
+                      {intensityMark(l)}
                     </span>
                   ))}
                   <span key={level} className="ml-2.5 text-[11px] text-[var(--text-secondary)] truncate fx-pop">
-                    {INTENSITY[level].label}
+                    {INTENSITY_LABELS[level]}
                   </span>
                 </div>
               </div>

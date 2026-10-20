@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Avatar from "@/components/Avatar";
-import { INTENSITY_COLORS, INTENSITY_LABELS } from "@/lib/intensity";
+import { INTENSITY_COLORS, INTENSITY_LABELS, intensityMark } from "@/lib/intensity";
 import { buildMesa, type MesaGameInput, type MesaMood, type MesaRow } from "@/lib/mesa";
 
 // "Armar mesa": qué jugar con un grupo concreto de asistentes. El cálculo
@@ -54,7 +54,7 @@ export default function MesaView({
     const m = members.find((x) => x.id === id);
     return m ? fullName(m).split(" ")[0] : "Alguien";
   };
-  const { all, almost, played } = buildMesa(games, memberIds);
+  const { all, almost, played, vetoed } = buildMesa(games, memberIds);
   // Quien no ha marcado nada no es que no quiera: es que aún no ha votado
   const silent = memberIds.filter((id) => !games.some((eg) => eg.interests.some((i) => i.attendeeId === id)));
 
@@ -73,9 +73,17 @@ export default function MesaView({
     }).catch(() => {});
   };
 
-  const renderRow = (row: MesaRow<MesaGame>, rank: number | null, kind: "all" | "almost" | "played") => {
+  const vetoedText = (ids: string[]) => {
+    const me = ids.includes(currentAttendeeId ?? "");
+    const others = ids.filter((id) => id !== currentAttendeeId).map(nameOf);
+    if (me && others.length === 0) return "Tú no quieres jugarlo";
+    if (me) return `Tú y ${joinNames(others)} no queréis jugarlo`;
+    return `${joinNames(others)} no ${others.length === 1 ? "quiere" : "quieren"} jugarlo`;
+  };
+
+  const renderRow = (row: MesaRow<MesaGame>, rank: number | null, kind: "all" | "almost" | "played" | "vetoed") => {
     const { game } = row.eventGame;
-    const dim = kind === "played";
+    const dim = kind === "played" || kind === "vetoed";
     return (
       <li key={row.eventGame.id} className="flex items-center gap-3 py-2.5">
         {rank !== null && (
@@ -90,7 +98,11 @@ export default function MesaView({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
-            <span className={`font-semibold text-sm sm:text-base ${dim ? "text-[var(--text-secondary)]" : "text-[var(--text)]"}`}>
+            <span
+              className={`font-semibold text-sm sm:text-base ${dim ? "text-[var(--text-secondary)]" : "text-[var(--text)]"} ${
+                kind === "vetoed" ? "line-through decoration-[var(--text-muted)]" : ""
+              }`}
+            >
               {game.name}
             </span>
             {row.mood && (
@@ -114,20 +126,21 @@ export default function MesaView({
             </p>
           )}
           {kind === "played" && <p className="text-xs text-[var(--text-muted)] mt-0.5">{playedText(row.playedBy)}</p>}
+          {kind === "vetoed" && <p className="text-xs text-[var(--text-muted)] mt-0.5">🚫 {vetoedText(row.vetoedBy)}</p>}
         </div>
         {/* Las ganas de cada uno, en el orden de la mesa */}
         <div className="flex items-center gap-1 shrink-0">
           {members.map((m, i) => {
             const value = row.intensities[i];
             return (
-              <div key={m.id} className={`relative ${value === null ? "opacity-30" : ""}`} title={`${fullName(m)}: ${value ? INTENSITY_LABELS[value] : "no lo ha marcado"}`}>
+              <div key={m.id} className={`relative ${value === null ? "opacity-30" : ""}`} title={`${fullName(m)}: ${value !== null ? INTENSITY_LABELS[value] : "no lo ha marcado"}`}>
                 <Avatar name={fullName(m)} avatarUrl={m.user.avatarUrl} size="xs" />
                 <span
                   className={`absolute -bottom-1 -right-1 min-w-[16px] h-4 px-0.5 rounded flex items-center justify-center text-[10px] font-bold border bg-[var(--surface)] ${
-                    value ? INTENSITY_COLORS[value] : "border-[var(--border)] text-[var(--text-muted)]"
+                    value !== null ? INTENSITY_COLORS[value] : "border-[var(--border)] text-[var(--text-muted)]"
                   }`}
                 >
-                  {value ?? "–"}
+                  {value !== null ? intensityMark(value) : "–"}
                 </span>
               </div>
             );
@@ -213,7 +226,16 @@ export default function MesaView({
         </div>
       )}
 
-      {all.length === 0 && almost.length === 0 && played.length === 0 && (
+      {vetoed.length > 0 && (
+        <div className={box}>
+          <h3 className={heading}>Alguien no quiere jugarlo ({vetoed.length})</h3>
+          <ul className="divide-y divide-[var(--border)]">
+            {vetoed.map((row) => renderRow(row, null, "vetoed"))}
+          </ul>
+        </div>
+      )}
+
+      {all.length === 0 && almost.length === 0 && played.length === 0 && vetoed.length === 0 && (
         <p className="text-[var(--text-secondary)] text-center py-8">
           No hay juegos en común en esta mesa. Probad a marcar más juegos en la pestaña «Juegos».
         </p>

@@ -12,6 +12,15 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "20 octubre 2026",
+    version: "1.54",
+    title: "Derecho a veto",
+    changes: [
+      { type: "new", text: "Nueva opción «No quiero jugarlo» en los juegos de un evento: se queda al final, tachado, y ese juego no sale en las mesas donde estés" },
+      { type: "improved", text: "Las ganas de jugar se explican mejor, de «Necesito jugarlo» a «Solo si no queda otra», con colores que van de más a menos calor" },
+    ],
+  },
+  {
+    date: "20 octubre 2026",
     version: "1.53",
     title: "Reglas a mano",
     changes: [

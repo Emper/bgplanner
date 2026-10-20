@@ -191,7 +191,7 @@ export const eventAttendeeRoleSchema = z.object({
 
 export const eventInterestSchema = z.object({
   eventGameId: z.string().min(1),
-  intensity: z.number().int().min(1).max(5),
+  intensity: z.number().int().min(0).max(5), // 0 = no quiero jugarlo
   notes: z.string().max(500).transform(clean).optional(),
   played: z.boolean().optional(),
 });

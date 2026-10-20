@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { eventInterestSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { isVeto } from "@/lib/intensity";
 
 // Set/update interest for a game
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -45,7 +46,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     create: { eventGameId, attendeeId: attendee.id, intensity, notes, playedAt },
   });
 
-  logActivity("event_interest_set", session.userId, { eventId, gameName: eventGame.game.name, intensity });
+  // Un veto no es interés: no se anuncia en la actividad del evento
+  if (!isVeto(intensity)) {
+    logActivity("event_interest_set", session.userId, { eventId, gameName: eventGame.game.name, intensity });
+  }
 
   return NextResponse.json(interest);
 }

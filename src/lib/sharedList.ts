@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { isVeto } from "@/lib/intensity";
 
 // La lista de un asistente para un evento, tal y como se ve desde su enlace
 // compartido. Sin notas: esas son privadas aunque la lista no lo sea.
@@ -41,13 +42,15 @@ export const findSharedList = cache(async (token: string) => {
   }));
 
   // Igual que en "Mi Lista": primero lo que más apetece, y lo ya jugado al
-  // final en el orden en que se marcó.
+  // final en el orden en que se marcó. Lo vetado, aparte y lo último.
+  const byName = (a: (typeof items)[number], b: (typeof items)[number]) => a.game.name.localeCompare(b.game.name, "es");
   const pending = items
-    .filter((i) => !i.playedAt)
-    .sort((a, b) => b.intensity - a.intensity || a.game.name.localeCompare(b.game.name, "es"));
+    .filter((i) => !i.playedAt && !isVeto(i.intensity))
+    .sort((a, b) => b.intensity - a.intensity || byName(a, b));
   const played = items
     .filter((i) => i.playedAt)
     .sort((a, b) => a.playedAt!.getTime() - b.playedAt!.getTime());
+  const vetoed = items.filter((i) => !i.playedAt && isVeto(i.intensity)).sort(byName);
 
   return {
     ownerId: attendee.userId,
@@ -62,6 +65,7 @@ export const findSharedList = cache(async (token: string) => {
     },
     pending,
     played,
+    vetoed,
   };
 });
 

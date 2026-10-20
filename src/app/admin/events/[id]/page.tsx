@@ -5,6 +5,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { formatActivity } from "@/lib/activity";
 import { toDateTimeLocalInput } from "@/lib/format";
+import { isVeto } from "@/lib/intensity";
 
 interface AdminEventDetail {
   id: string;
@@ -211,6 +212,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
             <ul className="divide-y divide-[var(--border)] text-sm">
               {data.games.map((g) => {
                 const total = g.interests.reduce((s, i) => s + i.intensity, 0);
+                const vetoes = g.interests.filter((i) => isVeto(i.intensity)).length;
                 return (
                   <li key={g.id} className="py-2 flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -218,7 +220,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
                       <div className="text-xs text-[var(--text-muted)] truncate">por {g.addedBy}</div>
                     </div>
                     <span className="text-xs font-mono text-[var(--text-secondary)] whitespace-nowrap">
-                      {g.interests.length} interés · {total} pts
+                      {g.interests.length - vetoes} interés · {total} pts{vetoes > 0 ? ` · ${vetoes} veto${vetoes !== 1 ? "s" : ""}` : ""}
                     </span>
                   </li>
                 );
