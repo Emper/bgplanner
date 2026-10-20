@@ -33,8 +33,18 @@ export default function MobileTabBar() {
   if (!navUser) return null;
   if (HIDDEN_PREFIXES.some((p) => isUnder(pathname, p))) return null;
 
-  const profileHref = navUser.profileHref;
+  // Tu perfil y tu colección van en el menú de la cabecera, como en escritorio
   const tabs: Tab[] = [
+    {
+      href: "/",
+      label: "Inicio",
+      match: [],
+      icon: (
+        <svg className={ICON} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+        </svg>
+      ),
+    },
     {
       href: "/groups",
       label: "Grupos",
@@ -65,16 +75,12 @@ export default function MobileTabBar() {
         </svg>
       ),
     },
-    {
-      href: profileHref,
-      label: "Perfil",
-      // La colección vive dentro del perfil, y /profile es donde se edita
-      match: [profileHref, "/profile", "/collection"],
-      icon: <ProfileDot name={navUser.name} />,
-    },
   ];
 
-  const activeIndex = tabs.findIndex((t) => t.match.some((m) => isUnder(pathname, m)));
+  // Inicio solo cuenta en la portada; el resto, también en sus subpáginas
+  const activeIndex = tabs.findIndex((t) =>
+    t.href === "/" ? pathname === "/" : t.match.some((m) => isUnder(pathname, m))
+  );
 
   return (
     <>
@@ -130,12 +136,3 @@ export default function MobileTabBar() {
   );
 }
 
-// La foto de perfil no viaja con la cabecera (va incrustada y pesa): en su
-// lugar, la inicial en un círculo que toma el color de la pestaña.
-function ProfileDot({ name }: { name: string }) {
-  return (
-    <span className="w-6 h-6 rounded-full border-[1.8px] border-current flex items-center justify-center text-[11px] font-bold leading-none">
-      {(name.trim()[0] || "?").toUpperCase()}
-    </span>
-  );
-}
