@@ -12,7 +12,7 @@ interface Stats {
     eventsPrivate: number;
     games: number;
     votes: number;
-    sessions: number;
+    nights: number;
   };
   activity: {
     users: { date: string; count: number }[];
@@ -22,8 +22,8 @@ interface Stats {
   };
   tops: {
     games: { groupGameId: string; gameName: string; thumbnail: string | null; groupId: string; groupName: string; votes: number }[];
-    groups: { id: string; name: string; sessions: number; members: number; games: number }[];
-    users: { id: string; name: string; email: string; avatarUrl: string | null; votes: number; sessions: number; score: number }[];
+    groups: { id: string; name: string; nights: number; members: number; games: number }[];
+    users: { id: string; name: string; email: string; avatarUrl: string | null; votes: number; nights: number; score: number }[];
   };
   health: {
     otpsLast24h: number;
@@ -111,7 +111,7 @@ export default function AdminDashboardPage() {
           <StatCard label="Eventos privados" value={stats.totals.eventsPrivate} />
           <StatCard label="Juegos en caché" value={stats.totals.games} />
           <StatCard label="Votos emitidos" value={stats.totals.votes} />
-          <StatCard label="Sesiones" value={stats.totals.sessions} />
+          <StatCard label="Sesiones" value={stats.totals.nights} />
         </div>
       </section>
 
@@ -192,7 +192,7 @@ export default function AdminDashboardPage() {
                       {g!.name}
                     </Link>
                   </div>
-                  <span className="text-xs font-mono text-[var(--text-secondary)] whitespace-nowrap">{g!.sessions} ses.</span>
+                  <span className="text-xs font-mono text-[var(--text-secondary)] whitespace-nowrap">{g!.nights} ses.</span>
                 </li>
               ))}
             </ol>
@@ -215,7 +215,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   <span className="text-xs font-mono text-[var(--text-secondary)] whitespace-nowrap">
-                    {u.votes}v · {u.sessions}s
+                    {u.votes}v · {u.nights}n
                   </span>
                 </li>
               ))}

@@ -35,7 +35,8 @@ model User {
   gameReviews      GameReview[]
   addedGames       GroupGame[]
   createdGroups    Group[]        @relation("GroupCreator")
-  createdSessions  GameSession[]  @relation("SessionCreator")
+  createdNights    GameNight[]    @relation("GameNightCreator")
+  gameNights       GameNightPlayer[]
   createdEvents    Event[]        @relation("EventCreator")
   eventAttendances EventAttendee[]
   addedEventGames  EventGame[]    @relation("EventGameAdder")
@@ -113,7 +114,7 @@ model Group {
   members     GroupMember[]
   invitations GroupInvitation[]
   games       GroupGame[]
-  sessions      GameSession[]
+  nights        GameNight[]
   activityLogs  ActivityLog[]
   photos        GroupPhoto[]
   notifications Notification[]
@@ -171,45 +172,52 @@ model Game {
   manualAddedBy   User?     @relation("GameManualAdder", fields: [manualAddedById], references: [id], onDelete: SetNull)
 
   groupGames   GroupGame[]
-  sessionGames GameSessionGame[]
+  nightGames   GameNightGame[]
   eventGames   EventGame[]
 
   // Las carátulas del feed se buscan por nombre (withGameCovers)
   @@index([name])
 }
 
-model GameSession {
-  id           String   @id @default(cuid())
-  groupId      String
-  name         String?
-  date         DateTime
-  playerCount  Int
-  totalMinutes Int
-  status       String   @default("planned") // planned, playing, completed
-  createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// Noche de juego: quién se sentó a la mesa en un grupo y a qué jugó. Lo que
+// sale aquí cuenta como jugado y alimenta las estadísticas del grupo.
+model GameNight {
+  id          String   @id @default(cuid())
+  groupId     String
+  date        DateTime @default(now())
+  createdById String
+  createdAt   DateTime @default(now())
 
   group     Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  createdBy User              @relation("SessionCreator", fields: [createdById], references: [id])
-  games     GameSessionGame[]
-  reviews   GameReview[]
+  createdBy User              @relation("GameNightCreator", fields: [createdById], references: [id])
+  players   GameNightPlayer[]
+  games     GameNightGame[]
 
-  @@index([groupId])
-  @@index([date])
+  @@index([groupId, date])
 }
 
-model GameSessionGame {
-  id        String @id @default(cuid())
-  sessionId String
+model GameNightPlayer {
+  nightId String
+  userId  String
+
+  night GameNight @relation(fields: [nightId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([nightId, userId])
+  @@index([userId])
+}
+
+model GameNightGame {
+  id        String   @id @default(cuid())
+  nightId   String
   gameId    String
-  order     Int
-  status    String @default("pending") // pending, playing, completed, skipped
+  createdAt DateTime @default(now())
 
-  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  game    Game        @relation(fields: [gameId], references: [id])
+  night GameNight @relation(fields: [nightId], references: [id], onDelete: Cascade)
+  game  Game      @relation(fields: [gameId], references: [id])
 
-  @@unique([sessionId, gameId])
+  @@unique([nightId, gameId])
+  @@index([gameId])
 }
 
 model GroupGame {
@@ -392,7 +400,6 @@ model GameReview {
   id          String   @id @default(cuid())
   groupGameId String
   userId      String
-  sessionId   String?  // enlace opcional a una partida concreta
   rating      Int?     // 1-5, opcional
   text        String?  @db.Text
   createdAt   DateTime @default(now())
@@ -400,12 +407,10 @@ model GameReview {
 
   groupGame GroupGame         @relation(fields: [groupGameId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id])
-  session   GameSession?      @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   photos    GameReviewPhoto[]
 
   @@index([groupGameId])
   @@index([userId])
-  @@index([sessionId])
 }
 
 model GameReviewPhoto {

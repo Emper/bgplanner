@@ -11,10 +11,10 @@ interface AdminGroup {
   owner: { id: string; name: string; email: string };
   members: number;
   games: number;
-  sessions: number;
+  nights: number;
 }
 
-type SortKey = "createdAt" | "name" | "members" | "games" | "sessions";
+type SortKey = "createdAt" | "name" | "members" | "games" | "nights";
 
 export default function AdminGroupsPage() {
   const [groups, setGroups] = useState<AdminGroup[]>([]);
@@ -46,8 +46,8 @@ export default function AdminGroupsPage() {
           return b.members - a.members;
         case "games":
           return b.games - a.games;
-        case "sessions":
-          return b.sessions - a.sessions;
+        case "nights":
+          return b.nights - a.nights;
         case "createdAt":
         default:
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -82,7 +82,7 @@ export default function AdminGroupsPage() {
             <option value="name">Nombre</option>
             <option value="members">Más miembros</option>
             <option value="games">Más juegos</option>
-            <option value="sessions">Más sesiones</option>
+            <option value="nights">Más sesiones</option>
           </select>
         </div>
       </header>
@@ -122,7 +122,7 @@ export default function AdminGroupsPage() {
                 </td>
                 <td className="px-4 py-2 text-right font-mono">{g.members}</td>
                 <td className="px-4 py-2 text-right font-mono">{g.games}</td>
-                <td className="px-4 py-2 text-right font-mono">{g.sessions}</td>
+                <td className="px-4 py-2 text-right font-mono">{g.nights}</td>
                 <td className="px-4 py-2 text-right text-xs text-[var(--text-muted)] whitespace-nowrap">
                   {new Date(g.createdAt).toLocaleDateString("es-ES", {
                     day: "2-digit",

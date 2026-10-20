@@ -45,15 +45,15 @@ export async function GET(request: NextRequest) {
     eventsPrivate,
     gamesCount,
     votesCount,
-    sessionsCount,
+    nightsCount,
     recentUsers,
     recentGroups,
     recentEvents,
     recentVotes,
     topVotedGames,
-    topGroupsBySessions,
+    topGroupsByNights,
     topUsersByVotes,
-    topUsersBySessions,
+    topUsersByNights,
     otpsLast24h,
     recentActivity,
   ] = await Promise.all([
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     prisma.event.count({ where: { visibility: "private" } }),
     prisma.game.count(),
     prisma.vote.count(),
-    prisma.gameSession.count(),
+    prisma.gameNight.count(),
     prisma.user.findMany({
       where: { createdAt: { gte: since }, role: { not: DELETED_USER_ROLE } },
       select: { createdAt: true },
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       orderBy: { _count: { id: "desc" } },
       take: 10,
     }),
-    prisma.gameSession.groupBy({
+    prisma.gameNight.groupBy({
       by: ["groupId"],
       _count: { id: true },
       orderBy: { _count: { id: "desc" } },
@@ -90,10 +90,11 @@ export async function GET(request: NextRequest) {
       orderBy: { _count: { id: "desc" } },
       take: 10,
     }),
-    prisma.gameSession.groupBy({
-      by: ["createdById"],
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
+    // Quien más noches ha jugado
+    prisma.gameNightPlayer.groupBy({
+      by: ["userId"],
+      _count: { userId: true },
+      orderBy: { _count: { userId: "desc" } },
       take: 10,
     }),
     prisma.otpCode.count({ where: { createdAt: { gte: last24h } } }),
@@ -136,7 +137,7 @@ export async function GET(request: NextRequest) {
     .filter(Boolean);
 
   // Top groups
-  const topGroupIds = topGroupsBySessions.map((g) => g.groupId);
+  const topGroupIds = topGroupsByNights.map((g) => g.groupId);
   const topGroupsData = topGroupIds.length
     ? await prisma.group.findMany({
         where: { id: { in: topGroupIds } },
@@ -144,29 +145,29 @@ export async function GET(request: NextRequest) {
       })
     : [];
   const topGroupsMap = new Map(topGroupsData.map((g) => [g.id, g]));
-  const topGroups = topGroupsBySessions
+  const topGroups = topGroupsByNights
     .map((g) => {
       const data = topGroupsMap.get(g.groupId);
       if (!data) return null;
       return {
         id: data.id,
         name: data.name,
-        sessions: g._count.id,
+        nights: g._count.id,
         members: data._count.members,
         games: data._count.games,
       };
     })
     .filter(Boolean);
 
-  // Top users (combined: votes + sessions created)
-  const userActivityMap = new Map<string, { votes: number; sessions: number }>();
+  // Top users (combined: votes + nights played)
+  const userActivityMap = new Map<string, { votes: number; nights: number }>();
   for (const v of topUsersByVotes) {
-    userActivityMap.set(v.userId, { votes: v._count.id, sessions: 0 });
+    userActivityMap.set(v.userId, { votes: v._count.id, nights: 0 });
   }
-  for (const s of topUsersBySessions) {
-    const existing = userActivityMap.get(s.createdById) || { votes: 0, sessions: 0 };
-    existing.sessions = s._count.id;
-    userActivityMap.set(s.createdById, existing);
+  for (const n of topUsersByNights) {
+    const existing = userActivityMap.get(n.userId) || { votes: 0, nights: 0 };
+    existing.nights = n._count.userId;
+    userActivityMap.set(n.userId, existing);
   }
   const topUserIds = Array.from(userActivityMap.keys());
   const topUsersData = topUserIds.length
@@ -177,15 +178,15 @@ export async function GET(request: NextRequest) {
     : [];
   const topUsers = topUsersData
     .map((u) => {
-      const stats = userActivityMap.get(u.id) || { votes: 0, sessions: 0 };
+      const stats = userActivityMap.get(u.id) || { votes: 0, nights: 0 };
       return {
         id: u.id,
         name: u.displayName || u.name || u.email,
         email: u.email,
         avatarUrl: u.avatarUrl,
         votes: stats.votes,
-        sessions: stats.sessions,
-        score: stats.votes + stats.sessions * 3,
+        nights: stats.nights,
+        score: stats.votes + stats.nights * 3,
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -199,7 +200,7 @@ export async function GET(request: NextRequest) {
       eventsPrivate,
       games: gamesCount,
       votes: votesCount,
-      sessions: sessionsCount,
+      nights: nightsCount,
     },
     activity: {
       users: bucketByDay(recentUsers),

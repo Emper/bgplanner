@@ -16,7 +16,7 @@ import GroupPlayedGames from "@/components/GroupPlayedGames";
 import EmojiField from "@/components/EmojiField";
 import FriendButton from "@/components/FriendButton";
 import { CountUp, useFlip } from "@/components/motion";
-import { formatDuration, formatRelativeShort } from "@/lib/format";
+import { formatDateLong, formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 import { compareRanking } from "@/lib/rankingOrder";
 import { profileHref } from "@/lib/users";
@@ -26,7 +26,7 @@ import { toFriend } from "@/lib/friends";
 // entonces, no con la ficha del grupo.
 const GameReviewModal = dynamic(() => import("@/components/GameReviewModal"));
 const GroupGallery = dynamic(() => import("@/components/GroupGallery"));
-const HelpMePickModal = dynamic(() => import("@/components/HelpMePickModal"));
+const GameNightModal = dynamic(() => import("@/components/GameNightModal"));
 
 interface Game {
   id: string;
@@ -96,43 +96,12 @@ interface GroupData {
   inviteEnabled: boolean;
 }
 
-interface SuggestedGame {
-  gameId: string;
-  bggId: number;
-  name: string;
-  thumbnail: string | null;
-  playingTime: number | null;
-  weight: number | null;
-  minPlayers: number | null;
-  maxPlayers: number | null;
-  score: number;
-}
-
-interface SessionGame {
+interface GameNightData {
   id: string;
-  order: number;
-  status: string;
-  game: {
-    id: string;
-    bggId: number;
-    name: string;
-    thumbnail: string | null;
-    playingTime: number | null;
-    minPlayers: number | null;
-    maxPlayers: number | null;
-    weight: number | null;
-  };
-}
-
-interface GameSessionData {
-  id: string;
-  name: string | null;
   date: string;
-  playerCount: number;
-  totalMinutes: number;
-  status: string;
-  createdBy: { name: string | null };
-  games: SessionGame[];
+  createdBy: { id: string; name: string | null; displayName: string | null };
+  players: { user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null } }[];
+  games: { id: string; game: { id: string; bggId: number; name: string; thumbnail: string | null; playingTime: number | null } }[];
 }
 
 type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery";
@@ -273,12 +242,8 @@ function GroupDashboardPage() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedLoaded, setFeedLoaded] = useState(!!cachedFeed);
 
-  // Sorteo "Ayúdame a elegir" sobre el ranking
-  const [showRandomPicker, setShowRandomPicker] = useState(false);
-
-  // Quick session from ranking
-  const [quickSelectIds, setQuickSelectIds] = useState<Set<string>>(new Set());
-  const [showQuickSession, setShowQuickSession] = useState(false);
+  // «¡A jugar!»: quién juega, cuánto tiempo hay y sorteo
+  const [showGameNight, setShowGameNight] = useState(false);
 
   // Ping (convocatoria) modal
   const [showPingModal, setShowPingModal] = useState(false);
@@ -306,27 +271,8 @@ function GroupDashboardPage() {
     topGame: { name: string; thumbnail: string | null; playCount: number } | null;
   } | null>(null);
 
-  // Sessions state
-  const [sessions, setSessions] = useState<GameSessionData[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
-  const [showNewSession, setShowNewSession] = useState(false);
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(
-    searchParams.get("session")
-  );
-  const [sessionDate, setSessionDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split("T")[0];
-  });
-  const [sessionPlayers, setSessionPlayers] = useState("4");
-  const [sessionHours, setSessionHours] = useState("4");
-  const [sessionName, setSessionName] = useState("");
-  const [suggestedGames, setSuggestedGames] = useState<SuggestedGame[]>([]);
-  const [allCandidates, setAllCandidates] = useState<SuggestedGame[]>([]);
-  const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
-  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
-  const [savingSession, setSavingSession] = useState(false);
+  const [nights, setNights] = useState<GameNightData[]>([]);
+  const [nightsToast, setNightsToast] = useState("");
 
   // Invite state
   const [inviteEmail, setInviteEmail] = useState("");
@@ -340,12 +286,11 @@ function GroupDashboardPage() {
   const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
 
-  // Sync tab and session to URL. Cambiar de pestaña deja historial (push)
-  // para que «atrás» vuelva a la anterior; lo demás reemplaza la entrada.
-  const updateUrl = useCallback((tab: Tab, sessionId: string | null, push = false) => {
+  // Sync tab to URL. Cambiar de pestaña deja historial (push) para que
+  // «atrás» vuelva a la anterior; lo demás reemplaza la entrada.
+  const updateUrl = useCallback((tab: Tab, push = false) => {
     const params = new URLSearchParams();
     if (tab !== "activity") params.set("tab", tab);
-    if (sessionId) params.set("session", sessionId);
     const query = params.toString();
     const url = `/groups/${groupId}${query ? `?${query}` : ""}`;
     if (push) router.push(url, { scroll: false });
@@ -381,8 +326,7 @@ function GroupDashboardPage() {
 
   const switchTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
-    setExpandedSessionId(null);
-    updateUrl(tab, null, true);
+    updateUrl(tab, true);
     if (tab === "activity") fetchGroupFeed();
   }, [updateUrl, fetchGroupFeed]);
 
@@ -395,15 +339,8 @@ function GroupDashboardPage() {
   useEffect(() => {
     if (urlTab === activeTabRef.current) return;
     setActiveTab(urlTab);
-    setExpandedSessionId(null);
     if (urlTab === "activity") fetchGroupFeed();
   }, [urlTab, fetchGroupFeed]);
-
-  const toggleSession = useCallback((sessionId: string) => {
-    const newId = expandedSessionId === sessionId ? null : sessionId;
-    setExpandedSessionId(newId);
-    updateUrl(activeTab, newId);
-  }, [expandedSessionId, activeTab, updateUrl]);
 
   // Load feed if tab starts as "activity"
   useEffect(() => {
@@ -433,7 +370,7 @@ function GroupDashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Single API call loads everything: group, ranking, sessions
+      // Single API call loads everything: group, ranking, nights
       const res = await fetch(`/api/groups/${groupId}/dashboard`, {
         credentials: "include",
         cache: "no-store",
@@ -448,7 +385,7 @@ function GroupDashboardPage() {
       setGroup(data.group);
       setRanking(data.ranking);
       unfreezeOrder();
-      setSessions(data.sessions);
+      setNights(data.nights);
       setStats(data.stats ?? null);
       if (data.group) {
         setInviteLinkCode(data.group.inviteCode);
@@ -465,26 +402,9 @@ function GroupDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  // Refresh sessions independently (after creating/editing a session)
-  const fetchSessions = useCallback(async () => {
-    setLoadingSessions(true);
-    try {
-      const res = await fetch(`/api/groups/${groupId}/sessions`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        setSessions(await res.json());
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoadingSessions(false);
-    }
-  }, [groupId]);
-
-  // Filter ranking for "tonight" mode
-  // Split into pending (not yet played) and played
-  const isPlayed = (item: RankedGame) => item.playCount > 0 || item.playedAt !== null;
+  // Split into pending (not yet played) and played. Las partidas de las
+  // noches de juego también dejan playedAt.
+  const isPlayed = (item: RankedGame) => item.playedAt !== null;
   // Pendientes: no jugados y no archivados. Histórico: todos los jugados y
   // también los que se ocultaron en su día (archivados), jugados o no.
   const pendingGames = ranking.filter((item) => !item.archivedAt && !isPlayed(item));
@@ -541,43 +461,6 @@ function GroupDashboardPage() {
     : null;
   const canPing = !pingAvailableAt || pingAvailableAt.getTime() <= Date.now();
 
-  const toggleQuickSelect = (gameId: string) => {
-    setQuickSelectIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(gameId)) next.delete(gameId);
-      else next.add(gameId);
-      return next;
-    });
-  };
-
-  const handleQuickSession = async () => {
-    setSavingSession(true);
-    try {
-      const res = await fetch(`/api/groups/${groupId}/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: sessionName || null,
-          date: sessionDate,
-          playerCount: parseInt(sessionPlayers),
-          totalMinutes: parseFloat(sessionHours) * 60,
-          gameIds: Array.from(quickSelectIds),
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setQuickSelectIds(new Set());
-        setShowQuickSession(false);
-        setSessionName("");
-        fetchData();
-        switchTab("sessions");
-        setTimeout(() => toggleSession(data.id), 300);
-      }
-    } finally {
-      setSavingSession(false);
-    }
-  };
-
   const handleMarkPlayed = async (gameId: string, gameName: string, played: boolean) => {
     // Marcar como jugado abre el modal de opinión (nota + comentario + fotos).
     // Devolver a pendientes es una acción directa sin modal.
@@ -618,7 +501,7 @@ function GroupDashboardPage() {
     if (match) {
       setReviewModal({ gameId: match.game.id, gameName: match.game.name, mode: "review" });
       setActiveTab("gallery");
-      updateUrl("gallery", null);
+      updateUrl("gallery");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ranking, searchParams]);
@@ -1068,197 +951,31 @@ function GroupDashboardPage() {
     }
   };
 
-  // Session planning
-  const handleSuggestGames = async () => {
-    setLoadingSuggestion(true);
-    try {
-      const minutes = parseFloat(sessionHours) * 60;
-      const res = await fetch(
-        `/api/groups/${groupId}/sessions/suggest?players=${sessionPlayers}&minutes=${minutes}`,
-        { credentials: "include" }
-      );
-      if (!res.ok) throw new Error("Error al obtener sugerencias");
-      const data = await res.json();
-      setSuggestedGames(data.suggested);
-      setAllCandidates(data.all);
-      setSelectedGameIds(new Set(data.suggested.map((g: SuggestedGame) => g.gameId)));
-    } catch {
-      alert("Error al generar sugerencias");
-    } finally {
-      setLoadingSuggestion(false);
-    }
-  };
-
-  const toggleGameSelection = (gameId: string) => {
-    setSelectedGameIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(gameId)) {
-        next.delete(gameId);
-      } else {
-        next.add(gameId);
-      }
-      return next;
-    });
-  };
-
-  const selectedTotalTime = allCandidates
-    .filter((g) => selectedGameIds.has(g.gameId))
-    .reduce((acc, g) => acc + (g.playingTime || 90), 0);
-
-  const handleSaveSession = async () => {
-    setSavingSession(true);
-    try {
-      const orderedIds = allCandidates
-        .filter((g) => selectedGameIds.has(g.gameId))
-        .sort((a, b) => b.score - a.score)
-        .map((g) => g.gameId);
-
-      const res = await fetch(`/api/groups/${groupId}/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name: sessionName || null,
-          date: sessionDate,
-          playerCount: sessionPlayers,
-          totalMinutes: parseFloat(sessionHours) * 60,
-          gameIds: orderedIds,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Error al crear sesión");
-
-      // Reset form and refresh
-      setShowNewSession(false);
-      setSessionName("");
-      setSuggestedGames([]);
-      setAllCandidates([]);
-      setSelectedGameIds(new Set());
-      await fetchSessions();
-    } catch {
-      alert("Error al guardar la sesión");
-    } finally {
-      setSavingSession(false);
-    }
-  };
-
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm("¿Eliminar esta sesión?")) return;
-    try {
-      await fetch(`/api/groups/${groupId}/sessions/${sessionId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    } catch {
-      alert("Error al eliminar sesión");
-    }
-  };
-
-  const handleUpdateSession = async (sessionId: string, data: Record<string, unknown>) => {
-    try {
-      const res = await fetch(`/api/groups/${groupId}/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setSessions((prev) => prev.map((s) => (s.id === sessionId ? updated : s)));
-    } catch {
-      alert("Error al actualizar sesión");
-    }
-  };
-
-  const handleGameStatus = async (sessionId: string, gameSessionGameId: string, newStatus: string) => {
-    // ── Optimistic update ──
-    const snapshot = sessions;
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === sessionId
-          ? { ...s, games: s.games.map((g) => (g.id === gameSessionGameId ? { ...g, status: newStatus } : g)) }
-          : s
-      )
-    );
-
-    try {
-      const res = await fetch(`/api/groups/${groupId}/sessions/${sessionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ gameStatuses: { [gameSessionGameId]: newStatus } }),
-      });
-      if (!res.ok) throw new Error();
-      // Reconcile with server response
-      const updated = await res.json();
-      setSessions((prev) => prev.map((s) => (s.id === sessionId ? updated : s)));
-    } catch {
-      setSessions(snapshot); // rollback
-      alert("Error al actualizar estado");
-    }
-  };
-
-  const handleRemoveGameFromSession = async (sessionId: string, gameIdToRemove: string) => {
-    const session = sessions.find((s) => s.id === sessionId);
-    if (!session) return;
-    const remainingIds = session.games
-      .filter((g) => g.game.id !== gameIdToRemove)
-      .map((g) => g.game.id);
-    await handleUpdateSession(sessionId, { gameIds: remainingIds });
-  };
-
-  const handleReorderGame = async (sessionId: string, currentIndex: number, direction: "up" | "down") => {
-    const session = sessions.find((s) => s.id === sessionId);
-    if (!session) return;
-    const gameIds = session.games.map((g) => g.game.id);
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= gameIds.length) return;
-    [gameIds[currentIndex], gameIds[targetIndex]] = [gameIds[targetIndex], gameIds[currentIndex]];
-    await handleUpdateSession(sessionId, { gameIds });
-  };
-
-  const handleAddGameToSession = async (sessionId: string) => {
-    // Get suggestions for this session's parameters
-    const session = sessions.find((s) => s.id === sessionId);
-    if (!session) return;
+  const handleDeleteNight = async (night: GameNightData, gameId?: string) => {
+    const lastGame = !gameId || night.games.length <= 1;
+    const what = lastGame
+      ? "¿Borrar esta sesión?"
+      : `¿Quitar "${night.games.find((g) => g.game.id === gameId)?.game.name}" de esta sesión?`;
+    if (!confirm(`${what} Los juegos siguen marcados como jugados.`)) return;
     try {
       const res = await fetch(
-        `/api/groups/${groupId}/sessions/suggest?players=${session.playerCount}&minutes=${session.totalMinutes}`,
-        { credentials: "include" }
+        `/api/groups/${groupId}/nights/${night.id}${gameId ? `?gameId=${encodeURIComponent(gameId)}` : ""}`,
+        { method: "DELETE", credentials: "include" }
       );
-      if (!res.ok) return;
-      const data = await res.json();
-      // Filter out games already in session
-      const existingIds = new Set(session.games.map((g) => g.game.id));
-      const available = data.all.filter((g: SuggestedGame) => !existingIds.has(g.gameId));
-      if (available.length === 0) {
-        alert("No hay más juegos compatibles disponibles");
-        return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "No se pudo borrar");
       }
-      setAllCandidates(available);
-      setSuggestedGames([]);
-      setSelectedGameIds(new Set());
-      setEditingSessionId(sessionId);
-    } catch {
-      alert("Error al cargar juegos disponibles");
+      setNights((prev) =>
+        lastGame
+          ? prev.filter((n) => n.id !== night.id)
+          : prev.map((n) => (n.id === night.id ? { ...n, games: n.games.filter((g) => g.game.id !== gameId) } : n))
+      );
+      setNightsToast(lastGame ? "Sesión borrada" : "Juego quitado de la sesión");
+      setTimeout(() => setNightsToast(""), 4000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo borrar");
     }
-  };
-
-  const handleConfirmAddGames = async () => {
-    if (!editingSessionId) return;
-    const session = sessions.find((s) => s.id === editingSessionId);
-    if (!session) return;
-    const existingIds = session.games.map((g) => g.game.id);
-    const newIds = allCandidates
-      .filter((g) => selectedGameIds.has(g.gameId))
-      .map((g) => g.gameId);
-    await handleUpdateSession(editingSessionId, {
-      gameIds: [...existingIds, ...newIds],
-    });
-    setEditingSessionId(null);
-    setAllCandidates([]);
-    setSelectedGameIds(new Set());
   };
 
   if (loading) {
@@ -1392,37 +1109,15 @@ function GroupDashboardPage() {
                           <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                             Pendientes de jugar ({pendingGames.length})
                           </h3>
-                          {quickSelectIds.size > 0 ? (
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <span className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                                {quickSelectIds.size} seleccionado{quickSelectIds.size !== 1 && "s"}
-                              </span>
+                          <div className="flex items-center gap-2 shrink-0">
                               <button
-                                onClick={() => setQuickSelectIds(new Set())}
-                                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                                onClick={() => setShowGameNight(true)}
+                                title="¡A jugar!: elige quién juega y cuánto tiempo hay"
+                                aria-label="¡A jugar!"
+                                className="px-3 py-2.5 rounded-xl border border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--accent-soft)] text-sm font-semibold shrink-0 transition-all duration-200"
                               >
-                                ✕
+                                🎲<span className="ml-1.5">¡A jugar!</span>
                               </button>
-                              <button
-                                onClick={() => setShowQuickSession(true)}
-                                className="px-3 sm:px-4 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] text-xs sm:text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-                              >
-                                🎲 Crear sesión
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 shrink-0">
-                              {pendingGames.length >= 2 && (
-                                <button
-                                  onClick={() => setShowRandomPicker(true)}
-                                  title="Ayúdame a elegir: sorteo entre los mejores del ranking"
-                                  aria-label="Ayúdame a elegir"
-                                  className="px-3 py-2.5 rounded-xl border border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--accent-soft)] text-sm font-semibold shrink-0 transition-all duration-200"
-                                >
-                                  🎯<span className="ml-1.5 sm:hidden">Elegir</span>
-                                  <span className="hidden sm:inline ml-1.5">Ayúdame a elegir</span>
-                                </button>
-                              )}
                               <Link
                                 href={`/groups/${groupId}/add-games${(() => {
                                   const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
@@ -1434,7 +1129,6 @@ function GroupDashboardPage() {
                                 Añadir juegos
                               </Link>
                             </div>
-                          )}
                         </div>
                       </div>
                       {/* Available-slot banner for limited votes (e.g. super vote in friends mode) */}
@@ -1515,69 +1209,43 @@ function GroupDashboardPage() {
                           >
                             {/* Main row: Position + Thumbnail + Name/Badges + Votes+Score */}
                             <div className="flex items-center gap-2 sm:gap-4">
-                              {/* Position badge — click to select, hover shows checkbox */}
-                              {(() => {
-                                const isSelected = quickSelectIds.has(item.game.id);
-                                const hasSelection = quickSelectIds.size > 0;
-                                return (
-                                  <div
-                                    className="w-7 sm:w-10 shrink-0 flex justify-center group/check cursor-pointer"
-                                    onClick={() => toggleQuickSelect(item.game.id)}
-                                  >
-                                    {/* Checkbox */}
-                                    <div className={`items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-lg border-2 transition-all ${
-                                      isSelected
-                                        ? "flex bg-[var(--primary)] border-[var(--primary)]"
-                                        : hasSelection
-                                          ? "flex border-[var(--border-strong)] hover:border-[var(--primary)]/50"
-                                          : "hidden group-hover/check:flex border-[var(--border-strong)] hover:border-[var(--primary)]/50"
-                                    }`}>
-                                      {isSelected && (
-                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--primary-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
+                              {/* Puesto: medalla en el podio, número en el resto */}
+                              <div className="w-7 sm:w-10 shrink-0 flex items-center justify-center">
+                                {index < 3 ? (
+                                  <svg className="w-6 h-6 sm:w-9 sm:h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                      {index === 0 && (
+                                        <linearGradient id="medal-gold" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                          <stop offset="0%" stopColor="#fbbf24" />
+                                          <stop offset="50%" stopColor="#f59e0b" />
+                                          <stop offset="100%" stopColor="#d97706" />
+                                        </linearGradient>
                                       )}
-                                    </div>
-                                    {/* Medal/Number — hidden when checkbox visible */}
-                                    <div className={`${isSelected ? "hidden" : hasSelection ? "hidden" : "flex group-hover/check:hidden"} items-center justify-center`}>
-                                      {index < 3 ? (
-                                        <svg className="w-6 h-6 sm:w-9 sm:h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                          <defs>
-                                            {index === 0 && (
-                                              <linearGradient id="medal-gold" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                                                <stop offset="0%" stopColor="#fbbf24" />
-                                                <stop offset="50%" stopColor="#f59e0b" />
-                                                <stop offset="100%" stopColor="#d97706" />
-                                              </linearGradient>
-                                            )}
-                                            {index === 1 && (
-                                              <linearGradient id="medal-silver" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                                                <stop offset="0%" stopColor="#e2e8f0" />
-                                                <stop offset="50%" stopColor="#94a3b8" />
-                                                <stop offset="100%" stopColor="#64748b" />
-                                              </linearGradient>
-                                            )}
-                                            {index === 2 && (
-                                              <linearGradient id="medal-bronze" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                                                <stop offset="0%" stopColor="#d97756" />
-                                                <stop offset="50%" stopColor="#b45930" />
-                                                <stop offset="100%" stopColor="#92400e" />
-                                              </linearGradient>
-                                            )}
-                                          </defs>
-                                          <circle cx="18" cy="18" r="16" fill={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} opacity="0.15" />
-                                          <circle cx="18" cy="18" r="16" stroke={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} strokeWidth="2" fill="none" />
-                                          <text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="800" fill={index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : '#d97756'}>
-                                            {index + 1}
-                                          </text>
-                                        </svg>
-                                      ) : (
-                                        <span className="text-sm sm:text-base font-bold text-[var(--text-muted)]">#{index + 1}</span>
+                                      {index === 1 && (
+                                        <linearGradient id="medal-silver" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                          <stop offset="0%" stopColor="#e2e8f0" />
+                                          <stop offset="50%" stopColor="#94a3b8" />
+                                          <stop offset="100%" stopColor="#64748b" />
+                                        </linearGradient>
                                       )}
-                                    </div>
-                                  </div>
-                                );
-                              })()}
+                                      {index === 2 && (
+                                        <linearGradient id="medal-bronze" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                                          <stop offset="0%" stopColor="#d97756" />
+                                          <stop offset="50%" stopColor="#b45930" />
+                                          <stop offset="100%" stopColor="#92400e" />
+                                        </linearGradient>
+                                      )}
+                                    </defs>
+                                    <circle cx="18" cy="18" r="16" fill={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} opacity="0.15" />
+                                    <circle cx="18" cy="18" r="16" stroke={`url(#medal-${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'})`} strokeWidth="2" fill="none" />
+                                    <text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="800" fill={index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : '#d97756'}>
+                                      {index + 1}
+                                    </text>
+                                  </svg>
+                                ) : (
+                                  <span className="text-sm sm:text-base font-bold text-[var(--text-muted)]">#{index + 1}</span>
+                                )}
+                              </div>
                               {/* Thumbnail: 64px en móvil, 130px top 3 / 100px resto en desktop */}
                               <div className={`w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${index < 3 ? 'sm:w-[130px] sm:h-[130px]' : 'sm:w-[100px] sm:h-[100px]'}`}>
                                 {item.game.thumbnail ? (
@@ -1917,82 +1585,17 @@ function GroupDashboardPage() {
             </div>
           )}
 
-          {/* Sorteo aleatorio entre el top del ranking */}
-          {showRandomPicker && (
-            <HelpMePickModal games={pendingGames} onClose={() => setShowRandomPicker(false)} />
-          )}
-
-          {/* Quick session modal */}
-          {showQuickSession && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQuickSession(false)}>
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[var(--text)]">
-                    🎲 Crear sesión rápida
-                  </h3>
-                  <button onClick={() => setShowQuickSession(false)} className="text-[var(--text-secondary)] hover:text-[var(--text)]">✕</button>
-                </div>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  {quickSelectIds.size} juego{quickSelectIds.size !== 1 && "s"} seleccionado{quickSelectIds.size !== 1 && "s"}
-                </p>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre (opcional)</label>
-                    <input
-                      type="text"
-                      value={sessionName}
-                      onChange={(e) => setSessionName(e.target.value)}
-                      placeholder="Ej: Viernes épico"
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha</label>
-                    <input
-                      type="date"
-                      value={sessionDate}
-                      onChange={(e) => setSessionDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Jugadores</label>
-                    <select
-                      value={sessionPlayers}
-                      onChange={(e) => setSessionPlayers(e.target.value)}
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                    >
-                      {[2, 3, 4, 5, 6, 7, 8].map((n) => (
-                        <option key={n} value={n}>{n} jugadores</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--text-secondary)] mb-1">Tiempo</label>
-                    <select
-                      value={sessionHours}
-                      onChange={(e) => setSessionHours(e.target.value)}
-                      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                    >
-                      <option value="1.5">1h 30min</option>
-                      <option value="2">2 horas</option>
-                      <option value="3">3 horas</option>
-                      <option value="4">4 horas</option>
-                      <option value="5">5 horas</option>
-                      <option value="6">6 horas</option>
-                      <option value="8">8 horas</option>
-                    </select>
-                  </div>
-                </div>
-                <button
-                  onClick={handleQuickSession}
-                  disabled={savingSession}
-                  className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  {savingSession ? "Creando..." : `Crear sesión con ${quickSelectIds.size} juego${quickSelectIds.size !== 1 ? "s" : ""}`}
-                </button>
-              </div>
-            </div>
+          {/* «¡A jugar!»: presentes, tiempo, peso y sorteo */}
+          {showGameNight && (
+            <GameNightModal
+              groupId={groupId}
+              groupType={group.type}
+              currentUserId={group.currentUserId}
+              members={group.members.map((m) => m.user)}
+              games={pendingGames}
+              onPlayed={() => fetchData()}
+              onClose={() => setShowGameNight(false)}
+            />
           )}
 
           {/* Delete group modal — solo propietario, requiere escribir el nombre */}
@@ -2022,7 +1625,7 @@ function GroupDashboardPage() {
                   </p>
                   <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-muted)]">
                     <li>Todos sus juegos y votos</li>
-                    <li>Todas las sesiones planificadas y jugadas</li>
+                    <li>Todas sus sesiones</li>
                     <li>Todos los miembros e invitaciones pendientes</li>
                     <li>Todo el historial de actividad del grupo</li>
                   </ul>
@@ -2286,447 +1889,112 @@ function GroupDashboardPage() {
           {/* ═══════════ Sessions Tab ═══════════ */}
           {activeTab === "sessions" && (
             <div className="space-y-4">
-              {/* New session button */}
-              {!showNewSession && (
+              <div className="rounded-2xl border border-[var(--primary)]/25 bg-[var(--accent-soft)] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                <div className="text-4xl leading-none" aria-hidden>🎲</div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold text-[var(--text)]">¿Se juega hoy?</h2>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Marca quién se sienta a la mesa y cuánto tiempo tenéis: os enseñamos lo que encaja, ordenado con
+                    los votos de los que estáis, y si no os decidís, lo sorteamos.
+                  </p>
+                </div>
                 <button
-                  onClick={() => setShowNewSession(true)}
-                  className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                  onClick={() => setShowGameNight(true)}
+                  disabled={pendingGames.length === 0}
+                  className="px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 text-sm font-semibold shrink-0 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  🎲 Planificar sesión
+                  ¡A jugar!
                 </button>
-              )}
+              </div>
 
-              {/* New session planner */}
-              {showNewSession && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--primary)]/30 shadow-[var(--card-shadow)] p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-[var(--text)]">Nueva sesión</h3>
-                    <button
-                      onClick={() => { setShowNewSession(false); setSuggestedGames([]); setAllCandidates([]); }}
-                      className="text-[var(--text-secondary)] hover:text-[var(--text)] text-sm"
-                    >
-                      ✕ Cancelar
-                    </button>
-                  </div>
-
-                  {/* Session params */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre (opcional)</label>
-                      <input
-                        type="text"
-                        value={sessionName}
-                        onChange={(e) => setSessionName(e.target.value)}
-                        placeholder="Ej: Viernes épico"
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha</label>
-                      <input
-                        type="date"
-                        value={sessionDate}
-                        onChange={(e) => setSessionDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Jugadores</label>
-                      <select
-                        value={sessionPlayers}
-                        onChange={(e) => setSessionPlayers(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                      >
-                        {[2, 3, 4, 5, 6, 7, 8].map((n) => (
-                          <option key={n} value={n}>{n} jugadores</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--text-secondary)] mb-1">Tiempo disponible</label>
-                      <select
-                        value={sessionHours}
-                        onChange={(e) => setSessionHours(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                      >
-                        <option value="1.5">1h 30min</option>
-                        <option value="2">2 horas</option>
-                        <option value="3">3 horas</option>
-                        <option value="4">4 horas</option>
-                        <option value="5">5 horas</option>
-                        <option value="6">6 horas</option>
-                        <option value="8">8 horas</option>
-                        <option value="10">10 horas</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleSuggestGames}
-                    disabled={loadingSuggestion}
-                    className="px-4 py-2 bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/50 rounded-xl text-sm font-semibold hover:bg-[var(--primary)]/20 disabled:opacity-50 transition-all duration-200"
-                  >
-                    {loadingSuggestion ? "Calculando..." : "🎯 Sugerir juegos"}
-                  </button>
-
-                  {/* Suggested games */}
-                  {allCandidates.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          Selecciona los juegos para la sesión
-                        </p>
-                        <div className="text-sm">
-                          <span className={`font-medium ${
-                            selectedTotalTime > parseFloat(sessionHours) * 60
-                              ? "text-red-400"
-                              : "text-emerald-400"
-                          }`}>
-                            ⏱ {formatDuration(selectedTotalTime)}
-                          </span>
-                          <span className="text-[var(--text-muted)]"> / {formatDuration(parseFloat(sessionHours) * 60)}</span>
-                        </div>
-                      </div>
-
-                      {/* Time bar */}
-                      <div className="h-2 bg-[var(--surface-hover)] rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            selectedTotalTime > parseFloat(sessionHours) * 60
-                              ? "bg-red-500"
-                              : "bg-emerald-500"
-                          }`}
-                          style={{
-                            width: `${Math.min(100, (selectedTotalTime / (parseFloat(sessionHours) * 60)) * 100)}%`,
-                          }}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        {allCandidates.map((game) => {
-                          const isSelected = selectedGameIds.has(game.gameId);
-                          const wasSuggested = suggestedGames.some((g) => g.gameId === game.gameId);
-                          return (
-                            <button
-                              key={game.gameId}
-                              onClick={() => toggleGameSelection(game.gameId)}
-                              className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 text-left ${
-                                isSelected
-                                  ? "bg-[var(--accent-soft)] border-[var(--primary)]/40"
-                                  : "bg-[var(--surface)] border-[var(--border)] hover:border-[var(--border-strong)]"
-                              }`}
-                            >
-                              <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                isSelected
-                                  ? "bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-text)]"
-                                  : "border-[var(--border-strong)]"
-                              }`}>
-                                {isSelected && <span className="text-xs font-bold">✓</span>}
-                              </div>
-                              <div className="w-10 h-10 shrink-0 rounded overflow-hidden bg-[var(--surface-hover)]">
-                                {game.thumbnail ? (
-                                  <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-[var(--text)] truncate">
-                                  {game.name}
-                                  {wasSuggested && (
-                                    <span className="ml-1.5 text-xs bg-[var(--accent-soft)] text-[var(--primary)] px-1.5 py-0.5 rounded-full">
-                                      sugerido
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex gap-2 text-xs text-[var(--text-secondary)] mt-0.5">
-                                  <span>⏱ {game.playingTime ? formatDuration(game.playingTime) : "~90min"}</span>
-                                  <span>👥 {game.minPlayers}-{game.maxPlayers}</span>
-                                  {game.weight && <span>⚖️ {game.weight.toFixed(1)}</span>}
-                                  <span className="text-[var(--primary)]">{game.score} pts</span>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <button
-                        onClick={handleSaveSession}
-                        disabled={savingSession || selectedGameIds.size === 0}
-                        className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
-                      >
-                        {savingSession
-                          ? "Guardando..."
-                          : `Crear sesión con ${selectedGameIds.size} juego${selectedGameIds.size !== 1 ? "s" : ""}`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Add games to existing session modal */}
-              {editingSessionId && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--primary)]/30 shadow-[var(--card-shadow)] p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-[var(--text)]">Añadir juegos a la sesión</h3>
-                    <button
-                      onClick={() => { setEditingSessionId(null); setAllCandidates([]); }}
-                      className="text-[var(--text-secondary)] hover:text-[var(--text)] text-sm"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {allCandidates.map((game) => {
-                      const isSelected = selectedGameIds.has(game.gameId);
-                      return (
-                        <button
-                          key={game.gameId}
-                          onClick={() => toggleGameSelection(game.gameId)}
-                          className={`w-full flex items-center gap-3 p-2 rounded-xl border transition-all duration-200 text-left ${
-                            isSelected
-                              ? "bg-[var(--accent-soft)] border-[var(--primary)]/40"
-                              : "bg-[var(--surface)] border-[var(--border)] hover:border-[var(--border-strong)]"
-                          }`}
-                        >
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                            isSelected ? "bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-text)]" : "border-[var(--border-strong)]"
-                          }`}>
-                            {isSelected && <span className="text-xs font-bold">✓</span>}
-                          </div>
-                          <span className="text-sm text-[var(--text)] flex-1 truncate">{game.name}</span>
-                          <span className="text-xs text-[var(--text-secondary)]">
-                            ⏱ {game.playingTime ? formatDuration(game.playingTime) : "~90min"}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {selectedGameIds.size > 0 && (
-                    <button
-                      onClick={handleConfirmAddGames}
-                      className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      Añadir {selectedGameIds.size} juego{selectedGameIds.size !== 1 ? "s" : ""}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Existing sessions */}
-              {loadingSessions ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-                </div>
-              ) : sessions.length === 0 && !showNewSession ? (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6 text-center text-[var(--text-secondary)]">
-                  No hay sesiones planificadas. ¡Crea la primera!
+              {nights.length === 0 ? (
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6 text-center text-sm text-[var(--text-secondary)]">
+                  {pendingGames.length === 0
+                    ? "Añade juegos al ranking y jugad vuestra primera sesión."
+                    : "Todavía no habéis apuntado ninguna sesión. Lo que juguéis desde «¡A jugar!» queda guardado aquí, con quién estaba."}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {sessions.map((s) => {
-                    const sDate = new Date(s.date);
-                    const isPast = sDate < new Date();
-                    const isExpanded = expandedSessionId === s.id;
-                    const totalTime = s.games.reduce(
-                      (acc, g) => acc + (g.game.playingTime || 90), 0
-                    );
-                    const completedGames = s.games.filter((g) => g.status === "completed").length;
-                    const statusColors: Record<string, string> = {
-                      planned: "bg-blue-500/20 text-blue-300",
-                      playing: "bg-emerald-500/20 text-emerald-300",
-                      completed: "bg-[var(--surface-hover)] text-[var(--text-secondary)]",
-                    };
-                    const statusLabels: Record<string, string> = {
-                      planned: "Planificada",
-                      playing: "En curso",
-                      completed: "Completada",
-                    };
-
+                <ul className="space-y-3">
+                  {nights.map((night) => {
+                    const canDelete = isAdmin || night.createdBy.id === group.currentUserId;
+                    const minutes = night.games.reduce((acc, g) => acc + (g.game.playingTime || 0), 0);
                     return (
-                      <div
-                        key={s.id}
-                        className={`bg-[var(--surface)] rounded-2xl border shadow-[var(--card-shadow)] transition-all duration-200 ${
-                          s.status === "playing"
-                            ? "border-emerald-500/40"
-                            : isPast && s.status !== "completed"
-                              ? "border-[var(--primary)]/30"
-                              : "border-[var(--border)]"
-                        }`}
+                      <li
+                        key={night.id}
+                        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4"
                       >
-                        {/* Session header — clickable to expand */}
-                        <button
-                          onClick={() => toggleSession(s.id)}
-                          className="w-full p-3 sm:p-4 flex items-center gap-2 sm:gap-3 text-left"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold text-[var(--text)] text-sm sm:text-base truncate">
-                                {s.name || sDate.toLocaleDateString("es-ES", {
-                                  weekday: "long",
-                                  day: "numeric",
-                                  month: "long",
-                                })}
-                              </h4>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium shrink-0 ${statusColors[s.status] || statusColors.planned}`}>
-                                {statusLabels[s.status] || s.status}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-[var(--text-secondary)] mt-1">
-                              <span>📅 {sDate.toLocaleDateString("es-ES")}</span>
-                              <span>👥 {s.playerCount}</span>
-                              <span>⏱ {formatDuration(s.totalMinutes)}</span>
-                              <span>🎲 {s.games.length} juego{s.games.length !== 1 ? "s" : ""}</span>
-                              {completedGames > 0 && (
-                                <span className="text-emerald-400">✓ {completedGames}/{s.games.length}</span>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-[var(--text)] first-letter:uppercase">
+                              {formatDateLong(night.date)}
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)]">
+                              {night.games.length} {night.games.length === 1 ? "partida" : "partidas"}
+                              {minutes > 0 && <> · ⏱ {formatDuration(minutes)}</>}
+                            </p>
+                          </div>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteNight(night)}
+                              className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors shrink-0"
+                            >
+                              Borrar
+                            </button>
+                          )}
+                        </div>
+
+                        {night.players.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                            {night.players.map(({ user }) => {
+                              const name = user.displayName || user.name || "Alguien";
+                              return (
+                                <span
+                                  key={user.id}
+                                  className="inline-flex items-center gap-1.5 pl-0.5 pr-2 py-0.5 rounded-full bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)]"
+                                >
+                                  <Avatar name={name} avatarUrl={user.avatarUrl} size="xs" />
+                                  {name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-xs text-[var(--text-muted)] italic">
+                            Sin apuntar quién jugó (es de antes de que lo guardáramos)
+                          </p>
+                        )}
+
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {night.games.map(({ game }) => (
+                            <div key={game.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--input-bg)] p-2">
+                              <div className="w-10 h-10 rounded-lg overflow-hidden bg-[var(--surface-hover)] shrink-0">
+                                {game.thumbnail ? (
+                                  <Image src={game.thumbnail} alt="" width={40} height={40} className="w-full h-full object-contain" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-sm">🎲</div>
+                                )}
+                              </div>
+                              <span className="flex-1 min-w-0 text-sm font-medium text-[var(--text)] truncate">{game.name}</span>
+                              {canDelete && night.games.length > 1 && (
+                                <button
+                                  onClick={() => handleDeleteNight(night, game.id)}
+                                  aria-label={`Quitar ${game.name} de esta sesión`}
+                                  className="text-[var(--text-muted)] hover:text-red-400 text-xs px-1.5 shrink-0"
+                                >
+                                  ✕
+                                </button>
                               )}
                             </div>
-                          </div>
-                          <svg
-                            className={`w-5 h-5 text-[var(--text-muted)] transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-
-                        {/* Expanded content */}
-                        {isExpanded && (
-                          <div className="px-4 pb-4 space-y-3">
-                            {/* Status controls */}
-                            <div className="flex flex-wrap gap-2">
-                              {(["planned", "playing", "completed"] as const).map((st) => (
-                                <button
-                                  key={st}
-                                  onClick={() => handleUpdateSession(s.id, { status: st })}
-                                  className={`px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 ${
-                                    s.status === st
-                                      ? statusColors[st] + " border-current"
-                                      : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:border-[var(--border-strong)]"
-                                  }`}
-                                >
-                                  {statusLabels[st]}
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Games list with actions */}
-                            {s.games.length > 0 ? (
-                              <div className="space-y-1.5">
-                                {s.games.map((sg, idx) => {
-                                  const gameStatusIcon: Record<string, string> = {
-                                    pending: "⬜",
-                                    playing: "🎮",
-                                    completed: "✅",
-                                    skipped: "⏭",
-                                  };
-                                  return (
-                                    <div
-                                      key={sg.id}
-                                      className={`py-2 px-2 sm:px-3 rounded-xl transition-all duration-200 ${
-                                        sg.status === "completed"
-                                          ? "bg-emerald-500/10"
-                                          : sg.status === "playing"
-                                            ? "bg-[var(--accent-soft)]"
-                                            : sg.status === "skipped"
-                                              ? "bg-[var(--surface-hover)] opacity-60"
-                                              : "bg-[var(--surface-hover)]"
-                                      }`}
-                                    >
-                                      {/* Row 1: Reorder + Index + Thumbnail + Name + Time */}
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex flex-col gap-0.5 shrink-0">
-                                          <button
-                                            disabled={idx === 0}
-                                            onClick={() => handleReorderGame(s.id, idx, "up")}
-                                            className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-20 text-base leading-none transition-colors p-0.5"
-                                            title="Mover arriba"
-                                          >▲</button>
-                                          <button
-                                            disabled={idx === s.games.length - 1}
-                                            onClick={() => handleReorderGame(s.id, idx, "down")}
-                                            className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-20 text-base leading-none transition-colors p-0.5"
-                                            title="Mover abajo"
-                                          >▼</button>
-                                        </div>
-                                        <span className="text-xs text-[var(--text-muted)] w-4 text-center shrink-0">{idx + 1}.</span>
-                                        <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded overflow-hidden bg-[var(--surface-hover)]">
-                                          {sg.game.thumbnail ? (
-                                            <Image src={sg.game.thumbnail} alt={sg.game.name} width={32} height={32} className="w-full h-full object-cover" />
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-[10px]">?</div>
-                                          )}
-                                        </div>
-                                        <a
-                                          href={`https://boardgamegeek.com/boardgame/${sg.game.bggId}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-xs sm:text-sm text-[var(--text)] flex-1 min-w-0 truncate hover:text-[var(--primary)] transition-colors"
-                                        >
-                                          {sg.game.name}
-                                        </a>
-                                        <span className="text-[10px] sm:text-xs text-[var(--text-secondary)] shrink-0">
-                                          ⏱ {sg.game.playingTime ? formatDuration(sg.game.playingTime) : "~90min"}
-                                        </span>
-                                      </div>
-                                      {/* Row 2: Status buttons + Remove */}
-                                      <div className="flex items-center justify-end gap-1 mt-1 pl-6 sm:pl-8">
-                                        {(["pending", "playing", "completed", "skipped"] as const).map((gs) => (
-                                          <button
-                                            key={gs}
-                                            onClick={() => handleGameStatus(s.id, sg.id, gs)}
-                                            className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded text-xs sm:text-sm transition-colors ${
-                                              sg.status === gs
-                                                ? "bg-[var(--surface-hover)] ring-1 ring-[var(--primary)]/50"
-                                                : "hover:bg-[var(--surface-hover)]"
-                                            }`}
-                                            title={gs === "pending" ? "Pendiente" : gs === "playing" ? "Jugando" : gs === "completed" ? "Jugado" : "Saltado"}
-                                          >
-                                            {gameStatusIcon[gs]}
-                                          </button>
-                                        ))}
-                                        <button
-                                          onClick={() => handleRemoveGameFromSession(s.id, sg.game.id)}
-                                          className="text-[var(--text-muted)] hover:text-red-400 text-xs transition-colors shrink-0 ml-1"
-                                          title="Quitar de la sesión"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                <div className="flex items-center justify-between pt-1">
-                                  <span className="text-xs text-[var(--text-muted)]">
-                                    Total estimado: {formatDuration(totalTime)}
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-[var(--text-muted)]">Sin juegos asignados</p>
-                            )}
-
-                            {/* Action buttons */}
-                            <div className="flex gap-2 pt-1">
-                              <button
-                                onClick={() => handleAddGameToSession(s.id)}
-                                className="px-3 py-1.5 bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/50 rounded-xl text-xs font-medium hover:bg-[var(--primary)]/20 transition-all duration-200"
-                              >
-                                + Añadir juego
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSession(s.id)}
-                                className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl text-xs font-medium hover:bg-red-500/20 transition-all duration-200"
-                              >
-                                Eliminar sesión
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      </li>
                     );
                   })}
+                </ul>
+              )}
+              {nightsToast && (
+                <div className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
+                  {nightsToast}
                 </div>
               )}
             </div>

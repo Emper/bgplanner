@@ -282,7 +282,8 @@ export async function deleteAccount(
       await tx.eventPhoto.updateMany({ where: { userId }, data: to });
       await tx.groupGame.updateMany({ where: { addedById: userId }, data: { addedById: ghost.id } });
       await tx.eventGame.updateMany({ where: { addedById: userId }, data: { addedById: ghost.id } });
-      await tx.gameSession.updateMany({ where: { createdById: userId }, data: { createdById: ghost.id } });
+      await tx.gameNight.updateMany({ where: { createdById: userId }, data: { createdById: ghost.id } });
+      await tx.gameNightPlayer.updateMany({ where: { userId }, data: to });
       await tx.group.updateMany({ where: { createdById: userId }, data: { createdById: ghost.id } });
       await tx.communityThread.updateMany({ where: { authorId: userId }, data: { authorId: ghost.id } });
       await tx.communityReply.updateMany({ where: { authorId: userId }, data: { authorId: ghost.id } });

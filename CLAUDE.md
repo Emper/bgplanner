@@ -21,7 +21,7 @@ App para que grupos de amigos organicen sus partidas de juegos de mesa: importas
 
 - **No hay carpeta `prisma/migrations/`**. Flujo: editar `schema.prisma` → aplicar el cambio en Supabase → `npx prisma generate`. Adecuado para MVP con un único entorno real; asume riesgo de no tener historial de migraciones.
 - `DATABASE_URL` = pooler Supabase; `DIRECT_URL` = conexión directa (necesaria para `prisma generate`).
-- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameSession`, `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply`/`CommunityReplyLike` (foro `/community`; las respuestas citan con `quotedReplyId`, no se anidan), `Feedback`, `Feature`/`FeatureVote` (roadmap público), `Report`/`UserBlock`/`BannedEmail` (moderación).
+- Modelos principales (lista completa en `schema.prisma`): `User`, `Group`/`GroupMember`/`GroupInvitation`, `Game` (caché global BGG), `GroupGame`, `Vote`, `GameComment`, `GameReview` (crónicas), `GameNight`/`GameNightPlayer`/`GameNightGame` (en la UI, «Sesiones»: quién jugó y a qué; sustituyen a las antiguas sesiones planificadas), `Event`/`EventAttendee`/`EventGame`/`EventGameInterest`/`EventReview`/`EventPhoto`, `CollectionGame` (caché por usuario BGG), `CollectionEntry`, `BggGameInfo`/`BggUserGame`/`UserGameFlag` (recomendaciones), `ActivityLog`, `Notification` (campana), `Friendship`, `CommunityThread`/`CommunityReply`/`CommunityReplyLike` (foro `/community`; las respuestas citan con `quotedReplyId`, no se anidan), `Feedback`, `Feature`/`FeatureVote` (roadmap público), `Report`/`UserBlock`/`BannedEmail` (moderación).
 
 ### Seguridad con la base de datos — IMPORTANTE
 
@@ -88,6 +88,7 @@ NextResponse.json(...)
 ### Ranking
 - Fórmula: `score = 3 × super + 1 × up - 1 × down`. Desempate por `bggRating` descendente.
 - Helper central: `computeRanking(groupId, viewerUserId?)` en [src/lib/ranking.ts](src/lib/ranking.ts). Úsalo para cualquier cosa que necesite ranking — no dupliques la lógica.
+- «¡A jugar!» ([gameNight.ts](src/lib/gameNight.ts), cliente puro): misma fórmula pero solo con los votos de los presentes, filtrando por jugadores, tiempo y peso. «¡Lo jugamos!» guarda la sesión (`GameNight`) y pasa por `markGroupGamePlayed` ([playedGames.ts](src/lib/playedGames.ts)), igual que «Marcar jugado»: jugado = `GroupGame.playedAt`.
 - Restricción: **1 super voto por usuario por grupo** (no por juego). Si ya tiene, 409 con `conflictingGameId`.
 
 ### UI (client components)

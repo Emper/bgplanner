@@ -14,12 +14,9 @@ export async function computeRanking(
         votes: { select: { userId: true, value: true } },
       },
     }),
-    prisma.gameSessionGame.groupBy({
+    prisma.gameNightGame.groupBy({
       by: ["gameId"],
-      where: {
-        status: "completed",
-        session: { groupId },
-      },
+      where: { night: { groupId } },
       _count: { id: true },
     }),
   ]);

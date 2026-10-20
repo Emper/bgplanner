@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { compareRanking, voteScore } from "@/lib/rankingOrder";
+import { GAME_NIGHT_INCLUDE } from "@/lib/gameNights";
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
   const { id: groupId } = await params;
 
   // Run ALL queries in parallel — single cold start, single DB connection
-  const [membership, group, memberCount, groupGames, sessions, manualPlaysLog] =
+  const [membership, group, memberCount, groupGames, nights, manualPlaysLog] =
     await Promise.all([
       prisma.groupMember.findUnique({
         where: { groupId_userId: { groupId, userId: session.userId } },
@@ -59,29 +60,10 @@ export async function GET(
           comments: { where: { deletedAt: null }, select: { userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
         },
       }),
-      prisma.gameSession.findMany({
+      prisma.gameNight.findMany({
         where: { groupId },
         orderBy: { date: "desc" },
-        include: {
-          createdBy: { select: { name: true, displayName: true } },
-          games: {
-            orderBy: { order: "asc" },
-            include: {
-              game: {
-                select: {
-                  id: true,
-                  bggId: true,
-                  name: true,
-                  thumbnail: true,
-                  playingTime: true,
-                  minPlayers: true,
-                  maxPlayers: true,
-                  weight: true,
-                },
-              },
-            },
-          },
-        },
+        include: GAME_NIGHT_INCLUDE,
       }),
       prisma.activityLog.findMany({
         where: { groupId, type: "game_marked_played" },
@@ -93,29 +75,21 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
-  // Count completed plays per game and track last played date from sessions
+  // Partidas por juego y última fecha jugada, desde las noches de juego
   const playCountByGameId = new Map<string, number>();
-  const lastSessionDateByGameId = new Map<string, Date>();
-  let totalSessionPlays = 0;
-  let totalSessionMinutes = 0;
+  const lastNightDateByGameId = new Map<string, Date>();
+  let totalNightPlays = 0;
+  let totalNightMinutes = 0;
   let lastPlayedAt: Date | null = null;
-  for (const s of sessions) {
-    let sessionHasCompleted = false;
-    for (const sg of s.games) {
-      if (sg.status === "completed") {
-        sessionHasCompleted = true;
-        totalSessionPlays += 1;
-        playCountByGameId.set(sg.game.id, (playCountByGameId.get(sg.game.id) || 0) + 1);
-        const existing = lastSessionDateByGameId.get(sg.game.id);
-        if (!existing || s.date > existing) {
-          lastSessionDateByGameId.set(sg.game.id, s.date);
-        }
-      }
+  for (const n of nights) {
+    for (const ng of n.games) {
+      totalNightPlays += 1;
+      totalNightMinutes += ng.game.playingTime || 0;
+      playCountByGameId.set(ng.game.id, (playCountByGameId.get(ng.game.id) || 0) + 1);
+      const existing = lastNightDateByGameId.get(ng.game.id);
+      if (!existing || n.date > existing) lastNightDateByGameId.set(ng.game.id, n.date);
     }
-    if (sessionHasCompleted) {
-      totalSessionMinutes += s.totalMinutes;
-      if (!lastPlayedAt || s.date > lastPlayedAt) lastPlayedAt = s.date;
-    }
+    if (n.games.length > 0 && (!lastPlayedAt || n.date > lastPlayedAt)) lastPlayedAt = n.date;
   }
 
   // Manual "marked as played" actions from the ranking. Each log entry counts
@@ -163,11 +137,11 @@ export async function GET(
       }
 
       const playCount = playCountByGameId.get(gg.game.id) || 0;
-      const lastSessionDate = lastSessionDateByGameId.get(gg.game.id) || null;
-      // Use playedAt (manual mark) or last session date, whichever is more recent
-      const lastPlayedDate = gg.playedAt && lastSessionDate
-        ? (gg.playedAt > lastSessionDate ? gg.playedAt : lastSessionDate)
-        : gg.playedAt || lastSessionDate;
+      const lastNightDate = lastNightDateByGameId.get(gg.game.id) || null;
+      // Use playedAt (manual mark) or last night date, whichever is more recent
+      const lastPlayedDate = gg.playedAt && lastNightDate
+        ? (gg.playedAt > lastNightDate ? gg.playedAt : lastNightDate)
+        : gg.playedAt || lastNightDate;
 
       return {
         groupGameId: gg.id,
@@ -185,7 +159,7 @@ export async function GET(
     })
     .sort(compareRanking);
 
-  // Combine session plays + manual marks per game to find the most played one
+  // Combine night plays + manual marks per game to find the most played one
   let topGame: { name: string; thumbnail: string | null; playCount: number } | null = null;
   const combinedByGameId = new Map<string, number>(playCountByGameId);
   for (const gg of groupGames) {
@@ -203,8 +177,8 @@ export async function GET(
 
   const stats = {
     gamesCount: groupGames.filter((gg) => !gg.archivedAt).length,
-    playsCount: totalSessionPlays + totalManualPlays,
-    totalMinutes: totalSessionMinutes,
+    playsCount: totalNightPlays + totalManualPlays,
+    totalMinutes: totalNightMinutes,
     lastPlayedAt,
     topGame,
   };
@@ -218,7 +192,7 @@ export async function GET(
     },
     ranking,
     memberCount,
-    sessions,
+    nights,
     stats,
   });
 

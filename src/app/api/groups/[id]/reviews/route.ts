@@ -34,7 +34,6 @@ export async function GET(
           game: { select: { bggId: true, name: true, thumbnail: true } },
         },
       },
-      session: { select: { id: true, name: true, date: true } },
     },
   });
 
@@ -47,7 +46,6 @@ export async function GET(
     userId: r.userId,
     user: r.user,
     photos: r.photos,
-    session: r.session,
     game: {
       gameId: r.groupGame.gameId,
       bggId: r.groupGame.game.bggId,

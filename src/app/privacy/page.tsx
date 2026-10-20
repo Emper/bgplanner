@@ -50,7 +50,7 @@ const DATA = [
   },
   {
     label: "Tus grupos y eventos",
-    text: "los grupos y eventos que creas o a los que te unes, los juegos que propones, tus votos, comentarios, opiniones y valoraciones, las partidas que planificáis, a qué eventos vas y qué juegos te apetecen en ellos.",
+    text: "los grupos y eventos que creas o a los que te unes, los juegos que propones, tus votos, comentarios, opiniones y valoraciones, las sesiones que apuntáis (quién jugó y a qué), a qué eventos vas y qué juegos te apetecen en ellos.",
   },
   {
     label: "Tus fotos",

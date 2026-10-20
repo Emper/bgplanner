@@ -17,7 +17,7 @@ export async function GET(
 
   const { id } = await params;
 
-  const [group, ranking, votes, sessions] = await Promise.all([
+  const [group, ranking, votes, nights] = await Promise.all([
     prisma.group.findUnique({
       where: { id },
       include: {
@@ -50,12 +50,13 @@ export async function GET(
         groupGame: { include: { game: { select: { name: true, thumbnail: true } } } },
       },
     }),
-    prisma.gameSession.findMany({
+    prisma.gameNight.findMany({
       where: { groupId: id },
       orderBy: { date: "desc" },
       include: {
         createdBy: { select: { name: true, displayName: true, email: true } },
         games: { include: { game: { select: { name: true } } } },
+        _count: { select: { players: true } },
       },
     }),
   ]);
@@ -117,15 +118,12 @@ export async function GET(
         email: v.user.email,
       },
     })),
-    sessions: sessions.map((s) => ({
-      id: s.id,
-      name: s.name,
-      date: s.date,
-      status: s.status,
-      playerCount: s.playerCount,
-      totalMinutes: s.totalMinutes,
-      createdBy: s.createdBy.displayName || s.createdBy.name || s.createdBy.email,
-      games: s.games.map((g) => ({ name: g.game.name, status: g.status })),
+    nights: nights.map((n) => ({
+      id: n.id,
+      date: n.date,
+      playerCount: n._count.players,
+      createdBy: n.createdBy.displayName || n.createdBy.name || n.createdBy.email,
+      games: n.games.map((g) => g.game.name),
     })),
   });
 }

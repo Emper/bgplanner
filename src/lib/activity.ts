@@ -5,6 +5,8 @@ export type ActivityType =
   | "game_added" | "game_removed" | "game_marked_played" | "game_returned_pending" | "game_archived"
   | "game_reviewed" | "group_photo_added" | "game_manual_added"
   | "vote_cast" | "vote_changed" | "vote_removed" | "vote_commented"
+  | "game_night_played"
+  // Sesiones: ya no existen, pero sus entradas siguen en el historial
   | "session_created" | "session_updated" | "session_deleted" | "session_game_completed"
   | "event_created" | "event_updated" | "event_joined" | "event_left"
   | "event_game_added" | "event_interest_set" | "event_geeklist_linked" | "event_geeklist_synced"
@@ -23,7 +25,7 @@ const PUBLIC_TYPES = new Set<ActivityType>([
   "event_created",
   "event_joined",
   "event_left",
-  "session_created",
+  "game_night_played",
   "game_added",
 ]);
 
@@ -111,6 +113,8 @@ const TEMPLATES: Record<string, (m: Meta) => string> = {
   vote_changed: (m) => `cambió su voto en "${m.gameName || "un juego"}" a ${voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType })}`,
   vote_removed: (m) => `quitó su voto en "${m.gameName || "un juego"}"`,
   vote_commented: (m) => `comentó "${m.comment || ""}" en "${m.gameName || "un juego"}"`,
+  game_night_played: (m) =>
+    `jugó a "${m.gameName || "un juego"}" en una sesión${typeof m.players === "number" && m.players > 1 ? ` (${m.players} a la mesa)` : ""} 🎲`,
   session_created: (m) => `creó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
   session_updated: (m) => `actualizó la sesión${m.sessionName ? ` "${m.sessionName}"` : ""}`,
   session_deleted: () => "eliminó una sesión",
@@ -180,6 +184,7 @@ const GROUP_FORMATS: Record<string, { verb: string; extract: (m: Meta) => GroupP
   vote_changed: { verb: "cambió su voto en", extract: (m) => m.gameName ? { name: m.gameName, affix: voteEmoji({ ...m, voteValue: m.toValue ?? m.voteValue, voteType: m.to ?? m.voteType }) } : null },
   vote_removed: { verb: "quitó su voto en", extract: (m) => m.gameName ? { name: m.gameName } : null },
   vote_commented: { verb: "comentó", extract: (m) => m.gameName ? { name: m.gameName, affix: "💬" } : null },
+  game_night_played: { verb: "jugó a", extract: (m) => m.gameName ? { name: m.gameName, affix: "🎲" } : null },
   session_game_completed: { verb: "completó", extract: (m) => m.gameName ? { name: m.gameName } : null },
   event_game_added: { verb: "añadió al evento", extract: (m) => m.gameName ? { name: m.gameName } : null },
   event_interest_set: { verb: "marcó interés en", extract: (m) => m.gameName ? { name: m.gameName } : null },

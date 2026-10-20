@@ -37,15 +37,12 @@ interface AdminGroupDetail {
     gameName: string;
     user: { id: string; name: string; email: string };
   }[];
-  sessions: {
+  nights: {
     id: string;
-    name: string | null;
     date: string;
-    status: string;
     playerCount: number;
-    totalMinutes: number;
     createdBy: string;
-    games: { name: string; status: string }[];
+    games: string[];
   }[];
 }
 
@@ -229,24 +226,24 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
       </section>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-        <h2 className="text-sm uppercase tracking-wide text-[var(--text-muted)] mb-3">Sesiones ({data.sessions.length})</h2>
-        {data.sessions.length === 0 ? (
+        <h2 className="text-sm uppercase tracking-wide text-[var(--text-muted)] mb-3">Sesiones ({data.nights.length})</h2>
+        {data.nights.length === 0 ? (
           <p className="text-xs text-[var(--text-muted)]">Sin sesiones registradas.</p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {data.sessions.slice(0, 20).map((s) => (
-              <li key={s.id} className="py-2 text-sm flex items-center justify-between gap-3">
+            {data.nights.slice(0, 20).map((n) => (
+              <li key={n.id} className="py-2 text-sm flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-medium">
-                    {s.name || `Sesión del ${new Date(s.date).toLocaleDateString("es-ES")}`}{" "}
-                    <span className="text-xs text-[var(--text-muted)] font-normal">· {s.status}</span>
+                    Sesión del {new Date(n.date).toLocaleDateString("es-ES")}{" "}
+                    <span className="text-xs text-[var(--text-muted)] font-normal">· {n.createdBy}</span>
                   </div>
                   <div className="text-xs text-[var(--text-muted)] truncate">
-                    {s.games.map((g) => g.name).join(", ") || "Sin juegos"}
+                    {n.games.join(", ") || "Sin juegos"}
                   </div>
                 </div>
                 <div className="text-right text-xs text-[var(--text-muted)] whitespace-nowrap">
-                  {new Date(s.date).toLocaleDateString("es-ES")} · {s.playerCount}p · {s.totalMinutes}m
+                  {n.playerCount}p · {n.games.length} {n.games.length === 1 ? "juego" : "juegos"}
                 </div>
               </li>
             ))}

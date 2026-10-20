@@ -165,21 +165,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Solo admins pueden archivar" }, { status: 403 });
   }
 
-  // Find games marked played via completed sessions (manually-marked ones ya llevan playedAt)
-  const sessionsWithCompleted = await prisma.gameSessionGame.findMany({
-    where: { status: "completed", session: { groupId } },
-    select: { gameId: true },
+  // Lo jugado (a mano o en una noche de juego) lleva playedAt
+  const toArchive = await prisma.groupGame.findMany({
+    where: { groupId, archivedAt: null, playedAt: { not: null } },
+    select: { id: true },
   });
-  const completedGameIds = new Set(sessionsWithCompleted.map((sg) => sg.gameId));
-
-  const allPlayedIds = await prisma.groupGame.findMany({
-    where: { groupId, archivedAt: null },
-    select: { id: true, gameId: true, playedAt: true },
-  });
-
-  const toArchive = allPlayedIds.filter(
-    (gg) => gg.playedAt !== null || completedGameIds.has(gg.gameId)
-  );
 
   if (toArchive.length > 0) {
     await prisma.groupGame.updateMany({

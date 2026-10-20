@@ -308,7 +308,7 @@ summary:focus-visible {
   animation: float-slow 6s ease-in-out infinite;
 }
 
-/* ── Sorteo «Ayúdame a elegir» ─────────────────────────────────── */
+/* ── Sorteo de «¡A jugar!» ──────────────────────────────────── */
 @keyframes reel-tick {
   from {
     opacity: 0.3;

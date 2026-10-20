@@ -20,7 +20,6 @@ interface Review {
   userId: string;
   user: { id: string; name: string | null; displayName: string | null; avatarUrl: string | null };
   photos: Photo[];
-  session: { id: string; name: string | null; date: string } | null;
   game: { gameId: string; bggId: number; name: string; thumbnail: string | null };
 }
 interface GalleryPhoto {

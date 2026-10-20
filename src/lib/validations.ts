@@ -131,7 +131,6 @@ export const gameReviewSchema = z
       .max(1000, "Máximo 1000 caracteres")
       .transform(clean)
       .optional(),
-    sessionId: z.string().min(1).nullable().optional(),
     photoUrls: z
       .array(z.string().url("URL de foto no válida"))
       .max(8, "Máximo 8 fotos por opinión")
@@ -144,6 +143,16 @@ export const gameReviewSchema = z
       (!!d.photoUrls && d.photoUrls.length > 0),
     { message: "Añade una nota, un comentario o al menos una foto" }
   );
+
+// "¡Lo jugamos!" desde la noche de juego. Sin nightId abre una noche nueva.
+export const gameNightPlaySchema = z.object({
+  nightId: z.string().min(1).nullable().optional(),
+  gameId: z.string().min(1, "Falta el juego"),
+  playerIds: z
+    .array(z.string().min(1))
+    .min(1, "Marca al menos a una persona")
+    .max(100, "Demasiados jugadores"),
+});
 
 // Valoración de un evento. rating/text ambos opcionales; si llegan vacíos se
 // interpreta como borrar la valoración propia.

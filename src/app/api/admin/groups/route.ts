@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
     include: {
       createdBy: { select: { id: true, name: true, displayName: true, email: true } },
-      _count: { select: { members: true, games: true, sessions: true } },
+      _count: { select: { members: true, games: true, nights: true } },
     },
   });
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       },
       members: g._count.members,
       games: g._count.games,
-      sessions: g._count.sessions,
+      nights: g._count.nights,
     }))
   );
 }

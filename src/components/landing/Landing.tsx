@@ -356,8 +356,8 @@ const STORY = [
   {
     emoji: "🎲",
     title: "¡A la mesa!",
-    text: "Dile cuántos sois y cuánto tiempo tenéis y BG Planner os propone lo mejor del ranking. ¿Seguís sin decidir? «Ayúdame a elegir» lo sortea con ruleta y confeti.",
-    points: ["Sesiones con los juegos ordenados y su estado", "Marca lo jugado, puntúalo y sube las fotos a la galería", "El grupo en números: partidas, horas y el más jugado"],
+    text: "Dale a «¡A jugar!», marca quién ha venido y cuánto tiempo tenéis y os sale lo que encaja, ordenado solo con los votos de los presentes. ¿Seguís sin decidir? Lo sorteamos con ruleta y confeti.",
+    points: ["Fuera los juegos que no admiten a tantos o no caben en el tiempo", "Cada sesión queda guardada: quién jugó y a qué", "Puntúa lo jugado, sube fotos y mira el grupo en números"],
   },
 ];
 

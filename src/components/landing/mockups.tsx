@@ -361,7 +361,7 @@ export function VoteMock({ active }: { active: boolean }) {
   };
 
   return (
-    <AppWindow path="/groups/los-del-jueves?tab=ranking">
+    <AppWindow path="/groups/los-del-jueves?tab=sessions">
       <div className="p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between text-[11px]">
           <span className="font-semibold uppercase tracking-wide text-[var(--text-muted)]">Ranking</span>
@@ -553,10 +553,10 @@ export function PickMock({ active }: { active: boolean }) {
 
   const game = REEL[idx];
   return (
-    <AppWindow path="/groups/los-del-jueves?tab=ranking">
+    <AppWindow path="/groups/los-del-jueves?tab=sessions">
       <div className="relative p-4 sm:p-5 overflow-hidden">
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {["👥 4 jugadores", "⏱ Unas 2 horas", "🏆 Top del ranking"].map((c) => (
+          {["👥 Ana, Luis, Marta y tú", "⏱ 2 h", "⚖️ Medio"].map((c) => (
             <span key={c} className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface-alt)]">
               {c}
             </span>
@@ -565,7 +565,7 @@ export function PickMock({ active }: { active: boolean }) {
 
         <div className="text-center">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-3">
-            🎲 Ayúdame a elegir
+            🎲 ¡A jugar!
           </div>
           <div
             className={`mx-auto w-full max-w-[260px] rounded-2xl border-2 p-4 transition-colors duration-300 ${
@@ -898,7 +898,7 @@ export function EventTicketMini() {
 export function WinnerMini() {
   return (
     <div className="w-48 rounded-2xl border-2 border-[var(--primary)] bg-[var(--surface)] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.35)] p-3 text-center animate-glow-pulse">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">🎲 Ayúdame a elegir</div>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">🎲 ¡A jugar!</div>
       <Thumb game={G.root} className="w-14 h-14 mx-auto mt-2" />
       <div className="mt-1.5 text-sm font-bold text-[var(--text)]">¡Sale Root!</div>
     </div>

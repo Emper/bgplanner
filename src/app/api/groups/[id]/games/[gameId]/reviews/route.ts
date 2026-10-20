@@ -37,7 +37,6 @@ export async function GET(
     include: {
       user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
       photos: { orderBy: { order: "asc" }, select: { id: true, url: true } },
-      session: { select: { id: true, name: true, date: true } },
     },
   });
 
@@ -76,24 +75,12 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { rating, text, sessionId, photoUrls } = parsed.data;
-
-  // Si se enlaza a una partida, comprobar que es del mismo grupo.
-  if (sessionId) {
-    const sess = await prisma.gameSession.findFirst({
-      where: { id: sessionId, groupId },
-      select: { id: true },
-    });
-    if (!sess) {
-      return NextResponse.json({ error: "Partida no válida" }, { status: 400 });
-    }
-  }
+  const { rating, text, photoUrls } = parsed.data;
 
   const review = await prisma.gameReview.create({
     data: {
       groupGameId: groupGame.id,
       userId: session.userId,
-      sessionId: sessionId || null,
       rating: rating ?? null,
       text: text?.trim() ? text.trim() : null,
       photos: photoUrls?.length
@@ -103,7 +90,6 @@ export async function POST(
     include: {
       user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
       photos: { orderBy: { order: "asc" }, select: { id: true, url: true } },
-      session: { select: { id: true, name: true, date: true } },
     },
   });
 

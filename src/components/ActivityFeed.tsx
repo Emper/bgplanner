@@ -94,6 +94,7 @@ const TYPE_BADGES: Record<string, string> = {
   vote_changed: "🗳️",
   vote_removed: "🗳️",
   vote_commented: "💬",
+  game_night_played: "🎲",
   session_created: "🗓️",
   session_updated: "🗓️",
   session_deleted: "🗓️",

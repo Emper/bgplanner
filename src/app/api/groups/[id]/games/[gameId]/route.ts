@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
-import { notify } from "@/lib/notifications";
-import { getGroupType } from "@/lib/groupTypes";
+import { markGroupGamePlayed } from "@/lib/playedGames";
 
 export async function DELETE(
   request: NextRequest,
@@ -101,60 +100,15 @@ export async function PATCH(
     return NextResponse.json({ success: true });
   }
 
-  // Update playedAt. "Devolver al ranking" (played: false) también desarchiva,
-  // para que el juego vuelva de verdad al listado de pendientes.
-  await prisma.groupGame.update({
-    where: { id: groupGame.id },
-    data: played
-      ? { playedAt: new Date() }
-      : { playedAt: null, archivedAt: null },
-  });
-
-  // When marking as played, free up votes that are slot-limited by the group type
-  // (e.g. the super vote in "friends" mode). Modes without limits keep their
-  // votes intact — nadie está "esperando" su slot.
+  // "Devolver al ranking" (played: false) también desarchiva, para que el
+  // juego vuelva de verdad al listado de pendientes.
   if (played) {
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      select: { name: true, type: true },
+    await markGroupGamePlayed(groupId, groupGame, session.userId);
+  } else {
+    await prisma.groupGame.update({
+      where: { id: groupGame.id },
+      data: { playedAt: null, archivedAt: null },
     });
-    const limitedValues = getGroupType(group?.type)
-      .voteLimits.filter((l) => l.max <= 1)
-      .map((l) => l.value);
-
-    const superVotes = limitedValues.length
-      ? await prisma.vote.findMany({
-          where: { groupGameId: groupGame.id, value: { in: limitedValues } },
-          select: { userId: true },
-        })
-      : [];
-
-    if (superVotes.length > 0) {
-      await prisma.vote.updateMany({
-        where: { groupGameId: groupGame.id, value: { in: limitedValues } },
-        data: { value: 1 },
-      });
-
-      notify({
-        type: "super_vote_freed",
-        userIds: superVotes.map((v) => v.userId),
-        actorId: session.userId,
-        groupId,
-        metadata: { gameName: groupGame.game.name, thumbnail: groupGame.game.thumbnail ?? null },
-      });
-    }
-
-    // Solo en la transición pendiente → jugado (evita re-disparar al re-marcar).
-    // La invitación a opinar NO se manda aquí: la deja el cron diario en la
-    // campana ("valora los juegos de ayer"), uno por grupo y no uno por juego.
-    if (!groupGame.playedAt) {
-      // Las notas de ranking ("por qué propongo este juego") pierden sentido
-      // una vez jugado: soft-delete de TODAS las del juego en el grupo.
-      await prisma.gameComment.updateMany({
-        where: { groupGameId: groupGame.id, deletedAt: null },
-        data: { deletedAt: new Date() },
-      });
-    }
   }
 
   logActivity(played ? "game_marked_played" : "game_returned_pending", session.userId, { groupId, gameName: groupGame.game.name });
