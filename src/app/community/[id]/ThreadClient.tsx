@@ -35,6 +35,11 @@ interface Thread {
   author: CommunityAuthor;
 }
 
+// El mensaje al que contesta una respuesta (ver toReplyQuote)
+type Quote =
+  | { replyId: string; deleted: true }
+  | { replyId: string; deleted: false; author: CommunityAuthor; excerpt: string };
+
 type Reply =
   // `hidden`: oculta por denuncias mientras se revisa
   | { id: string; deleted: true; hidden?: boolean; createdAt: string }
@@ -45,7 +50,11 @@ type Reply =
       createdAt: string;
       editedAt: string | null;
       author: CommunityAuthor;
+      likes: number;
+      quote: Quote | null;
     };
+
+type LiveReply = Extract<Reply, { deleted: false }>;
 
 type PendingDelete = { kind: "thread" } | { kind: "reply"; id: string } | null;
 
@@ -83,6 +92,7 @@ export default function ThreadClient({
   viewerId,
   isAdmin,
   initialBlockedIds = [],
+  initialLikedIds = [],
   banner,
 }: {
   initial: ThreadInitial;
@@ -90,6 +100,8 @@ export default function ThreadClient({
   isAdmin: boolean;
   /** A quién ha bloqueado quien mira: sus mensajes salen plegados. */
   initialBlockedIds?: string[];
+  /** Respuestas a las que quien mira ya ha dado «me gusta». */
+  initialLikedIds?: string[];
   /** Lo que va arriba del todo (la invitación a registrarse, sin sesión). */
   banner?: React.ReactNode;
 }) {
@@ -111,8 +123,13 @@ export default function ThreadClient({
   const [draftReply, setDraftReply] = useState("");
   const [savingReply, setSavingReply] = useState(false);
 
-  // Respuesta nueva
+  // Respuesta nueva (y el mensaje que cita, si contesta a uno concreto)
   const [replyText, setReplyText] = useState("");
+  const [quoting, setQuoting] = useState<LiveReply | null>(null);
+
+  // «Me gusta»: los míos y los que están en vuelo
+  const [likedIds, setLikedIds] = useState<Set<string>>(() => new Set(initialLikedIds));
+  const [likeBusy, setLikeBusy] = useState<Set<string>>(new Set());
   const [sendingReply, setSendingReply] = useState(false);
   const [replyError, setReplyError] = useState("");
 
@@ -149,15 +166,7 @@ export default function ThreadClient({
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash.startsWith("#reply-")) return;
-    const el = document.getElementById(hash.slice(1));
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.setAttribute("data-highlight", "");
-    const t = setTimeout(() => el.removeAttribute("data-highlight"), 2500);
-    return () => {
-      clearTimeout(t);
-      el.removeAttribute("data-highlight");
-    };
+    return highlightReply(hash.slice("#reply-".length));
   }, []);
 
   const isLoggedIn = !!viewerId;
@@ -180,6 +189,51 @@ export default function ThreadClient({
           }
         : { label: `🚫 Bloquear a ${author.name}`, onClick: () => setBlocking(author), danger: true },
     ];
+  };
+
+  const toggleLike = async (r: LiveReply) => {
+    if (!viewerId || r.author.id === viewerId || likeBusy.has(r.id)) return;
+    const wasLiked = likedIds.has(r.id);
+    const setLike = (liked: boolean, likes: number) => {
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        if (liked) next.add(r.id);
+        else next.delete(r.id);
+        return next;
+      });
+      setReplies((prev) => prev.map((x) => (x.id === r.id && !x.deleted ? { ...x, likes } : x)));
+    };
+    // Optimista: el corazón cambia al momento y se corrige con la respuesta.
+    setLike(!wasLiked, r.likes + (wasLiked ? -1 : 1));
+    setLikeBusy((prev) => new Set(prev).add(r.id));
+    try {
+      const res = await fetch(`/api/community/${threadId}/replies/${r.id}/like`, {
+        method: wasLiked ? "DELETE" : "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "No se pudo guardar tu «me gusta»");
+      setLike(data.liked, data.likes);
+    } catch (err) {
+      setLike(wasLiked, r.likes);
+      showToast(err instanceof Error ? err.message : "No se pudo guardar tu «me gusta»");
+    } finally {
+      setLikeBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(r.id);
+        return next;
+      });
+    }
+  };
+
+  // «Citar»: la respuesta se prepara contestando a ese mensaje y la caja de
+  // abajo se pone a tiro.
+  const startQuote = (r: LiveReply) => {
+    setQuoting(r);
+    requestAnimationFrame(() => {
+      const box = document.getElementById("reply-composer");
+      box?.scrollIntoView({ behavior: "smooth", block: "center" });
+      box?.querySelector("textarea")?.focus({ preventScroll: true });
+    });
   };
 
   const isThreadAuthor = !!thread && thread.author.id === viewerId;
@@ -240,12 +294,13 @@ export default function ThreadClient({
       const res = await fetch(`/api/community/${thread.id}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: replyText }),
+        body: JSON.stringify({ body: replyText, quotedReplyId: quoting?.id }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "No se pudo publicar");
       setReplies((prev) => [...prev, data.reply]);
       setReplyText("");
+      setQuoting(null);
       nudgePush("community-reply");
       // Deja la respuesta recién publicada a la vista.
       requestAnimationFrame(() =>
@@ -299,9 +354,17 @@ export default function ThreadClient({
         return;
       }
       const replyId = pendingDelete.id;
+      // Las citas a ese mensaje se quedan en su hueco, como al recargar.
       setReplies((prev) =>
-        prev.map((r) => (r.id === replyId ? { id: r.id, deleted: true, createdAt: r.createdAt } : r))
+        prev.map((r) =>
+          r.id === replyId
+            ? { id: r.id, deleted: true, createdAt: r.createdAt }
+            : !r.deleted && r.quote?.replyId === replyId
+              ? { ...r, quote: { replyId, deleted: true } }
+              : r
+        )
       );
+      if (quoting?.id === replyId) setQuoting(null);
       setPendingDelete(null);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "No se pudo borrar");
@@ -503,11 +566,34 @@ export default function ThreadClient({
                         </div>
                       </div>
                     ) : (
-                      <PostText text={r.body} className="text-sm text-[var(--text)]" />
+                      <>
+                        {r.quote && (
+                          <QuoteBlock
+                            quote={r.quote}
+                            blocked={!r.quote.deleted && isBlocked(r.quote.author.id)}
+                            onJump={() => highlightReply(r.quote!.replyId)}
+                          />
+                        )}
+                        <PostText text={r.body} className="text-sm text-[var(--text)]" />
+                      </>
                     )}
 
-                    {editingReplyId !== r.id && (r.author.id === viewerId || isAdmin) && (
-                      <div className="flex justify-end gap-1 mt-2 -mb-1">
+                    {editingReplyId !== r.id && (
+                      <div className="flex items-center gap-1 mt-2 -mb-1 -ml-2">
+                        <LikeButton
+                          count={r.likes}
+                          liked={likedIds.has(r.id)}
+                          own={r.author.id === viewerId}
+                          loginHref={isLoggedIn ? null : `/login?redirect=/community/${thread.id}%23reply-${r.id}`}
+                          busy={likeBusy.has(r.id)}
+                          onToggle={() => toggleLike(r)}
+                        />
+                        {isLoggedIn && (
+                          <button type="button" onClick={() => startQuote(r)} className={ghostBtn} title="Responder a este mensaje citándolo">
+                            ↩︎ Citar
+                          </button>
+                        )}
+                        <span className="flex-1" />
                         {r.author.id === viewerId && (
                           <button
                             type="button"
@@ -520,13 +606,15 @@ export default function ThreadClient({
                             Editar
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setPendingDelete({ kind: "reply", id: r.id })}
-                          className={dangerBtn}
-                        >
-                          Borrar
-                        </button>
+                        {(r.author.id === viewerId || isAdmin) && (
+                          <button
+                            type="button"
+                            onClick={() => setPendingDelete({ kind: "reply", id: r.id })}
+                            className={dangerBtn}
+                          >
+                            Borrar
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -540,15 +628,43 @@ export default function ThreadClient({
         <div className="mt-6">
           {isLoggedIn ? (
             <form
+              id="reply-composer"
               onSubmit={sendReply}
-              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)]"
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24"
             >
+              {quoting && (
+                <div className="flex items-start gap-2 mb-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-[var(--text-muted)] mb-1">
+                      ↩︎ Respondiendo a <span className="text-[var(--text-secondary)]">{quoting.author.name}</span>
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--primary)]/50 pl-2.5 line-clamp-2 whitespace-pre-wrap break-words">
+                      {quoting.body}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuoting(null)}
+                    aria-label="Quitar la cita"
+                    title="Quitar la cita"
+                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <EmojiField
                 value={replyText}
                 onChange={setReplyText}
                 maxLength={REPLY_BODY_MAX}
                 rows={4}
-                placeholder={liveReplies === 0 ? "Sé el primero en responder…" : "Escribe tu respuesta…"}
+                placeholder={
+                  quoting
+                    ? `Contesta a ${quoting.author.name}…`
+                    : liveReplies === 0
+                      ? "Sé el primero en responder…"
+                      : "Escribe tu respuesta…"
+                }
                 className={`${inputClass} resize-y text-sm`}
                 onKeyDown={(e) => {
                   // Cmd/Ctrl + Enter publica, como en casi todos los foros.
@@ -657,5 +773,116 @@ function BlockedNotice({ what, onShow }: { what: string; onShow: () => void }) {
         Mostrar
       </button>
     </p>
+  );
+}
+
+/** Lleva una respuesta a la vista y la resalta un momento. Devuelve cómo deshacerlo. */
+function highlightReply(replyId: string) {
+  const el = document.getElementById(`reply-${replyId}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.setAttribute("data-highlight", "");
+  const t = setTimeout(() => el.removeAttribute("data-highlight"), 2500);
+  return () => {
+    clearTimeout(t);
+    el.removeAttribute("data-highlight");
+  };
+}
+
+/** El mensaje al que contesta una respuesta, encima de su texto. */
+function QuoteBlock({ quote, blocked, onJump }: { quote: Quote; blocked: boolean; onJump: () => void }) {
+  return (
+    <a
+      href={`#reply-${quote.replyId}`}
+      onClick={(e) => {
+        e.preventDefault();
+        onJump();
+      }}
+      className="block mb-2 rounded-xl border-l-2 border-[var(--primary)]/50 bg-[var(--surface-hover)]/60 hover:bg-[var(--surface-hover)] px-3 py-2 transition-colors"
+      title="Ir al mensaje citado"
+    >
+      {quote.deleted ? (
+        <span className="text-xs italic text-[var(--text-muted)]">↩︎ Contesta a un mensaje que ya no está</span>
+      ) : blocked ? (
+        <span className="text-xs italic text-[var(--text-muted)]">↩︎ Contesta a un usuario que has bloqueado</span>
+      ) : (
+        <>
+          <span className="block text-xs font-medium text-[var(--text-muted)] mb-0.5">
+            ↩︎ {quote.author.name} escribió:
+          </span>
+          <span className="block text-xs text-[var(--text-secondary)] line-clamp-3 whitespace-pre-wrap break-words">
+            {quote.excerpt}
+          </span>
+        </>
+      )}
+    </a>
+  );
+}
+
+/**
+ * Corazón con su contador. Sin sesión lleva al login; en una respuesta propia
+ * solo enseña cuántos tiene.
+ */
+function LikeButton({
+  count,
+  liked,
+  own,
+  loginHref,
+  busy,
+  onToggle,
+}: {
+  count: number;
+  liked: boolean;
+  own: boolean;
+  loginHref: string | null;
+  busy: boolean;
+  onToggle: () => void;
+}) {
+  const label = count > 0 ? <span className="tabular-nums">{count}</span> : null;
+  const cls = `inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+    liked ? "text-rose-500" : "text-[var(--text-muted)]"
+  }`;
+  const heart = (
+    <svg
+      className={`w-4 h-4 transition-transform ${liked ? "scale-110" : ""}`}
+      viewBox="0 0 24 24"
+      fill={liked ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.8}
+      aria-hidden
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+    </svg>
+  );
+
+  if (loginHref) {
+    return (
+      <Link href={loginHref} className={`${cls} hover:text-rose-500`} title="Entra para dar «me gusta»">
+        {heart}
+        {label}
+      </Link>
+    );
+  }
+  if (own) {
+    if (count === 0) return null;
+    return (
+      <span className={cls} title={`${count} ${count === 1 ? "persona" : "personas"} le dan «me gusta»`}>
+        {heart}
+        {label}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={busy}
+      aria-pressed={liked}
+      title={liked ? "Quitar «me gusta»" : "Me gusta"}
+      className={`${cls} hover:text-rose-500 hover:bg-rose-500/10`}
+    >
+      {heart}
+      {label}
+    </button>
   );
 }

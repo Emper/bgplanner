@@ -22,6 +22,8 @@ export type NotificationType =
   | "review_event"
   | "community_reply"
   | "community_participant_reply"
+  | "community_quoted"
+  | "community_reply_liked"
   | "report_created"
   | "group_inherited"
   | "event_inherited";
@@ -33,13 +35,16 @@ const MERGEABLE = new Set<NotificationType>(["event_game_added", "event_geeklist
 const MERGE_WINDOW_MS = 12 * 60 * 60 * 1000;
 const MAX_MERGED_GAMES = 20;
 
-// Respuestas en un hilo de la Comunidad: un solo aviso por hilo mientras siga
-// sin leer, sin importar quién responda («Marta y 2 más han respondido…»). El
-// enlace apunta a la primera respuesta que aún no has visto.
-const THREAD_MERGEABLE = new Set<NotificationType>([
-  "community_reply",
-  "community_participant_reply",
-]);
+// Comunidad: un solo aviso mientras siga sin leer, sin importar quién lo
+// provoque («Marta y 2 más han respondido…»). Las respuestas y las citas se
+// funden por hilo y los «me gusta», por respuesta. El enlace apunta a la
+// primera respuesta que aún no has visto.
+const COMMUNITY_MERGE_KEY: Partial<Record<NotificationType, "threadId" | "replyId">> = {
+  community_reply: "threadId",
+  community_participant_reply: "threadId",
+  community_quoted: "threadId",
+  community_reply_liked: "replyId",
+};
 
 // Denuncias nuevas para quien modera: una sola entrada mientras siga sin leer
 // («Tienes 3 denuncias nuevas»), que apunta a la cola de /admin.
@@ -79,13 +84,14 @@ async function createOrMerge(
   };
   let metadata = (input.metadata ?? {}) as Meta;
 
-  if (THREAD_MERGEABLE.has(input.type) && typeof metadata.threadId === "string") {
+  const mergeKey = COMMUNITY_MERGE_KEY[input.type];
+  if (mergeKey && typeof metadata[mergeKey] === "string") {
     const previous = await prisma.notification.findFirst({
       where: {
         userId,
         type: input.type,
         readAt: null,
-        metadata: { path: ["threadId"], equals: metadata.threadId },
+        metadata: { path: [mergeKey], equals: metadata[mergeKey] as string },
       },
       orderBy: { createdAt: "desc" },
       select: { id: true, metadata: true, createdAt: true },
@@ -425,6 +431,20 @@ export function presentNotification(n: NotificationRow): PresentedNotification {
           : { text: many ? " también han respondido en " : " también ha respondido en " },
         title,
       ];
+      href = `/community/${String(m.threadId ?? "")}${m.replyId ? `#reply-${String(m.replyId)}` : ""}`;
+      break;
+    }
+    case "community_quoted":
+    case "community_reply_liked": {
+      const liked = n.type === "community_reply_liked";
+      emoji = liked ? "❤️" : "↩️";
+      const others = Math.max(0, (Array.isArray(m.actorIds) ? m.actorIds.length : 1) - 1);
+      const many = others > 0;
+      const title = { text: `«${String(m.threadTitle ?? "un hilo")}»`, strong: true };
+      const who = [actor, ...(many ? [{ text: ` y ${others} más` }] : [])];
+      parts = liked
+        ? [{ text: "A " }, ...who, { text: many ? " les gusta tu respuesta en " : " le gusta tu respuesta en " }, title]
+        : [...who, { text: many ? " te han citado en " : " te ha citado en " }, title];
       href = `/community/${String(m.threadId ?? "")}${m.replyId ? `#reply-${String(m.replyId)}` : ""}`;
       break;
     }

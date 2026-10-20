@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { getCommunityTag } from "@/lib/community";
-import { getThreadDetail } from "@/lib/communityServer";
+import { getLikedReplyIds, getThreadDetail } from "@/lib/communityServer";
 import { getBlockedIds } from "@/lib/moderation";
 import { excerpt } from "@/lib/text";
 import SmartNav from "@/components/SmartNav";
@@ -73,6 +73,15 @@ function threadJsonLd({ thread, replies }: ThreadInitial) {
       text: excerpt(r.body, 500),
       datePublished: r.createdAt,
       author: { "@type": "Person", name: r.author.name },
+      ...(r.likes > 0
+        ? {
+            interactionStatistic: {
+              "@type": "InteractionCounter",
+              interactionType: "https://schema.org/LikeAction",
+              userInteractionCount: r.likes,
+            },
+          }
+        : {}),
     })),
     inLanguage: "es-ES",
   };
@@ -86,7 +95,11 @@ export default async function CommunityThreadPage({
   const { id } = await params;
   const [detail, session] = await Promise.all([getThreadMeta(id).catch(() => null), getSession()]);
   if (!detail) notFound();
-  const [isAdmin, blockedIds] = await Promise.all([isSuperadmin(session), getBlockedIds(session?.userId)]);
+  const [isAdmin, blockedIds, likedIds] = await Promise.all([
+    isSuperadmin(session),
+    getBlockedIds(session?.userId),
+    getLikedReplyIds(session?.userId, id),
+  ]);
   // Fechas a texto, igual que llegarían por la API.
   const initial = JSON.parse(JSON.stringify(detail)) as ThreadInitial;
 
@@ -102,6 +115,7 @@ export default async function CommunityThreadPage({
         viewerId={session?.userId ?? null}
         isAdmin={isAdmin}
         initialBlockedIds={blockedIds}
+        initialLikedIds={likedIds}
         banner={!session && <SignupBanner variant="community" redirect={`/community/${id}`} />}
       />
       <Footer />

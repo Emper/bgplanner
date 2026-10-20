@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { replySchema } from "@/lib/validations";
+import { replyEditSchema } from "@/lib/validations";
 
 type Params = { params: Promise<{ id: string; replyId: string }> };
 
@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = replySchema.safeParse(body);
+  const parsed = replyEditSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }

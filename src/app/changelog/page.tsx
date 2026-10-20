@@ -12,6 +12,16 @@ interface ChangelogEntry {
 const CHANGELOG: ChangelogEntry[] = [
   {
     date: "20 octubre 2026",
+    version: "1.55",
+    title: "Corazones y citas en la Comunidad",
+    changes: [
+      { type: "new", text: "Dale «me gusta» a las respuestas que te convencen, y te avisamos cuando le gusta a alguien lo que has escrito" },
+      { type: "new", text: "Cita un mensaje para contestarlo: tu respuesta lleva el trocito al que respondes y quien lo escribió se entera" },
+      { type: "new", text: "Nueva insignia para tu perfil por los «me gusta» que reciben tus respuestas" },
+    ],
+  },
+  {
+    date: "20 octubre 2026",
     version: "1.54",
     title: "Derecho a veto",
     changes: [

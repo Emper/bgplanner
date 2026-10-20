@@ -752,6 +752,7 @@ function CommunitySection({ threads }: { threads: LandingThread[] }) {
             <ul className="mt-6 space-y-2.5">
               <Check>Se lee sin cuenta; para escribir, entras con tu email en un momento</Check>
               <Check>Los hilos con respuestas nuevas suben solos arriba</Check>
+              <Check>Cita un mensaje para contestarlo y dale «me gusta» a lo que te convence</Check>
               <Check>Te avisamos en la campana cuando alguien te responde</Check>
             </ul>
             <Link

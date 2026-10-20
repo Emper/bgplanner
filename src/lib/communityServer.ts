@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
-import { truncateChars } from "./text";
+import { excerpt, truncateChars } from "./text";
 import { THREADS_PAGE_SIZE } from "./community";
 import { getAutoHiddenCommunityIds, getBlockedIds } from "./moderation";
 
@@ -249,6 +249,8 @@ export async function getThreadDetail(id: string) {
           editedAt: true,
           deletedAt: true,
           author: { select: AUTHOR_SELECT },
+          _count: { select: { likes: true } },
+          quotedReply: { select: QUOTED_REPLY_SELECT },
         },
       },
     },
@@ -275,6 +277,8 @@ export async function getThreadDetail(id: string) {
             createdAt: r.createdAt,
             editedAt: r.editedAt,
             author: publicAuthor(r.author),
+            likes: r._count.likes,
+            quote: toReplyQuote(r.quotedReply, hidden.replies),
           }
     ),
   };
@@ -282,13 +286,66 @@ export async function getThreadDetail(id: string) {
 
 export type ThreadDetail = NonNullable<Awaited<ReturnType<typeof getThreadDetail>>>;
 
+// ── Citas y «me gusta» ──────────────────────────────────────────────────
+
+/** Cuánto del mensaje citado se enseña dentro de la respuesta. */
+const QUOTE_CHARS = 280;
+
+export const QUOTED_REPLY_SELECT = {
+  id: true,
+  body: true,
+  deletedAt: true,
+  author: { select: AUTHOR_SELECT },
+} as const;
+
+/**
+ * Lo que se pinta de un mensaje citado: autor y un trozo del texto, siempre el
+ * actual (si lo editan, la cita se actualiza). Si lo borraron o está oculto
+ * por denuncias, solo queda el hueco. null si la respuesta no cita nada.
+ */
+export function toReplyQuote(
+  quoted: { id: string; body: string; deletedAt: Date | null; author: Parameters<typeof publicAuthor>[0] } | null,
+  hiddenReplies: Set<string> = new Set()
+) {
+  if (!quoted) return null;
+  if (quoted.deletedAt || hiddenReplies.has(quoted.id)) {
+    return { replyId: quoted.id, deleted: true as const };
+  }
+  return {
+    replyId: quoted.id,
+    deleted: false as const,
+    author: publicAuthor(quoted.author),
+    excerpt: excerpt(quoted.body, QUOTE_CHARS),
+  };
+}
+
+export type ReplyQuote = ReturnType<typeof toReplyQuote>;
+
+/** Las respuestas de un hilo a las que quien mira ha dado «me gusta». */
+export async function getLikedReplyIds(userId: string | null | undefined, threadId: string) {
+  if (!userId) return [];
+  const rows = await prisma.communityReplyLike.findMany({
+    where: { userId, reply: { threadId } },
+    select: { replyId: true },
+  });
+  return rows.map((r) => r.replyId);
+}
+
+// Los avisos que apuntan a un hilo y se dan por vistos al abrirlo.
+const THREAD_NOTIFICATION_TYPES = [
+  "community_reply",
+  "community_participant_reply",
+  "community_quoted",
+  "community_reply_liked",
+];
+
 /** Da por vistos los avisos de respuestas de un hilo. Devuelve los no leídos que quedan, o null si no había nada que marcar. */
 export async function markThreadNotificationsRead(userId: string, threadId: string) {
   const marked = await prisma.notification.updateMany({
     where: {
       userId,
       readAt: null,
-      type: { in: ["community_reply", "community_participant_reply"] },
+      type: { in: THREAD_NOTIFICATION_TYPES },
       metadata: { path: ["threadId"], equals: threadId },
     },
     data: { readAt: new Date() },

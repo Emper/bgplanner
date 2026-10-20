@@ -287,7 +287,12 @@ export const replySchema = z.object({
     .min(1, "La respuesta está vacía")
     .max(REPLY_BODY_MAX, "La respuesta es demasiado larga")
     .transform(clean),
+  // Respuesta del mismo hilo a la que se contesta citándola.
+  quotedReplyId: z.string().min(1).max(40).optional(),
 });
+
+// Editar una respuesta solo cambia su texto, no lo que cita.
+export const replyEditSchema = replySchema.pick({ body: true });
 
 export const contactSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(100).transform(clean),

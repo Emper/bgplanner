@@ -57,6 +57,7 @@ model User {
   sentNotifications Notification[] @relation("NotificationActor")
   communityThreads  CommunityThread[]
   communityReplies  CommunityReply[]
+  communityLikes    CommunityReplyLike[]
   pushSubscriptions PushSubscription[]
   reportsMade       Report[]      @relation("ReportReporter")
   reportsReceived   Report[]      @relation("ReportTargetUser")
@@ -760,21 +761,42 @@ model CommunityThread {
 
 // Respuesta a un hilo. Lista plana y cronológica; una borrada deja su hueco
 // ("mensaje eliminado") para que el resto de la conversación siga teniendo
-// sentido.
+// sentido. Para contestar a un mensaje concreto se cita (`quotedReplyId`, de
+// este mismo hilo) en vez de anidar: la conversación sigue leyéndose de
+// arriba abajo.
 model CommunityReply {
-  id        String    @id @default(cuid())
-  threadId  String
-  authorId  String
-  body      String    @db.Text
-  editedAt  DateTime?
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
+  id            String    @id @default(cuid())
+  threadId      String
+  authorId      String
+  body          String    @db.Text
+  quotedReplyId String?
+  editedAt      DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
 
-  thread CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  thread      CommunityThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author      User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  quotedReply CommunityReply?      @relation("ReplyQuote", fields: [quotedReplyId], references: [id], onDelete: SetNull)
+  quotedBy    CommunityReply[]     @relation("ReplyQuote")
+  likes       CommunityReplyLike[]
 
   @@index([threadId, createdAt])
   @@index([authorId])
+}
+
+// «Me gusta» a una respuesta de la Comunidad. Uno por persona y respuesta, y
+// nunca a una propia.
+model CommunityReplyLike {
+  id        String   @id @default(cuid())
+  replyId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  reply CommunityReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([replyId, userId])
+  @@index([userId])
 }
 
 // Denuncia de un contenido (hilo, respuesta, foto, opinión) o de un usuario.

@@ -142,6 +142,8 @@ export interface ProfileStats {
   reviews: number;
   /** Hilos y respuestas que tiene publicados en la Comunidad. */
   communityPosts: number;
+  /** «Me gusta» que han recibido sus respuestas publicadas. */
+  communityLikes: number;
 }
 
 /**
@@ -171,6 +173,7 @@ export const getProfileHeader = cache(
       reviews,
       threads,
       replies,
+      likes,
     ] = await Promise.all([
       entries.length && bggUsername
         ? prisma.collectionGame.count({
@@ -208,6 +211,9 @@ export const getProfileHeader = cache(
       prisma.communityReply.count({
         where: { authorId: user.id, deletedAt: null, thread: { deletedAt: null } },
       }),
+      prisma.communityReplyLike.count({
+        where: { reply: { authorId: user.id, deletedAt: null, thread: { deletedAt: null } } },
+      }),
     ]);
 
     const bases = owned.find((o) => o.subtype === "boardgame");
@@ -231,6 +237,7 @@ export const getProfileHeader = cache(
         votes,
         reviews,
         communityPosts: threads + replies,
+        communityLikes: likes,
       },
     };
   }

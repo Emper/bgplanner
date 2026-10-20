@@ -140,6 +140,18 @@ const BADGES: BadgeDef[] = [
     ],
     hint: "Escribe en la Comunidad",
   },
+  {
+    key: "communityLikes",
+    emoji: "❤️",
+    value: (s) => s.communityLikes,
+    text: (n) => `${plural(n, "«me gusta» recibido", "«me gusta» recibidos")} en la Comunidad`,
+    tiers: [
+      [1, "Primer corazón"],
+      [25, "Bien visto"],
+      [100, "Corazón de la Comunidad"],
+    ],
+    hint: "Responde algo que guste",
+  },
 ];
 
 /**
