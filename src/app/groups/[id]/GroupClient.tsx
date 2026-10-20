@@ -18,6 +18,7 @@ import FriendButton from "@/components/FriendButton";
 import { CountUp, useFlip } from "@/components/motion";
 import { formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
+import { compareRanking } from "@/lib/rankingOrder";
 import { profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
 
@@ -196,6 +197,10 @@ export default function GroupClient() {
   );
 }
 
+function tabFromParam(tab: string | null): Tab {
+  return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery" ? tab : "activity";
+}
+
 function GroupDashboardPage() {
   const { id: groupId } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -203,12 +208,7 @@ function GroupDashboardPage() {
   const [group, setGroup] = useState<GroupData | null>(null);
   const [ranking, setRanking] = useState<RankedGame[]>([]);
 
-  const [activeTab, setActiveTab] = useState<Tab>(() => {
-    const tab = searchParams.get("tab");
-    return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery"
-      ? tab
-      : "activity";
-  });
+  const [activeTab, setActiveTab] = useState<Tab>(() => tabFromParam(searchParams.get("tab")));
   // Opinión post-partida: juego cuyo modal está abierto + modo (marcar / solo reseña)
   const [reviewModal, setReviewModal] = useState<{ gameId: string; gameName: string; mode: "mark" | "review" } | null>(null);
   const [galleryReloadKey, setGalleryReloadKey] = useState(0);
@@ -340,13 +340,16 @@ function GroupDashboardPage() {
   const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
 
-  // Sync tab and session to URL
-  const updateUrl = useCallback((tab: Tab, sessionId: string | null) => {
+  // Sync tab and session to URL. Cambiar de pestaña deja historial (push)
+  // para que «atrás» vuelva a la anterior; lo demás reemplaza la entrada.
+  const updateUrl = useCallback((tab: Tab, sessionId: string | null, push = false) => {
     const params = new URLSearchParams();
     if (tab !== "activity") params.set("tab", tab);
     if (sessionId) params.set("session", sessionId);
     const query = params.toString();
-    router.replace(`/groups/${groupId}${query ? `?${query}` : ""}`, { scroll: false });
+    const url = `/groups/${groupId}${query ? `?${query}` : ""}`;
+    if (push) router.push(url, { scroll: false });
+    else router.replace(url, { scroll: false });
   }, [router, groupId]);
 
   const fetchGroupFeed = useCallback(async (cursor?: string) => {
@@ -379,9 +382,22 @@ function GroupDashboardPage() {
   const switchTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
     setExpandedSessionId(null);
-    updateUrl(tab, null);
+    updateUrl(tab, null, true);
     if (tab === "activity") fetchGroupFeed();
   }, [updateUrl, fetchGroupFeed]);
+
+  // Atrás y adelante del navegador: si la URL cambia de pestaña sin pasar
+  // por switchTab, la pestaña la sigue. Se compara con una ref para no pisar
+  // un cambio propio mientras el router aún no ha actualizado la URL.
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const urlTab = tabFromParam(searchParams.get("tab"));
+  useEffect(() => {
+    if (urlTab === activeTabRef.current) return;
+    setActiveTab(urlTab);
+    setExpandedSessionId(null);
+    if (urlTab === "activity") fetchGroupFeed();
+  }, [urlTab, fetchGroupFeed]);
 
   const toggleSession = useCallback((sessionId: string) => {
     const newId = expandedSessionId === sessionId ? null : sessionId;
@@ -644,10 +660,7 @@ function GroupDashboardPage() {
           }
           return { ...item, score, voters, userVoteValue: newValue };
         })
-        .sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          return (b.game.bggRating || 0) - (a.game.bggRating || 0);
-        });
+        .sort(compareRanking);
     },
     []
   );
@@ -1880,6 +1893,9 @@ function GroupDashboardPage() {
                           );
                         })}
                       </div>
+                      <p className="mt-4 text-center text-xs text-[var(--text-muted)]">
+                        ⚖️ Si dos juegos empatan a puntos, va delante el que tiene mejor nota en BGG.
+                      </p>
                     </div>
                   ) : (
                     <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>

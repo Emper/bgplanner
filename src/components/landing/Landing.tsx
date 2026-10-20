@@ -43,6 +43,12 @@ export interface LandingEvent {
   imageUrl: string | null;
 }
 
+/** Día y mes (ya en mayúsculas) del próximo sábado, para la maqueta del evento. */
+export interface DemoDate {
+  day: string;
+  month: string;
+}
+
 export interface LandingThread {
   id: string;
   title: string;
@@ -58,8 +64,8 @@ export interface LandingThread {
 
 const NAV_LINKS = [
   { href: "#grupos", label: "Grupos" },
-  { href: "#coleccion", label: "Colección" },
   { href: "#eventos", label: "Eventos" },
+  { href: "#coleccion", label: "Colección" },
   // La Comunidad es una sección pública de verdad: el menú lleva a ella, no
   // al resumen de más abajo.
   { href: "/community", label: "Comunidad" },
@@ -238,7 +244,7 @@ function HeroStage() {
   );
 }
 
-function Hero({ loginHref }: { loginHref: string }) {
+function Hero({ loginHref, latest }: { loginHref: string; latest: string }) {
   return (
     <section className="relative px-4 pt-10 sm:pt-20 pb-16 sm:pb-24 overflow-hidden">
       <div className="absolute inset-0 fx-dots opacity-70 pointer-events-none" aria-hidden />
@@ -250,8 +256,7 @@ function Hero({ loginHref }: { loginHref: string }) {
             className="group inline-flex items-center gap-2 pl-1.5 pr-3 py-1 text-xs font-medium rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--primary)]/40 transition-colors mb-7 shadow-[var(--card-shadow)]"
           >
             <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-[var(--primary-text)] font-bold">Nuevo</span>
-            <span className="sm:hidden">Colección, perfiles e insignias</span>
-            <span className="hidden sm:inline">Tu colección en estantería, perfiles e insignias</span>
+            <span className="truncate max-w-[16rem] sm:max-w-none">{latest}</span>
             <Arrow className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -263,7 +268,7 @@ function Hero({ loginHref }: { loginHref: string }) {
 
         <p className="text-lg sm:text-xl text-[var(--text-secondary)] mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-up delay-200">
           Juntad vuestras colecciones de BoardGameGeek, votad lo que os apetece y dejad que el ranking decida la próxima
-          partida. Y de paso, pon orden en tu ludoteca y encuentra eventos donde apuntar qué quieres jugar.
+          partida. Menos rato decidiendo y más rato jugando.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-fade-up delay-300">
@@ -554,7 +559,7 @@ function CollectionSection() {
 
 // ── Eventos ─────────────────────────────────────────────────────────────
 
-function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHref: string }) {
+function EventsSection({ events, loginHref, demoDate }: { events: LandingEvent[]; loginHref: string; demoDate: DemoDate }) {
   const [ref, setRef] = useState<HTMLDivElement | null>(null);
   const [inView, setInView] = useState(false);
   useEffect(() => {
@@ -571,7 +576,7 @@ function EventsSection({ events, loginHref }: { events: LandingEvent[]; loginHre
         <div className="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-16 items-center">
           <Reveal variant="left" className="order-2 lg:order-1">
             <div ref={setRef} className="max-w-md mx-auto lg:max-w-none">
-              <EventMock active={inView} />
+              <EventMock active={inView} date={demoDate} />
             </div>
           </Reveal>
 
@@ -857,11 +862,11 @@ function ExtrasSection() {
 
 const STEPS = [
   { num: "1", title: "Entra con tu email", text: "Sin contraseñas: te mandamos un código de 6 dígitos y listo." },
-  { num: "2", title: "Conecta tu BGG", text: "Pon tu usuario de BoardGameGeek y tu colección aparece sola." },
-  { num: "3", title: "Crea tu grupo", text: "O apúntate a un evento. Invita a los tuyos y… ¡a votar!" },
+  { num: "2", title: "Crea tu grupo", text: "Pasa el enlace por WhatsApp a los de siempre y que cada uno se una en un momento." },
+  { num: "3", title: "Traed los juegos", text: "Con BGG, vuestras colecciones entran solas. ¿Sin BGG? Buscadlos y añadidlos igual. Y… ¡a votar!" },
 ];
 
-function StepsSection() {
+function StepsSection({ loginHref }: { loginHref: string }) {
   return (
     <section className="px-4 py-16 sm:py-20">
       <div className="max-w-5xl mx-auto">
@@ -880,6 +885,9 @@ function StepsSection() {
             </Reveal>
           ))}
         </div>
+        <Reveal delay={450} className="mt-12 text-center">
+          <PrimaryCta href={loginHref}>Montar mi grupo</PrimaryCta>
+        </Reveal>
       </div>
     </section>
   );
@@ -981,24 +989,31 @@ export default function Landing({
   events,
   threads,
   loginHref,
+  latest,
+  demoDate,
 }: {
   events: LandingEvent[];
   threads: LandingThread[];
   loginHref: string;
+  /** Título de la última entrada del changelog, para el aviso «Nuevo». */
+  latest: string;
+  demoDate: DemoDate;
 }) {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <ScrollProgress />
       <Nav loginHref={loginHref} />
       <main>
-        <Hero loginHref={loginHref} />
+        {/* El grupo es el producto: va primero y, justo después, cómo
+            empezar. Eventos, colección y comunidad vienen detrás. */}
+        <Hero loginHref={loginHref} latest={latest} />
         <BoxMarquee />
         <GroupsStory />
+        <StepsSection loginHref={loginHref} />
+        <EventsSection events={events} loginHref={loginHref} demoDate={demoDate} />
         <CollectionSection />
-        <EventsSection events={events} loginHref={loginHref} />
         <CommunitySection threads={threads} />
         <ExtrasSection />
-        <StepsSection />
         <FinalCta loginHref={loginHref} />
       </main>
       <Footer />

@@ -126,7 +126,7 @@ NextResponse.json(...)
 
 ## Changelog — OBLIGATORIO
 
-**Cada vez que se añade una feature visible al usuario, añadir entrada en [src/app/changelog/page.tsx](src/app/changelog/page.tsx)** al principio del array `CHANGELOG`. Formato:
+**Cada vez que se añade una feature visible al usuario, añadir entrada en [src/lib/changelog.ts](src/lib/changelog.ts)** al principio del array `CHANGELOG` (la página `/changelog` lo pinta y la primera entrada sale en el aviso «Nuevo» de la portada). Formato:
 
 ```ts
 {

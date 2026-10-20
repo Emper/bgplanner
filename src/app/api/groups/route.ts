@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       members: { some: { userId: session.userId } },
     },
     include: {
-      _count: { select: { members: true, games: true } },
+      _count: { select: { members: true, games: { where: { archivedAt: null } } } },
       members: {
         include: { user: { select: { name: true, displayName: true, avatarUrl: true } } },
         take: 5,

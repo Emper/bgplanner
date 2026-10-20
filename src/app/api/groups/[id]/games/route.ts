@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
 import { logActivity } from "@/lib/activity";
+import { compareRanking, voteScore } from "@/lib/rankingOrder";
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +38,7 @@ export async function GET(
   }
 
   const gamesWithScores = groupGames.map((gg) => {
-    const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
+    const score = voteScore(gg.votes);
 
     const userVote = gg.votes.find((v) => v.userId === session.userId);
 
@@ -53,10 +54,7 @@ export async function GET(
     };
   });
 
-  gamesWithScores.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return (b.game.bggRating || 0) - (a.game.bggRating || 0);
-  });
+  gamesWithScores.sort(compareRanking);
 
   return NextResponse.json(gamesWithScores);
 }

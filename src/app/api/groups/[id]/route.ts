@@ -37,7 +37,7 @@ export async function GET(
             },
           },
         },
-        _count: { select: { games: true } },
+        _count: { select: { games: { where: { archivedAt: null } } } },
         invitations: {
           where: { status: "pending" },
           select: { email: true, createdAt: true },

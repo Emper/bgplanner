@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { compareRanking, voteScore } from "@/lib/rankingOrder";
 
 export async function GET(
   request: NextRequest,
@@ -13,16 +14,18 @@ export async function GET(
 
   const { id: groupId } = await params;
   const sp = request.nextUrl.searchParams;
-  const playerCount = parseInt(sp.get("players") || "4");
-  const totalMinutes = parseInt(sp.get("minutes") || "180");
+  const playerCount = Math.max(1, parseInt(sp.get("players") || "4") || 4);
+  const totalMinutes = Math.max(15, parseInt(sp.get("minutes") || "180") || 180);
 
   // Run membership check and data fetch in parallel
   const [membership, groupGames] = await Promise.all([
     prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: session.userId } },
     }),
+    // Lo archivado no entra. Lo ya jugado se puede añadir a mano a una
+    // sesión, pero la propuesta automática sale solo de los pendientes.
     prisma.groupGame.findMany({
-      where: { groupId },
+      where: { groupId, archivedAt: null },
       include: {
         game: true,
         votes: { select: { value: true } },
@@ -42,7 +45,7 @@ export async function GET(
       return playerCount >= min && playerCount <= max;
     })
     .map((gg) => {
-      const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
+      const score = voteScore(gg.votes);
       return {
         gameId: gg.game.id,
         bggId: gg.game.bggId,
@@ -53,22 +56,25 @@ export async function GET(
         minPlayers: gg.game.minPlayers,
         maxPlayers: gg.game.maxPlayers,
         score,
+        played: gg.playedAt !== null,
+        game: { bggRating: gg.game.bggRating },
       };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort(compareRanking);
 
   // Greedy fill: pick top-scored games that fit in the time budget
   const suggested: typeof scored = [];
   let remainingMinutes = totalMinutes;
 
-  for (const game of scored) {
+  const pending = scored.filter((g) => !g.played);
+  for (const game of pending) {
     const time = game.playingTime || 90; // Default 90 min if unknown
     if (time <= remainingMinutes) {
       suggested.push(game);
       remainingMinutes -= time;
     }
     // Always include at least the top game even if it exceeds time
-    if (suggested.length === 0 && game === scored[0]) {
+    if (suggested.length === 0 && game === pending[0]) {
       suggested.push(game);
       remainingMinutes -= time;
     }

@@ -4,7 +4,8 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUpcomingPublicEvents } from "@/lib/publicLinks";
 import { safeRedirect } from "@/lib/safeRedirect";
-import Landing, { type LandingEvent, type LandingThread } from "@/components/landing/Landing";
+import Landing, { type DemoDate, type LandingEvent, type LandingThread } from "@/components/landing/Landing";
+import { CHANGELOG } from "@/lib/changelog";
 import { getLatestThreads, type ThreadListItem } from "@/lib/communityServer";
 import { formatRelativeTime } from "@/lib/format";
 import HomeDashboard from "@/components/HomeDashboard";
@@ -99,6 +100,17 @@ function toLandingThread(t: ThreadListItem): LandingThread {
   };
 }
 
+// La maqueta de eventos de la portada se fecha el próximo sábado (o hoy, si
+// es sábado), para que nunca enseñe un evento ya pasado.
+function nextSaturday(): DemoDate {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + ((6 - d.getUTCDay() + 7) % 7));
+  return {
+    day: String(d.getUTCDate()),
+    month: d.toLocaleDateString("es-ES", { month: "short", timeZone: "UTC" }).replace(".", "").toUpperCase(),
+  };
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -138,6 +150,12 @@ export default async function Home({
         events={events.map(toLandingEvent)}
         threads={threads.map(toLandingThread)}
         loginHref={loginHref}
+        latest={
+          // La última entrada con algo nuevo: una de solo arreglos no luce en
+          // el aviso «Nuevo».
+          CHANGELOG.find((e) => e.changes.some((c) => c.type === "new"))?.title ?? "Mira las últimas novedades"
+        }
+        demoDate={nextSaturday()}
       />
     </>
   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { compareRanking, voteScore } from "@/lib/rankingOrder";
 
 export async function GET(
   request: NextRequest,
@@ -39,7 +40,7 @@ export async function GET(
             },
             orderBy: { user: { name: "asc" } },
           },
-          _count: { select: { games: true } },
+          _count: { select: { games: { where: { archivedAt: null } } } },
           invitations: {
             where: { status: "pending" },
             select: { email: true, createdAt: true },
@@ -129,10 +130,12 @@ export async function GET(
   }
   const totalManualPlays = manualPlaysLog.length;
 
-  // Compute ranking in memory
+  // El ranking se calcula aquí y no con computeRanking porque esta vista
+  // necesita más datos por juego (quién votó qué, comentarios, última
+  // partida); el criterio de orden sí es el compartido.
   const ranking = groupGames
     .map((gg) => {
-      const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
+      const score = voteScore(gg.votes);
 
       const userVote = gg.votes.find((v) => v.userId === session.userId);
 
@@ -180,10 +183,7 @@ export async function GET(
         lastPlayedDate,
       };
     })
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.game.bggRating || 0) - (a.game.bggRating || 0);
-    });
+    .sort(compareRanking);
 
   // Combine session plays + manual marks per game to find the most played one
   let topGame: { name: string; thumbnail: string | null; playCount: number } | null = null;

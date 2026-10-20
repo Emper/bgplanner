@@ -690,7 +690,7 @@ const EVENT_GAMES = [
   { game: G.altaTension, mine: 0, people: 6 },
 ];
 
-export function EventMock({ active }: { active: boolean }) {
+export function EventMock({ active, date }: { active: boolean; date: { day: string; month: string } }) {
   const reduced = usePrefersReducedMotion();
   const [levels, setLevels] = useState(EVENT_GAMES.map((g) => g.mine));
   const [step, setStep] = useState(0);
@@ -711,8 +711,8 @@ export function EventMock({ active }: { active: boolean }) {
           </span>
           <div className="absolute top-3 right-3 w-14 rounded-xl bg-white text-center overflow-hidden shadow-lg">
             <div className="bg-rose-500 text-white text-[10px] font-bold py-0.5">SÁB</div>
-            <div className="text-xl font-extrabold text-slate-900 leading-tight">18</div>
-            <div className="text-[10px] font-semibold text-slate-500 pb-1">OCT</div>
+            <div className="text-xl font-extrabold text-slate-900 leading-tight">{date.day}</div>
+            <div className="text-[10px] font-semibold text-slate-500 pb-1">{date.month}</div>
           </div>
           <div className="absolute bottom-3 left-4 right-4 text-white">
             <div className="text-xl sm:text-2xl font-extrabold font-[family-name:var(--font-display)] leading-tight drop-shadow">
@@ -886,7 +886,7 @@ export function EventTicketMini() {
         <span className="absolute bottom-1.5 left-3 text-white text-sm font-bold drop-shadow">Jornadas de otoño</span>
       </div>
       <div className="p-3">
-        <div className="text-[11px] text-[var(--text-muted)]">📅 Sáb 18 oct · 📍 Centro cívico</div>
+        <div className="text-[11px] text-[var(--text-muted)]">📅 Este sábado · 📍 Centro cívico</div>
         <div className="mt-2 flex items-center justify-between">
           <AvatarStack names={["Ana", "Luis", "Marta", "Dani"]} extra={25} />
         </div>

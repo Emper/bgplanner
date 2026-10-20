@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { compareRanking, voteScore } from "@/lib/rankingOrder";
 
 export async function computeRanking(
   groupId: string,
@@ -29,7 +30,7 @@ export async function computeRanking(
 
   return groupGames
     .map((gg) => {
-      const score = gg.votes.reduce((acc, v) => acc + v.value, 0);
+      const score = voteScore(gg.votes);
 
       const upVotes = gg.votes.filter((v) => v.value === 1).length;
       const superVotes = gg.votes.filter((v) => v.value >= 3).length;
@@ -51,8 +52,5 @@ export async function computeRanking(
         playCount: playCountByGameId.get(gg.game.id) || 0,
       };
     })
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.game.bggRating || 0) - (a.game.bggRating || 0);
-    });
+    .sort(compareRanking);
 }
