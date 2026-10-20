@@ -151,7 +151,7 @@ Descriptivo pero **sin explicar cómo funciona por dentro**: se trata de enseña
 La app tiene muchos sitios transversales y es fácil que una feature nueva se quede encerrada en su página. Antes de cerrar una feature, **repasar esta lista punto por punto** y decidir en cada uno si aplica. Lo que no aplique se descarta conscientemente; lo que se deje para más adelante va a `BACKLOG.md` o se propone como tarea aparte.
 
 **Navegación**
-- Cabecera con sesión ([Navbar.tsx](src/components/Navbar.tsx)): enlace desde `sm` (icono hasta `lg`) y, si no es una sección principal, entrada en el menú lateral del móvil. En móvil las secciones principales van en la barra de pestañas de abajo ([MobileTabBar.tsx](src/components/MobileTabBar.tsx), montada en el layout raíz); no meter más de cuatro o cinco. Medir que cabe a 360, 375, 640, 768 y 1024 px de ancho (con campana y botón de admin).
+- Cabecera con sesión ([Navbar.tsx](src/components/Navbar.tsx)): enlace en texto desde `sm` y, si no es una sección principal, entrada en el menú lateral del móvil. En móvil las secciones principales van en la barra de pestañas de abajo ([MobileTabBar.tsx](src/components/MobileTabBar.tsx), montada en el layout raíz); no meter más de cuatro o cinco. Medir que cabe a 360, 375, 640, 768 y 1024 px de ancho (con campana y botón de admin).
 - Cabecera sin sesión ([SmartNav.tsx](src/components/SmartNav.tsx)) y menú de la portada (`NAV_LINKS` en [Landing.tsx](src/components/landing/Landing.tsx)), si la feature se puede ver sin cuenta.
 - Pie ([Footer.tsx](src/components/Footer.tsx)).
 

@@ -12,7 +12,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 octubre 2026",
     version: "1.57",
-    title: "¡A jugar!",
+    title: "¡A jugar! con los que estáis",
     changes: [
       { type: "new", text: "«Somos tres y tenemos dos horas»: dale a «¡A jugar!», marca quién juega y cuánto tiempo hay, y verás solo lo que encaja, ordenado con los votos de los que estáis a la mesa" },
       { type: "new", text: "¿Sin decidir? Sorteo entre los mejores para esa mesa, y si va de peso ligero o de quemar neuronas, también lo filtras" },
