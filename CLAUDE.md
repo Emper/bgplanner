@@ -71,7 +71,7 @@ NextResponse.json(...)
 ### Envío de emails (Resend)
 - `import { resend } from "@/lib/resend"`.
 - **Fire-and-forget**: `resend.emails.send(...).catch(() => {})`. Nunca bloquear la respuesta por un email.
-- From: `"BG Planner <cesar@tiradacritica.es>"`.
+- From: `EMAIL_FROM` de [contact.ts](src/lib/contact.ts) (`hola@bgplanner.app`). La dirección que se enseña en la web es `CONTACT_EMAIL`, del mismo fichero.
 - Plantilla HTML inline, tema dark: `background: #0f172a`, texto `#f1f5f9`, acento `#f59e0b`, bordes `#334155`, grises `#94a3b8`. CTA = botón ámbar con texto oscuro.
 - **Siempre escapar HTML** en cualquier string que venga del usuario antes de meterlo en el template (ver `escapeHtml` en [src/app/api/groups/[id]/ping/route.ts](src/app/api/groups/[id]/ping/route.ts)).
 

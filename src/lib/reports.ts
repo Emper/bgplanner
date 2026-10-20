@@ -44,7 +44,3 @@ export const REPORT_TEXT_MAX = 1000;
 // Lo que acumule estas denuncias pendientes de personas distintas se oculta
 // en la Comunidad hasta que alguien lo revise.
 export const AUTO_HIDE_REPORTS = 3;
-
-// Dónde escribir para cualquier cosa de moderación (sale en /contact y en el
-// pie de la Comunidad).
-export const MODERATION_EMAIL = "cesar@tiradacritica.es";

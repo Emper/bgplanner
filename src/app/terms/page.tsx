@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
-import { MODERATION_EMAIL } from "@/lib/reports";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 const UPDATED = "15 de octubre de 2026";
@@ -133,8 +133,8 @@ export default function TermsPage() {
                   el contacto de moderación
                 </Link>{" "}
                 o escribe a{" "}
-                <a href={`mailto:${MODERATION_EMAIL}`} className="text-[var(--primary)] hover:underline">
-                  {MODERATION_EMAIL}
+                <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--primary)] hover:underline">
+                  {CONTACT_EMAIL}
                 </a>
                 .
               </li>

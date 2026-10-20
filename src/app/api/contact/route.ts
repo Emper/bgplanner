@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSuperadminEmails } from "@/lib/auth";
+import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
 import { contactSchema } from "@/lib/validations";
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   await resend.emails.send({
-    from: "BG Planner <cesar@tiradacritica.es>",
+    from: EMAIL_FROM,
     to: recipients,
     replyTo: email,
     subject: `[Contacto] ${subject}`,

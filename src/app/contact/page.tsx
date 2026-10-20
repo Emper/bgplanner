@@ -5,7 +5,7 @@ import Link from "next/link";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
 import EmojiField from "@/components/EmojiField";
-import { MODERATION_EMAIL } from "@/lib/reports";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -149,8 +149,8 @@ export default function ContactPage() {
           </p>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             Para cualquier otra cosa de moderación, escríbenos a{" "}
-            <a href={`mailto:${MODERATION_EMAIL}`} className="font-medium text-[var(--primary)] hover:underline">
-              {MODERATION_EMAIL}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-[var(--primary)] hover:underline">
+              {CONTACT_EMAIL}
             </a>{" "}
             o usa el formulario de arriba. Revisamos cada denuncia en menos de 24 horas, retiramos lo que incumpla{" "}
             <Link href="/terms#normas" className="font-medium text-[var(--primary)] hover:underline">

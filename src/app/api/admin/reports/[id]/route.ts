@@ -3,6 +3,7 @@ import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { ExpelError, expelUser, removeReportTarget } from "@/lib/moderation";
+import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
 import { REPORT_TARGET_LABELS, REPORT_TARGET_TYPES, reportReasonLabel, type ReportTargetType } from "@/lib/reports";
 import { reportActionSchema } from "@/lib/validations";
@@ -78,7 +79,7 @@ export async function PATCH(
     // Se espera (con su catch): en serverless, una promesa suelta se pierde.
     await resend.emails
       .send({
-        from: "BG Planner <cesar@tiradacritica.es>",
+        from: EMAIL_FROM,
         to: expelled.email,
         subject: "Hemos cerrado tu cuenta de BG Planner",
         html: `

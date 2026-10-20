@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSuperadminEmails } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
 import { escapeHtml } from "@/lib/html";
 import { logActivity } from "@/lib/activity";
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
     .then((recipients) => {
       if (recipients.length === 0) return;
       return resend.emails.send({
-        from: "BG Planner <cesar@tiradacritica.es>",
+        from: EMAIL_FROM,
         to: recipients,
         subject: `[Feedback] ${subject}`,
         html: `

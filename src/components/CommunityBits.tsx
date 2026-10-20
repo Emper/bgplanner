@@ -5,7 +5,7 @@ import { Fragment } from "react";
 import Avatar from "./Avatar";
 import { getCommunityTag } from "@/lib/community";
 import { profileHref } from "@/lib/users";
-import { MODERATION_EMAIL } from "@/lib/reports";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 // Piezas compartidas por el listado y la ficha de un hilo de /community.
 
@@ -101,8 +101,8 @@ export function ModerationNote({ className = "" }: { className?: string }) {
     <p className={`mt-10 text-center text-xs text-[var(--text-muted)] leading-relaxed ${className}`}>
       🛡️ ¿Algo fuera de lugar? Denúncialo desde el menú <span aria-label="tres puntos">⋯</span> del mensaje
       o escribe a moderación en{" "}
-      <a href={`mailto:${MODERATION_EMAIL}`} className="underline underline-offset-2 hover:text-[var(--primary)]">
-        {MODERATION_EMAIL}
+      <a href={`mailto:${CONTACT_EMAIL}`} className="underline underline-offset-2 hover:text-[var(--primary)]">
+        {CONTACT_EMAIL}
       </a>
       . Lo revisamos en menos de 24 horas.{" "}
       <Link href="/terms#normas" className="underline underline-offset-2 hover:text-[var(--primary)]">

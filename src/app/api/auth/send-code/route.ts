@@ -1,6 +1,7 @@
 import { randomInt } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
 import { emailSchema } from "@/lib/validations";
 import { reviewLoginCode } from "@/lib/auth";
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
   }
 
   await resend.emails.send({
-    from: "BG Planner <cesar@tiradacritica.es>",
+    from: EMAIL_FROM,
     to: email,
     subject: "Tu código de acceso a BG Planner",
     html: `

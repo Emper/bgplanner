@@ -2,6 +2,7 @@ import { createHash, randomInt, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, signToken, sessionCookieOptions } from "@/lib/auth";
+import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
 import { escapeHtml } from "@/lib/html";
 import { logActivity } from "@/lib/activity";
@@ -49,7 +50,7 @@ function sendEmail(
 ): Promise<unknown> {
   return resend.emails
     .send({
-      from: "BG Planner <cesar@tiradacritica.es>",
+      from: EMAIL_FROM,
       to,
       subject,
       html: emailLayout(inner),

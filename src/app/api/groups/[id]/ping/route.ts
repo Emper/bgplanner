@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
 import { pingSchema } from "@/lib/validations";
 import { computeRanking } from "@/lib/ranking";
@@ -201,7 +202,7 @@ export async function POST(
     recipients.map((to) =>
       resend.emails
         .send({
-          from: "BG Planner <cesar@tiradacritica.es>",
+          from: EMAIL_FROM,
           to,
           subject,
           html: buildHtml(),

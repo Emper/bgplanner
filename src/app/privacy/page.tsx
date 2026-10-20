@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import { NOTIFICATION_TTL_DAYS } from "@/lib/notifications";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
-const UPDATED = "15 de octubre de 2026";
-const CONTACT_EMAIL = "cesar@tiradacritica.es";
+const UPDATED = "20 de octubre de 2026";
 
 export const metadata: Metadata = {
   title: "Privacidad · BG Planner",
