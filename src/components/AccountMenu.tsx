@@ -7,7 +7,7 @@ import { useTheme, type Theme } from "@/lib/theme";
 import type { NavUser } from "@/lib/navUser";
 
 // Tu cuenta en la cabecera de escritorio: un círculo con tu inicial que abre
-// lo que antes iba suelto (BGG, admin, tema) y el cierre de sesión. En el
+// tu colección, tu perfil, BGG, admin, tema y el cierre de sesión. En el
 // móvil esto mismo vive en el menú lateral de la navbar.
 
 const THEMES: { value: Theme; label: string; icon: React.ReactNode }[] = [
@@ -129,6 +129,12 @@ export default function AccountMenu({
             )}
           </div>
 
+          <Link href="/collection" onClick={close} role="menuitem" className={ITEM}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+            </svg>
+            Mi colección
+          </Link>
           <Link href={user.profileHref} onClick={close} role="menuitem" className={ITEM}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />

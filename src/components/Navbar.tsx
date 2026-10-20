@@ -37,12 +37,11 @@ export default function Navbar() {
     }
   }, [menuOpen]);
 
-  // Desde sm, las cuatro secciones en texto junto a la campana y tu cuenta
-  // (caben desde 640 px). En móvil no sale ninguna: van en la barra de
-  // pestañas de abajo (MobileTabBar) y la colección, en el perfil y el menú
-  // lateral.
+  // Desde sm, las secciones en texto junto a la campana y tu cuenta. En móvil
+  // van en la barra de pestañas de abajo (MobileTabBar). La colección, como
+  // en el móvil, no es una sección: está en tu cuenta (AccountMenu) y en el
+  // menú lateral.
   const navItems = [
-    { href: "/collection", label: "Mi colección", match: "/collection" },
     { href: "/groups", label: "Grupos", match: "/groups" },
     { href: "/events", label: "Eventos", match: "/events" },
     { href: "/community", label: "Comunidad", match: "/community" },
