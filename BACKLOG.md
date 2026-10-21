@@ -36,20 +36,11 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 
 ---
 
-## 3. Cargar los datos iniciales en el servidor
+## 3. Cargar los datos iniciales en el servidor (hecho en inicio, grupo y evento)
 
-**Tipo:** rendimiento · **Impacto:** alto (carga percibida) · **Esfuerzo:** alto · **Toca BD:** no
+**Hecho (octubre 2026).** El inicio, la ficha de grupo y la de evento (con sesión) piden sus datos en el servidor con Suspense: cabecera y loader al instante, y los datos en la misma respuesta. La lógica vive en `src/lib` (`homeData`, `groupDashboard`, `groupFeed`, `eventDetail`, `eventFeed`…) y las rutas de la API son envoltorios para los refrescos. Las pestañas cambian la URL con `history` para no volver a pintar en el servidor.
 
-**Problema.** El inicio (`HomeDashboard.tsx`), la ficha de grupo (`GroupClient.tsx`) y la de evento (`EventClient.tsx`) son componentes de cliente. El servidor ya comprueba la sesión, pero la página no empieza a pedir sus datos hasta que se ha descargado y arrancado el JavaScript. Es un viaje de ida y vuelta extra en cada carga, con el loader a la vista mientras tanto.
-
-**Propuesta.**
-- Sacar la lógica de las rutas API (`/api/groups`, `/api/feed`, `/api/events/[id]`, `/api/groups/[id]/dashboard`…) a funciones de `src/lib`.
-- Llamarlas desde el `page.tsx` de servidor y pasar el resultado como `initialData` al componente de cliente, que sigue usando la API para refrescar.
-- Hacerlo página a página, empezando por el inicio.
-
-**Ojo.** Los objetos `Date` y similares deben llegar al cliente serializados igual que por la API. Mantener los mismos filtros de privacidad (notas privadas, código de invitación solo para quien gestiona, etc.).
-
----
+**Queda.** Otras páginas de cliente siguen pidiendo al arrancar: lista de grupos, Mi colección, notificaciones, perfil (edición) y admin. Mismo patrón si se nota.
 
 ## 4. Decidir si los perfiles públicos van al sitemap
 

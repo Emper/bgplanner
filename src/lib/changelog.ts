@@ -11,6 +11,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 octubre 2026",
+    version: "1.61",
+    title: "Sin esperas a ciegas",
+    changes: [
+      { type: "new", text: "Una barra fina arriba te avisa de que la página está cargando en cuanto pulsas un enlace" },
+      { type: "improved", text: "El inicio, tus grupos y los eventos llegan con todo ya pintado, sin pasar por la pantalla de carga" },
+      { type: "improved", text: "Avatares y carteles pesan mucho menos: el feed, los grupos y los eventos cargan más ligeros, sobre todo en el móvil" },
+    ],
+  },
+  {
+    date: "21 octubre 2026",
     version: "1.60",
     title: "Perfiles a toda mecha",
     changes: [
