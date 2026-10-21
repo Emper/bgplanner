@@ -4,7 +4,6 @@ import { withGameCovers } from "@/lib/activityCovers";
 import { normalizeBggUsername } from "@/lib/bgg";
 import { DELETED_USER_ROLE, PUBLIC_USER_SELECT, displayName } from "@/lib/users";
 import { joinNames, plural } from "@/lib/text";
-import { storedImageSrc } from "@/lib/storedImages";
 
 // Perfil público de un jugador. Se ve SIN cuenta, así que lo que sale de aquí
 // es lo que cualquiera puede leer en internet. Deliberadamente NO sale:
@@ -442,7 +441,7 @@ export async function getPublicProfile(
     date: a.event.date.toISOString(),
     endDate: a.event.endDate ? a.event.endDate.toISOString() : null,
     location: a.event.location,
-    imageUrl: storedImageSrc("event", a.event.id, a.event.imageUrl),
+    imageUrl: a.event.imageUrl,
     visibility: a.event.visibility,
     isOrganizer: a.event.createdById === user.id,
     status: a.status,
@@ -463,8 +462,7 @@ export async function getPublicProfile(
     displayName: displayName(user),
     location: user.location,
     bggUsername: user.bggUsername,
-    // Por URL y no en base64 dentro del HTML (ver storedImages.ts).
-    avatarUrl: storedImageSrc("avatar", user.id, user.avatarUrl),
+    avatarUrl: user.avatarUrl,
     memberSince: user.createdAt.toISOString(),
     isSelf: user.id === viewerId,
     addedViewer,
@@ -474,7 +472,6 @@ export async function getPublicProfile(
     pastEvents,
     activity: (await withGameCovers(activity)).map((a) => ({
       ...a,
-      user: { ...a.user, avatarUrl: storedImageSrc("avatar", a.user.id, a.user.avatarUrl) },
       metadata: a.metadata as Record<string, unknown>,
       createdAt: a.createdAt.toISOString(),
     })),

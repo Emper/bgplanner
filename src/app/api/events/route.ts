@@ -64,7 +64,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       location,
       maxAttendees,
       visibility,
-      imageUrl: imageUrl || null,
+      imageUrl: imageUrl && !imageUrl.startsWith("/api/img/") ? imageUrl : null,
       createdById: session.userId,
       attendees: {
         create: { userId: session.userId, status: "attending" },

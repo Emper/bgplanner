@@ -172,6 +172,19 @@ export const eventReviewSchema = z.object({
     .optional(),
 });
 
+// El cartel de un evento: una imagen nueva (base64 redimensionada en el
+// navegador o una URL https), quitarlo (null) o el que ya tenía, que la API
+// sirve como /api/img/….
+const eventImage = z
+  .string()
+  .max(3_000_000, "Imagen demasiado grande")
+  .refine(
+    (v) => v.startsWith("data:image/") || v.startsWith("https://") || v.startsWith("/api/img/"),
+    "Imagen no válida"
+  )
+  .nullable()
+  .optional();
+
 export const createEventSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(200).transform(clean),
   description: z.string().max(2000).transform(clean).optional(),
@@ -181,7 +194,7 @@ export const createEventSchema = z.object({
   location: z.string().max(300).transform(clean).optional(),
   maxAttendees: z.number().int().positive().optional(),
   visibility: z.enum(["public", "private"]).default("public"),
-  imageUrl: z.string().nullable().optional(),
+  imageUrl: eventImage,
 });
 
 export const updateEventSchema = z.object({
@@ -193,7 +206,7 @@ export const updateEventSchema = z.object({
   location: z.string().max(300).transform(clean).nullable().optional(),
   maxAttendees: z.number().int().positive().nullable().optional(),
   visibility: z.enum(["public", "private"]).optional(),
-  imageUrl: z.string().nullable().optional(),
+  imageUrl: eventImage,
 });
 
 export const eventAttendSchema = z.object({

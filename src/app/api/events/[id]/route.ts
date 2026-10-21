@@ -133,7 +133,11 @@ export const PATCH = apiHandler(
     if (body.location !== undefined) data.location = body.location;
     if (body.maxAttendees !== undefined) data.maxAttendees = body.maxAttendees;
     if (body.visibility !== undefined) data.visibility = body.visibility;
-    if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
+    // El cartel llega como /api/img/… si no se ha tocado (así lo sirve la
+    // API): solo se guarda si es una imagen nueva o si se quita.
+    if (body.imageUrl !== undefined && !body.imageUrl?.startsWith("/api/img/")) {
+      data.imageUrl = body.imageUrl;
+    }
 
     const updated = await prisma.event.update({ where: { id }, data });
 

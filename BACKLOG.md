@@ -18,7 +18,7 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 2. Hacer un script de migración que recorra las filas con `data:` y las suba a Storage. Lo ejecuta el usuario, con `npm run db:snapshot` antes.
 3. Quitar `unoptimized` y dejar que `next/image` sirva tamaños adecuados.
 
-**Alternativa intermedia: ya existe.** `GET /api/img/[avatar|event]/[id]?v=<huella>` decodifica el base64 y lo sirve con caché inmutable; `storedImageSrc` (`src/lib/storedImages.ts`) da la URL. Hoy solo la usa el perfil público (bajó de ~700 KB a ~100 KB de HTML). Falta aplicarla en el resto de sitios que mandan avatares o carteles: feed, miembros, asistentes, eventos, portada, amigos…
+**Alternativa intermedia: hecha (octubre 2026).** El cliente de Prisma devuelve avatares y carteles como URL de `/api/img/...` (caché inmutable) en toda la app: el feed bajó de 168 a 6 KB, la lista de grupos de 229 a 6 KB y la de eventos de 480 a 3 KB. Queda la migración de verdad a Storage si algún día hace falta (las filas siguen guardando el base64 y se leen enteras en el servidor).
 
 **Ojo.** Durante la migración convivirán filas con data URL y con URL de Storage, así que el código tiene que aceptar las dos. Hay que plantear el plan completo y la ventana de incompatibilidad antes de ejecutar nada.
 

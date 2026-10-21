@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
+import { parseStoredImagePath, readStoredImage } from "@/lib/storedImageData";
 
 // La tarjeta que se ve al pegar un enlace de BG Planner en WhatsApp,
 // Telegram, Slack o X. Una sola plantilla para perfiles, grupos, eventos e
@@ -41,6 +42,10 @@ export async function inlineImage(
 ): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith("data:")) return url;
+  // Avatares y carteles guardados en base64 llegan como /api/img/…: se lee
+  // el original directamente, sin pasar por la red.
+  const stored = parseStoredImagePath(url);
+  if (stored) return (await readStoredImage(stored.kind, stored.id)).value;
   if (!url.startsWith("http")) return null;
 
   try {

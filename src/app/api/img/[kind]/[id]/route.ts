@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getEventParticipation } from "@/lib/events";
 import { decodeImageDataUrl } from "@/lib/storedImages";
+import { readStoredImage } from "@/lib/storedImageData";
 
 // Sirve avatares y carteles de evento guardados en base64 (ver
 // src/lib/storedImages.ts). La URL lleva una huella del contenido, así que
@@ -17,26 +17,15 @@ const notFound = () => new NextResponse(null, { status: 404 });
 export async function GET(request: NextRequest, { params }: Ctx) {
   const { kind, id } = await params;
 
-  let value: string | null | undefined;
+  if (kind !== "avatar" && kind !== "event") return notFound();
+  const { value, visibility } = await readStoredImage(kind, id);
   let isPublic = true;
 
-  if (kind === "avatar") {
-    const user = await prisma.user.findUnique({ where: { id }, select: { avatarUrl: true } });
-    value = user?.avatarUrl;
-  } else if (kind === "event") {
-    const event = await prisma.event.findUnique({
-      where: { id },
-      select: { imageUrl: true, visibility: true },
-    });
-    if (event && event.visibility !== "public") {
-      const session = await getSession(request);
-      const access = session ? await getEventParticipation(id, session.userId) : null;
-      if (!access?.canView) return notFound();
-      isPublic = false;
-    }
-    value = event?.imageUrl;
-  } else {
-    return notFound();
+  if (visibility !== "public") {
+    const session = await getSession(request);
+    const access = session ? await getEventParticipation(id, session.userId) : null;
+    if (!access?.canView) return notFound();
+    isPublic = false;
   }
 
   // Solo imágenes guardadas en base64: las que ya son una URL se enlazan
