@@ -11,47 +11,34 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 octubre 2026",
-    version: "1.61",
+    version: "1.55",
     title: "Sin esperas a ciegas",
     changes: [
       { type: "new", text: "Una barra fina arriba te avisa de que la página está cargando en cuanto pulsas un enlace" },
-      { type: "improved", text: "El inicio, tus grupos, los eventos, Mi colección y las notificaciones llegan con todo ya pintado, sin pasar por la pantalla de carga" },
-      { type: "improved", text: "Avatares y carteles pesan mucho menos: el feed, los grupos y los eventos cargan más ligeros, sobre todo en el móvil" },
+      { type: "improved", text: "El inicio, tus grupos, los eventos, los perfiles, Mi colección y las notificaciones cargan bastante más rápido y pesan mucho menos en el móvil" },
     ],
   },
   {
     date: "21 octubre 2026",
-    version: "1.60",
-    title: "Perfiles a toda mecha",
-    changes: [
-      { type: "improved", text: "Los perfiles cargan bastante más rápido y pesan siete veces menos en el móvil" },
-    ],
-  },
-  {
-    date: "21 octubre 2026",
-    version: "1.59",
-    title: "Limpieza a fondo",
+    version: "1.54",
+    title: "Tu email, solo para ti",
     changes: [
       { type: "improved", text: "Tu email es solo tuyo: ya no lo ve nadie más, ni la gente de tus grupos" },
-      { type: "improved", text: "Ventanas, avisos y botones iguales en toda la web; las ventanas se cierran con Escape" },
-      { type: "improved", text: "En modo claro se leen bien los avisos y errores, y desde un grupo o evento siempre hay un «volver»" },
-      { type: "fixed", text: "Las páginas que no existen enseñan un aviso con la cara de BG Planner en vez de una pantalla en blanco" },
     ],
   },
   {
     date: "21 octubre 2026",
-    version: "1.58",
+    version: "1.53",
     title: "A cotillear estanterías",
     changes: [
       { type: "new", text: "Desde el perfil de cualquiera puedes abrir su colección entera de BGG y buscar, filtrar y ordenar como en la tuya" },
       { type: "improved", text: "Tus puntuaciones de permanencia solo las ven tus amigos: para el resto, tu colección sale sin ellas" },
       { type: "improved", text: "«Compartir» en Mi colección manda ya el enlace de tu perfil, sin llaves que generar ni revocar" },
-      { type: "improved", text: "Rank, jugadores, duración, peso y partidas se leen igual en todos los listados de juegos, con su icono y su color" },
     ],
   },
   {
     date: "21 octubre 2026",
-    version: "1.57",
+    version: "1.52",
     title: "¡A jugar! con los que estáis",
     changes: [
       { type: "new", text: "«Somos tres y tenemos dos horas»: dale a «¡A jugar!», marca quién juega y cuánto tiempo hay, y verás solo lo que encaja, ordenado con los votos de los que estáis a la mesa" },
@@ -61,19 +48,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    date: "21 octubre 2026",
-    version: "1.56",
-    title: "Cuentas que cuadran",
-    changes: [
-      { type: "fixed", text: "El número de juegos de un grupo es el mismo en todas partes: los archivados ya no cuentan" },
-      { type: "fixed", text: "«Sugerir juegos» al montar una sesión ya no propone los que habéis jugado o archivado" },
-      { type: "improved", text: "El botón «atrás» del navegador te devuelve a la pestaña del grupo en la que estabas" },
-      { type: "improved", text: "El ranking cuenta cómo se desempata: a igualdad de puntos, gana la mejor nota en BGG" },
-    ],
-  },
-  {
     date: "20 octubre 2026",
-    version: "1.55",
+    version: "1.51",
     title: "Corazones y citas en la Comunidad",
     changes: [
       { type: "new", text: "Dale «me gusta» a las respuestas que te convencen, y te avisamos cuando le gusta a alguien lo que has escrito" },
@@ -83,7 +59,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "20 octubre 2026",
-    version: "1.54",
+    version: "1.50",
     title: "Derecho a veto",
     changes: [
       { type: "new", text: "Nueva opción «No quiero jugarlo» en los juegos de un evento: se queda al final, tachado, y ese juego no sale en las mesas donde estés" },
@@ -92,7 +68,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "20 octubre 2026",
-    version: "1.53",
+    version: "1.49",
     title: "Reglas a mano",
     changes: [
       { type: "new", text: "En «Mi lista» de un evento, enlaza el manual de un juego (en BGG, Drive, Dropbox o la web de la editorial) y todo el que tenga ese juego lo tendrá a un clic" },
@@ -100,7 +76,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "20 octubre 2026",
-    version: "1.52",
+    version: "1.48",
     title: "Cada juego en su sitio",
     changes: [
       { type: "new", text: "Ordena los juegos de un evento por nombre, por ranking de BGG o con los que aún no has valorado primero" },
@@ -109,7 +85,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "20 octubre 2026",
-    version: "1.51",
+    version: "1.47",
     title: "La ludoteca se escribe sola",
     changes: [
       { type: "new", text: "Quien organiza un evento puede vincular una lista de BGG y sus juegos se convierten en la ludoteca del evento" },
@@ -120,18 +96,15 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "15 octubre 2026",
-    version: "1.50",
-    title: "Cabeceras a dieta",
+    version: "1.46",
+    title: "Tu cuenta, a un clic",
     changes: [
       { type: "new", text: "En el ordenador, tu inicial arriba a la derecha abre tu cuenta: perfil, BGG, el tema claro, oscuro o el de tu sistema, y por fin cerrar sesión" },
-      { type: "improved", text: "La cabecera ocupa todo el ancho de la página y se queda con lo que de verdad usas" },
-      { type: "improved", text: "Sin cuenta, Eventos y Comunidad se ven siempre con su nombre, también en el móvil" },
-      { type: "improved", text: "Todas las páginas comparten ancho, márgenes y titulares: se acabaron los saltos al cambiar de sección" },
     ],
   },
   {
     date: "15 octubre 2026",
-    version: "1.49",
+    version: "1.45",
     title: "Las normas de la casa",
     changes: [
       { type: "new", text: "Nuevos términos de uso, en cristiano: tolerancia cero con el acoso y el contenido ofensivo, cómo denunciar y qué pasa si alguien se pasa de la raya" },
@@ -139,7 +112,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "15 octubre 2026",
-    version: "1.48",
+    version: "1.44",
     title: "Un sitio tranquilo para jugar",
     changes: [
       { type: "new", text: "Denuncia hilos, respuestas, fotos, opiniones o perfiles desde su menú ⋯ y lo revisaremos" },
@@ -149,7 +122,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "15 octubre 2026",
-    version: "1.47",
+    version: "1.43",
     title: "Tus datos, en tus manos",
     changes: [
       { type: "new", text: "Puedes borrar tu cuenta desde tu perfil: antes de confirmar te enseñamos qué se va y qué se queda" },
@@ -159,52 +132,46 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "15 octubre 2026",
-    version: "1.46",
+    version: "1.42",
     title: "Todo a mano del pulgar",
     changes: [
       { type: "new", text: "En el móvil, Grupos, Eventos, Comunidad y tu Perfil viven en una barra abajo, como en cualquier app: un toque y estás" },
       { type: "new", text: "Toca otra vez la pestaña en la que estás y vuelves arriba del todo" },
-      { type: "improved", text: "La cabecera del móvil respira: el logo te lleva al inicio y tu colección está a un toque desde tu perfil" },
     ],
   },
   {
     date: "15 octubre 2026",
-    version: "1.45",
+    version: "1.41",
     title: "Que no se te escape ni una",
     changes: [
       { type: "new", text: "Después de publicar en la Comunidad, apuntarte a un evento o unirte a un grupo, te ofrecemos los avisos al móvil justo cuando más falta hacen" },
       { type: "new", text: "Desde la campana puedes activar los avisos en este móvil con un solo toque" },
-      { type: "improved", text: "Al entrar en la app instalada te proponemos los avisos una vez, sin insistir: si dices «Ahora no», te dejamos en paz una temporada" },
     ],
   },
   {
     date: "14 octubre 2026",
-    version: "1.44",
+    version: "1.40",
     title: "BG Planner, en tu bolsillo",
     changes: [
       { type: "new", text: "Instala BG Planner en el móvil como una app más: desde el navegador, «Añadir a pantalla de inicio», y se abre a pantalla completa con su propio icono" },
       { type: "new", text: "Avisos al móvil: activa «Avisarme en este dispositivo» en Notificaciones y te enterarás de convocatorias, respuestas en la Comunidad o juegos nuevos en tus eventos aunque tengas la app cerrada" },
       { type: "new", text: "El icono de la app instalada lleva el número de avisos que tienes sin leer" },
-      { type: "improved", text: "Si te quedas sin cobertura, en vez de una página rota verás un aviso para volver a intentarlo" },
-      { type: "improved", text: "En móviles con notch o barra de inicio, nada queda tapado por los bordes de la pantalla" },
     ],
   },
   {
     date: "14 octubre 2026",
-    version: "1.43",
+    version: "1.39",
     title: "La Comunidad, por toda la casa",
     changes: [
       { type: "new", text: "Tu inicio enseña lo último que se habla en la Comunidad, con acceso directo para abrir un hilo" },
       { type: "new", text: "Nueva insignia para tu perfil por participar en la Comunidad: de «Rompehielos» a «Voz de la Comunidad»" },
       { type: "new", text: "Si organizas un evento abierto, anúncialo en la Comunidad con un clic: el hilo para buscar jugadores sale ya escrito, con la fecha, el sitio y el enlace" },
-      { type: "improved", text: "La portada presenta la Comunidad con las conversaciones más recientes" },
       { type: "improved", text: "Las conversaciones de la Comunidad se pueden encontrar desde Google y se leen enteras sin tener cuenta" },
-      { type: "improved", text: "Sin cuenta también llegas a la Comunidad y a los eventos abiertos desde la cabecera, también en el móvil" },
     ],
   },
   {
     date: "14 octubre 2026",
-    version: "1.42",
+    version: "1.38",
     title: "Abrimos la Comunidad",
     changes: [
       { type: "new", text: "Nueva sección Comunidad: un foro para hablar con el resto de jugadores de BG Planner, más allá de tus grupos. Abre un hilo con su título y su mensaje, y la conversación sigue con las respuestas de los demás" },
@@ -212,31 +179,20 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: "new", text: "Buscador para dar con esa conversación sobre aquel juego, y los hilos con respuestas nuevas suben solos al principio" },
       { type: "new", text: "Puedes editar o borrar lo que hayas escrito, y los enlaces que pegues se pueden abrir directamente" },
       { type: "new", text: "Te avisamos en la campana cuando alguien responde a tu hilo o en una conversación en la que has participado, y el aviso te lleva directo a la respuesta" },
-      { type: "fixed", text: "La barra de arriba ya no se sale de la pantalla en móviles y tablets: todo cabe a la primera" },
     ],
   },
   {
     date: "13 octubre 2026",
-    version: "1.41",
+    version: "1.37",
     title: "Eventos con toda la info",
     changes: [
       { type: "new", text: "Los eventos estrenan «Info general»: horarios, normas, qué traer o cómo llegar, en su propia pestaña y en la página pública" },
       { type: "new", text: "Nueva página con todos los próximos eventos abiertos, para descubrir a cuáles apuntarte" },
-      { type: "improved", text: "Los eventos abiertos se encuentran mejor en Google, con su fecha y su sitio, y la web carga más rápido" },
-      { type: "fixed", text: "La hora de los eventos ya no se descuadra al editarlos ni en los enlaces compartidos" },
     ],
   },
   {
     date: "13 octubre 2026",
-    version: "1.40.1",
-    title: "Una cabecera que no baila",
-    changes: [
-      { type: "fixed", text: "La barra de arriba ya no da saltos al cambiar de página: tu cuenta de BGG, los avisos y el resto salen en su sitio desde el principio" },
-    ],
-  },
-  {
-    date: "13 octubre 2026",
-    version: "1.40",
+    version: "1.36",
     title: "Tu campana de avisos",
     changes: [
       { type: "new", text: "Nueva campana de notificaciones: entérate de quién te añade a sus amigos, se une a tus grupos o se apunta a tus eventos" },
@@ -246,7 +202,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "13 octubre 2026",
-    version: "1.39",
+    version: "1.35",
     title: "Un inicio con más vida",
     changes: [
       { type: "new", text: "Tu inicio estrena barra lateral con tus grupos, tus próximos eventos y tus amigos siempre a mano" },
@@ -256,7 +212,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "13 octubre 2026",
-    version: "1.38",
+    version: "1.34",
     title: "Tus amigos, a un toque",
     changes: [
       { type: "new", text: "Añade amigos con un clic desde su perfil o desde los miembros de un grupo o evento que compartáis" },
@@ -266,7 +222,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "13 octubre 2026",
-    version: "1.37",
+    version: "1.33",
     title: "Arma tu mesa",
     changes: [
       { type: "new", text: "En los asistentes de un evento, marca con quién vas a jugar y descubre qué os apetece a todos, ordenado para que nadie se aburra" },
@@ -276,7 +232,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "13 octubre 2026",
-    version: "1.36",
+    version: "1.32",
     title: "Organiza en equipo",
     changes: [
       { type: "new", text: "Nombra admins entre los asistentes de tu evento para que te echen una mano con los juegos, la invitación y los detalles" },
@@ -284,17 +240,16 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 octubre 2026",
-    version: "1.35",
+    version: "1.31",
     title: "Comparte tu lista con quien te acompaña",
     changes: [
       { type: "new", text: "Comparte tu lista de un evento con un enlace: verán qué te apetece jugar y qué has jugado ya" },
       { type: "new", text: "Cada pestaña de un evento tiene su propio enlace, para mandarla directamente" },
-      { type: "improved", text: "El enlace de invitación del evento se puede plegar para que no ocupe tanto" },
     ],
   },
   {
     date: "12 octubre 2026",
-    version: "1.34",
+    version: "1.30",
     title: "Tu lista, lista para la mesa",
     changes: [
       { type: "improved", text: "«Mi Lista» del evento es ahora un listado compacto para consultarlo de un vistazo durante la quedada" },
@@ -302,16 +257,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    date: "4 octubre 2026",
-    version: "1.33.1",
-    title: "Votar sin sobresaltos en el móvil",
-    changes: [
-      { type: "fixed", text: "Al votar en el móvil ya no salta el teclado ni se mueve la página: el comentario te espera por si quieres escribirlo" },
-    ],
-  },
-  {
     date: "2 octubre 2026",
-    version: "1.33",
+    version: "1.29",
     title: "Juegos que te van a encantar",
     changes: [
       { type: "new", text: "Recomendaciones a partir de tu colección y tus notas: «si te gustó X, te gustará Y»" },
@@ -321,18 +268,16 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "24 septiembre 2026",
-    version: "1.32",
+    version: "1.28",
     title: "Un poco de magia por dentro",
     changes: [
       { type: "new", text: "Al entrar te saludamos con lo próximo que tienes en agenda" },
       { type: "new", text: "Animaciones al votar, al reordenar el ranking y en tu estantería" },
-      { type: "improved", text: "Eventos en dos columnas y con el cartel entero" },
-      { type: "fixed", text: "Votos que a veces no se marcaban a la primera" },
     ],
   },
   {
     date: "24 septiembre 2026",
-    version: "1.31",
+    version: "1.27",
     title: "Una portada a la altura",
     changes: [
       { type: "new", text: "Portada nueva con un ranking en directo, una estantería para probar y los próximos eventos abiertos" },
@@ -341,7 +286,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "23 septiembre 2026",
-    version: "1.30",
+    version: "1.26",
     title: "Insignias para presumir",
     changes: [
       { type: "new", text: "Insignias de bronce, plata y oro en tu perfil, y lo que te falta para el siguiente nivel" },
@@ -349,15 +294,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "23 septiembre 2026",
-    version: "1.29",
-    title: "Comparte tu colección con quien sea",
-    changes: [
-      { type: "improved", text: "El enlace de tu colección ya se abre sin cuenta, también los que ya hubieras repartido. Puedes desactivarlo desde «Mi colección»" },
-    ],
-  },
-  {
-    date: "23 septiembre 2026",
-    version: "1.28",
+    version: "1.25",
     title: "Comparte cualquier enlace y que se vea bien",
     changes: [
       { type: "new", text: "Los eventos abiertos se pueden compartir con cualquiera, tenga cuenta o no" },
@@ -366,7 +303,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "23 septiembre 2026",
-    version: "1.26",
+    version: "1.24",
     title: "Tu perfil, enseñable a cualquiera",
     changes: [
       { type: "new", text: "Tu perfil se puede ver sin cuenta y sale con tu nombre y foto al compartirlo" },
@@ -374,7 +311,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "21 septiembre 2026",
-    version: "1.25",
+    version: "1.23",
     title: "Enseña tu colección a quien tú quieras",
     changes: [
       { type: "new", text: "Comparte tu colección con un enlace que puedes renovar o desactivar cuando quieras" },
@@ -383,7 +320,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "21 septiembre 2026",
-    version: "1.24",
+    version: "1.22",
     title: "Cada jugador, con su perfil",
     changes: [
       { type: "new", text: "Perfil público para cada jugador, con su vitrina, sus eventos y su actividad" },
@@ -392,7 +329,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "21 septiembre 2026",
-    version: "1.23",
+    version: "1.21",
     title: "Mi colección, ahora al vuelo",
     changes: [
       { type: "new", text: "Pestaña «Sin valorar» con los juegos que te quedan por puntuar" },
@@ -401,7 +338,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "21 septiembre 2026",
-    version: "1.22",
+    version: "1.20",
     title: "Mi colección: decide qué juegos se quedan",
     changes: [
       { type: "new", text: "«Mi colección»: tus juegos y tu wishlist de BGG, con vista de estantería" },
@@ -410,7 +347,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "17 septiembre 2026",
-    version: "1.21",
+    version: "1.19",
     title: "Las próximas funcionalidades las decidís vosotros",
     changes: [
       { type: "new", text: "«Ideas y mejoras»: propón funcionalidades, reporta errores y vota las propuestas de los demás" },
@@ -418,7 +355,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "17 septiembre 2026",
-    version: "1.20",
+    version: "1.18",
     title: "Emojis por todas partes 🎲🔥",
     changes: [
       { type: "new", text: "Selector de emojis en comentarios, opiniones y formularios" },
@@ -426,7 +363,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "14 septiembre 2026",
-    version: "1.19",
+    version: "1.17",
     title: "Vota sin perder el sitio en el ranking",
     changes: [
       { type: "improved", text: "El ranking ya no se mueve mientras votas: recolócalo cuando quieras con «Actualizar orden»" },
@@ -434,7 +371,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "14 septiembre 2026",
-    version: "1.18",
+    version: "1.16",
     title: "Cambia tu email sin perder la cuenta",
     changes: [
       { type: "new", text: "Cambia el email de tu cuenta desde tu perfil" },
@@ -442,7 +379,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 septiembre 2026",
-    version: "1.17",
+    version: "1.15",
     title: "Borrón y cuenta nueva en el ranking",
     changes: [
       { type: "new", text: "Los admins pueden poner el ranking a cero al convocar al grupo" },
@@ -450,23 +387,15 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "22 agosto 2026",
-    version: "1.16",
+    version: "1.14",
     title: "Ayúdame a elegir",
     changes: [
       { type: "new", text: "Una ruleta que sortea entre vuestros juegos favoritos" },
     ],
   },
   {
-    date: "22 agosto 2026",
-    version: "1.15.1",
-    title: "Escribir en el móvil sin saltos de zoom",
-    changes: [
-      { type: "fixed", text: "La pantalla ya no hace zoom al escribir un comentario en el móvil" },
-    ],
-  },
-  {
     date: "12 agosto 2026",
-    version: "1.15",
+    version: "1.13",
     title: "Fotos sueltas en la galería del grupo",
     changes: [
       { type: "new", text: "Sube fotos a la galería del grupo sin asociarlas a un juego" },
@@ -474,7 +403,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 agosto 2026",
-    version: "1.14",
+    version: "1.12",
     title: "Opinar desde la galería y pestaña de Jugados",
     changes: [
       { type: "new", text: "Opina sobre cualquier juego desde la galería" },
@@ -483,7 +412,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 agosto 2026",
-    version: "1.13",
+    version: "1.11",
     title: "Galería y valoraciones de los eventos",
     changes: [
       { type: "new", text: "Galería de fotos y valoraciones con estrellas en cada evento" },
@@ -491,7 +420,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 agosto 2026",
-    version: "1.12",
+    version: "1.10",
     title: "Opiniones de partida y galería del grupo",
     changes: [
       { type: "new", text: "Deja tu opinión y fotos al jugar un juego, y revívelas en la galería del grupo" },
@@ -499,7 +428,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 agosto 2026",
-    version: "1.11",
+    version: "1.9",
     title: "La valoración de BGG, a todo color",
     changes: [
       { type: "new", text: "Nota de BGG con su color oficial y puesto en el ranking mundial" },
@@ -507,7 +436,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "12 agosto 2026",
-    version: "1.10",
+    version: "1.8",
     title: "Buscar juegos, mejor",
     changes: [
       { type: "new", text: "Añade al ranking juegos de BGG aunque nadie del grupo los tenga" },
@@ -516,7 +445,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "28 abril 2026",
-    version: "1.9",
+    version: "1.7",
     title: "Podio del grupo",
     changes: [
       { type: "new", text: "Podio con los tres juegos más votados en la portada del grupo" },
@@ -524,26 +453,10 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "28 abril 2026",
-    version: "1.8",
+    version: "1.6",
     title: "Comentarios en el ranking",
     changes: [
       { type: "new", text: "Deja un comentario al votar un juego para defender tus picks" },
-    ],
-  },
-  {
-    date: "24 abril 2026",
-    version: "1.7",
-    title: "Salta al grupo o evento desde el feed",
-    changes: [
-      { type: "improved", text: "Los grupos y eventos de la actividad reciente son ahora enlaces" },
-    ],
-  },
-  {
-    date: "24 abril 2026",
-    version: "1.6",
-    title: "Super voto más flexible",
-    changes: [
-      { type: "improved", text: "Al mover tu super voto, el juego anterior conserva un voto normal" },
     ],
   },
   {
@@ -598,7 +511,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "7 abril 2026",
-    version: "0.9",
+    version: "0.8",
     title: "Modo claro, feed de actividad y favoritos",
     changes: [
       { type: "new", text: "Modo claro y oscuro" },
@@ -608,7 +521,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "6 abril 2026",
-    version: "0.8",
+    version: "0.7",
     title: "Sesiones rápidas, roles y gestión de juegos",
     changes: [
       { type: "new", text: "Crea una sesión desde el ranking en segundos" },
