@@ -1,13 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { compareRanking, voteScore } from "@/lib/rankingOrder";
 
+/**
+ * El ranking del grupo. Con `pendingOnly` solo entran los que quedan por
+ * jugar, que es lo que la gente entiende por «el ranking» (la pestaña de
+ * pendientes, el top 3 de la convocatoria): sin jugados ni archivados.
+ */
 export async function computeRanking(
   groupId: string,
-  viewerUserId?: string
+  viewerUserId?: string,
+  { pendingOnly = false }: { pendingOnly?: boolean } = {}
 ) {
   const [groupGames, completedPlays] = await Promise.all([
     prisma.groupGame.findMany({
-      where: { groupId },
+      where: {
+        groupId,
+        ...(pendingOnly ? { archivedAt: null, playedAt: null } : {}),
+      },
       include: {
         game: true,
         addedBy: { select: { name: true } },

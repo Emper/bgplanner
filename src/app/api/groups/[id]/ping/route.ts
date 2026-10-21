@@ -8,6 +8,8 @@ import { computeRanking } from "@/lib/ranking";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notifications";
 import { escapeHtml } from "@/lib/html";
+import { absoluteUrl } from "@/lib/site";
+import { displayName } from "@/lib/users";
 
 const PING_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -91,20 +93,19 @@ export async function POST(
     }),
     prisma.user.findUnique({
       where: { id: session.userId },
-      select: { name: true, displayName: true, email: true },
+      select: { name: true, displayName: true },
     }),
-    computeRanking(groupId),
+    computeRanking(groupId, undefined, { pendingOnly: true }),
   ]);
 
   if (!group || !sender) {
     return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
   }
 
-  const senderName =
-    sender.displayName || sender.name || sender.email || "Un miembro";
+  const senderName = displayName(sender, "Un miembro");
   const top3 = ranking.slice(0, 3);
   const medals = ["🥇", "🥈", "🥉"];
-  const groupUrl = `${process.env.NEXT_PUBLIC_APP_URL}/groups/${groupId}`;
+  const groupUrl = absoluteUrl(`/groups/${groupId}`);
 
   // "Foto" del ranking previo al borrado. Se guarda en el activity log, así
   // que aunque los votos desaparezcan queda el registro de cómo iba la cosa.

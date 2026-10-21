@@ -30,7 +30,7 @@ export async function GET(
     groupId: invitation.group.id,
     groupName: invitation.group.name,
     memberCount: invitation.group._count.members,
-    email: invitation.email,
+    // Sin el email invitado: el enlace se puede reenviar y es un dato privado.
   });
 }
 

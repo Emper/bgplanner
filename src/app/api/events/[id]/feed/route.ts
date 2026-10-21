@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { withGameCovers } from "@/lib/activityCovers";
+import { getEventParticipation } from "@/lib/events";
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,12 @@ export async function GET(
   }
 
   const { id: eventId } = await params;
+
+  // La actividad de un evento privado es solo para quien puede verlo.
+  const p = await getEventParticipation(eventId, session.userId);
+  if (!p?.canView) {
+    return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
+  }
 
   const url = new URL(request.url);
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "30"), 50);

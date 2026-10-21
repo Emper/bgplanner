@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggRating from "@/components/BggRating";
 import GameTags, { GameTag } from "@/components/GameTags";
+import { displayName } from "@/lib/users";
 
 interface ExpansionItem {
   bggId: number;
@@ -56,7 +57,6 @@ interface Member {
     name: string | null;
     displayName: string | null;
     surname: string | null;
-    email: string;
     bggUsername: string | null;
   };
 }
@@ -363,7 +363,7 @@ export default function AddGamesPage() {
   // De quién es la colección que se está mirando, para los tooltips.
   const selectedMember = membersWithBgg.find((m) => m.user.bggUsername === selectedUsername);
   const selectedName = selectedMember
-    ? selectedMember.user.displayName || selectedMember.user.name || selectedUsername
+    ? displayName(selectedMember.user, selectedUsername)
     : selectedUsername;
 
   // Cuántos de los juegos visibles ya están en el ranking (para el contador).
@@ -420,7 +420,7 @@ export default function AddGamesPage() {
                     >
                       {membersWithBgg.map((m) => (
                         <option key={m.user.id} value={m.user.bggUsername!}>
-                          {m.user.displayName || m.user.name || m.user.email} ({m.user.bggUsername})
+                          {displayName(m.user)} ({m.user.bggUsername})
                         </option>
                       ))}
                     </select>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { searchBggGames } from "@/lib/bgg";
+import { displayName } from "@/lib/users";
 
 // Busca juegos en todo BGG (fuera de la colección) y anota, para cada
 // resultado, qué miembros del grupo lo tienen en su colección cacheada.
@@ -39,7 +40,7 @@ export async function GET(
     where: { groupId, user: { bggUsername: { not: null } } },
     select: {
       user: {
-        select: { name: true, displayName: true, email: true, bggUsername: true },
+        select: { name: true, displayName: true, bggUsername: true },
       },
     },
   });
@@ -50,7 +51,7 @@ export async function GET(
     if (!u.bggUsername) continue;
     usernameToName.set(
       u.bggUsername.toLowerCase().trim(),
-      u.displayName || u.name || u.email
+      displayName(u)
     );
   }
 

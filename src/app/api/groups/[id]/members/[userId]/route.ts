@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notifications";
+import { displayName } from "@/lib/users";
 
 export async function PATCH(
   request: NextRequest,
@@ -39,7 +40,7 @@ export async function PATCH(
   // Check target is a member
   const targetMembership = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId, userId: targetUserId } },
-    include: { user: { select: { email: true, name: true, displayName: true } } },
+    include: { user: { select: { name: true, displayName: true } } },
   });
 
   if (!targetMembership) {
@@ -75,7 +76,7 @@ export async function PATCH(
     metadata: { role },
   });
 
-  logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, { groupId, targetName: targetMembership.user.displayName || targetMembership.user.name || targetMembership.user.email });
+  logActivity(role === "admin" ? "member_promoted" : "member_demoted", session.userId, { groupId, targetName: displayName(targetMembership.user) });
 
   return NextResponse.json({ success: true, role });
 }

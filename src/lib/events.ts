@@ -21,17 +21,19 @@ export async function getEventParticipation(
   eventId: string,
   userId: string
 ): Promise<EventParticipation | null> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: { id: true, name: true, visibility: true, createdById: true },
-  });
+  const [event, attendee] = await Promise.all([
+    prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, name: true, visibility: true, createdById: true },
+    }),
+    prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+      select: { role: true },
+    }),
+  ]);
   if (!event) return null;
 
   const isCreator = event.createdById === userId;
-  const attendee = await prisma.eventAttendee.findUnique({
-    where: { eventId_userId: { eventId, userId } },
-    select: { role: true },
-  });
   const isAttendee = !!attendee;
 
   return {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperadmin } from "@/lib/auth";
+import { isGroupManager } from "@/lib/groupTypes";
 import { groupSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
@@ -30,7 +31,8 @@ export async function GET(
                 id: true,
                 name: true,
                 surname: true,
-                email: true,
+                displayName: true,
+                avatarUrl: true,
                 bggUsername: true,
                 slug: true,
               },
@@ -50,11 +52,15 @@ export async function GET(
     return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
   }
 
-  const response = NextResponse.json({ ...group, currentUserRole: membership.role, currentUserId: session.userId });
-  response.headers.set(
-    "Cache-Control",
-    "public, s-maxage=10, stale-while-revalidate=60"
-  );
+  const response = NextResponse.json({
+    ...group,
+    // Los emails invitados solo los ve quien gestiona las invitaciones.
+    invitations: isGroupManager(membership.role) ? group?.invitations ?? [] : [],
+    currentUserRole: membership.role,
+    currentUserId: session.userId,
+  });
+  // Personal (rol, invitaciones): que ninguna caché compartida la guarde.
+  response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
 

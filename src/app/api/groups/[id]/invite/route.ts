@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { EMAIL_FROM } from "@/lib/contact";
-import { resend } from "@/lib/resend";
+import { EMAIL_COLORS, emailButton, emailNote, html, sendAppEmailLater } from "@/lib/email";
+import { absoluteUrl } from "@/lib/site";
+import { displayName } from "@/lib/users";
 import { inviteSchema } from "@/lib/validations";
 
 export async function POST(
@@ -62,36 +63,28 @@ export async function POST(
     );
   }
 
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
-    select: { name: true },
-  });
-
-  const inviter = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { name: true, displayName: true, email: true },
-  });
+  const [group, inviter] = await Promise.all([
+    prisma.group.findUnique({ where: { id: groupId }, select: { name: true } }),
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { name: true, displayName: true },
+    }),
+  ]);
 
   const invitation = await prisma.groupInvitation.create({
     data: { groupId, email },
   });
 
-  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invitation.token}`;
-
-  await resend.emails.send({
-    from: EMAIL_FROM,
+  const inviterName = displayName(inviter, "Alguien");
+  const groupName = group?.name ?? "su grupo";
+  sendAppEmailLater({
     to: email,
-    subject: `${inviter?.displayName || inviter?.name || inviter?.email} te invita a "${group?.name}" en BG Planner`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-        <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-        <p><strong>${inviter?.name || inviter?.email}</strong> te ha invitado a unirte al grupo <strong style="color: #f59e0b;">"${group?.name}"</strong> en BG Planner.</p>
-        <p>BG Planner es una herramienta para organizar y votar qué juegos de mesa jugar con tu grupo.</p>
-        <a href="${inviteUrl}" style="display: inline-block; background: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-          Unirme al grupo
-        </a>
-        <p style="color: #94a3b8; font-size: 14px;">Si no esperabas esta invitación, puedes ignorar este email.</p>
-      </div>
+    subject: `${inviterName} te invita a "${groupName}" en BG Planner`,
+    body: html`
+      <p><strong>${inviterName}</strong> te ha invitado a unirte al grupo <strong style="color: ${EMAIL_COLORS.accent};">"${groupName}"</strong> en BG Planner.</p>
+      <p>BG Planner es una herramienta para organizar y votar qué juegos de mesa jugar con tu grupo.</p>
+      ${emailButton(absoluteUrl(`/invite/${invitation.token}`), "Unirme al grupo")}
+      ${emailNote("Si no esperabas esta invitación, puedes ignorar este email.")}
     `,
   });
 

@@ -7,6 +7,27 @@ export const DELETED_USER_NAME = "Usuario eliminado";
 export const DELETED_USER_ROLE = "deleted";
 
 /**
+ * Cómo se llama alguien en la app: su nombre visible y, si no tiene, su
+ * nombre. Nunca su email: es un dato privado que no se enseña a nadie, ni a
+ * sus amigos ni a la gente de sus grupos.
+ */
+export function displayName(
+  user: { displayName?: string | null; name?: string | null } | null | undefined,
+  fallback = "Jugador"
+): string {
+  return user?.displayName?.trim() || user?.name?.trim() || fallback;
+}
+
+/** Lo que se puede contar de un usuario a cualquiera que lo vea en la app. */
+export const PUBLIC_USER_SELECT = {
+  id: true,
+  slug: true,
+  name: true,
+  displayName: true,
+  avatarUrl: true,
+} as const;
+
+/**
  * Enlace al perfil público de un jugador: su slug si lo tiene, y si no su id,
  * que siempre funciona como enlace permanente.
  */

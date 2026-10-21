@@ -91,6 +91,11 @@ export function isGroupTypeId(value: unknown): value is GroupTypeId {
   return typeof value === "string" && value in GROUP_TYPES;
 }
 
+/** Dueño o admin: quien gestiona el grupo (miembros, invitaciones, juegos). */
+export function isGroupManager(role: string | null | undefined): boolean {
+  return role === "owner" || role === "admin";
+}
+
 export function getGroupType(id: string | null | undefined): GroupTypeConfig {
   if (id && isGroupTypeId(id)) return GROUP_TYPES[id];
   return GROUP_TYPES.friends;

@@ -1,9 +1,24 @@
+// Fechas, duraciones y tiempos relativos, siempre en español.
+//
+// Zona horaria: en el navegador, la de quien mira (si estás en Canarias, la
+// hora de Canarias). En el servidor no hay "quien mira" y Vercel corre en
+// UTC, así que ahí se usa la de la app: si no, un evento a las 00:30 salía
+// con el día anterior en las páginas pintadas en servidor.
+
+/** La zona de la app: la de los eventos y la de lo que se pinta en servidor. */
+export const APP_TZ = "Europe/Madrid";
+
+function tz(): string | undefined {
+  return typeof window === "undefined" ? APP_TZ : undefined;
+}
+
 /** "4 abr 2026" */
 export function formatDateShort(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("es-ES", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: tz(),
   });
 }
 
@@ -16,6 +31,7 @@ export function formatDateFull(dateStr: string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: tz(),
   });
 }
 
@@ -26,6 +42,7 @@ export function formatDateLong(dateStr: string) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: tz(),
   });
 }
 
@@ -77,4 +94,27 @@ export function formatRelativeTime(dateStr: string | Date) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `hace ${hours} h`;
   return formatRelativeShort(dateStr);
+}
+
+/** "marzo de 2026" */
+export function formatMonthYear(dateStr: string | Date) {
+  return new Date(dateStr).toLocaleDateString("es-ES", {
+    month: "long",
+    year: "numeric",
+    timeZone: tz(),
+  });
+}
+
+/**
+ * Para listas apretadas (feed, avisos): "ahora", "hace 5 min", "hace 3 h",
+ * "hace 2 d" y, pasada una semana, la fecha corta ("4 abr").
+ */
+export function formatRelativeCompact(dateStr: string | Date) {
+  const then = new Date(dateStr);
+  const diff = Math.floor((Date.now() - then.getTime()) / 1000);
+  if (diff < 60) return "ahora";
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+  if (diff < 604800) return `hace ${Math.floor(diff / 86400)} d`;
+  return then.toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: tz() });
 }

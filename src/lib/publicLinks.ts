@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { getGroupType } from "@/lib/groupTypes";
+import { APP_TZ } from "@/lib/format";
 
 // Lo poco que se puede contar de un grupo o de un evento a quien llega con
 // un enlace y no ha iniciado sesión: lo justo para saber dónde ha aterrizado
@@ -178,7 +179,7 @@ export async function getUpcomingPublicEvents(limit = 3): Promise<PublicEventInf
 
 // Esto se pinta en el servidor, que en Vercel va en UTC: sin zona fija las
 // horas saldrían una o dos antes de la real.
-export const EVENT_TZ = "Europe/Madrid";
+export const EVENT_TZ = APP_TZ;
 
 /** "sábado, 12 de diciembre a las 18:30" */
 export function formatEventWhen(dateStr: string): string {

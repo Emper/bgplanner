@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ApiError, jsonError, requireCronSecret } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { notifyNow, NOTIFICATION_TTL_DAYS } from "@/lib/notifications";
+import { APP_TZ } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const TZ = "Europe/Madrid";
+const TZ = APP_TZ;
 
 interface MadridParts {
   y: number;
@@ -39,13 +41,12 @@ function madridMidnightUTC(y: number, mo: number, d: number): Date {
 }
 
 export async function GET(request: NextRequest) {
-  // Protección: Vercel Cron manda Authorization: Bearer <CRON_SECRET>.
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+  // Vercel Cron manda Authorization: Bearer <CRON_SECRET>.
+  try {
+    requireCronSecret(request);
+  } catch (err) {
+    if (err instanceof ApiError) return jsonError(err.status, err.message);
+    throw err;
   }
 
   const now = new Date();

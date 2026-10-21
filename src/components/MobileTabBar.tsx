@@ -10,7 +10,7 @@ import { useNavUser } from "@/lib/navUser";
 // «Entrar» en la cabecera, y aquí lo que importa es que se apunte.
 
 // Donde no hay cabecera de la app (o es otra): ahí la barra sobra.
-const HIDDEN_PREFIXES = ["/admin", "/login", "/auth", "/invite", "/join"];
+const HIDDEN_PREFIXES = ["/admin", "/login", "/auth", "/invite", "/join", "/join-event"];
 
 type Tab = {
   href: string;

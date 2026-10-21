@@ -19,7 +19,7 @@ import BadgeCarousel from "@/components/BadgeCarousel";
 import ProfileActions from "@/components/ProfileActions";
 import { hasBlocked } from "@/lib/moderation";
 import { profileBadges } from "@/lib/profileBadges";
-import { formatDateShort } from "@/lib/format";
+import { formatDateShort, formatMonthYear } from "@/lib/format";
 import { getGroupType } from "@/lib/groupTypes";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
@@ -75,14 +75,6 @@ export async function generateMetadata({
       description,
     },
   };
-}
-
-/** "marzo de 2026" */
-function formatMonth(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("es-ES", {
-    month: "long",
-    year: "numeric",
-  });
 }
 
 function Section({
@@ -260,7 +252,7 @@ export default async function PublicProfilePage({
                     <span className="text-[var(--text-muted)]"> · </span>
                   )}
                   <span className="text-xs text-[var(--text-muted)]">
-                    desde {formatMonth(profile.memberSince)}
+                    desde {formatMonthYear(profile.memberSince)}
                   </span>
                 </p>
                 {profile.bggUsername && (

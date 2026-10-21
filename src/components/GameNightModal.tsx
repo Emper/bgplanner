@@ -5,6 +5,7 @@ import Image from "next/image";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
 import GameTags from "@/components/GameTags";
+import { displayName } from "@/lib/users";
 import { formatDuration } from "@/lib/format";
 import { findVoteOption } from "@/lib/groupTypes";
 import {
@@ -40,7 +41,6 @@ interface NightMember {
   id: string;
   name: string | null;
   displayName: string | null;
-  email: string;
   avatarUrl: string | null;
 }
 
@@ -115,7 +115,7 @@ function newDraw(pool: Row[]): Draw {
 }
 
 function memberName(m: NightMember) {
-  return m.displayName || m.name || m.email.split("@")[0];
+  return displayName(m);
 }
 
 function timeLabel(minutes: number | null) {

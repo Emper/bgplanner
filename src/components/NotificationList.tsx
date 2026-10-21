@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Avatar from "./Avatar";
 import { syncAppBadge } from "@/lib/pushClient";
+import { formatRelativeCompact } from "@/lib/format";
 
 // Piezas compartidas por la campana del navbar y la página /notifications.
 
@@ -48,15 +49,6 @@ export async function markNotificationsRead(ids?: string[]): Promise<number | nu
   } catch {
     return null;
   }
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return "ahora";
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)} d`;
-  return new Date(dateStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
 export function NotificationItem({
@@ -105,7 +97,7 @@ export function NotificationItem({
           )}
         </span>
         <span className={`block mt-1 text-[11px] ${item.read ? "text-[var(--text-muted)]" : "text-[var(--primary)] font-medium"}`}>
-          {timeAgo(item.createdAt)}
+          {formatRelativeCompact(item.createdAt)}
         </span>
       </span>
       {item.thumbnail && (

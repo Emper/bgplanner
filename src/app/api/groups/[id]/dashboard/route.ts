@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { compareRanking, voteScore } from "@/lib/rankingOrder";
 import { GAME_NIGHT_INCLUDE } from "@/lib/gameNights";
+import { isGroupManager } from "@/lib/groupTypes";
+import { displayName } from "@/lib/users";
 
 export async function GET(
   request: NextRequest,
@@ -32,7 +34,6 @@ export async function GET(
                   name: true,
                   displayName: true,
                   surname: true,
-                  email: true,
                   bggUsername: true,
                   avatarUrl: true,
                   slug: true,
@@ -56,8 +57,8 @@ export async function GET(
         include: {
           game: true,
           addedBy: { select: { name: true, displayName: true } },
-          votes: { select: { userId: true, value: true, user: { select: { name: true, displayName: true, email: true } } } },
-          comments: { where: { deletedAt: null }, select: { userId: true, text: true, user: { select: { name: true, displayName: true, email: true } } } },
+          votes: { select: { userId: true, value: true, user: { select: { name: true, displayName: true } } } },
+          comments: { where: { deletedAt: null }, select: { userId: true, text: true, user: { select: { name: true, displayName: true } } } },
         },
       }),
       prisma.gameNight.findMany({
@@ -120,7 +121,7 @@ export async function GET(
       );
       const voters = gg.votes.map((v) => ({
         userId: v.userId,
-        name: v.user.displayName || v.user.name || v.user.email,
+        name: displayName(v.user),
         value: v.value,
         comment: commentByUserId.get(v.userId) ?? null,
       }));
@@ -129,7 +130,7 @@ export async function GET(
         if (!voterIds.has(c.userId)) {
           voters.push({
             userId: c.userId,
-            name: c.user.displayName || c.user.name || c.user.email,
+            name: displayName(c.user),
             value: 0,
             comment: c.text,
           });
@@ -186,6 +187,8 @@ export async function GET(
   const response = NextResponse.json({
     group: {
       ...group,
+      // Los emails invitados solo los ve quien gestiona las invitaciones.
+      invitations: isGroupManager(membership.role) ? group?.invitations ?? [] : [],
       currentUserRole: membership.role,
       currentUserId: session.userId,
       currentUserLastPingedAt: membership.lastPingedAt,

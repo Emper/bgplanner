@@ -6,6 +6,7 @@ import Image from "next/image";
 import Avatar from "./Avatar";
 import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
 import { profileHref } from "@/lib/users";
+import { formatRelativeCompact } from "@/lib/format";
 
 interface ActivityItem {
   id: string;
@@ -43,18 +44,6 @@ export function setCachedFeed(key: string, items: ActivityItem[], cursor: string
 // servidor (p. ej. reiniciar las votaciones del grupo).
 export function clearCachedFeed(key: string) {
   feedCache.delete(key);
-}
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = Math.floor((now - then) / 1000);
-
-  if (diff < 60) return "ahora";
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}min`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`;
-  return new Date(dateStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
 // Separadores del feed: hoy, ayer, esta semana y, más atrás, el mes. Dan
@@ -448,7 +437,7 @@ export default function ActivityFeed({
                 })}
               </div>
               <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                {timeAgo(latestTime)}
+                {formatRelativeCompact(latestTime)}
               </p>
             </div>
             {soloCover && (

@@ -1,4 +1,6 @@
-import { after } from "next/server";
+import { inBackground } from "@/lib/background";
+
+export { inBackground };
 import { prisma } from "./prisma";
 import { profileHref } from "./users";
 import { deliverPush, type PushPayload } from "./push";
@@ -252,17 +254,6 @@ export async function notifyNow(input: NotifyInput): Promise<number> {
  */
 export function notify(input: NotifyInput) {
   inBackground(() => notifyNow(input));
-}
-
-/** Trabajo para después de responder (avisos que necesitan consultas antes). */
-export function inBackground(task: () => Promise<unknown>) {
-  const run = () => task().catch(() => {});
-  try {
-    after(run);
-  } catch {
-    // Fuera de una petición (scripts): a la antigua
-    void run();
-  }
 }
 
 // ── Presentación ────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { CHANGELOG } from "@/lib/changelog";
 import { getLatestThreads, type ThreadListItem } from "@/lib/communityServer";
 import { formatRelativeTime } from "@/lib/format";
 import HomeDashboard from "@/components/HomeDashboard";
+import { APP_TZ } from "@/lib/format";
 
 // Con sesión, tu inicio (grupos, eventos, amigos y actividad); sin ella, la
 // portada con los próximos eventos abiertos. Se decide en el servidor para no enseñar un loader a
@@ -68,7 +69,7 @@ const SITE_JSON_LD = {
 
 // Las fechas se formatean aquí, en hora de España, para que servidor y
 // navegador pinten lo mismo.
-const TZ = "Europe/Madrid";
+const TZ = APP_TZ;
 
 function toLandingEvent(e: Awaited<ReturnType<typeof getUpcomingPublicEvents>>[number]): LandingEvent {
   const d = new Date(e.date);

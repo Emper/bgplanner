@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ApiError, jsonError, requireCronSecret } from "@/lib/api";
 import {
   ENRICH_BATCH,
   hotMissingIds,
@@ -20,13 +21,12 @@ const TIME_BUDGET_MS = 240 * 1000;
 // que aparecen en las colecciones de la comunidad y, si sobra tiempo, las
 // fichas más antiguas.
 export async function GET(request: NextRequest) {
-  // Protección: Vercel Cron manda Authorization: Bearer <CRON_SECRET>.
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+  // Vercel Cron manda Authorization: Bearer <CRON_SECRET>.
+  try {
+    requireCronSecret(request);
+  } catch (err) {
+    if (err instanceof ApiError) return jsonError(err.status, err.message);
+    throw err;
   }
 
   const startedAt = Date.now();

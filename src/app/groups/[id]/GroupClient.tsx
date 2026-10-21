@@ -20,7 +20,7 @@ import { CountUp, useFlip } from "@/components/motion";
 import { formatDateLong, formatDuration, formatRelativeShort } from "@/lib/format";
 import { getGroupType, type VoteOption } from "@/lib/groupTypes";
 import { compareRanking } from "@/lib/rankingOrder";
-import { profileHref } from "@/lib/users";
+import { displayName, profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
 
 // Modales y galería que solo se abren a petición: su código se descarga
@@ -71,7 +71,6 @@ interface Member {
     name: string | null;
     displayName: string | null;
     surname: string | null;
-    email: string;
     bggUsername: string | null;
     avatarUrl: string | null;
     slug: string | null;
@@ -1164,7 +1163,7 @@ function GroupDashboardPage() {
                         const others = membersWithAvailable.filter(
                           (m) => m.user.id !== group.currentUserId
                         );
-                        const otherNames = others.map((m) => m.user.displayName || m.user.name || m.user.email);
+                        const otherNames = others.map((m) => displayName(m.user));
                         const optionLabel = (limitOption?.label || "super voto").toLowerCase();
                         const otherText = others.length === 1
                           ? `${otherNames[0]} tiene su ${optionLabel} libre`
@@ -2003,7 +2002,7 @@ function GroupDashboardPage() {
                       <div className="flex items-center gap-3">
                         <Link href={profileHref(member.user)} prefetch={false}>
                           <Avatar
-                            name={member.user.displayName || member.user.name || member.user.email}
+                            name={displayName(member.user)}
                             avatarUrl={member.user.avatarUrl}
                             size="sm"
                           />
@@ -2015,8 +2014,8 @@ function GroupDashboardPage() {
                             className="font-medium text-[var(--text)] hover:text-[var(--primary)] transition-colors"
                           >
                             {member.user.name
-                              ? `${member.user.name} ${member.user.surname || ""}`
-                              : member.user.email}
+                              ? `${member.user.name} ${member.user.surname || ""}`.trim()
+                              : displayName(member.user)}
                           </Link>
                           {member.user.bggUsername && (
                             <a
@@ -2036,7 +2035,7 @@ function GroupDashboardPage() {
                         {isAdmin && member.role === "member" && member.user.id !== group.currentUserId && (
                           <button
                             onClick={async () => {
-                              const name = member.user.displayName || member.user.name || member.user.email;
+                              const name = displayName(member.user);
                               if (!confirm(`¿Hacer admin a ${name}?`)) return;
                               const res = await fetch(`/api/groups/${groupId}/members/${member.user.id}`, {
                                 method: "PATCH",
@@ -2058,7 +2057,7 @@ function GroupDashboardPage() {
                         {isOwner && member.role === "admin" && (
                           <button
                             onClick={async () => {
-                              const name = member.user.displayName || member.user.name || member.user.email;
+                              const name = displayName(member.user);
                               if (!confirm(`¿Quitar admin a ${name}? Pasará a ser miembro.`)) return;
                               const res = await fetch(`/api/groups/${groupId}/members/${member.user.id}`, {
                                 method: "PATCH",
