@@ -4,6 +4,7 @@ import { withGameCovers } from "@/lib/activityCovers";
 import { normalizeBggUsername } from "@/lib/bgg";
 import { DELETED_USER_ROLE, PUBLIC_USER_SELECT, displayName } from "@/lib/users";
 import { joinNames, plural } from "@/lib/text";
+import { storedImageSrc } from "@/lib/storedImages";
 
 // Perfil público de un jugador. Se ve SIN cuenta, así que lo que sale de aquí
 // es lo que cualquiera puede leer en internet. Deliberadamente NO sale:
@@ -158,69 +159,8 @@ export const getProfileHeader = cache(
     const user = await findProfileUser(decodeURIComponent(param));
     if (!user) return null;
 
-    // La vitrina se cuenta cruzando las marcas con la colección, igual que al
-    // pintarla: si no, un juego que ya no tiene en BGG inflaría el número.
-    const entries = await prisma.collectionEntry.findMany({
-      where: { userId: user.id, showcased: true },
-      select: { bggId: true },
-    });
     const bggUsername = user.bggUsername ? normalizeBggUsername(user.bggUsername) || null : null;
-    const [
-      showcaseCount,
-      upcomingEventCount,
-      owned,
-      groups,
-      events,
-      hosted,
-      votes,
-      reviews,
-      threads,
-      replies,
-      likes,
-    ] = await Promise.all([
-      entries.length && bggUsername
-        ? prisma.collectionGame.count({
-            where: {
-              bggUsername,
-              bggId: { in: entries.map((e) => e.bggId) },
-            },
-          })
-        : 0,
-      prisma.eventAttendee.count({
-        where: {
-          userId: user.id,
-          status: { in: ["attending", "maybe"] },
-          event: { visibility: "public", date: { gte: new Date() } },
-        },
-      }),
-      // De una pasada: cuántos juegos y expansiones tiene y cuántas partidas
-      // les ha apuntado. Sin BGG conectado no hay colección que contar.
-      bggUsername
-        ? prisma.collectionGame.groupBy({
-            by: ["subtype"],
-            where: { bggUsername, status: "own" },
-            _count: { _all: true },
-            _sum: { numPlays: true },
-          })
-        : [],
-      prisma.groupMember.count({ where: { userId: user.id } }),
-      prisma.eventAttendee.count({
-        where: { userId: user.id, status: "attending" },
-      }),
-      prisma.event.count({ where: { createdById: user.id } }),
-      prisma.vote.count({ where: { userId: user.id } }),
-      prisma.gameReview.count({ where: { userId: user.id } }),
-      prisma.communityThread.count({ where: { authorId: user.id, deletedAt: null } }),
-      prisma.communityReply.count({
-        where: { authorId: user.id, deletedAt: null, thread: { deletedAt: null } },
-      }),
-      prisma.communityReplyLike.count({
-        where: { reply: { authorId: user.id, deletedAt: null, thread: { deletedAt: null } } },
-      }),
-    ]);
-
-    const bases = owned.find((o) => o.subtype === "boardgame");
-    const exps = owned.find((o) => o.subtype === "boardgameexpansion");
+    const stats = await getProfileCounts(user.id, bggUsername);
 
     return {
       slug: user.slug || user.id,
@@ -228,23 +168,82 @@ export const getProfileHeader = cache(
       location: user.location,
       bggUsername: user.bggUsername,
       avatarUrl: user.avatarUrl,
-      showcaseCount,
-      upcomingEventCount,
+      showcaseCount: stats.showcaseCount,
+      upcomingEventCount: stats.upcomingEventCount,
       stats: {
-        games: bases?._count._all ?? 0,
-        expansions: exps?._count._all ?? 0,
-        plays: owned.reduce((sum, o) => sum + (o._sum.numPlays ?? 0), 0),
-        groups,
-        events,
-        hosted,
-        votes,
-        reviews,
-        communityPosts: threads + replies,
-        communityLikes: likes,
+        games: stats.games,
+        expansions: stats.expansions,
+        plays: stats.plays,
+        groups: stats.groups,
+        events: stats.events,
+        hosted: stats.hosted,
+        votes: stats.votes,
+        reviews: stats.reviews,
+        communityPosts: stats.threads + stats.replies,
+        communityLikes: stats.likes,
       },
     };
   }
 );
+
+/**
+ * Todas las cifras del perfil (insignias, tarjeta, vitrina) en una sola
+ * consulta. Eran once recuentos sueltos y, con la conexión del pooler de una
+ * en una, once viajes a la base de datos: medio perfil se iba en esperar.
+ *
+ * - La vitrina se cuenta cruzando las marcas con la colección, igual que al
+ *   pintarla: un juego que ya no tiene en BGG no infla el número.
+ * - Sin BGG conectado (`bggUsername` null) las cifras de colección salen a 0.
+ */
+async function getProfileCounts(userId: string, bggUsername: string | null) {
+  const now = new Date();
+  const [row] = await prisma.$queryRaw<
+    {
+      showcaseCount: number;
+      upcomingEventCount: number;
+      games: number;
+      expansions: number;
+      plays: number;
+      groups: number;
+      events: number;
+      hosted: number;
+      votes: number;
+      reviews: number;
+      threads: number;
+      replies: number;
+      likes: number;
+    }[]
+  >`
+    SELECT
+      (SELECT count(*) FROM "CollectionGame" cg
+         JOIN "CollectionEntry" ce ON ce."bggId" = cg."bggId" AND ce."userId" = ${userId} AND ce."showcased"
+         WHERE cg."bggUsername" = ${bggUsername})::int AS "showcaseCount",
+      (SELECT count(*) FROM "EventAttendee" ea
+         JOIN "Event" e ON e."id" = ea."eventId"
+         WHERE ea."userId" = ${userId} AND ea."status" IN ('attending', 'maybe')
+           AND e."visibility" = 'public' AND e."date" >= ${now})::int AS "upcomingEventCount",
+      (SELECT count(*) FROM "CollectionGame"
+         WHERE "bggUsername" = ${bggUsername} AND "status" = 'own' AND "subtype" = 'boardgame')::int AS "games",
+      (SELECT count(*) FROM "CollectionGame"
+         WHERE "bggUsername" = ${bggUsername} AND "status" = 'own' AND "subtype" = 'boardgameexpansion')::int AS "expansions",
+      (SELECT coalesce(sum("numPlays"), 0) FROM "CollectionGame"
+         WHERE "bggUsername" = ${bggUsername} AND "status" = 'own')::int AS "plays",
+      (SELECT count(*) FROM "GroupMember" WHERE "userId" = ${userId})::int AS "groups",
+      (SELECT count(*) FROM "EventAttendee" WHERE "userId" = ${userId} AND "status" = 'attending')::int AS "events",
+      (SELECT count(*) FROM "Event" WHERE "createdById" = ${userId})::int AS "hosted",
+      (SELECT count(*) FROM "Vote" WHERE "userId" = ${userId})::int AS "votes",
+      (SELECT count(*) FROM "GameReview" WHERE "userId" = ${userId})::int AS "reviews",
+      (SELECT count(*) FROM "CommunityThread" WHERE "authorId" = ${userId} AND "deletedAt" IS NULL)::int AS "threads",
+      (SELECT count(*) FROM "CommunityReply" r
+         JOIN "CommunityThread" t ON t."id" = r."threadId"
+         WHERE r."authorId" = ${userId} AND r."deletedAt" IS NULL AND t."deletedAt" IS NULL)::int AS "replies",
+      (SELECT count(*) FROM "CommunityReplyLike" l
+         JOIN "CommunityReply" r ON r."id" = l."replyId"
+         JOIN "CommunityThread" t ON t."id" = r."threadId"
+         WHERE r."authorId" = ${userId} AND r."deletedAt" IS NULL AND t."deletedAt" IS NULL)::int AS "likes"
+  `;
+  return row;
+}
 
 /**
  * La frase con la que se presenta el perfil fuera de la app: la descripción
@@ -314,26 +313,14 @@ export async function getPublicProfile(
   // antes de usarse y en las que TypeScript no arrastra el `if`)
   const owner = user;
 
-  // Con qué puede cruzarse quien mira: sus grupos y sus eventos. Sirve para
-  // decidir qué eventos y qué actividad del otro puede ver. Sin cuenta no hay
-  // nada de esto, y las listas vacías ya recortan solas las consultas.
-  const [viewerMemberships, viewerAttendances] = viewerId
-    ? await Promise.all([
-        prisma.groupMember.findMany({
-          where: { userId: viewerId },
-          select: { groupId: true },
-        }),
-        prisma.eventAttendee.findMany({
-          where: { userId: viewerId },
-          select: { eventId: true },
-        }),
-      ])
-    : [[], []];
-  const viewerGroupIds = viewerMemberships.map((m) => m.groupId);
-  const viewerEventIds = viewerAttendances.map((a) => a.eventId);
+  // Lo que puede ver quien mira depende de con qué se cruza: sus grupos y
+  // sus eventos. Va como filtro dentro de cada consulta (y no como una
+  // consulta previa de sus grupos y eventos) para no esperar un viaje más a
+  // la base de datos. Sin cuenta, solo lo público.
+  const viewerInGroup = viewerId ? { members: { some: { userId: viewerId } } } : null;
+  const viewerInEvent = viewerId ? { attendees: { some: { userId: viewerId } } } : null;
 
-  // A partir de aquí nada depende de lo anterior: todo a la vez, en vez de
-  // una consulta detrás de otra.
+  // Nada depende de nada: todo a la vez.
   const [sharedGroups, addedViewer, showcase, attendances, activity] = await Promise.all([
     getSharedGroups(),
     getAddedViewer(),
@@ -345,9 +332,9 @@ export async function getPublicProfile(
   // Grupos en común. De los grupos del otro solo enseñamos estos: los demás
   // no son asunto de quien mira, y quien no tiene cuenta no ve ninguno.
   function getSharedGroups() {
-    return viewerGroupIds.length
+    return viewerInGroup
     ? prisma.groupMember.findMany({
-        where: { userId: owner.id, groupId: { in: viewerGroupIds } },
+        where: { userId: owner.id, group: viewerInGroup },
         select: { group: { select: { id: true, name: true, type: true } } },
         orderBy: { joinedAt: "asc" },
       })
@@ -369,18 +356,14 @@ export async function getPublicProfile(
   async function getShowcase(): Promise<PublicProfile["showcase"]> {
     const bggUsername = owner.bggUsername;
     if (!bggUsername) return [];
-    const entries = await prisma.collectionEntry.findMany({
-      where: { userId: owner.id, showcased: true },
-      select: { bggId: true },
-    });
-    if (entries.length === 0) return [];
-    const rows = await prisma.collectionGame.findMany({
-      where: {
-        bggUsername: normalizeBggUsername(bggUsername),
-        bggId: { in: entries.map((e) => e.bggId) },
-      },
-      select: { bggId: true, name: true, image: true, thumbnail: true },
-    });
+    // Marcas y datos del juego cruzados en la base de datos: una consulta.
+    const rows = await prisma.$queryRaw<PublicProfile["showcase"]>`
+      SELECT cg."bggId", cg."name", cg."image", cg."thumbnail"
+      FROM "CollectionGame" cg
+      JOIN "CollectionEntry" ce
+        ON ce."bggId" = cg."bggId" AND ce."userId" = ${owner.id} AND ce."showcased"
+      WHERE cg."bggUsername" = ${normalizeBggUsername(bggUsername)}
+    `;
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -395,11 +378,8 @@ export async function getPublicProfile(
       event: {
         OR: [
           { visibility: "public" },
-          ...(viewerId
-            ? [
-                { createdById: viewerId },
-                { id: { in: viewerEventIds } },
-              ]
+          ...(viewerId && viewerInEvent
+            ? [{ createdById: viewerId }, viewerInEvent]
             : []),
         ],
       },
@@ -434,9 +414,9 @@ export async function getPublicProfile(
       userId: owner.id,
       scope: "public",
       OR: [
-        ...(viewerGroupIds.length ? [{ groupId: { in: viewerGroupIds } }] : []),
+        ...(viewerInGroup ? [{ group: viewerInGroup }] : []),
         { event: { visibility: "public" } },
-        ...(viewerEventIds.length ? [{ eventId: { in: viewerEventIds } }] : []),
+        ...(viewerInEvent ? [{ event: viewerInEvent }] : []),
       ],
     },
     orderBy: { createdAt: "desc" },
@@ -462,7 +442,7 @@ export async function getPublicProfile(
     date: a.event.date.toISOString(),
     endDate: a.event.endDate ? a.event.endDate.toISOString() : null,
     location: a.event.location,
-    imageUrl: a.event.imageUrl,
+    imageUrl: storedImageSrc("event", a.event.id, a.event.imageUrl),
     visibility: a.event.visibility,
     isOrganizer: a.event.createdById === user.id,
     status: a.status,
@@ -483,7 +463,8 @@ export async function getPublicProfile(
     displayName: displayName(user),
     location: user.location,
     bggUsername: user.bggUsername,
-    avatarUrl: user.avatarUrl,
+    // Por URL y no en base64 dentro del HTML (ver storedImages.ts).
+    avatarUrl: storedImageSrc("avatar", user.id, user.avatarUrl),
     memberSince: user.createdAt.toISOString(),
     isSelf: user.id === viewerId,
     addedViewer,
@@ -493,6 +474,7 @@ export async function getPublicProfile(
     pastEvents,
     activity: (await withGameCovers(activity)).map((a) => ({
       ...a,
+      user: { ...a.user, avatarUrl: storedImageSrc("avatar", a.user.id, a.user.avatarUrl) },
       metadata: a.metadata as Record<string, unknown>,
       createdAt: a.createdAt.toISOString(),
     })),

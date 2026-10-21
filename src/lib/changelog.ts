@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 octubre 2026",
+    version: "1.60",
+    title: "Perfiles a toda mecha",
+    changes: [
+      { type: "improved", text: "Los perfiles cargan bastante más rápido y pesan siete veces menos en el móvil" },
+    ],
+  },
+  {
+    date: "21 octubre 2026",
     version: "1.59",
     title: "Limpieza a fondo",
     changes: [

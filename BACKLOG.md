@@ -18,7 +18,7 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 2. Hacer un script de migración que recorra las filas con `data:` y las suba a Storage. Lo ejecuta el usuario, con `npm run db:snapshot` antes.
 3. Quitar `unoptimized` y dejar que `next/image` sirva tamaños adecuados.
 
-**Alternativa intermedia** (si no se quiere migrar aún): una ruta `GET /api/img/avatar/[userId]?v=<updatedAt>` que decodifique el base64 y lo sirva con `Cache-Control: public, max-age=31536000, immutable`. Los listados devolverían esa URL en vez del data URL.
+**Alternativa intermedia: ya existe.** `GET /api/img/[avatar|event]/[id]?v=<huella>` decodifica el base64 y lo sirve con caché inmutable; `storedImageSrc` (`src/lib/storedImages.ts`) da la URL. Hoy solo la usa el perfil público (bajó de ~700 KB a ~100 KB de HTML). Falta aplicarla en el resto de sitios que mandan avatares o carteles: feed, miembros, asistentes, eventos, portada, amigos…
 
 **Ojo.** Durante la migración convivirán filas con data URL y con URL de Storage, así que el código tiene que aceptar las dos. Hay que plantear el plan completo y la ventana de incompatibilidad antes de ejecutar nada.
 
