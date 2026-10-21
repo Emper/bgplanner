@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
+import { getEventDetail } from "@/lib/eventDetail";
+import { EVENT_FEED_LIMIT, getEventFeed } from "@/lib/eventFeed";
 import {
   getPublicEvent,
   eventTagline,
@@ -15,10 +19,49 @@ import RichText from "@/components/RichText";
 import SignupBanner from "@/components/SignupBanner";
 import { ButtonLink } from "@/components/ui/Button";
 import { cardClass } from "@/components/ui/Card";
-import EventClient from "./EventClient";
+import Navbar from "@/components/Navbar";
+import PageLoader from "@/components/PageLoader";
+import EventClient, { type EventData, type EventFeedPage } from "./EventClient";
 
 // Cambia según quién mire y con datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
+
+// Como en GET /api/events/[id]: si el evento toma sus juegos de una lista de
+// BGG, al abrirlo se reimporta después de responder y BGG puede tardar.
+export const maxDuration = 300;
+
+/**
+ * El evento (y, si se abre en la pestaña Actividad, la primera página de su
+ * feed) pedidos en el servidor y a la vez. Si no existe o es privado y no
+ * estás invitado, el cliente enseña su aviso de siempre.
+ */
+async function EventDetail({
+  eventId,
+  userId,
+  withFeed,
+}: {
+  eventId: string;
+  userId: string;
+  withFeed: boolean;
+}) {
+  let data: { event: EventData; feed?: EventFeedPage } | null = null;
+  let error: string | null = null;
+  try {
+    const [event, feed] = await Promise.all([
+      getEventDetail(eventId, userId),
+      withFeed ? getEventFeed(eventId, userId, { limit: EVENT_FEED_LIMIT, cursor: null }) : null,
+    ]);
+    // Por JSON, para que llegue con la misma forma que por la API (fechas
+    // como texto, etc.)
+    data = JSON.parse(JSON.stringify({ event, feed: feed ?? undefined }));
+  } catch (err) {
+    if (!(err instanceof ApiError)) throw err;
+    error = err.message;
+  }
+
+  if (!data) return <EventClient initialError={error ?? "Evento no encontrado"} />;
+  return <EventClient initial={data.event} initialFeed={data.feed} />;
+}
 
 // Cuándo y dónde primero (es lo que se busca), y luego lo que cuente el
 // organizador, hasta lo que cabe en un resultado de Google.
@@ -114,11 +157,32 @@ export async function generateMetadata({
 
 export default async function EventPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getSession();
-  if (session) return <EventClient />;
+  if (session) {
+    const [{ id: eventId }, { tab }] = await Promise.all([params, searchParams]);
+    // La pestaña por defecto es Actividad: solo entonces hace falta el feed.
+    // Con otra (o una rara) lo pide el cliente si llega a abrirla.
+    const withFeed = tab === undefined || tab === "activity";
+    // La cabecera sale ya; el evento llega en cuanto está, sin congelar la
+    // navegación mientras tanto
+    return (
+      <Suspense
+        fallback={
+          <>
+            <Navbar />
+            <PageLoader withNavbar />
+          </>
+        }
+      >
+        <EventDetail eventId={eventId} userId={session.userId} withFeed={withFeed} />
+      </Suspense>
+    );
+  }
 
   const { id } = await params;
   const event = await getPublicEvent(id);

@@ -37,6 +37,7 @@ import { toFriend } from "@/lib/friends";
 import { plural } from "@/lib/text";
 import { bggGameUrl, bggUserUrl } from "@/lib/bggLinks";
 import { shareUrl } from "@/lib/site";
+import { groupTabFromParam, type GroupTab } from "@/lib/groupTabs";
 
 // Modales y galería que solo se abren a petición: su código se descarga
 // entonces, no con la ficha del grupo.
@@ -119,7 +120,31 @@ interface GameNightData {
   games: { id: string; game: { id: string; bggId: number; name: string; thumbnail: string | null; playingTime: number | null } }[];
 }
 
-type Tab = "ranking" | "sessions" | "members" | "activity" | "gallery";
+type Tab = GroupTab;
+
+interface GroupStats {
+  gamesCount: number;
+  playsCount: number;
+  totalMinutes: number;
+  lastPlayedAt: string | null;
+  topGame: { name: string; thumbnail: string | null; playCount: number } | null;
+}
+
+/**
+ * Lo que trae la página de servidor en la primera carga, con la misma forma
+ * que las respuestas de /api/groups/[id]/dashboard y /feed. `feed` solo
+ * viene si se abre la pestaña de actividad.
+ */
+export interface GroupInitial {
+  dashboard: {
+    group: GroupData;
+    ranking: RankedGame[];
+    nights: GameNightData[];
+    stats: GroupStats | null;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  feed: { items: any[]; nextCursor: string | null } | null;
+}
 
 function VoteButton({
   option,
@@ -172,8 +197,16 @@ function VoteButton({
 
 
 // El panel completo del grupo, solo para miembros con sesión: lo sirve
-// page.tsx, que a quien llega sin cuenta le enseña la ficha pública.
-export default function GroupClient() {
+// page.tsx, que a quien llega sin cuenta le enseña la ficha pública. Llega
+// con los datos ya pedidos en el servidor (`initial`) o con el error que dio
+// (`initialError`); sin ninguno de los dos, los pide él al montarse.
+export default function GroupClient({
+  initial,
+  initialError,
+}: {
+  initial?: GroupInitial;
+  initialError?: string;
+} = {}) {
   return (
     <Suspense
       fallback={
@@ -183,25 +216,27 @@ export default function GroupClient() {
         </>
       }
     >
-      <GroupDashboardPage />
+      <GroupDashboardPage initial={initial} initialError={initialError} />
     </Suspense>
   );
 }
 
-function tabFromParam(tab: string | null): Tab {
-  return tab === "ranking" || tab === "sessions" || tab === "members" || tab === "gallery" ? tab : "activity";
-}
-
-function GroupDashboardPage() {
+function GroupDashboardPage({
+  initial,
+  initialError,
+}: {
+  initial?: GroupInitial;
+  initialError?: string;
+}) {
   const { id: groupId } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
-  const [group, setGroup] = useState<GroupData | null>(null);
-  const [ranking, setRanking] = useState<RankedGame[]>([]);
+  const [group, setGroup] = useState<GroupData | null>(initial?.dashboard.group ?? null);
+  const [ranking, setRanking] = useState<RankedGame[]>(initial?.dashboard.ranking ?? []);
 
-  const [activeTab, setActiveTab] = useState<Tab>(() => tabFromParam(searchParams.get("tab")));
+  const [activeTab, setActiveTab] = useState<Tab>(() => groupTabFromParam(searchParams.get("tab")));
   // Opinión post-partida: juego cuyo modal está abierto + modo (marcar / solo reseña)
   const [reviewModal, setReviewModal] = useState<{ gameId: string; gameName: string; mode: "mark" | "review" } | null>(null);
   const [galleryReloadKey, setGalleryReloadKey] = useState(0);
@@ -246,8 +281,9 @@ function GroupDashboardPage() {
       window.removeEventListener("pointercancel", up, true);
     };
   }, []);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Con datos (o error) del servidor no hay carga de arranque.
+  const [loading, setLoading] = useState(!initial && !initialError);
+  const [error, setError] = useState(initialError ?? "");
   const [removingGame, setRemovingGame] = useState<string | null>(null);
   const [openVoteTooltip, setOpenVoteTooltip] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -255,7 +291,13 @@ function GroupDashboardPage() {
 
   // Group activity feed (restore from cache if available)
   const feedCacheKey = `group:${groupId}`;
-  const cachedFeed = getCachedFeed(feedCacheKey);
+  // La primera página que trae el servidor manda sobre la caché, y la siembra
+  // para que al volver a la ficha no haya que pedirla otra vez.
+  const [cachedFeed] = useState(() => {
+    if (!initial?.feed) return getCachedFeed(feedCacheKey);
+    setCachedFeed(feedCacheKey, initial.feed.items, initial.feed.nextCursor);
+    return { items: initial.feed.items, cursor: initial.feed.nextCursor };
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [feedItems, setFeedItems] = useState<any[]>(cachedFeed?.items ?? []);
   const [feedCursor, setFeedCursor] = useState<string | null>(cachedFeed?.cursor ?? null);
@@ -283,15 +325,9 @@ function GroupDashboardPage() {
   const [deleteError, setDeleteError] = useState("");
 
   // Group stats (juegos, partidas, horas, juego más jugado, última partida)
-  const [stats, setStats] = useState<{
-    gamesCount: number;
-    playsCount: number;
-    totalMinutes: number;
-    lastPlayedAt: string | null;
-    topGame: { name: string; thumbnail: string | null; playCount: number } | null;
-  } | null>(null);
+  const [stats, setStats] = useState<GroupStats | null>(initial?.dashboard.stats ?? null);
 
-  const [nights, setNights] = useState<GameNightData[]>([]);
+  const [nights, setNights] = useState<GameNightData[]>(initial?.dashboard.nights ?? []);
 
   // Invite state
   const [inviteEmail, setInviteEmail] = useState("");
@@ -300,21 +336,28 @@ function GroupDashboardPage() {
   const [inviteError, setInviteError] = useState("");
 
   // Invite link state
-  const [inviteLinkCode, setInviteLinkCode] = useState<string | null>(null);
-  const [inviteLinkEnabled, setInviteLinkEnabled] = useState(true);
+  const [inviteLinkCode, setInviteLinkCode] = useState<string | null>(
+    initial?.dashboard.group.inviteCode ?? null
+  );
+  const [inviteLinkEnabled, setInviteLinkEnabled] = useState(
+    initial?.dashboard.group.inviteEnabled ?? true
+  );
   const [inviteLinkLoading, setInviteLinkLoading] = useState(false);
   const { copied: inviteLinkCopied, copy: copyInviteLink } = useCopy();
 
   // Sync tab to URL. Cambiar de pestaña deja historial (push) para que
-  // «atrás» vuelva a la anterior; lo demás reemplaza la entrada.
+  // «atrás» vuelva a la anterior; lo demás reemplaza la entrada. Con el
+  // history del navegador y no con el router: así Next actualiza
+  // useSearchParams sin volver a pintar la página en el servidor, que
+  // pediría otra vez todos los datos del grupo en cada cambio de pestaña.
   const updateUrl = useCallback((tab: Tab, push = false) => {
     const params = new URLSearchParams();
     if (tab !== "activity") params.set("tab", tab);
     const query = params.toString();
     const url = `/groups/${groupId}${query ? `?${query}` : ""}`;
-    if (push) router.push(url, { scroll: false });
-    else router.replace(url, { scroll: false });
-  }, [router, groupId]);
+    if (push) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  }, [groupId]);
 
   const fetchGroupFeed = useCallback(async (cursor?: string) => {
     setFeedLoading(true);
@@ -354,7 +397,7 @@ function GroupDashboardPage() {
   // un cambio propio mientras el router aún no ha actualizado la URL.
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
-  const urlTab = tabFromParam(searchParams.get("tab"));
+  const urlTab = groupTabFromParam(searchParams.get("tab"));
   useEffect(() => {
     if (urlTab === activeTabRef.current) return;
     setActiveTab(urlTab);
@@ -409,9 +452,11 @@ function GroupDashboardPage() {
     }
   }, [groupId, unfreezeOrder]);
 
+  // Sin datos del servidor, la carga de arranque la hace el cliente.
+  const needsInitialFetch = !initial && !initialError;
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (needsInitialFetch) fetchData();
+  }, [fetchData, needsInitialFetch]);
 
   // Split into pending (not yet played) and played. Las partidas de las
   // noches de juego también dejan playedAt.

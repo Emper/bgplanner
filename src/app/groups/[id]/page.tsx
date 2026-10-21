@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
+import { getGroupDashboard } from "@/lib/groupDashboard";
+import { getGroupFeed, GROUP_FEED_LIMIT } from "@/lib/groupFeed";
+import { groupTabFromParam } from "@/lib/groupTabs";
 import { getPublicGroup, groupTagline } from "@/lib/publicLinks";
 import { getGroupType } from "@/lib/groupTypes";
 import { loginHref } from "@/lib/site";
 import { plural } from "@/lib/text";
 import PublicPeek from "@/components/PublicPeek";
-import GroupClient from "./GroupClient";
+import Navbar from "@/components/Navbar";
+import PageLoader from "@/components/PageLoader";
+import GroupClient, { type GroupInitial } from "./GroupClient";
 
 // Cambia según quién mire y con datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
@@ -44,13 +51,64 @@ export async function generateMetadata({
   };
 }
 
+// Los datos de la ficha para un miembro, pedidos en el servidor: llegan en
+// la misma respuesta (en streaming tras el loader) en vez de esperar a que
+// arranque el JS. El feed solo si la pestaña que se abre es la de actividad.
+async function GroupData({
+  groupId,
+  userId,
+  tab,
+}: {
+  groupId: string;
+  userId: string;
+  tab: string | null;
+}) {
+  const withFeed = groupTabFromParam(tab) === "activity";
+  let initial: GroupInitial;
+  try {
+    const [dashboard, feed] = await Promise.all([
+      getGroupDashboard(groupId, userId),
+      withFeed ? getGroupFeed(groupId, userId, { limit: GROUP_FEED_LIMIT, cursor: null }) : null,
+    ]);
+    // Misma forma que la API (fechas como texto) para que el cliente no note
+    // de dónde vienen.
+    initial = JSON.parse(JSON.stringify({ dashboard, feed }));
+  } catch (err) {
+    // No es miembro (o el grupo no existe): el mismo aviso que pinta el
+    // cliente cuando la API le contesta con error.
+    if (err instanceof ApiError) return <GroupClient initialError="Error al cargar el grupo" />;
+    throw err;
+  }
+  return <GroupClient initial={initial} />;
+}
+
 export default async function GroupPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const session = await getSession();
-  if (session) return <GroupClient />;
+  if (session) {
+    const [{ id }, { tab }] = await Promise.all([params, searchParams]);
+    return (
+      <Suspense
+        fallback={
+          <>
+            <Navbar />
+            <PageLoader withNavbar />
+          </>
+        }
+      >
+        <GroupData
+          groupId={id}
+          userId={session.userId}
+          tab={typeof tab === "string" ? tab : null}
+        />
+      </Suspense>
+    );
+  }
 
   const { id } = await params;
   const group = await getPublicGroup(id);

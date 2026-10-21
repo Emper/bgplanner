@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +19,9 @@ import { EVENT_ABOUT_MAX, joinNames, plural } from "@/lib/text";
 import { resizeImage } from "@/lib/image";
 import { displayName, profileHref } from "@/lib/users";
 import { bggGameUrl, bggUserUrl } from "@/lib/bggLinks";
-import { readStorage, writeStorage } from "@/lib/storage";
+import { writeStorage } from "@/lib/storage";
+import { useStoredValue } from "@/hooks/useStoredValue";
+import { shareUrl } from "@/lib/site";
 import { copyText } from "@/lib/clipboard";
 import { useCopy } from "@/hooks/useCopy";
 import PageShell from "@/components/ui/PageShell";
@@ -88,7 +90,7 @@ interface Attendee {
   user: { id: string; name: string | null; displayName: string | null; surname: string | null; avatarUrl: string | null; bggUsername: string | null; slug: string | null };
 }
 
-interface EventData {
+export interface EventData {
   id: string;
   name: string;
   description: string | null;
@@ -138,7 +140,7 @@ function communityAnnounceHref(event: EventData): string {
   const lines = [
     `¡Hola! Organizamos «${event.name}» el ${when}${event.location ? ` en ${event.location}` : ""} y buscamos más gente para jugar.`,
     event.description?.trim() || "",
-    `Toda la info y para apuntarse: ${window.location.origin}/events/${event.id}`,
+    `Toda la info y para apuntarse: ${shareUrl(`/events/${event.id}`)}`,
   ].filter(Boolean);
   const params = new URLSearchParams({
     nuevo: "1",
@@ -149,12 +151,30 @@ function communityAnnounceHref(event: EventData): string {
   return `/community?${params.toString()}`;
 }
 
-function EventDetailPageInner() {
+/** Una página del feed tal y como la devuelve /api/events/[id]/feed. */
+export interface EventFeedPage {
+  items: Parameters<typeof setCachedFeed>[1];
+  nextCursor: string | null;
+}
+
+/**
+ * Lo que trae pintado el servidor (page.tsx). `initial` es el evento con la
+ * misma forma que GET /api/events/[id]; `initialError`, que no existe o no
+ * puedes verlo. Sin nada de esto, el cliente lo pide como siempre.
+ */
+interface EventClientProps {
+  initial?: EventData;
+  initialFeed?: EventFeedPage;
+  initialError?: string;
+}
+
+function EventDetailPageInner({ initial, initialFeed, initialError }: EventClientProps) {
   const { id: eventId } = useParams<{ id: string }>();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [event, setEvent] = useState<EventData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [event, setEvent] = useState<EventData | null>(initial ?? null);
+  // Con datos del servidor (o su «no existe») no hay carga de arranque
+  const fromServer = !!initial || !!initialError;
+  const [loading, setLoading] = useState(!fromServer);
   const toast = useToast();
   const confirm = useConfirm();
   const { copied: inviteCopied, copy } = useCopy();
@@ -167,14 +187,20 @@ function EventDetailPageInner() {
   const [now] = useState(() => Date.now());
   const [addingGame, setAddingGame] = useState(false);
   const [joiningEvent, setJoiningEvent] = useState(false);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(initial?.inviteCode ?? null);
   const [generatingLink, setGeneratingLink] = useState(false);
   // La caja del enlace de invitación va plegada salvo que la hayas abierto
-  const [inviteOpen, setInviteOpen] = useState(() => readStorage(INVITE_OPEN_KEY) === "1");
+  const storedInviteOpen = useStoredValue(INVITE_OPEN_KEY);
+  const [chosenInviteOpen, setInviteOpen] = useState<boolean | null>(null);
+  const inviteOpen = chosenInviteOpen ?? storedInviteOpen === "1";
 
-  // Activity feed state (restore from cache if available)
+  // Activity feed state: la primera página del servidor, o la caché si la hay
   const eventFeedCacheKey = `event:${eventId}`;
-  const cachedEventFeed = getCachedFeed(eventFeedCacheKey);
+  const [cachedEventFeed] = useState(() =>
+    initialFeed
+      ? { items: initialFeed.items, cursor: initialFeed.nextCursor }
+      : getCachedFeed(eventFeedCacheKey)
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [feedItems, setFeedItems] = useState<any[]>(cachedEventFeed?.items ?? []);
   const [feedCursor, setFeedCursor] = useState<string | null>(cachedEventFeed?.cursor ?? null);
@@ -240,8 +266,13 @@ function EventDetailPageInner() {
   );
 
   useEffect(() => {
-    fetchEvent();
-  }, [fetchEvent]);
+    if (!fromServer) fetchEvent();
+  }, [fetchEvent, fromServer]);
+
+  // Lo que llega del servidor se siembra en la caché, como si se hubiera pedido
+  useEffect(() => {
+    if (initialFeed) setCachedFeed(`event:${eventId}`, initialFeed.items, initialFeed.nextCursor);
+  }, [initialFeed, eventId]);
 
   useEffect(() => {
     if (activeTab === "activity" && !feedLoaded) fetchEventFeed();
@@ -260,39 +291,45 @@ function EventDetailPageInner() {
     return ids && ids.length > 0 ? ids : null;
   });
 
+  // La pestaña y la mesa van en la URL con history y no con el router: el
+  // router volvería a pintar la página en el servidor (y a pedir todo el
+  // evento) en cada cambio de pestaña. Next mantiene useSearchParams al día.
+  const replaceUrl = useCallback((query: string) => {
+    window.history.replaceState(null, "", `/events/${eventId}${query}`);
+  }, [eventId]);
+
   const openMesa = useCallback((ids: string[]) => {
     setMesa(ids);
     setActiveTab("attendees");
-    router.replace(`/events/${eventId}?tab=attendees&mesa=${ids.join(",")}`, { scroll: false });
+    replaceUrl(`?tab=attendees&mesa=${ids.join(",")}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [router, eventId]);
+  }, [replaceUrl]);
 
   const closeMesa = useCallback(() => {
     setMesa(null);
-    router.replace(`/events/${eventId}?tab=attendees`, { scroll: false });
-  }, [router, eventId]);
+    replaceUrl("?tab=attendees");
+  }, [replaceUrl]);
 
   const switchTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
     setMesa(null);
-    router.replace(`/events/${eventId}${tab !== "activity" ? `?tab=${tab}` : ""}`, { scroll: false });
+    replaceUrl(tab !== "activity" ? `?tab=${tab}` : "");
     // La primera vez lo carga el efecto de arriba; aquí solo se refresca.
     if (tab === "activity" && feedLoaded) {
       setFeedLoading(true);
       fetchEventFeed();
     }
-  }, [router, eventId, feedLoaded, fetchEventFeed]);
+  }, [replaceUrl, feedLoaded, fetchEventFeed]);
 
   const toggleInvite = () => {
-    setInviteOpen((open) => {
-      // Sin almacenamiento (modo privado) simplemente no se recuerda
-      writeStorage(INVITE_OPEN_KEY, open ? "0" : "1");
-      return !open;
-    });
+    const next = !inviteOpen;
+    // Sin almacenamiento (modo privado) simplemente no se recuerda
+    writeStorage(INVITE_OPEN_KEY, next ? "1" : "0");
+    setInviteOpen(next);
   };
 
   const copyInvite = async () => {
-    if (!(await copy(`${window.location.origin}/join-event/${inviteCode}`))) {
+    if (!(await copy(shareUrl(`/join-event/${inviteCode}`)))) {
       toast.error("No se ha podido copiar el enlace");
     }
   };
@@ -751,7 +788,7 @@ function EventDetailPageInner() {
                       readOnly
                       size="sm"
                       aria-label="Enlace de invitación"
-                      value={`${window.location.origin}/join-event/${inviteCode}`}
+                      value={shareUrl(`/join-event/${inviteCode}`)}
                       onFocus={(e) => e.currentTarget.select()}
                       className="flex-1 min-w-0 truncate"
                     />
@@ -993,10 +1030,10 @@ function EventLoading() {
 
 // La ficha completa del evento, solo para quien ha iniciado sesión: la sirve
 // page.tsx, que a quien llega sin cuenta le enseña la versión pública.
-export default function EventClient() {
+export default function EventClient(props: EventClientProps) {
   return (
     <Suspense fallback={<EventLoading />}>
-      <EventDetailPageInner />
+      <EventDetailPageInner {...props} />
     </Suspense>
   );
 }
@@ -1022,10 +1059,10 @@ function GamesTab({
 }) {
   const isAttending = !!event.currentAttendeeId;
   const linked = !!event.bggGeeklistId;
-  const [sort, setSort] = useState<GameSort>(() => {
-    const saved = readStorage(GAME_SORT_KEY);
-    return GAME_SORTS.some((o) => o.key === saved) ? (saved as GameSort) : "added";
-  });
+  const savedSort = useStoredValue(GAME_SORT_KEY);
+  const [chosenSort, setSort] = useState<GameSort | null>(null);
+  const sort: GameSort =
+    chosenSort ?? (GAME_SORTS.some((o) => o.key === savedSort) ? (savedSort as GameSort) : "added");
   const [openGone, setOpenGone] = useState<string | null>(null);
 
   const chooseSort = (key: GameSort) => {
@@ -1535,7 +1572,7 @@ function ShareListModal({
     }
   };
 
-  const url = token ? `${window.location.origin}/l/${token}` : "";
+  const url = token ? shareUrl(`/l/${token}`) : "";
 
   const copy = async () => {
     if (await copyText(url)) toast("Enlace copiado");
@@ -1645,7 +1682,7 @@ function AttendeesTab({
         members={mesaMembers}
         games={listedGames(event)}
         currentAttendeeId={me}
-        shareUrl={`${window.location.origin}/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`}
+        shareUrl={shareUrl(`/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`)}
         onClose={onCloseMesa}
       />
     );

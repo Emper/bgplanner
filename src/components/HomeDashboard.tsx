@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type ComponentProps } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
@@ -18,7 +18,7 @@ import { displayName, profileHref } from "@/lib/users";
 import { plural, pluralWord } from "@/lib/text";
 import { useNavUser } from "@/lib/navUser";
 import { TagChip, type CommunityAuthor } from "@/components/CommunityBits";
-import { formatRelativeTime } from "@/lib/format";
+import { APP_TZ, formatRelativeTime } from "@/lib/format";
 
 // La portada de quien tiene cuenta (la pinta / cuando hay sesión). En escritorio, una barra lateral con
 // accesos directos (grupos › eventos › amigos) y a la derecha lo que se mueve:
@@ -62,28 +62,53 @@ interface CommunityThread {
   lastReply: { createdAt: string; author: CommunityAuthor } | null;
 }
 
+/**
+ * Lo que el servidor manda ya pedido (ver getHomeData), con la misma forma
+ * que las respuestas de la API. Sin él, la página lo pide al arrancar.
+ */
+export interface HomeInitial {
+  groups: Group[];
+  recentGames: RecentGame[];
+  events: UpcomingEvent[];
+  feed: { items: ComponentProps<typeof ActivityFeed>["items"]; nextCursor: string | null };
+  threads: CommunityThread[];
+}
+
+// La hora se lee en la zona del navegador; en el servidor (que va en UTC) se
+// usa la de España, para que lo pintado allí coincida con lo de aquí.
+const zone = () => (typeof window === "undefined" ? APP_TZ : undefined);
+
+// Los próximos, del más cercano al más lejano.
+function upcomingOnly(events: UpcomingEvent[]) {
+  const now = new Date();
+  return events
+    .filter((e) => new Date(e.date) >= now)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
 // «Buenos días» a las 9 y «buenas noches» a las 23: la app se usa mucho
 // de noche, que es cuando se queda para jugar.
 function greeting() {
-  const h = new Date().getHours();
+  const h = Number(new Date().toLocaleString("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: zone() }));
   if (h >= 6 && h < 14) return "Buenos días";
   if (h >= 14 && h < 21) return "Buenas tardes";
   return "Buenas noches";
 }
 
+// El día del calendario (AAAA-MM-DD) en la zona de quien mira.
+const dayKey = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: zone() });
+
 function daysUntil(date: string) {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - start.getTime()) / 86_400_000);
+  return Math.round(
+    (Date.parse(dayKey(new Date(date))) - Date.parse(dayKey(new Date()))) / 86_400_000
+  );
 }
 
 function whenLabel(date: string) {
   const days = daysUntil(date);
   if (days <= 0) return "hoy";
   if (days === 1) return "mañana";
-  if (days < 7) return `el ${new Date(date).toLocaleDateString("es-ES", { weekday: "long" })}`;
+  if (days < 7) return `el ${new Date(date).toLocaleDateString("es-ES", { weekday: "long", timeZone: zone() })}`;
   return `en ${days} días`;
 }
 
@@ -222,7 +247,7 @@ function EventsSection({ events }: { events: UpcomingEvent[] }) {
               title={event.name}
               className={`${SIDE_ITEM} w-56 lg:w-auto p-3 lg:px-2 lg:py-1.5 flex items-center gap-3`}
             >
-              <DateTile date={event.date} size="sm" />
+              <DateTile date={event.date} size="sm" timeZone={zone()} />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold lg:font-medium text-[var(--text)] truncate">
                   {event.name}
@@ -390,22 +415,35 @@ function RecentGameCard({ item }: { item: RecentGame }) {
 
 // ── Página ────────────────────────────────────────────────────────────────
 
-export default function HomeDashboard() {
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
-  const [threads, setThreads] = useState<CommunityThread[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function HomeDashboard({
+  initial,
+  initialError,
+}: {
+  /** Los datos ya pedidos en el servidor: sin ellos, se piden al arrancar. */
+  initial?: HomeInitial;
+  initialError?: string;
+} = {}) {
+  const [groups, setGroups] = useState<Group[]>(initial?.groups ?? []);
+  const [recentGames, setRecentGames] = useState<RecentGame[]>(initial?.recentGames ?? []);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>(() =>
+    initial ? upcomingOnly(initial.events) : []
+  );
+  const [threads, setThreads] = useState<CommunityThread[]>(initial?.threads ?? []);
+  // Con lo del servidor no hay nada que pedir al arrancar
+  const hasInitial = !!initial || !!initialError;
+  const preloaded = useRef(hasInitial);
+  const [loading, setLoading] = useState(!hasInitial);
   const navUser = useNavUser();
   const firstName = navUser?.name.trim().split(/\s+/)[0] || null;
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError ?? "");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [feedItems, setFeedItems] = useState<any[]>([]);
-  const [feedCursor, setFeedCursor] = useState<string | null>(null);
-  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedItems, setFeedItems] = useState<any[]>(initial?.feed.items ?? []);
+  const [feedCursor, setFeedCursor] = useState<string | null>(initial?.feed.nextCursor ?? null);
+  const [feedHasMore, setFeedHasMore] = useState(!!initial?.feed.nextCursor);
   const [feedLoading, setFeedLoading] = useState(false);
 
   useEffect(() => {
+    if (preloaded.current) return;
     const fetchData = async () => {
       try {
         // El nombre para saludar sale de lo que ya ha pedido la cabecera
@@ -422,13 +460,7 @@ export default function HomeDashboard() {
 
         if (gamesRes.ok) setRecentGames(await gamesRes.json());
         if (eventsRes.ok) {
-          const allEvents: UpcomingEvent[] = await eventsRes.json();
-          const now = new Date();
-          setUpcomingEvents(
-            allEvents
-              .filter((e) => new Date(e.date) >= now)
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-          );
+          setUpcomingEvents(upcomingOnly(await eventsRes.json()));
         }
 
         if (communityRes?.ok) setThreads((await communityRes.json()).threads ?? []);

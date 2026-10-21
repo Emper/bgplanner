@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +11,11 @@ import { getLatestThreads, type ThreadListItem } from "@/lib/communityServer";
 import { APP_TZ, formatRelativeTime } from "@/lib/format";
 import { jsonLdHtml } from "@/lib/html";
 import { APP_URL, loginHref } from "@/lib/site";
-import HomeDashboard from "@/components/HomeDashboard";
+import HomeDashboard, { type HomeInitial } from "@/components/HomeDashboard";
+import Navbar from "@/components/Navbar";
+import PageLoader from "@/components/PageLoader";
+import PageShell from "@/components/ui/PageShell";
+import { getHomeData } from "@/lib/homeData";
 
 // Con sesión, tu inicio (grupos, eventos, amigos y actividad); sin ella, la
 // portada con los próximos eventos abiertos. Se decide en el servidor para no enseñar un loader a
@@ -109,6 +114,21 @@ function nextSaturday(): DemoDate {
   };
 }
 
+// Los datos del inicio, pedidos aquí y no desde el navegador. Va dentro de un
+// Suspense: la cabecera y el dado salen al momento y esto llega después en
+// la misma respuesta.
+async function HomeData({ userId }: { userId: string }) {
+  let initial: HomeInitial;
+  try {
+    // Mismo JSON que daba la API: fechas como texto, etc.
+    initial = JSON.parse(JSON.stringify(await getHomeData(userId))) as HomeInitial;
+  } catch {
+    // Lo mismo que pintaba el navegador si fallaba /api/groups
+    return <HomeDashboard initialError="Error al cargar tu inicio" />;
+  }
+  return <HomeDashboard initial={initial} />;
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -126,7 +146,17 @@ export default async function Home({
     });
     if (user) {
       if (target) redirect(target);
-      return <HomeDashboard />;
+      return (
+        <Suspense
+          fallback={
+            <PageShell nav={<Navbar />} width="wide">
+              <PageLoader withNavbar />
+            </PageShell>
+          }
+        >
+          <HomeData userId={session.userId} />
+        </Suspense>
+      );
     }
   }
 
