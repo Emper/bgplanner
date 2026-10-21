@@ -83,3 +83,22 @@ export function manualSourceLabel(url: string): string {
   if (host.endsWith("onedrive.live.com") || host === "1drv.ms" || host.endsWith("sharepoint.com")) return "OneDrive";
   return host;
 }
+
+// ── Enlaces a BoardGameGeek ─────────────────────────────────────────────
+
+const BGG = "https://boardgamegeek.com";
+
+/** La ficha de un juego (o de una expansión) en BGG. */
+export function bggGameUrl(bggId: number, { expansion = false }: { expansion?: boolean } = {}): string {
+  return `${BGG}/${expansion ? "boardgameexpansion" : "boardgame"}/${bggId}`;
+}
+
+/** El perfil de un usuario de BGG (los nombres pueden llevar espacios). */
+export function bggUserUrl(username: string): string {
+  return `${BGG}/user/${encodeURIComponent(username)}`;
+}
+
+/** Una geeklist de BGG. */
+export function bggGeeklistUrl(id: number | string): string {
+  return `${BGG}/geeklist/${id}`;
+}

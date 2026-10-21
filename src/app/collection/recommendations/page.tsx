@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggRating from "@/components/BggRating";
 import GameTags from "@/components/GameTags";
+import { fitsWeight } from "@/lib/gameLabels";
 import type {
   RecommendationsResponse,
   RecommendationsStatus,
@@ -42,11 +43,7 @@ function matches(game: RecommendedGame, players: Players, weight: Weight): boole
     const max = game.maxPlayers ?? 99;
     if (n === 5 ? max < 5 : n < min || n > max) return false;
   }
-  if (weight && game.weight) {
-    if (weight === "light" && game.weight >= 2.2) return false;
-    if (weight === "medium" && (game.weight < 2.2 || game.weight >= 3.4)) return false;
-    if (weight === "heavy" && game.weight < 3.4) return false;
-  }
+  if (!fitsWeight(game.weight, weight)) return false;
   return true;
 }
 

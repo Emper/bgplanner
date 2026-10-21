@@ -39,3 +39,22 @@ export function excerpt(value: string, max: number): string {
   const lastSpace = cut.lastIndexOf(" ");
   return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:]+$/, "")}…`;
 }
+
+/**
+ * "1 juego", "3 juegos", "1.234 partidas": el número (con separador de
+ * miles) y la palabra que le toca.
+ */
+export function plural(n: number, one: string, many: string): string {
+  return `${n.toLocaleString("es-ES")} ${n === 1 ? one : many}`;
+}
+
+/** Solo la palabra: "juego" o "juegos". */
+export function pluralWord(n: number, one: string, many: string): string {
+  return n === 1 ? one : many;
+}
+
+/** "Ana", "Ana y Luis", "Ana, Luis y Marta". */
+export function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+}

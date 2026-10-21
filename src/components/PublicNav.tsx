@@ -22,12 +22,10 @@ export type NavSection = { href: string; label: string };
 export default function PublicNav({
   loginHref,
   sections,
-  wide = false,
 }: {
   loginHref: string;
   /** Anclas de la portada: sustituyen a los enlaces públicos desde md. */
   sections?: NavSection[];
-  wide?: boolean;
 }) {
   const pathname = usePathname();
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
@@ -48,7 +46,7 @@ export default function PublicNav({
           : "border-transparent"
       }`}
     >
-      <div className={`${wide ? "max-w-6xl" : "max-w-5xl"} mx-auto flex items-center justify-between gap-2`}>
+      <div className={`max-w-6xl mx-auto flex items-center justify-between gap-2`}>
         <Link href="/" className="flex items-center shrink-0">
           <AnimatedLogo />
         </Link>

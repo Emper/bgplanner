@@ -28,6 +28,14 @@
   --glow: rgba(200, 122, 26, 0.15);
   --card-shadow: 0 1px 3px rgba(26, 22, 18, 0.06), 0 1px 2px rgba(26, 22, 18, 0.04);
   --card-shadow-hover: 0 8px 25px rgba(26, 22, 18, 0.1), 0 4px 10px rgba(26, 22, 18, 0.06);
+  /* Estados: texto legible sobre el fondo de cada tema y su versión suave
+     para fondos de avisos y etiquetas. */
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.08);
+  --success: #047857;
+  --success-soft: rgba(4, 120, 87, 0.08);
+  --warning: #b45309;
+  --warning-soft: rgba(180, 83, 9, 0.08);
 }
 
 .dark {
@@ -51,6 +59,12 @@
   --glow: rgba(232, 168, 64, 0.12);
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
   --card-shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.2);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.12);
 }
 
 @theme inline {
@@ -64,9 +78,12 @@
   --color-border: var(--border);
   --color-input: var(--input-bg);
   --color-input-border: var(--input-border);
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
   --font-mono: var(--font-geist-mono);

@@ -73,7 +73,7 @@ const NAV_LINKS = [
 ];
 
 function Nav({ loginHref }: { loginHref: string }) {
-  return <PublicNav loginHref={loginHref} sections={NAV_LINKS} wide />;
+  return <PublicNav loginHref={loginHref} sections={NAV_LINKS} />;
 }
 
 // ── Piezas sueltas ──────────────────────────────────────────────────────

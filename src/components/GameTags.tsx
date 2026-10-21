@@ -1,4 +1,5 @@
 import { formatDateShort, formatDuration } from "@/lib/format";
+import { playersLabel, weightLabel } from "@/lib/gameLabels";
 
 // Las etiquetas de un juego en cualquier listado (colección, añadir juegos,
 // ranking del grupo, evento, recomendaciones, «¡A jugar!»): siempre el mismo
@@ -50,20 +51,6 @@ export function GameTag({
       {children}
     </span>
   );
-}
-
-export function weightLabel(w: number): string {
-  if (w < 1.5) return "Ligero";
-  if (w < 2.5) return "Medio-ligero";
-  if (w < 3.5) return "Medio";
-  if (w < 4.5) return "Pesado";
-  return "Muy pesado";
-}
-
-function playersLabel(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max && min !== max) return `${min}-${max}`;
-  return String(min || max);
 }
 
 export interface GameTagsData {

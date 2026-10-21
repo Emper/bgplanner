@@ -11,13 +11,11 @@
 // juego no lo quiere y 0 es un veto; aquí no votar es indiferencia y el voto
 // negativo ya resta en la suma.
 
-export type WeightId = "light" | "medium" | "heavy";
+import { WEIGHT_FILTERS, type WeightId } from "@/lib/gameLabels";
 
-export const NIGHT_WEIGHTS: { id: WeightId; emoji: string; label: string; fits: (w: number) => boolean }[] = [
-  { id: "light", emoji: "🪶", label: "Ligero", fits: (w) => w < 2 },
-  { id: "medium", emoji: "⚖️", label: "Medio", fits: (w) => w >= 2 && w < 3 },
-  { id: "heavy", emoji: "🧠", label: "Duro", fits: (w) => w >= 3 },
-];
+export type { WeightId };
+/** Los cubos de peso de siempre (lib/gameLabels), los mismos en toda la app. */
+export const NIGHT_WEIGHTS = WEIGHT_FILTERS;
 
 /** Tiempos que se ofrecen, en minutos. `null` = sin prisa. */
 export const NIGHT_TIMES: (number | null)[] = [60, 90, 120, 180, null];

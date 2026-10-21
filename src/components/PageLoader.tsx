@@ -13,10 +13,18 @@ const DICE_FACES: Record<number, [number, number][]> = {
 };
 
 /**
- * Animated page-level loader with rolling dice.
- * Use for full-page loading states and Suspense fallbacks.
+ * El dado que rueda mientras carga una página entera (o un Suspense).
+ * - Sin nada: ocupa la pantalla (para páginas sin cabecera).
+ * - `withNavbar`: debajo de una cabecera ya pintada.
+ * - `fullScreen`: además pone el fondo de la app (fallbacks sueltos).
  */
-export default function PageLoader({ withNavbar = false }: { withNavbar?: boolean }) {
+export default function PageLoader({
+  withNavbar = false,
+  fullScreen = false,
+}: {
+  withNavbar?: boolean;
+  fullScreen?: boolean;
+}) {
   // Deriva una cara estable (1-6) a partir del id único del render.
   // Evita impureza (Math.random) durante render y mantiene el mismo dado en SSR y CSR.
   const id = useId();
@@ -26,7 +34,9 @@ export default function PageLoader({ withNavbar = false }: { withNavbar?: boolea
   const dots = DICE_FACES[face];
 
   return (
-    <div className={`${withNavbar ? "" : "min-h-screen"} flex flex-col items-center justify-center py-24 gap-5`}>
+    <div
+      className={`${withNavbar ? "" : "min-h-screen"} ${fullScreen ? "bg-[var(--bg)]" : ""} flex flex-col items-center justify-center py-24 gap-5`}
+    >
       <div className="relative w-12 h-12">
         {/* Rolling dice */}
         <svg
@@ -42,7 +52,7 @@ export default function PageLoader({ withNavbar = false }: { withNavbar?: boolea
         </svg>
       </div>
       <p className="text-sm text-[var(--text-muted)] animate-pulse">
-        Cargando...
+        Cargando…
       </p>
 
       <style>{`

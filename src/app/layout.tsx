@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import PushPrompt from "@/components/PushPrompt";
 import MobileTabBar from "@/components/MobileTabBar";
+import UiProviders from "@/components/ui/Providers";
 import "./globals.css";
 
 // Las dos son fuentes variables: sin lista de pesos, Next descarga un único
@@ -92,8 +93,10 @@ export default function RootLayout({
         className={`${bricolage.variable} ${dmSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-clip`}
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
-        {children}
-        <MobileTabBar />
+        <UiProviders>
+          {children}
+          <MobileTabBar />
+        </UiProviders>
         <ServiceWorkerRegister />
         <PushPrompt />
         <Analytics />
