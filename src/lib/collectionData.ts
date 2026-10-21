@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { CollectionGame } from "@prisma/client";
 import type { CollectionItemView } from "@/lib/collection";
@@ -215,30 +214,44 @@ async function loadSavedWishlist(userId: string) {
   }));
 }
 
-// ── Enlace compartido ───────────────────────────────────────────────────
+// ── La colección de otro ────────────────────────────────────────────────
 
 /**
- * El dueño de un enlace de colección compartida. Va con `cache` de React
- * porque en la misma petición lo piden generateMetadata y la página.
+ * La colección tal y como la ve otro desde su perfil. Las notas son solo
+ * para su dueño, y la permanencia, para él y para quien tiene entre sus
+ * amigos: a los demás ni siquiera les llega al navegador.
  */
-export const findCollectionOwner = cache(async (token: string) =>
-  prisma.user.findUnique({
-    where: { collectionShareToken: token },
-    select: { id: true, name: true, displayName: true, bggUsername: true },
-  })
-);
+export function collectionForViewer(
+  items: CollectionItemView[],
+  { showScores }: { showScores: boolean }
+): CollectionItemView[] {
+  return items.map((item) => ({
+    ...item,
+    note: null,
+    keepScore: showScores ? item.keepScore : null,
+    expansions: showScores
+      ? item.expansions
+      : item.expansions.map((e) => ({ ...e, ownKeepScore: null })),
+  }));
+}
 
 /**
- * Las portadas que salen en la balda de la tarjeta al compartir el enlace.
- * En orden de preferencia:
- *
- *   1. La vitrina, que son los que el dueño ha elegido a mano para enseñar.
- *   2. Los que ha jurado no soltar: "no se irá nunca" y luego "se queda".
- *   3. Los mejor colocados en el ranking de BGG, para quien acaba de
- *      conectar su cuenta y todavía no ha puntuado nada.
- *
- * Así la tarjeta nunca sale vacía y, cuanto más cuidada esté la colección,
- * más se parece a lo que su dueño enseñaría de verdad.
+ * De quién era un enlace de los de antes para compartir la colección. Ya no
+ * se crean: los que siguen por ahí llevan a la colección de su perfil.
+ */
+export async function findCollectionOwner(token: string) {
+  return prisma.user.findUnique({
+    where: { collectionShareToken: token },
+    select: { id: true, slug: true },
+  });
+}
+
+/**
+ * Las portadas que salen en la balda de la tarjeta al compartir la
+ * colección. Primero la vitrina, que son los que el dueño ha elegido a mano
+ * para enseñar, y luego los mejor colocados en el ranking de BGG. La
+ * permanencia no cuenta: la tarjeta la ve cualquiera y delataría qué juegos
+ * piensa quedarse.
  */
 export async function pickShelfCovers(
   userId: string,
@@ -247,18 +260,14 @@ export async function pickShelfCovers(
 ): Promise<string[]> {
   const username = bggUsername.toLowerCase().trim();
 
+  // Ordenados por bggId para que la tarjeta salga siempre igual y las
+  // cachés no bailen.
   const marked = await prisma.collectionEntry.findMany({
-    where: { userId, OR: [{ showcased: true }, { keepScore: { gte: 4 } }] },
-    select: { bggId: true, showcased: true, keepScore: true },
+    where: { userId, showcased: true },
+    select: { bggId: true },
+    orderBy: { bggId: "asc" },
   });
-
-  // Vitrina primero, luego 5, luego 4. El desempate por bggId es para que
-  // la tarjeta salga siempre igual y las cachés no bailen.
-  const weight = (e: (typeof marked)[number]) =>
-    e.showcased ? 0 : e.keepScore === 5 ? 1 : 2;
-  const preferredIds = [...marked]
-    .sort((a, b) => weight(a) - weight(b) || a.bggId - b.bggId)
-    .map((e) => e.bggId);
+  const preferredIds = marked.map((e) => e.bggId);
 
   const covers: string[] = [];
   const used = new Set<number>();

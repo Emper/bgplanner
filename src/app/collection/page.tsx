@@ -11,6 +11,7 @@ import type { CollectionItemView } from "@/lib/collection";
 interface ApiResponse {
   connected: boolean;
   bggUsername?: string;
+  profileSlug?: string;
   items: CollectionItemView[];
   pendingLinks: number;
   fetchedAt: string | null;
@@ -26,7 +27,6 @@ function CollectionPageInner() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [shareOpen, setShareOpen] = useState(false);
 
   const [linkProgress, setLinkProgress] = useState<{ done: number; total: number } | null>(null);
   const enrichedRef = useRef(false);
@@ -199,6 +199,28 @@ function CollectionPageInner() {
     }
   };
 
+  // Se comparte la colección de tu perfil. Lo que puntúas aquí solo lo ven
+  // tus amigos, así que el enlace se puede soltar donde sea.
+  const share = async () => {
+    if (!meta?.profileSlug) return;
+    const url = `${window.location.origin}/users/${encodeURIComponent(meta.profileSlug)}/collection`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Mi colección en BG Planner", url });
+        return;
+      } catch (err) {
+        // Cerrar el menú de compartir no es un error; lo demás, al portapapeles.
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Enlace copiado. La permanencia solo la ven tus amigos");
+    } catch {
+      showToast("No se ha podido copiar el enlace");
+    }
+  };
+
   const toggleShowcase = (bggId: number) => {
     const current = all?.find((i) => i.bggId === bggId);
     if (!current) return;
@@ -246,7 +268,7 @@ function CollectionPageInner() {
               </h1>
               <p className="page-lead mt-1">
                 Puntúa cada juego según lo seguro que estés de que se queda
-                contigo.
+                contigo. Tus puntuaciones solo las ven tus amigos.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -259,9 +281,10 @@ function CollectionPageInner() {
                 <span className="hidden sm:inline">✨ Recomendaciones</span>
               </Link>
               <button
-                onClick={() => setShareOpen(true)}
+                onClick={share}
+                disabled={!meta?.profileSlug}
                 title="Compartir mi colección"
-                className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition-all duration-200"
+                className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 disabled:opacity-50 transition-all duration-200"
               >
                 <span className="sm:hidden">↗</span>
                 <span className="hidden sm:inline">↗ Compartir</span>
@@ -314,10 +337,6 @@ function CollectionPageInner() {
         </div>
       </div>
 
-      {shareOpen && (
-        <ShareModal onClose={() => setShareOpen(false)} onToast={showToast} />
-      )}
-
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center">
           {toast}
@@ -369,164 +388,6 @@ function Banner({
                 style={{ width: `${Math.round(progress * 100)}%` }}
               />
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Compartir la colección ──────────────────────────────────────────────
-
-function ShareModal({
-  onClose,
-  onToast,
-}: {
-  onClose: () => void;
-  onToast: (message: string) => void;
-}) {
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [confirmRevoke, setConfirmRevoke] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/collection/share", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setToken(data?.token ?? null))
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const call = async (method: "POST" | "DELETE") => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/collection/share", {
-        method,
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setToken(data.token ?? null);
-      setConfirmRevoke(false);
-      onToast(
-        method === "DELETE"
-          ? "Enlace desactivado: ya no se puede abrir"
-          : "Enlace listo para compartir"
-      );
-    } catch {
-      onToast("No se ha podido cambiar el enlace");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const url = token ? `${window.location.origin}/c/${token}` : "";
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      onToast("Enlace copiado");
-    } catch {
-      onToast("No se ha podido copiar; selecciónalo a mano");
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <h2 className="text-lg font-bold text-[var(--text)]">
-              Compartir mi colección
-            </h2>
-            <button
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              ✕
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="h-24 flex items-center justify-center">
-              <span className="w-5 h-5 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-            </div>
-          ) : token ? (
-            <>
-              <p className="text-sm text-[var(--text-secondary)] mb-3">
-                <strong>Cualquiera con este enlace</strong> puede ver tu colección
-                y tus puntuaciones, incluido lo que quieres vender. No hace falta
-                cuenta y no se puede cambiar nada. Compártelo solo con quien
-                quieras que lo vea.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={url}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="flex-1 min-w-0 px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs text-[var(--text)] font-mono"
-                />
-                <button
-                  onClick={copy}
-                  className="shrink-0 px-4 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
-                >
-                  Copiar
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--border)]">
-                <button
-                  onClick={() => call("POST")}
-                  disabled={busy}
-                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-xs hover:text-[var(--text)] disabled:opacity-50 transition-colors"
-                  title="Genera un enlace nuevo; el anterior deja de funcionar"
-                >
-                  Generar uno nuevo
-                </button>
-                {confirmRevoke ? (
-                  <button
-                    onClick={() => call("DELETE")}
-                    disabled={busy}
-                    className="px-3 py-1.5 bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold disabled:opacity-50"
-                  >
-                    ¿Seguro? Dejar de compartir
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setConfirmRevoke(true)}
-                    className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
-                  >
-                    Dejar de compartir
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Genera un enlace para enseñar tu colección: tus juegos, tu
-                wishlist y tus puntuaciones de permanencia. Quien lo abra solo
-                puede mirar, nunca tocar. Eso sí, lo abre cualquiera que lo
-                tenga, sin necesidad de cuenta, así que trátalo como una llave:
-                compártelo con quien quieras y desactívalo cuando ya no haga
-                falta.
-              </p>
-              <button
-                onClick={() => call("POST")}
-                disabled={busy}
-                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-all duration-200"
-              >
-                {busy ? "Creando…" : "Crear enlace para compartir"}
-              </button>
-            </>
           )}
         </div>
       </div>

@@ -7,7 +7,8 @@ import { DELETED_USER_ROLE } from "@/lib/users";
 // es lo que cualquiera puede leer en internet. Deliberadamente NO sale:
 //   - el email (ni el suyo ni el pendiente de confirmar)
 //   - el apellido ni nada del formulario privado del perfil
-//   - la puntuación de permanencia ni las notas de su colección
+//   - la puntuación de permanencia ni las notas de su colección (la
+//     permanencia sí la ven sus amigos, en la colección: getCollectionAccess)
 //   - eventos privados a los que quien mira no tiene acceso
 //   - actividad de grupos a los que quien mira no pertenece
 //
@@ -507,5 +508,36 @@ export async function getPublicProfile(
       metadata: a.metadata as Record<string, unknown>,
       createdAt: a.createdAt.toISOString(),
     })),
+  };
+}
+
+/**
+ * Para la colección del perfil: de quién es y si quien mira puede ver su
+ * permanencia. La ven él mismo y quien él tiene entre sus amigos (añadir es
+ * de un solo sentido, y lo que cuenta es que el dueño se fíe de quien mira).
+ */
+export async function getCollectionAccess(
+  param: string,
+  viewerId: string | null
+) {
+  const user = await findProfileUser(decodeURIComponent(param));
+  if (!user) return null;
+
+  const isSelf = viewerId === user.id;
+  const isFriend =
+    !!viewerId &&
+    !isSelf &&
+    !!(await prisma.friendship.findUnique({
+      where: { userId_friendId: { userId: user.id, friendId: viewerId } },
+      select: { id: true },
+    }));
+
+  return {
+    id: user.id,
+    slug: user.slug || user.id,
+    displayName: user.displayName || user.name || "Jugador",
+    bggUsername: user.bggUsername,
+    isSelf,
+    showScores: isSelf || isFriend,
   };
 }

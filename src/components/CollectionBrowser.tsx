@@ -88,6 +88,12 @@ interface Props {
   loading?: boolean;
   /** Sin sliders: la colección es de otro y solo se consulta. */
   readOnly?: boolean;
+  /**
+   * Sin rastro de la permanencia, que es privada: la colección de alguien
+   * que no te tiene entre sus amigos. Las puntuaciones ya llegan vacías del
+   * servidor; esto quita lo que las enseña, ordena o filtra.
+   */
+  hideScores?: boolean;
   /** Nombre del dueño, para los textos de la vista compartida. */
   owner?: string;
   /** Cuándo se trajo la colección de BGG por última vez. */
@@ -101,12 +107,13 @@ interface Props {
 /**
  * Todo el aparato de mirar una colección: pestañas, búsqueda, filtros,
  * orden, las tres vistas y el scroll infinito. Lo comparten "Mi colección"
- * (donde además se puntúa) y la colección que alguien comparte contigo.
+ * (donde además se puntúa) y la colección de otro desde su perfil.
  */
 export default function CollectionBrowser({
   items,
   loading = false,
   readOnly = false,
+  hideScores = false,
   owner,
   fetchedAt,
   onScore,
@@ -131,14 +138,18 @@ export default function CollectionBrowser({
   });
   // Manda lo que diga el enlace; si no, lo último que eligió este navegador.
   const view: CollectionView = chosenView ?? storedView ?? "list";
+  const sortOptions = hideScores
+    ? SORT_OPTIONS.filter((o) => o.value !== "keep")
+    : SORT_OPTIONS;
   const [tab, setTab] = useState<Tab>(() => {
     const t = initial.get("tab");
-    return t === "unrated" || t === "wishlist" || t === "all" ? t : "own";
+    if (t === "unrated") return hideScores ? "own" : t;
+    return t === "wishlist" || t === "all" ? t : "own";
   });
   const [search, setSearch] = useState(() => initial.get("q") ?? "");
   const [sort, setSort] = useState<CollectionSort>(() => {
     const value = initial.get("sort");
-    return SORT_OPTIONS.some((o) => o.value === value)
+    return sortOptions.some((o) => o.value === value)
       ? (value as CollectionSort)
       : "added";
   });
@@ -149,7 +160,7 @@ export default function CollectionBrowser({
   const [limit, setLimit] = useState(24);
 
   const [showFilters, setShowFilters] = useState(false);
-  const [keep, setKeep] = useState(() => initial.get("keep") ?? "");
+  const [keep, setKeep] = useState(() => (hideScores ? "" : initial.get("keep") ?? ""));
   const [players, setPlayers] = useState(() => initial.get("players") ?? "");
   const [plays, setPlays] = useState(() => initial.get("plays") ?? "");
   const [myRating, setMyRating] = useState(() => initial.get("mine") ?? "");
@@ -313,7 +324,9 @@ export default function CollectionBrowser({
 
   const TABS: { value: Tab; label: string; count?: number }[] = [
     { value: "own", label: readOnly ? "Los que tiene" : "Los que tengo", count: stats?.owned },
-    { value: "unrated", label: "Sin valorar", count: stats?.unrated },
+    ...(hideScores
+      ? []
+      : [{ value: "unrated" as const, label: "Sin valorar", count: stats?.unrated }]),
     { value: "wishlist", label: readOnly ? "Los que quiere" : "Los que quiero", count: stats?.wishlist },
     { value: "all", label: "Todos", count: stats?.total },
   ];
@@ -323,29 +336,31 @@ export default function CollectionBrowser({
       {/* Resumen por puntuación, que además filtra al pulsarlo */}
       {stats && (
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 mb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {KEEP_SCORES.map((value) => (
-              <button
-                key={value}
-                onClick={() => {
-                  // Estando en "Sin valorar" la pestaña manda sobre este
-                  // filtro, así que al pulsar una puntuación salimos de ella.
-                  if (tab === "unrated") setTab("own");
-                  setKeep((prev) => (prev === String(value) ? "" : String(value)));
-                }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                  keep === String(value)
-                    ? KEEP_CLASSES[value]
-                    : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
-                }`}
-              >
-                <span>{KEEP_EMOJI[value]}</span>
-                <span>{KEEP_LABELS[value]}</span>
-                <span className="opacity-60 tabular-nums">{stats.byScore[value]}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-[var(--text-muted)] mt-3">
+          {!hideScores && (
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {KEEP_SCORES.map((value) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    // Estando en "Sin valorar" la pestaña manda sobre este
+                    // filtro, así que al pulsar una puntuación salimos de ella.
+                    if (tab === "unrated") setTab("own");
+                    setKeep((prev) => (prev === String(value) ? "" : String(value)));
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                    keep === String(value)
+                      ? KEEP_CLASSES[value]
+                      : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  <span>{KEEP_EMOJI[value]}</span>
+                  <span>{KEEP_LABELS[value]}</span>
+                  <span className="opacity-60 tabular-nums">{stats.byScore[value]}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-[var(--text-muted)]">
             {stats.owned} juegos · {stats.expansions} expansiones
             {fetchedAt && ` · al día de ${formatRelativeShort(fetchedAt)}`}
           </p>
@@ -425,7 +440,7 @@ export default function CollectionBrowser({
               }}
               className="flex-1 sm:flex-none px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
             >
-              {SORT_OPTIONS.map((opt) => (
+              {sortOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -464,22 +479,24 @@ export default function CollectionBrowser({
         {showFilters && (
           <div className="mt-3 pt-3 border-t border-[var(--border)]">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Field label="Puntuación">
-                <Select
-                  value={tab === "unrated" ? "unrated" : keep}
-                  onChange={setKeep}
-                  disabled={tab === "unrated"}
-                >
-                  <option value="">Todas</option>
-                  <option value="unrated">Sin valorar</option>
-                  <option value="rated">Ya valoradas</option>
-                  {KEEP_SCORES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}. {KEEP_LABELS[s]}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              {!hideScores && (
+                <Field label="Puntuación">
+                  <Select
+                    value={tab === "unrated" ? "unrated" : keep}
+                    onChange={setKeep}
+                    disabled={tab === "unrated"}
+                  >
+                    <option value="">Todas</option>
+                    <option value="unrated">Sin valorar</option>
+                    <option value="rated">Ya valoradas</option>
+                    {KEEP_SCORES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}. {KEEP_LABELS[s]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
               <Field label="Jugadores">
                 <Select value={players} onChange={setPlayers}>
                   <option value="">Cualquiera</option>
@@ -600,6 +617,7 @@ export default function CollectionBrowser({
               key={item.bggId}
               item={item}
               readOnly={readOnly}
+              hideScores={hideScores}
               onOpen={() => setDetailId(item.bggId)}
               onScore={(value) => score(item.bggId, value)}
               onToggleShowcase={onToggleShowcase ? () => showcase(item.bggId) : undefined}
@@ -613,6 +631,7 @@ export default function CollectionBrowser({
               key={item.bggId}
               item={item}
               readOnly={readOnly}
+              hideScores={hideScores}
               owner={owner}
               expanded={expanded.has(item.bggId)}
               onToggleExpanded={() => toggleExpanded(item.bggId)}
@@ -651,6 +670,7 @@ export default function CollectionBrowser({
         <DetailModal
           item={detail}
           readOnly={readOnly}
+          hideScores={hideScores}
           owner={owner}
           onClose={() => setDetailId(null)}
           onScore={(value) => score(detail.bggId, value)}

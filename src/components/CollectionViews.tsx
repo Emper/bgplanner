@@ -16,8 +16,9 @@ import { formatDateShort, formatDuration } from "@/lib/format";
 // Las tarjetas de la colección (lista y cuadrícula) y la ficha de un juego.
 // La tercera vista, la estantería, es GameShelf, que se comparte con las
 // vitrinas de los perfiles. Se usan en "Mi colección" y en la colección que
-// alguien comparte contigo; ahí van en modo lectura (`readOnly`), donde el
-// slider se sustituye por la puntuación escrita.
+// otro te enseña desde su perfil; ahí van en modo lectura (`readOnly`), donde
+// el slider se sustituye por la puntuación escrita. La permanencia es privada:
+// a quien no es su amigo no le llega (`hideScores`) y no se pinta ni el hueco.
 
 export type CollectionView = "list" | "grid" | "shelf";
 
@@ -187,6 +188,7 @@ export function ListRow({
   onScore,
   onToggleShowcase,
   readOnly = false,
+  hideScores = false,
   owner,
 }: {
   item: CollectionItemView;
@@ -196,6 +198,7 @@ export function ListRow({
   onScore: (score: number | null) => void;
   onToggleShowcase?: () => void;
   readOnly?: boolean;
+  hideScores?: boolean;
   owner?: string;
 }) {
   const thumb = item.thumbnail;
@@ -304,22 +307,26 @@ export function ListRow({
           )}
         </div>
 
-        <div className="hidden sm:flex w-44 shrink-0 self-center justify-end">
+        {!hideScores && (
+          <div className="hidden sm:flex w-44 shrink-0 self-center justify-end">
+            {readOnly ? (
+              <KeepBadge score={item.keepScore} />
+            ) : (
+              <KeepScoreSlider value={item.keepScore} onChange={onScore} />
+            )}
+          </div>
+        )}
+      </div>
+
+      {!hideScores && (
+        <div className="sm:hidden mt-2">
           {readOnly ? (
             <KeepBadge score={item.keepScore} />
           ) : (
             <KeepScoreSlider value={item.keepScore} onChange={onScore} />
           )}
         </div>
-      </div>
-
-      <div className="sm:hidden mt-2">
-        {readOnly ? (
-          <KeepBadge score={item.keepScore} />
-        ) : (
-          <KeepScoreSlider value={item.keepScore} onChange={onScore} />
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -330,12 +337,14 @@ export function GridCard({
   onScore,
   onToggleShowcase,
   readOnly = false,
+  hideScores = false,
 }: {
   item: CollectionItemView;
   onOpen: () => void;
   onScore: (score: number | null) => void;
   onToggleShowcase?: () => void;
   readOnly?: boolean;
+  hideScores?: boolean;
 }) {
   const img = cover(item);
   return (
@@ -391,13 +400,15 @@ export function GridCard({
           )}
           {item.expansions.length > 0 && <span>+{item.expansions.length} exp.</span>}
         </div>
-        <div className="mt-auto pt-1">
-          {readOnly ? (
-            <KeepBadge score={item.keepScore} />
-          ) : (
-            <KeepScoreSlider value={item.keepScore} onChange={onScore} compact />
-          )}
-        </div>
+        {!hideScores && (
+          <div className="mt-auto pt-1">
+            {readOnly ? (
+              <KeepBadge score={item.keepScore} />
+            ) : (
+              <KeepScoreSlider value={item.keepScore} onChange={onScore} compact />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -411,6 +422,7 @@ export function DetailModal({
   onToggleShowcase,
   onRemoveSaved,
   readOnly = false,
+  hideScores = false,
   owner,
 }: {
   item: CollectionItemView;
@@ -421,6 +433,7 @@ export function DetailModal({
   /** Quitar de la wishlist de BG Planner (solo para los guardados aquí). */
   onRemoveSaved?: () => void;
   readOnly?: boolean;
+  hideScores?: boolean;
   owner?: string;
 }) {
   const img = cover(item);
@@ -516,24 +529,27 @@ export function DetailModal({
             </div>
           )}
 
-          <div className="mt-5 p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border)]">
-            <p className="text-xs text-[var(--text-secondary)] mb-2">
-              {readOnly
-                ? `¿Se queda en la colección${owner ? ` de ${owner}` : ""}?`
-                : "¿Se queda en tu colección?"}
-            </p>
-            {readOnly ? (
-              <KeepBadge score={item.keepScore} />
-            ) : (
-              <KeepScoreSlider value={item.keepScore} onChange={onScore} />
-            )}
-          </div>
+          {!hideScores && (
+            <div className="mt-5 p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border)]">
+              <p className="text-xs text-[var(--text-secondary)] mb-2">
+                {readOnly
+                  ? `¿Se queda en la colección${owner ? ` de ${owner}` : ""}?`
+                  : "¿Se queda en tu colección?"}
+              </p>
+              {readOnly ? (
+                <KeepBadge score={item.keepScore} />
+              ) : (
+                <KeepScoreSlider value={item.keepScore} onChange={onScore} />
+              )}
+            </div>
+          )}
 
           {item.expansions.length > 0 && (
-            <div className="mt-4">
+            <div className={hideScores ? "mt-5" : "mt-4"}>
               <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
-                Expansiones · heredan la puntuación del juego base salvo que tengan
-                una propia
+                {hideScores
+                  ? "Expansiones"
+                  : "Expansiones · heredan la puntuación del juego base salvo que tengan una propia"}
               </p>
               <div className="space-y-2">
                 {item.expansions.map((exp) => (
@@ -541,7 +557,7 @@ export function DetailModal({
                     key={exp.bggId}
                     className="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)]"
                   >
-                    <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className={`flex items-center justify-between gap-2${hideScores ? "" : " mb-1"}`}>
                       <span className="text-xs text-[var(--text)] truncate">{exp.name}</span>
                       {exp.numPlays > 0 && (
                         <span className="text-[10px] text-[var(--text-muted)] shrink-0">
@@ -549,7 +565,7 @@ export function DetailModal({
                         </span>
                       )}
                     </div>
-                    {readOnly ? (
+                    {hideScores ? null : readOnly ? (
                       <KeepBadge
                         score={exp.ownKeepScore ?? item.keepScore}
                         inherited={exp.ownKeepScore === null}

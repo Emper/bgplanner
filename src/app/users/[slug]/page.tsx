@@ -209,10 +209,15 @@ export default async function PublicProfilePage({
 
   const hasEvents =
     profile.upcomingEvents.length > 0 || profile.pastEvents.length > 0;
-  // La vitrina vacía se oculta, salvo en tu propio perfil con BGG conectado:
-  // ahí el hueco es la forma de enterarte de que existe.
+  // La vitrina vacía se oculta, salvo en tu propio perfil con BGG conectado
+  // (ahí el hueco es la forma de enterarte de que existe) o si hay colección
+  // que ver: entonces la sección hace de puerta a ella.
+  const ownedGames = header.stats.games;
+  const collectionHref = `/users/${encodeURIComponent(profile.slug)}/collection`;
+  const hasCollection = !!profile.bggUsername && ownedGames > 0;
   const showShowcase =
-    profile.showcase.length > 0 || (profile.isSelf && !!profile.bggUsername);
+    profile.showcase.length > 0 ||
+    (!!profile.bggUsername && (profile.isSelf || hasCollection));
 
   return (
     <>
@@ -343,8 +348,18 @@ export default async function PublicProfilePage({
           {/* ── Vitrina ──────────────────────────────────────────────── */}
           {showShowcase && (
             <Section
-              title={profile.isSelf ? "Mi vitrina" : "Su vitrina"}
-              subtitle="Los imprescindibles, los que enseñaría a cualquiera que entre en casa."
+              title={
+                profile.isSelf
+                  ? "Mi vitrina"
+                  : profile.showcase.length > 0
+                    ? "Su vitrina"
+                    : "Su colección"
+              }
+              subtitle={
+                profile.isSelf || profile.showcase.length > 0
+                  ? "Los imprescindibles, los que enseñaría a cualquiera que entre en casa."
+                  : "Aún no ha elegido sus imprescindibles, pero la estantería entera está a la vista."
+              }
               action={
                 profile.isSelf ? (
                   <Link
@@ -357,15 +372,42 @@ export default async function PublicProfilePage({
               }
             >
               {profile.showcase.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">
-                  Todavía no has puesto nada.{" "}
-                  <Link href="/collection" className="text-[var(--primary)] hover:underline">
-                    Elige tus favoritos en Mi colección
-                  </Link>{" "}
-                  y aparecerán aquí.
-                </p>
+                profile.isSelf && (
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Todavía no has puesto nada.{" "}
+                    <Link href="/collection" className="text-[var(--primary)] hover:underline">
+                      Elige tus favoritos en Mi colección
+                    </Link>{" "}
+                    y aparecerán aquí.
+                  </p>
+                )
               ) : (
                 <GameShelf games={profile.showcase} compact />
+              )}
+              {hasCollection && (
+                <Link
+                  href={collectionHref}
+                  prefetch={false}
+                  className={`${profile.showcase.length > 0 || profile.isSelf ? "mt-4" : ""} flex items-center gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 group`}
+                >
+                  <span className="text-xl" aria-hidden>🗄️</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors">
+                      {profile.isSelf ? "Ver mi colección entera" : "Ver su colección entera"}
+                    </span>
+                    <span className="block text-xs text-[var(--text-muted)] truncate">
+                      {ownedGames.toLocaleString("es-ES")} juego{ownedGames === 1 ? "" : "s"}
+                      {header.stats.expansions > 0 &&
+                        ` y ${header.stats.expansions.toLocaleString("es-ES")} expansi${header.stats.expansions === 1 ? "ón" : "ones"}`}
+                      {profile.isSelf
+                        ? " · como la ven los demás"
+                        : " · con filtros, partidas y wishlist"}
+                    </span>
+                  </span>
+                  <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
               )}
             </Section>
           )}

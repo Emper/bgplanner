@@ -78,7 +78,7 @@ export interface ShareCardInput {
   round?: boolean;
   /**
    * Portadas ya incrustadas para pintar la estantería en vez de una sola
-   * foto. Lo usa la colección compartida: una caja suelta parecía que
+   * foto. Lo usa la colección del perfil: una caja suelta parecía que
    * compartías ese juego y no la ludoteca entera.
    */
   shelf?: string[];

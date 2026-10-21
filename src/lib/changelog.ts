@@ -11,6 +11,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 octubre 2026",
+    version: "1.58",
+    title: "A cotillear estanterías",
+    changes: [
+      { type: "new", text: "Desde el perfil de cualquiera puedes abrir su colección entera de BGG y buscar, filtrar y ordenar como en la tuya" },
+      { type: "improved", text: "Tus puntuaciones de permanencia solo las ven tus amigos: para el resto, tu colección sale sin ellas" },
+      { type: "improved", text: "«Compartir» en Mi colección manda ya el enlace de tu perfil, sin llaves que generar ni revocar" },
+    ],
+  },
+  {
+    date: "21 octubre 2026",
     version: "1.57",
     title: "¡A jugar! con los que estáis",
     changes: [

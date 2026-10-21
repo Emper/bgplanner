@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { bggUsername: true },
+    select: { bggUsername: true, slug: true },
   });
 
   if (!user?.bggUsername) {
@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     connected: true,
     bggUsername: user.bggUsername,
+    // Para el botón de compartir: la colección se enseña desde el perfil.
+    profileSlug: user.slug || session.userId,
     items,
     pendingLinks,
     fetchedAt: fetchedAt ? fetchedAt.toISOString() : null,
