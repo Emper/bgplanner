@@ -36,11 +36,11 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 
 ---
 
-## 3. Cargar los datos iniciales en el servidor (hecho en inicio, grupo y evento)
+## 3. Cargar los datos iniciales en el servidor (hecho en las páginas principales)
 
-**Hecho (octubre 2026).** El inicio, la ficha de grupo y la de evento (con sesión) piden sus datos en el servidor con Suspense: cabecera y loader al instante, y los datos en la misma respuesta. La lógica vive en `src/lib` (`homeData`, `groupDashboard`, `groupFeed`, `eventDetail`, `eventFeed`…) y las rutas de la API son envoltorios para los refrescos. Las pestañas cambian la URL con `history` para no volver a pintar en el servidor.
+**Hecho (octubre 2026).** El inicio, la ficha de grupo, la de evento, la lista de grupos, Mi colección y las notificaciones (con sesión) piden sus datos en el servidor con Suspense: cabecera y loader al instante, y los datos en la misma respuesta. La lógica vive en `src/lib` (`homeData`, `groupDashboard`, `groupFeed`, `eventDetail`, `eventFeed`…) y las rutas de la API son envoltorios para los refrescos. Las pestañas cambian la URL con `history` para no volver a pintar en el servidor.
 
-**Queda.** Otras páginas de cliente siguen pidiendo al arrancar: lista de grupos, Mi colección, notificaciones, perfil (edición) y admin. Mismo patrón si se nota.
+**Queda.** Siguen pidiendo al arrancar la edición del perfil, las recomendaciones, «Añadir juegos» y el admin. Mismo patrón si se nota.
 
 ## 4. Decidir si los perfiles públicos van al sitemap
 

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeBggUsername } from "@/lib/bgg";
+import { ensureBggCollection, isCollectionStale, normalizeBggUsername } from "@/lib/bgg";
 import { plural } from "@/lib/text";
 import type { CollectionGame } from "@prisma/client";
 import type { CollectionItemView } from "@/lib/collection";
@@ -214,6 +214,51 @@ async function loadSavedWishlist(userId: string) {
     ...info,
     dateAdded: addedAt.get(info.bggId)?.toISOString() ?? null,
   }));
+}
+
+// ── Mi colección ───────────────────────────────────────────────────────
+
+/**
+ * Mi colección tal y como la pinta /collection: la usan GET /api/collection y
+ * la página pintada en el servidor.
+ *
+ * Salvo que se pida `refresh`, NO habla con BGG: devuelve lo que hay en caché
+ * y marca `stale` para que la página lance la sincronización aparte,
+ * enseñando mientras tanto los datos viejos. Si BGG falla al refrescar se
+ * sigue con lo cacheado y se dice en `syncError` (la página lo enseña entre
+ * paréntesis: «BGG no ha respondido (…)»).
+ */
+export async function getMyCollection(userId: string, { refresh = false }: { refresh?: boolean } = {}) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { bggUsername: true, slug: true },
+  });
+  if (!user?.bggUsername) return { connected: false as const, items: [] };
+
+  let syncError: string | null = null;
+  if (refresh) {
+    try {
+      await ensureBggCollection(user.bggUsername, true);
+    } catch (error) {
+      syncError = "puede que esté saturado";
+      console.error("[Mi colección] BGG no disponible:", error);
+    }
+  }
+
+  const { items, pendingLinks, fetchedAt } = await loadCollection(userId, user.bggUsername);
+  return {
+    connected: true as const,
+    bggUsername: user.bggUsername,
+    // Para el botón de compartir: la colección se enseña desde el perfil.
+    profileSlug: user.slug || userId,
+    items,
+    pendingLinks,
+    fetchedAt: fetchedAt ? fetchedAt.toISOString() : null,
+    // `empty` = nunca se ha sincronizado; `stale` = toca refrescar.
+    empty: items.length === 0,
+    stale: isCollectionStale(fetchedAt),
+    syncError,
+  };
 }
 
 // ── La colección de otro ────────────────────────────────────────────────

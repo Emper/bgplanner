@@ -513,3 +513,33 @@ export function notifyManagers(
     await notifyNow({ ...input, ...scope, userIds });
   });
 }
+
+/** Tamaño de página de la lista de notificaciones (/notifications). */
+export const NOTIFICATIONS_PAGE_SIZE = 30;
+
+/**
+ * Una página de mis notificaciones, de la más reciente a la más antigua, y
+ * cuántas tengo sin leer. La usan GET /api/notifications y la página
+ * /notifications pintada en el servidor.
+ */
+export async function getNotificationsPage(
+  userId: string,
+  { limit, cursor }: { limit: number; cursor: Date | null }
+) {
+  const [rows, unread] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId, ...(cursor ? { createdAt: { lt: cursor } } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      select: NOTIFICATION_SELECT,
+    }),
+    prisma.notification.count({ where: { userId, readAt: null } }),
+  ]);
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit);
+  return {
+    items: page.map(presentNotification),
+    unread,
+    nextCursor: hasMore ? page[page.length - 1].createdAt.toISOString() : null,
+  };
+}
