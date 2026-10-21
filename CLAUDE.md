@@ -192,7 +192,7 @@ La app tiene muchos sitios transversales y es fácil que una feature nueva se qu
 - El contenido tiene que salir **pintado del servidor** (página de servidor que pasa `initial` a un componente de cliente), no pedido desde el navegador: si no, los buscadores ven un loader. Lo que falte devuelve 404 de verdad (`notFound()`).
 - `generateMetadata` con título, descripción y canonical; JSON-LD si hay un tipo de schema.org que encaje; [sitemap.ts](src/app/sitemap.ts) y [robots.ts](src/app/robots.ts); `opengraph-image` si se va a compartir.
 - Sin sesión: `SignupBanner` con su variante, y el login vuelve a donde estaba (`?redirect=`).
-- No enlazar perfiles sin `nofollow` mientras siga abierto el punto 5 de `BACKLOG.md`.
+- No enlazar perfiles sin `nofollow` mientras siga abierto el punto 4 de `BACKLOG.md` (perfiles en el sitemap).
 
 **Cierre**
 - Changelog (ver abajo) y, si la feature venía del roadmap, avisar para marcar la propuesta como hecha.

@@ -51,17 +51,7 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 
 ---
 
-## 4. Ajustar el pool de conexiones a la base de datos
-
-**Tipo:** rendimiento / estabilidad · **Impacto:** medio · **Esfuerzo:** bajo · **Toca BD:** no (configuración en Vercel)
-
-**Problema.** `DATABASE_URL` va al pooler de Supabase con `?pgbouncer=true`, pero sin `connection_limit`. Con el valor por defecto de Prisma, cada función serverless puede abrir varias conexiones, y con tráfico se puede llegar al límite del pooler. Ponerlo a 1 tampoco sirve: haría secuenciales todos los `Promise.all` (el inicio lanza 6 consultas en paralelo).
-
-**Propuesta.** En las variables de entorno de Vercel, añadir `&connection_limit=3&pool_timeout=10` a `DATABASE_URL` (entre 3 y 5). Comprobar también que la región de Supabase está cerca de `cdg1` (París), la que usan las funciones según `vercel.json`.
-
----
-
-## 5. Decidir si los perfiles públicos van al sitemap
+## 4. Decidir si los perfiles públicos van al sitemap
 
 **Tipo:** SEO / producto · **Impacto:** medio · **Esfuerzo:** bajo · **Toca BD:** no (o un campo si se hace opcional)
 
@@ -79,13 +69,12 @@ Si se decide indexarlos, quitar el `nofollow` de `AuthorLink` (`src/components/C
 ## Otros puntos menores detectados
 
 - **Portada como componente de servidor.** `Landing.tsx` y `mockups.tsx` (unos 80 KB) son enteros de cliente. Bastaría con dejar en cliente solo las partes animadas (`Reveal`, el carrusel, el ranking en directo).
-- **404 reales.** Un evento o perfil inexistente responde 200 con `noindex`. Con `notFound()` y una página `not-found.tsx` con el estilo de la app daría un 404 de verdad.
-- **Consultas encadenadas en algunas rutas.** `/api/groups` vuelve a consultar las membresías y `/api/groups/[id]/feed` comprueba la membresía antes de lanzar la consulta del feed. Ambas se pueden juntar o hacer en paralelo.
+- **Feed del grupo en dos pasos.** `/api/groups/[id]/feed` comprueba la membresía antes de lanzar la consulta del feed; se pueden hacer en paralelo.
 - **Dashboard de grupo.** `/api/groups/[id]/dashboard` carga todas las sesiones (`GameNight`) de la historia del grupo y los juegos con todas sus columnas. Le vendría bien un `take` y un `select`.
 
 ---
 
-## 6. Partir los ficheros gigantes (fase 3 de la auditoría de octubre 2026)
+## 5. Partir los ficheros gigantes (fase 3 de la auditoría de octubre 2026)
 
 **Tipo:** mantenibilidad · **Impacto:** alto · **Esfuerzo:** alto · **Toca BD:** no
 
