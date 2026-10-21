@@ -5,6 +5,7 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import PushPrompt from "@/components/PushPrompt";
 import MobileTabBar from "@/components/MobileTabBar";
 import UiProviders from "@/components/ui/Providers";
+import NavigationProgress from "@/components/NavigationProgress";
 import { APP_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -93,6 +94,7 @@ export default function RootLayout({
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
         <UiProviders>
+          <NavigationProgress />
           {children}
           <MobileTabBar />
         </UiProviders>
