@@ -86,6 +86,8 @@ export const pingSchema = z.object({
 
 export const addGameSchema = z.object({
   bggId: z.number().int().positive(),
+  // Por si BGG no responde: el nombre que ya se veía en la búsqueda.
+  name: z.string().trim().max(300).transform(clean).optional(),
 });
 
 // Enlace al manual de un juego: BGG, Drive, Dropbox… pero nada que caduque
@@ -305,7 +307,7 @@ export const replyEditSchema = replySchema.pick({ body: true });
 
 export const contactSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(100).transform(clean),
-  email: z.string().email("Email no válido"),
+  email: normalizedEmail(),
   subject: z
     .string()
     .min(1, "El asunto es obligatorio")
@@ -316,7 +318,9 @@ export const contactSchema = z.object({
     .min(1, "El mensaje es obligatorio")
     .max(5000)
     .transform(clean),
-  honeypot: z.string().max(0).optional(),
+  // Campo trampa: si viene relleno es un bot. Se acepta aquí y el handler
+  // contesta "enviado" sin enviar nada, para que el bot no aprenda.
+  honeypot: z.string().max(500).optional(),
 });
 
 export const friendAddSchema = z.object({
@@ -408,4 +412,40 @@ export const readmitSchema = z.object({
 
 export const blockSchema = z.object({
   userId: z.string().trim().min(1, "Falta a quién bloquear").max(64, "Usuario no válido"),
+});
+
+// ── Cuerpos pequeños que antes se comprobaban a mano ───────────────────
+
+/** Marcar un juego del grupo como jugado o archivado (o deshacerlo). */
+export const groupGamePatchSchema = z
+  .object({ played: z.boolean().optional(), archived: z.boolean().optional() })
+  .refine((d) => d.played !== undefined || d.archived !== undefined, "Indica si está jugado o archivado");
+
+/** Activar o desactivar el enlace de invitación. */
+export const inviteLinkToggleSchema = z.object({
+  enabled: z.boolean("Indica si el enlace está activo"),
+});
+
+/** Cambiar el rol de un miembro del grupo. */
+export const memberRoleSchema = z.object({
+  role: z.enum(["admin", "member"], "Rol no válido"),
+});
+
+/** Fijar un grupo arriba en tu lista. */
+export const groupPinSchema = z.object({
+  pinned: z.boolean("Indica si va fijado"),
+});
+
+/** Quitar tu interés por un juego de un evento. */
+export const eventInterestDeleteSchema = z.object({
+  eventGameId: z.string().trim().min(1, "Falta el juego").max(64, "Juego no válido"),
+});
+
+/** La foto de perfil: una imagen ya redimensionada en el navegador, o quitarla. */
+export const avatarSchema = z.object({
+  avatarUrl: z
+    .string()
+    .max(200000, "Imagen demasiado grande")
+    .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), "Imagen no válida")
+    .nullable(),
 });
