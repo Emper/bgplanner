@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { isVeto } from "@/lib/intensity";
+import { displayName } from "@/lib/users";
 
 // La lista de un asistente para un evento, tal y como se ve desde su enlace
 // compartido. Sin notas: esas son privadas aunque la lista no lo sea.
@@ -54,7 +55,7 @@ export const findSharedList = cache(async (token: string) => {
 
   return {
     ownerId: attendee.userId,
-    ownerName: attendee.user.displayName || attendee.user.name || "Alguien",
+    ownerName: displayName(attendee.user, "Alguien"),
     event: {
       id: attendee.event.id,
       name: attendee.event.name,

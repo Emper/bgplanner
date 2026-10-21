@@ -1,36 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
 import { collectionEntrySchema } from "@/lib/validations";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
+import { normalizeBggUsername } from "@/lib/bgg";
+
+type Params = { params: Promise<{ bggId: string }> };
 
 // Puntuación de permanencia, nota y vitrina de un juego de MI colección.
 //
 // A propósito no se registra en el feed de actividad: que un juego esté en
 // "quiero venderlo" es información privada del dueño y el feed lo enseñaría
 // a todo su grupo.
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ bggId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const PUT = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
 
   const { bggId: rawBggId } = await params;
-  const bggId = parseInt(rawBggId, 10);
+  const bggId = Number(rawBggId);
   if (!Number.isInteger(bggId) || bggId <= 0) {
-    return NextResponse.json({ error: "Juego no válido" }, { status: 400 });
+    throw new ApiError(400, "Juego no válido");
   }
 
-  const body = await request.json();
-  const parsed = collectionEntrySchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
+  const data = await parseBody(request, collectionEntrySchema);
 
   // Solo se puntúan juegos que están en tu propia colección de BGG.
   const user = await prisma.user.findUnique({
@@ -38,18 +28,15 @@ export async function PUT(
     select: { bggUsername: true },
   });
   if (!user?.bggUsername) {
-    return NextResponse.json(
-      { error: "Conecta tu usuario de BGG para puntuar tu colección" },
-      { status: 400 }
-    );
+    throw new ApiError(400, "Conecta tu usuario de BGG para puntuar tu colección");
   }
 
   // O en la de BGG, o en la wishlist de BG Planner.
-  const [inCollection, savedHere] = await Promise.all([
+  const [inCollection, savedHere, existing] = await Promise.all([
     prisma.collectionGame.findUnique({
       where: {
         bggUsername_bggId: {
-          bggUsername: user.bggUsername.toLowerCase().trim(),
+          bggUsername: normalizeBggUsername(user.bggUsername),
           bggId,
         },
       },
@@ -59,37 +46,25 @@ export async function PUT(
       where: { userId: session.userId, bggId, kind: "wishlist" },
       select: { id: true },
     }),
+    prisma.collectionEntry.findUnique({
+      where: { userId_bggId: { userId: session.userId, bggId } },
+    }),
   ]);
   if (!inCollection && !savedHere) {
-    return NextResponse.json(
-      { error: "Ese juego no está en tu colección" },
-      { status: 404 }
-    );
+    throw new ApiError(404, "Ese juego no está en tu colección");
   }
 
-  const existing = await prisma.collectionEntry.findUnique({
-    where: { userId_bggId: { userId: session.userId, bggId } },
-  });
-
   const next = {
-    keepScore:
-      parsed.data.keepScore !== undefined
-        ? parsed.data.keepScore
-        : (existing?.keepScore ?? null),
-    note:
-      parsed.data.note !== undefined
-        ? parsed.data.note || null
-        : (existing?.note ?? null),
-    showcased:
-      parsed.data.showcased !== undefined
-        ? parsed.data.showcased
-        : (existing?.showcased ?? false),
+    keepScore: data.keepScore !== undefined ? data.keepScore : (existing?.keepScore ?? null),
+    note: data.note !== undefined ? data.note || null : (existing?.note ?? null),
+    showcased: data.showcased !== undefined ? data.showcased : (existing?.showcased ?? false),
   };
 
   // Sin puntuación, sin nota y fuera de la vitrina no hay nada que guardar.
   if (next.keepScore === null && !next.note && !next.showcased) {
+    // deleteMany: con dos clics seguidos el segundo ya no encuentra nada
     if (existing) {
-      await prisma.collectionEntry.delete({ where: { id: existing.id } });
+      await prisma.collectionEntry.deleteMany({ where: { id: existing.id } });
     }
     return NextResponse.json({ bggId, ...next });
   }
@@ -102,4 +77,4 @@ export async function PUT(
   });
 
   return NextResponse.json(entry);
-}
+});

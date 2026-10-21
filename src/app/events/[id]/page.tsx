@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import Link from "next/link";
 import {
   getPublicEvent,
   eventTagline,
   formatEventWhen,
   type PublicEventInfo,
 } from "@/lib/publicLinks";
-import { excerpt } from "@/lib/text";
+import { excerpt, plural } from "@/lib/text";
+import { APP_URL, loginHref } from "@/lib/site";
+import { jsonLdHtml } from "@/lib/html";
 import PublicPeek from "@/components/PublicPeek";
 import RichText from "@/components/RichText";
 import SignupBanner from "@/components/SignupBanner";
+import { ButtonLink } from "@/components/ui/Button";
+import { cardClass } from "@/components/ui/Card";
 import EventClient from "./EventClient";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 // Cambia según quién mire y con datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
@@ -121,16 +123,8 @@ export default async function EventPage({
   const { id } = await params;
   const event = await getPublicEvent(id);
 
-  if (!event) {
-    return (
-      <PublicPeek
-        emoji="🔍"
-        title="Este evento no existe"
-        note="Puede que lo hayan borrado o que el enlace esté mal copiado."
-        cta={{ href: "/", label: "Ir a BG Planner" }}
-      />
-    );
-  }
+  // Un 404 de verdad, que los buscadores lo olviden.
+  if (!event) notFound();
 
   // Los privados enseñan el cartel y poco más: ni nombre, ni fecha, ni sitio.
   if (!event.isPublic) {
@@ -140,7 +134,7 @@ export default async function EventPage({
         title="Este evento es privado"
         note="Solo pueden verlo quienes están invitados. Si te han invitado, entra con tu cuenta y lo tendrás en tus eventos."
         cta={{
-          href: `/login?redirect=${encodeURIComponent(`/events/${id}`)}`,
+          href: loginHref(`/events/${id}`),
           label: "Entrar",
         }}
       />
@@ -150,26 +144,21 @@ export default async function EventPage({
   const facts = [
     `🗓️ ${formatEventWhen(event.date)}`,
     event.location ? `📍 ${event.location}` : null,
-    `👥 ${event.attendeeCount} apuntado${event.attendeeCount === 1 ? "" : "s"}${
+    `👥 ${plural(event.attendeeCount, "apuntado", "apuntados")}${
       event.maxAttendees ? ` de ${event.maxAttendees}` : ""
     }${
-      event.gameCount > 0
-        ? ` · 🎲 ${event.gameCount} juego${event.gameCount === 1 ? "" : "s"}`
-        : ""
+      event.gameCount > 0 ? ` · 🎲 ${plural(event.gameCount, "juego", "juegos")}` : ""
     }`,
   ].filter((f): f is string => !!f);
 
-  const loginHref = `/login?redirect=${encodeURIComponent(`/events/${id}`)}`;
+  const signInHref = loginHref(`/events/${id}`);
   const about = event.about?.trim();
 
   return (
     <>
       <script
         type="application/ld+json"
-        // "<" escapado: que un nombre con "</script>" no cierre la etiqueta
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(eventJsonLd(event)).replace(/</g, "\\u003c"),
-        }}
+        dangerouslySetInnerHTML={{ __html: jsonLdHtml(eventJsonLd(event)) }}
       />
       <PublicPeek
         banner={
@@ -183,22 +172,19 @@ export default async function EventPage({
         facts={facts}
         note="Entra con tu cuenta de BG Planner para apuntarte, ver los juegos que se llevan y decir cuáles te apetecen."
         cta={{
-          href: loginHref,
+          href: signInHref,
           label: "Entrar y apuntarme",
           hint: "Crear una cuenta es solo tu email, sin contraseñas.",
         }}
       >
         {about ? (
-          <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-6 sm:p-7">
+          <section className={cardClass({ padding: "none", className: "p-6 sm:p-7" })}>
             <h2 className="text-lg font-bold text-[var(--text)] mb-3">Sobre el evento</h2>
             <RichText text={about} />
             <div className="mt-6 pt-5 border-t border-[var(--border)] text-center">
-              <Link
-                href={loginHref}
-                className="inline-flex px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-              >
+              <ButtonLink href={signInHref} size="lg">
                 Me apunto
-              </Link>
+              </ButtonLink>
             </div>
           </section>
         ) : null}

@@ -94,6 +94,14 @@ function searchCacheSet(key: string, results: BggSearchResult[]) {
 const COLLECTION_CACHE_TTL = 3 * 24 * 60 * 60 * 1000; // 3 días (refresco manual con ↻)
 
 /**
+ * Los usuarios de BGG no distinguen mayúsculas: así se guardan y se buscan
+ * en la caché (`CollectionGame`, `BggUserGame`…).
+ */
+export function normalizeBggUsername(username: string): string {
+  return username.toLowerCase().trim();
+}
+
+/**
  * ¿Toca volver a pedirle la colección a BGG? Lo usa "Mi colección" para
  * pintar de inmediato lo que hay en caché y lanzar la sincronización aparte,
  * en vez de dejar al usuario mirando una pantalla en blanco varios segundos.
@@ -161,9 +169,7 @@ async function fetchWithRetry(
   maxRetries = 6
 ): Promise<Response> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    console.log(`[BGG Fetch] Attempt ${attempt + 1}: ${url.substring(0, 80)}...`);
     const response = await bggFetch(url);
-    console.log(`[BGG Fetch] Response: ${response.status}`);
 
     if (response.status === 401 || response.status === 403) {
       throw new Error(
@@ -201,7 +207,7 @@ export async function validateBggUsername(
   username: string
 ): Promise<{ valid: boolean; error?: string }> {
   try {
-    const normalizedUsername = username.toLowerCase().trim();
+    const normalizedUsername = normalizeBggUsername(username);
     const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&own=1&subtype=boardgame&page=1`;
     const response = await bggFetch(url);
 
@@ -233,7 +239,7 @@ export async function ensureBggCollection(
   username: string,
   forceRefresh = false
 ): Promise<boolean> {
-  const normalizedUsername = username.toLowerCase().trim();
+  const normalizedUsername = normalizeBggUsername(username);
 
   // Check if we have fresh data
   if (!forceRefresh) {
@@ -243,12 +249,9 @@ export async function ensureBggCollection(
       select: { fetchedAt: true },
     });
     if (latest && Date.now() - latest.fetchedAt.getTime() < COLLECTION_CACHE_TTL) {
-      console.log(`[BGG Cache] HIT for ${normalizedUsername}`);
       return false;
     }
   }
-
-  console.log(`[BGG Cache] ${forceRefresh ? "FORCE REFRESH" : "MISS"} for ${normalizedUsername}, fetching from BGG...`);
 
   // Tres listados en paralelo: los juegos que tiene, sus expansiones (BGG las
   // excluye del listado por defecto) y la wishlist. La wishlist llega en una
@@ -390,7 +393,6 @@ export async function ensureBggCollection(
     }),
   ]);
 
-  console.log(`[BGG Cache] Saved ${games.length} games for ${normalizedUsername}`);
   return true;
 }
 
@@ -488,9 +490,6 @@ export async function enrichCollectionGames(
             },
           })
         )
-      );
-      console.log(
-        `[BGG Enrich] bestWith: ${result.size}, juego base: ${baseLinks.size}`
       );
     }
   } catch (err) {
@@ -684,7 +683,7 @@ export async function fetchBggGameDetails(
  * lista falla seguimos con la primera: mejor algo que nada.
  */
 export async function fetchBggUserGames(username: string): Promise<BggUserGameItem[]> {
-  const normalizedUsername = username.toLowerCase().trim();
+  const normalizedUsername = normalizeBggUsername(username);
   const url = (query: string) =>
     `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(normalizedUsername)}&subtype=boardgame&excludesubtype=boardgameexpansion&stats=1${query}`;
 
@@ -701,7 +700,7 @@ export async function fetchBggUserGames(username: string): Promise<BggUserGameIt
     const playedResponse = await fetchWithRetry(url("&played=1"));
     if (playedResponse.ok) playedXml = await playedResponse.text();
   } catch (err) {
-    console.log("[BGG History] Sin lista de jugados:", err);
+    console.warn("[BGG History] Sin lista de jugados:", err);
   }
 
   const parseItems = async (xml: string | null): Promise<any[]> => {
@@ -958,7 +957,7 @@ export async function getBggThumbnails(
         }
       }
     } catch (err) {
-      console.log("[BGG Thumbnails] no disponibles:", err);
+      console.warn("[BGG Thumbnails] no disponibles:", err);
     }
   }
 
@@ -1000,7 +999,7 @@ export async function searchBggGames(query: string): Promise<BggSearchResult[]> 
       }
     }
   } catch (err) {
-    console.log("[BGG Search] XML API failed, using local DB...", err);
+    console.warn("[BGG Search] La XML API no responde, se busca en la BD local:", err);
   }
 
   // Strategy 2: Search our local Game + CollectionGame tables

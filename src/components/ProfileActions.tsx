@@ -4,6 +4,9 @@ import { useState } from "react";
 import FriendButton from "./FriendButton";
 import { BlockModal, MoreMenu, ReportModal, unblockUser } from "./Moderation";
 import type { Friend } from "@/lib/friends";
+import { displayName } from "@/lib/users";
+import Button from "./ui/Button";
+import { useToast } from "./ui/Toast";
 
 /**
  * Lo que puedes hacer en el perfil de otro: añadirle a amigos y, en el «⋯»,
@@ -24,14 +27,15 @@ export default function ProfileActions({
   const [reporting, setReporting] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [busy, setBusy] = useState(false);
-  const name = user.displayName || user.name || "este jugador";
+  const toast = useToast();
+  const name = displayName(user, "este jugador");
 
   const unblock = async () => {
     setBusy(true);
     const ok = await unblockUser(user.id);
     setBusy(false);
     if (ok) setBlocked(false);
-    else alert("No se ha podido desbloquear");
+    else toast.error("No se ha podido desbloquear");
   };
 
   return (
@@ -39,14 +43,9 @@ export default function ProfileActions({
       {blocked ? (
         <span className="inline-flex items-center gap-2 text-sm text-[var(--text-secondary)]">
           🚫 Has bloqueado a {name}
-          <button
-            type="button"
-            onClick={unblock}
-            disabled={busy}
-            className="px-3 py-1 rounded-xl border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-all duration-200 disabled:opacity-60"
-          >
-            {busy ? "…" : "Desbloquear"}
-          </button>
+          <Button variant="secondary" size="xs" onClick={unblock} loading={busy}>
+            Desbloquear
+          </Button>
         </span>
       ) : (
         <>

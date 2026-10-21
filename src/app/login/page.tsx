@@ -7,6 +7,8 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import { useTheme } from "@/lib/theme";
 import PageLoader from "@/components/PageLoader";
 import { safeRedirect } from "@/lib/safeRedirect";
+import Button from "@/components/ui/Button";
+import { Field, FieldError, Input } from "@/components/ui/Field";
 
 function LoginForm() {
   const router = useRouter();
@@ -65,7 +67,7 @@ function LoginForm() {
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>;
+    return <PageLoader fullScreen />;
   }
 
   return (
@@ -74,7 +76,9 @@ function LoginForm() {
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-[var(--glow)] rounded-full blur-[120px] pointer-events-none" />
 
       <button
+        type="button"
         onClick={toggleTheme}
+        aria-label={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
         className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200 z-10"
         title={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
       >
@@ -102,38 +106,29 @@ function LoginForm() {
         </div>
 
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-7 shadow-[var(--card-shadow)] animate-fade-up delay-100">
-          <h2 className="text-xl font-bold text-[var(--text)] mb-5">
+          <h1 className="text-xl font-bold text-[var(--text)] mb-5">
             Iniciar sesión
-          </h2>
+          </h1>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-[var(--text)] mb-1.5"
-              >
-                Correo electrónico
-              </label>
-              <input
+            <Field label="Correo electrónico" htmlFor="email">
+              <Input
                 id="email"
                 type="email"
                 required
+                autoComplete="email"
+                size="lg"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
               />
-            </div>
+            </Field>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            <FieldError>{error}</FieldError>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-bold text-base transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              {loading ? "Enviando..." : "Enviar código de acceso"}
-            </button>
+            <Button type="submit" size="lg" block loading={loading} className="py-3">
+              {loading ? "Enviando…" : "Enviar código de acceso"}
+            </Button>
 
             <p className="text-xs text-[var(--text-muted)] text-center leading-relaxed">
               Al entrar aceptas los{" "}
@@ -162,7 +157,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense
-      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
+      fallback={<PageLoader fullScreen />}
     >
       <LoginForm />
     </Suspense>

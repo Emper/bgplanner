@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { apiHandler, parseBody, requireSuperadmin } from "@/lib/api";
+import { displayName } from "@/lib/users";
 import { featureCreateSchema } from "@/lib/validations";
 
 // El panel siempre tiene que ver el estado real, sin cachés por medio.
 const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 
+const ADMIN_USER_SELECT = {
+  id: true,
+  name: true,
+  displayName: true,
+  email: true,
+  avatarUrl: true,
+} as const;
+
 // Todas las propuestas del roadmap, incluidas las descartadas (que no salen
 // en la vista pública), con sus votos y los feedbacks que las originaron.
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  await requireSuperadmin(request);
 
   const features = await prisma.feature.findMany({
     orderBy: { createdAt: "desc" },
@@ -24,9 +27,7 @@ export async function GET(request: NextRequest) {
       votes: {
         orderBy: { createdAt: "desc" },
         take: 20,
-        select: {
-          user: { select: { id: true, name: true, displayName: true, email: true, avatarUrl: true } },
-        },
+        select: { user: { select: ADMIN_USER_SELECT } },
       },
       // El texto original de quien la propuso, con sus capturas: solo lo ve el
       // admin (en el roadmap público va la versión editada).
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
           message: true,
           images: true,
           createdAt: true,
-          user: { select: { id: true, name: true, displayName: true, email: true, avatarUrl: true } },
+          user: { select: ADMIN_USER_SELECT },
         },
       },
     },
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       votes: f._count.votes,
       voters: f.votes.map((v) => ({
         id: v.user.id,
-        name: v.user.displayName || v.user.name || v.user.email,
+        name: displayName(v.user, v.user.email),
         avatarUrl: v.user.avatarUrl,
       })),
       origins: f.feedbacks.map((fb) => ({
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
         createdAt: fb.createdAt,
         author: {
           id: fb.user.id,
-          name: fb.user.displayName || fb.user.name || fb.user.email,
+          name: displayName(fb.user, fb.user.email),
           email: fb.user.email,
           avatarUrl: fb.user.avatarUrl,
         },
@@ -71,29 +72,18 @@ export async function GET(request: NextRequest) {
     })),
     NO_STORE
   );
-}
+});
 
 // Crea una propuesta a mano (sin venir de un feedback).
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
-
-  const body = await request.json();
-  const parsed = featureCreateSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSuperadmin(request);
+  const data = await parseBody(request, featureCreateSchema);
 
   const feature = await prisma.feature.create({
     data: {
-      title: parsed.data.title,
-      description: parsed.data.description,
-      status: parsed.data.status || "proposed",
+      title: data.title,
+      description: data.description,
+      status: data.status || "proposed",
       createdById: session.userId,
     },
     select: { id: true, title: true, description: true, status: true, createdAt: true },
@@ -103,4 +93,4 @@ export async function POST(request: NextRequest) {
     { ...feature, votes: 0, voters: [], origins: [] },
     { status: 201, ...NO_STORE }
   );
-}
+});

@@ -56,7 +56,7 @@ export async function findOrCreateGame(
         });
       }
     } catch (err) {
-      console.log("[findOrCreateGame] refresco fallido, uso caché:", err);
+      console.warn("[findOrCreateGame] refresco fallido, uso caché:", err);
     }
     return existing;
   }
@@ -103,7 +103,7 @@ export async function findOrCreateGame(
       });
     }
   } catch (err) {
-    console.log("[findOrCreateGame] BGG API unavailable:", err);
+    console.warn("[findOrCreateGame] BGG no responde:", err);
   }
 
   // 4. Fallback: create with basic data
@@ -177,7 +177,7 @@ export async function ensureGames(
       });
       await load(details.map((d) => d.bggId));
     } catch (err) {
-      console.log("[ensureGames] BGG API unavailable:", err);
+      console.warn("[ensureGames] BGG no responde:", err);
     }
   }
 

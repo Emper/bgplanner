@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createEventSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { apiHandler, parseBody, requireSession } from "@/lib/api";
 
-// List events: public events + events user attends/created.
-// ?upcoming=1 → solo los que aún no han empezado (lo que pinta el inicio).
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+// Eventos que puede ver quien pide: los públicos y los suyos (creados o
+// apuntado). ?upcoming=1 → solo los que aún no han empezado (lo que pinta el
+// inicio).
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   const upcoming = request.nextUrl.searchParams.get("upcoming") === "1";
 
@@ -48,22 +46,13 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     events.map(({ attendees, ...e }) => ({ ...e, myStatus: attendees[0]?.status ?? null }))
   );
-}
+});
 
-// Create event
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const parsed = createEventSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-
-  const { name, description, about, date, endDate, location, maxAttendees, visibility, imageUrl } = parsed.data;
+// Crear un evento: quien lo crea queda apuntado
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { name, description, about, date, endDate, location, maxAttendees, visibility, imageUrl } =
+    await parseBody(request, createEventSchema);
 
   const event = await prisma.event.create({
     data: {
@@ -77,14 +66,13 @@ export async function POST(request: NextRequest) {
       visibility,
       imageUrl: imageUrl || null,
       createdById: session.userId,
-      // Auto-attend as creator
       attendees: {
         create: { userId: session.userId, status: "attending" },
       },
     },
   });
 
-  logActivity("event_created", session.userId, { eventId: event.id, eventName: parsed.data.name });
+  logActivity("event_created", session.userId, { eventId: event.id, eventName: name });
 
   return NextResponse.json(event, { status: 201 });
-}
+});

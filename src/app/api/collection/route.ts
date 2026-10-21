@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireSession } from "@/lib/api";
 import { ensureBggCollection, isCollectionStale } from "@/lib/bgg";
 import { loadCollection } from "@/lib/collectionData";
 
@@ -14,11 +14,8 @@ import { loadCollection } from "@/lib/collectionData";
 // página lance la sincronización aparte, enseñando mientras tanto los datos
 // viejos. Antes el primer GET con la caché caducada se quedaba esperando
 // varios segundos a tres llamadas a BGG antes de pintar nada.
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
@@ -41,9 +38,9 @@ export async function GET(request: NextRequest) {
       await ensureBggCollection(user.bggUsername, true);
     } catch (error) {
       // Si BGG falla seguimos con lo cacheado: es mucho mejor enseñar una
-      // colección de hace dos días que una página de error.
-      syncError =
-        error instanceof Error ? error.message : "BGG no ha respondido";
+      // colección de hace dos días que una página de error. La página lo
+      // enseña entre paréntesis: «BGG no ha respondido (…)».
+      syncError = "puede que esté saturado";
       console.error("[Mi colección] BGG no disponible:", error);
     }
   }
@@ -80,4 +77,4 @@ export async function GET(request: NextRequest) {
     stale: isCollectionStale(fetchedAt),
     syncError,
   });
-}
+});

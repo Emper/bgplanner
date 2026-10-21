@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireSession } from "@/lib/api";
 import { markThreadNotificationsRead } from "@/lib/communityServer";
+
+type Params = { params: Promise<{ id: string }> };
 
 // Quien abre un hilo da por vistos sus avisos de respuestas. Devuelve cuántos
 // le quedan sin leer para que la campana se ponga al día al momento.
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const POST = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
   const { id } = await params;
   const unread = await markThreadNotificationsRead(session.userId, id);
   return NextResponse.json({ unread });
-}
+});

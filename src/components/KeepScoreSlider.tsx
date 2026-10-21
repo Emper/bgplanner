@@ -90,6 +90,8 @@ export default function KeepScoreSlider({
             disabled={disabled}
             onClick={() => onChange(null)}
             title="Quitar la puntuación"
+            aria-label="Quitar la puntuación"
+            aria-pressed={value === null}
             className={`w-6 h-5 text-[10px] rounded transition-colors ${
               value === null
                 ? "text-[var(--text)] font-bold"
@@ -105,6 +107,8 @@ export default function KeepScoreSlider({
               disabled={disabled}
               onClick={() => onChange(value === score ? null : score)}
               title={`${score}. ${KEEP_LABELS[score]}`}
+              aria-label={`${score}. ${KEEP_LABELS[score]}`}
+              aria-pressed={value === score}
               className={`w-6 h-5 text-[10px] rounded transition-colors ${
                 value === score
                   ? "font-bold"

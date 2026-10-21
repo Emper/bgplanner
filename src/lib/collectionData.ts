@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeBggUsername } from "@/lib/bgg";
+import { plural } from "@/lib/text";
 import type { CollectionGame } from "@prisma/client";
 import type { CollectionItemView } from "@/lib/collection";
 
@@ -8,7 +10,7 @@ import type { CollectionItemView } from "@/lib/collection";
 // la heurística de siempre: el nombre de la expansión empieza por el del
 // juego base. Nos quedamos con la coincidencia más larga (para que "Brass:
 // Birmingham – X" no acabe colgando de "Brass").
-function matchByName(
+export function matchByName(
   expansionName: string,
   baseNames: { bggId: number; name: string }[]
 ): number | null {
@@ -53,7 +55,7 @@ export async function loadCollection(
 }> {
   const [rows, entries, savedHere] = await Promise.all([
     prisma.collectionGame.findMany({
-      where: { bggUsername: bggUsername.toLowerCase().trim() },
+      where: { bggUsername: normalizeBggUsername(bggUsername) },
     }),
     prisma.collectionEntry.findMany({ where: { userId } }),
     loadSavedWishlist(userId),
@@ -258,7 +260,7 @@ export async function pickShelfCovers(
   bggUsername: string,
   limit = 5
 ): Promise<string[]> {
-  const username = bggUsername.toLowerCase().trim();
+  const username = normalizeBggUsername(bggUsername);
 
   // Ordenados por bggId para que la tarjeta salga siempre igual y las
   // cachés no bailen.
@@ -311,9 +313,6 @@ export async function pickShelfCovers(
   return covers;
 }
 
-const plural = (n: number, one: string, many: string) =>
-  `${n} ${n === 1 ? one : many}`;
-
 /**
  * La frase de la descripción del enlace, donde no se ve nada más: lleva el
  * nombre y las dos cifras.
@@ -343,7 +342,7 @@ export function collectionCardTagline(expansions: number): string {
 
 /** Cuántos juegos y cuántas expansiones tiene, para el texto de la tarjeta. */
 export async function countOwnedGames(bggUsername: string) {
-  const username = bggUsername.toLowerCase().trim();
+  const username = normalizeBggUsername(bggUsername);
   const [games, expansions] = await Promise.all([
     prisma.collectionGame.count({
       where: { bggUsername: username, status: "own", subtype: "boardgame" },

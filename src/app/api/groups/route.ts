@@ -1,63 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, parseBody, requireSession } from "@/lib/api";
 import { groupSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
-  const groups = await prisma.group.findMany({
-    where: {
-      members: { some: { userId: session.userId } },
-    },
-    include: {
-      _count: { select: { members: true, games: { where: { archivedAt: null } } } },
-      members: {
-        include: { user: { select: { name: true, displayName: true, avatarUrl: true } } },
-        take: 5,
+  // Se parte de las membresías de quien llama: así el «fijado» (que es suyo,
+  // no del grupo) llega en la misma consulta.
+  const memberships = await prisma.groupMember.findMany({
+    where: { userId: session.userId },
+    select: {
+      pinned: true,
+      group: {
+        include: {
+          _count: { select: { members: true, games: { where: { archivedAt: null } } } },
+          members: {
+            include: { user: { select: { name: true, displayName: true, avatarUrl: true } } },
+            take: 5,
+          },
+        },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { group: { createdAt: "desc" } },
   });
 
-  // Get pinned status for current user
-  const memberships = await prisma.groupMember.findMany({
-    where: { userId: session.userId, groupId: { in: groups.map((g) => g.id) } },
-    select: { groupId: true, pinned: true },
-  });
-  const pinnedMap = new Map(memberships.map((m) => [m.groupId, m.pinned]));
-
-  const result = groups
-    .map((g) => ({ ...g, pinned: pinnedMap.get(g.id) || false }))
+  // Los fijados primero; dentro de cada bloque, del más nuevo al más viejo.
+  const result = memberships
+    .map((m) => ({ ...m.group, pinned: m.pinned }))
     .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1));
 
   return NextResponse.json(result);
-}
+});
 
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const parsed = groupSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { name, type } = await parseBody(request, groupSchema);
 
   const group = await prisma.group.create({
     data: {
-      name: parsed.data.name,
-      type: parsed.data.type,
+      name,
+      type,
       createdById: session.userId,
       members: {
         create: {
@@ -71,7 +55,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logActivity("group_created", session.userId, { groupId: group.id, groupName: parsed.data.name, groupType: parsed.data.type });
+  logActivity("group_created", session.userId, { groupId: group.id, groupName: name, groupType: type });
 
   return NextResponse.json(group, { status: 201 });
-}
+});

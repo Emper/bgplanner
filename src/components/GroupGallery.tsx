@@ -5,6 +5,18 @@ import Image from "next/image";
 import Avatar from "./Avatar";
 import { MoreMenu, ReportModal } from "./Moderation";
 import { resizeImageToBlob } from "@/lib/image";
+import { formatDateShort } from "@/lib/format";
+import { displayName } from "@/lib/users";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import Modal from "./ui/Modal";
+import Button, { buttonClass, IconButton } from "./ui/Button";
+import { Input } from "./ui/Field";
+import { useConfirm } from "./ui/ConfirmDialog";
+import { useToast } from "./ui/Toast";
+import { EmptyState } from "./ui/EmptyState";
+import Spinner, { InlineLoading } from "./ui/Spinner";
+import GameThumb from "./ui/GameThumb";
+import { cardClass, SectionLabel } from "./ui/Card";
 
 interface Photo {
   id: string;
@@ -42,14 +54,6 @@ interface PickerGame {
   game: { id: string; name: string; thumbnail: string | null };
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 const MAX_PER_UPLOAD = 10;
 
 export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKey, onAddOpinion }: Props) {
@@ -73,6 +77,11 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   const [games, setGames] = useState<PickerGame[]>([]);
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gameSearch, setGameSearch] = useState("");
+  const confirm = useConfirm();
+  const toast = useToast();
+
+  // El visor se cierra con Escape (si no hay una denuncia abierta encima).
+  useEscapeKey(() => setLightbox(null), !!lightbox && !reporting);
 
   // Al recargar (cuando cambia `reloadKey`) no se vuelve a «Cargando…»: se
   // refresca en el sitio.
@@ -142,13 +151,13 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   };
 
   const deletePhoto = async (id: string) => {
-    if (!confirm("¿Borrar esta foto?")) return;
+    if (!(await confirm({ title: "¿Borrar esta foto?", confirmLabel: "Borrar", tone: "danger" }))) return;
     setDeletingPhoto(id);
     try {
       const res = await fetch(`/api/groups/${groupId}/gallery-photos/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Error al borrar");
+        toast.error(data.error || "Error al borrar");
       } else {
         setPhotos((prev) => prev.filter((p) => p.id !== id));
       }
@@ -158,13 +167,13 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
   };
 
   const handleDeleteReview = async (id: string) => {
-    if (!confirm("¿Borrar esta opinión y sus fotos?")) return;
+    if (!(await confirm({ title: "¿Borrar esta opinión y sus fotos?", confirmLabel: "Borrar", tone: "danger" }))) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/groups/${groupId}/reviews/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Error al borrar");
+        toast.error(data.error || "Error al borrar");
       } else {
         setReviews((prev) => prev.filter((r) => r.id !== id));
       }
@@ -193,28 +202,17 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
 
   let body: ReactNode;
   if (loading) {
-    body = (
-      <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>
-        Cargando galería…
-      </p>
-    );
+    body = <InlineLoading text="Cargando galería…" className="py-12" />;
   } else if (error) {
-    body = (
-      <p className="text-center py-12 text-sm" style={{ color: "#ef4444" }}>
-        {error}
-      </p>
-    );
+    body = <p className="text-center py-12 text-sm text-[var(--danger)]">{error}</p>;
   } else if (reviews.length === 0 && photos.length === 0) {
     body = (
-      <div className="text-center py-16">
-        <p className="text-4xl mb-3">📷</p>
-        <p className="font-medium mb-1" style={{ color: "var(--text)" }}>
-          Aún no hay nada en la galería
-        </p>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Sube una foto suelta o añade una opinión de cualquier juego.
-        </p>
-      </div>
+      <EmptyState
+        icon="📷"
+        title="Aún no hay nada en la galería"
+        description="Sube una foto suelta o añade una opinión de cualquier juego."
+        className="py-16"
+      />
     );
   } else {
     body = (
@@ -222,9 +220,7 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
         {/* Fotos sueltas */}
         {photos.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
-              Fotos del grupo
-            </h3>
+            <SectionLabel>Fotos del grupo</SectionLabel>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {photos.map((p, i) => {
                 const canDelete = p.userId === currentUserId || isAdmin;
@@ -260,26 +256,20 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
         {/* Opiniones */}
         {reviews.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
-              Opiniones
-            </h3>
+            <SectionLabel>Opiniones</SectionLabel>
             <div className="space-y-4">
               {reviews.map((r) => {
-                const authorName = r.user.displayName || r.user.name || "Alguien";
+                const authorName = displayName(r.user, "Alguien");
                 const canDelete = r.userId === currentUserId || isAdmin;
                 return (
-                  <div
-                    key={r.id}
-                    className="rounded-2xl p-4"
-                    style={{ background: "var(--surface)", boxShadow: "var(--card-shadow)" }}
-                  >
+                  <div key={r.id} className={cardClass({ padding: "none", className: "p-4" })}>
                     <div className="flex items-start gap-3">
                       <Avatar name={authorName} avatarUrl={r.user.avatarUrl} size="sm" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm" style={{ color: "var(--text)" }}>
+                          <p className="text-sm text-[var(--text)]">
                             <span className="font-semibold">{authorName}</span>{" "}
-                            <span style={{ color: "var(--text-secondary)" }}>
+                            <span className="text-[var(--text-secondary)]">
                               en <span className="font-medium">{r.game.name}</span>
                             </span>
                           </p>
@@ -288,8 +278,7 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
                               <button
                                 onClick={() => handleDeleteReview(r.id)}
                                 disabled={deleting === r.id}
-                                className="text-xs shrink-0"
-                                style={{ color: "var(--text-muted)" }}
+                                className="text-xs shrink-0 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
                               >
                                 {deleting === r.id ? "…" : "Borrar"}
                               </button>
@@ -304,20 +293,14 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
                             )}
                           </div>
                         </div>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                          {fmtDate(r.createdAt)}
-                        </p>
+                        <p className="text-xs text-[var(--text-muted)]">{formatDateShort(r.createdAt)}</p>
                         {r.rating != null && r.rating > 0 && (
-                          <p className="text-base mt-1" style={{ color: "#f59e0b" }}>
+                          <p className="text-base mt-1 text-[var(--primary)]">
                             {"★".repeat(r.rating)}
-                            <span style={{ color: "var(--border)" }}>{"★".repeat(5 - r.rating)}</span>
+                            <span className="text-[var(--border)]">{"★".repeat(5 - r.rating)}</span>
                           </p>
                         )}
-                        {r.text && (
-                          <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: "var(--text)" }}>
-                            {r.text}
-                          </p>
-                        )}
+                        {r.text && <p className="text-sm mt-1 whitespace-pre-wrap text-[var(--text)]">{r.text}</p>}
                         {r.photos.length > 0 && (
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
                             {r.photos.map((p, i) => (
@@ -356,12 +339,14 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
     <div>
       <div className="flex justify-end gap-2 mb-4">
         <label
-          className={`px-4 py-2 rounded-xl text-sm font-medium inline-flex items-center gap-2 ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
-          style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+          className={buttonClass({
+            variant: "secondary",
+            className: uploading ? "opacity-60 cursor-wait" : "cursor-pointer",
+          })}
         >
           {uploading ? (
             <>
-              <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+              <Spinner size="sm" tone="current" />
               Subiendo…
             </>
           ) : (
@@ -379,22 +364,14 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
             }}
           />
         </label>
-        <button
-          onClick={openPicker}
-          disabled={uploading}
-          className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
-          style={{ background: "#f59e0b", color: "#0f172a" }}
-        >
+        <Button onClick={openPicker} disabled={uploading}>
           ✍️ Añadir opinión
-        </button>
+        </Button>
       </div>
 
       {uploading && (
-        <div
-          className="flex items-center justify-center gap-2 mb-4 py-3 rounded-xl text-sm"
-          style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
-        >
-          <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        <div className="flex items-center justify-center gap-2 mb-4 py-3 rounded-xl text-sm bg-[var(--surface)] text-[var(--text-secondary)]">
+          <Spinner size="sm" tone="current" />
           Subiendo fotos…
         </div>
       )}
@@ -402,77 +379,53 @@ export default function GroupGallery({ groupId, currentUserId, isAdmin, reloadKe
       {body}
 
       {/* Selector de juego */}
-      {pickerOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => setPickerOpen(false)}
-        >
-          <div
-            className="rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col p-5"
-            style={{ background: "var(--surface)", boxShadow: "var(--card-shadow)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-3" style={{ color: "var(--text)", fontFamily: "var(--font-display)" }}>
-              ¿Sobre qué juego?
-            </h3>
-            <input
-              autoFocus
-              value={gameSearch}
-              onChange={(e) => setGameSearch(e.target.value)}
-              placeholder="Buscar juego…"
-              className="w-full rounded-xl p-2.5 mb-3 text-sm"
-              style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text)" }}
-            />
-            <div className="overflow-y-auto -mx-1 px-1">
-              {gamesLoading ? (
-                <p className="text-center py-6 text-sm" style={{ color: "var(--text-muted)" }}>
-                  Cargando juegos…
-                </p>
-              ) : filteredGames.length === 0 ? (
-                <p className="text-center py-6 text-sm" style={{ color: "var(--text-muted)" }}>
-                  No hay juegos que coincidan.
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {filteredGames.map((g) => (
-                    <button
-                      key={g.game.id}
-                      onClick={() => pickGame(g)}
-                      className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-[var(--surface-hover)] transition-colors"
-                    >
-                      <div className="w-9 h-9 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
-                        {g.game.thumbnail && (
-                          <Image src={g.game.thumbnail} alt={g.game.name} width={36} height={36} className="w-full h-full object-cover" />
-                        )}
-                      </div>
-                      <span className="text-sm" style={{ color: "var(--text)" }}>
-                        {g.game.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+      <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title="¿Sobre qué juego?">
+        <Input
+          value={gameSearch}
+          onChange={(e) => setGameSearch(e.target.value)}
+          placeholder="Buscar juego…"
+          className="mb-3"
+        />
+        <div className="max-h-[50vh] overflow-y-auto -mx-1 px-1">
+          {gamesLoading ? (
+            <InlineLoading text="Cargando juegos…" className="py-6" />
+          ) : filteredGames.length === 0 ? (
+            <p className="text-center py-6 text-sm text-[var(--text-muted)]">No hay juegos que coincidan.</p>
+          ) : (
+            <div className="space-y-1">
+              {filteredGames.map((g) => (
+                <button
+                  key={g.game.id}
+                  onClick={() => pickGame(g)}
+                  className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-[var(--surface-hover)] transition-colors"
+                >
+                  <GameThumb src={g.game.thumbnail} name={g.game.name} size="xs" />
+                  <span className="text-sm text-[var(--text)]">{g.game.name}</span>
+                </button>
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </Modal>
 
       {lightbox && (
         <div
           className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
           onClick={() => setLightbox(null)}
         >
-          <button
-            className="absolute top-4 right-4 text-white text-3xl leading-none"
+          <IconButton
+            label="Cerrar"
+            tone="onImage"
+            className="absolute top-4 right-4 text-2xl leading-none"
             onClick={() => setLightbox(null)}
-            aria-label="Cerrar"
           >
             ×
-          </button>
+          </IconButton>
           {lightboxReport && (
             <MoreMenu
               tone="dark"
               className="absolute top-4 left-4 z-10"
+              align="left"
               items={[
                 {
                   label: lightboxReport.type === "review" ? "🚩 Denunciar opinión" : "🚩 Denunciar foto",

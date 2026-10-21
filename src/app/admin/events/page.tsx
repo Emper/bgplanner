@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { formatDateShort } from "@/lib/format";
+import { displayName } from "@/lib/users";
+import Alert from "@/components/ui/Alert";
+import { Input, Select } from "@/components/ui/Field";
+import { AdminHeader } from "../AdminUI";
 
 interface AdminEvent {
   id: string;
@@ -52,36 +57,35 @@ export default function AdminEventsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-display font-semibold">Todos los eventos</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {loading ? "Cargando…" : `${filtered.length} de ${events.length}`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="search"
-            placeholder="Buscar por nombre o email…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="px-3 py-2 rounded-xl text-sm bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none w-56"
-          />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as Filter)}
-            className="px-3 py-2 rounded-xl text-sm bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none"
-          >
-            <option value="all">Todos</option>
-            <option value="upcoming">Próximos</option>
-            <option value="past">Pasados</option>
-          </select>
-        </div>
-      </header>
+      <AdminHeader
+        title="Todos los eventos"
+        lead={loading ? "Cargando…" : `${filtered.length} de ${events.length}`}
+        action={
+          <>
+            <div className="w-56">
+              <Input
+                type="search"
+                size="sm"
+                aria-label="Buscar eventos"
+                placeholder="Buscar por nombre o email…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div>
+              <Select size="sm" aria-label="Filtrar por fecha" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
+                <option value="all">Todos</option>
+                <option value="upcoming">Próximos</option>
+                <option value="past">Pasados</option>
+              </Select>
+            </div>
+          </>
+        }
+      />
 
-      {error && <div className="text-sm text-[var(--color-danger,#ef4444)]">{error}</div>}
+      {error && <Alert>{error}</Alert>}
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--surface-alt)] text-[var(--text-secondary)] uppercase text-xs tracking-wide">
             <tr>
@@ -122,7 +126,7 @@ export default function AdminEventsPage() {
                   )}
                 </td>
                 <td className="px-4 py-2">
-                  <div>{e.createdBy.name}</div>
+                  <div>{displayName(e.createdBy, e.createdBy.email)}</div>
                   <div className="text-xs text-[var(--text-muted)]">{e.createdBy.email}</div>
                 </td>
                 <td className="px-4 py-2 text-right font-mono">
@@ -130,11 +134,7 @@ export default function AdminEventsPage() {
                 </td>
                 <td className="px-4 py-2 text-right font-mono">{e.games}</td>
                 <td className="px-4 py-2 text-right text-xs text-[var(--text-muted)] whitespace-nowrap">
-                  {new Date(e.date).toLocaleDateString("es-ES", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {formatDateShort(e.date)}
                 </td>
               </tr>
             ))}

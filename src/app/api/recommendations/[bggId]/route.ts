@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
 import { gameFlagSchema } from "@/lib/validations";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
+
+type Params = { params: Promise<{ bggId: string }> };
 
 // Guardar un juego en tu wishlist de BG Planner, descartarlo ("no me
 // interesa") o deshacer cualquiera de las dos cosas.
@@ -9,30 +11,16 @@ import { gameFlagSchema } from "@/lib/validations";
 // La wishlist de BGG no se puede tocar desde fuera (su API es de solo
 // lectura), así que esta vive aquí y se enseña junto a la de BGG en "Mi
 // colección". Como el resto de la colección, no va al feed de actividad.
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ bggId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const PUT = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
 
   const { bggId: rawBggId } = await params;
-  const bggId = parseInt(rawBggId, 10);
+  const bggId = Number(rawBggId);
   if (!Number.isInteger(bggId) || bggId <= 0) {
-    return NextResponse.json({ error: "Juego no válido" }, { status: 400 });
+    throw new ApiError(400, "Juego no válido");
   }
 
-  const body = await request.json().catch(() => null);
-  const parsed = gameFlagSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-  const { flag } = parsed.data;
+  const { flag } = await parseBody(request, gameFlagSchema);
 
   if (flag === null) {
     await prisma.userGameFlag.deleteMany({ where: { userId: session.userId, bggId } });
@@ -46,7 +34,7 @@ export async function PUT(
     select: { subtype: true },
   });
   if (!info || info.subtype === "missing") {
-    return NextResponse.json({ error: "No conocemos ese juego" }, { status: 404 });
+    throw new ApiError(404, "No conocemos ese juego");
   }
 
   await prisma.userGameFlag.upsert({
@@ -56,4 +44,4 @@ export async function PUT(
   });
 
   return NextResponse.json({ bggId, flag });
-}
+});

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import {
@@ -10,7 +10,6 @@ import {
   type ProfileEvent,
 } from "@/lib/publicProfile";
 import SmartNav from "@/components/SmartNav";
-import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
 import GameShelf from "@/components/GameShelf";
@@ -21,8 +20,12 @@ import { hasBlocked } from "@/lib/moderation";
 import { profileBadges } from "@/lib/profileBadges";
 import { formatDateShort, formatMonthYear } from "@/lib/format";
 import { getGroupType } from "@/lib/groupTypes";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
+import { bggUserUrl } from "@/lib/bggLinks";
+import { APP_URL, loginHref } from "@/lib/site";
+import { plural } from "@/lib/text";
+import { ButtonLink } from "@/components/ui/Button";
+import { cardClass, SectionCard } from "@/components/ui/Card";
+import PageShell from "@/components/ui/PageShell";
 
 // Depende de quién mire (con cuenta se ven además los grupos en común) y de
 // datos vivos: nada que prerrenderizar.
@@ -36,9 +39,9 @@ export async function generateMetadata({
   const { slug } = await params;
   const header = await getProfileHeader(slug);
 
-  // Next 16 manda los metadatos en streaming, así que desde aquí no se puede
-  // devolver un 404 de verdad: lo que sí llega a los buscadores (que ejecutan
-  // JS) es el noindex, para que una dirección inventada no acabe indexada.
+  // El 404 de verdad lo da la página con notFound(); por si los metadatos
+  // llegan en streaming, además noindex para que una dirección inventada no
+  // acabe indexada.
   if (!header) {
     return {
       title: "Perfil no encontrado · BG Planner",
@@ -75,33 +78,6 @@ export async function generateMetadata({
       description,
     },
   };
-}
-
-function Section({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-[var(--card-shadow)]">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <h2 className="text-base font-bold text-[var(--text)]">{title}</h2>
-          {subtitle && (
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>
-          )}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
 }
 
 function EventRow({ event }: { event: ProfileEvent }) {
@@ -146,36 +122,11 @@ function EventRow({ event }: { event: ProfileEvent }) {
           {event.location ? ` · ${event.location}` : ""}
         </p>
         <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-          {event.attendeeCount} asistente{event.attendeeCount === 1 ? "" : "s"}
-          {event.gameCount > 0
-            ? ` · ${event.gameCount} juego${event.gameCount === 1 ? "" : "s"}`
-            : ""}
+          {plural(event.attendeeCount, "asistente", "asistentes")}
+          {event.gameCount > 0 ? ` · ${plural(event.gameCount, "juego", "juegos")}` : ""}
         </p>
       </div>
     </Link>
-  );
-}
-
-function NotFound() {
-  return (
-    <>
-      <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <p className="text-6xl mb-4">🔍</p>
-          <h1 className="text-xl font-bold text-[var(--text)] mb-2">
-            Aquí no hay ningún jugador
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mb-6">
-            Puede que haya cambiado su dirección o que el enlace esté mal copiado.
-          </p>
-          <Link href="/" className="text-sm text-[var(--primary)] hover:underline">
-            Ir a BG Planner
-          </Link>
-        </div>
-      </div>
-      <Footer />
-    </>
   );
 }
 
@@ -191,7 +142,7 @@ export default async function PublicProfilePage({
     getProfileHeader(slug),
   ]);
 
-  if (!profile || !header) return <NotFound />;
+  if (!profile || !header) notFound();
 
   const blockedByViewer =
     !!session && !profile.isSelf && (await hasBlocked(session.userId, profile.id));
@@ -212,284 +163,274 @@ export default async function PublicProfilePage({
     (!!profile.bggUsername && (profile.isSelf || hasCollection));
 
   return (
-    <>
-      <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-main">
-          {!session && (
-            <SignupBanner
-              variant="profile"
-              name={profile.displayName}
-              redirect={`/users/${encodeURIComponent(profile.slug)}`}
-            />
-          )}
+    <PageShell nav={<SmartNav />} width="main">
+      {!session && (
+        <SignupBanner
+          variant="profile"
+          name={profile.displayName}
+          redirect={`/users/${encodeURIComponent(profile.slug)}`}
+        />
+      )}
 
-          {/* ── Datos básicos ────────────────────────────────────────── */}
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 sm:p-5 shadow-[var(--card-shadow)]">
-            <div className="flex items-center gap-4">
-              <Avatar
-                name={profile.displayName}
-                avatarUrl={profile.avatarUrl}
-                size="2xl"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <h1 className="page-title break-words leading-tight">
-                    {profile.displayName}
-                  </h1>
-                  {profile.isSelf && (
-                    <Link
-                      href="/profile"
-                      className="shrink-0 px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-medium text-[var(--primary)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200"
-                    >
-                      Editar perfil
-                    </Link>
-                  )}
-                </div>
-                <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                  {profile.location && <span>📍 {profile.location}</span>}
-                  {profile.location && (
-                    <span className="text-[var(--text-muted)]"> · </span>
-                  )}
-                  <span className="text-xs text-[var(--text-muted)]">
-                    desde {formatMonthYear(profile.memberSince)}
-                  </span>
-                </p>
-                {profile.bggUsername && (
-                  <a
-                    href={`https://boardgamegeek.com/user/${profile.bggUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`@${profile.bggUsername} en BoardGameGeek`}
-                    className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all duration-200"
-                  >
-                    <Image
-                      src="/bgg-icon.svg"
-                      alt="BGG"
-                      width={14}
-                      height={14}
-                      className="w-[14px] h-auto"
-                    />
-                    <span className="text-[11px] font-medium leading-none">
-                      @{profile.bggUsername}
-                    </span>
-                  </a>
-                )}
-              </div>
+      {/* ── Datos básicos ────────────────────────────────────────── */}
+      <div className={cardClass()}>
+        <div className="flex items-center gap-4">
+          <Avatar
+            name={profile.displayName}
+            avatarUrl={profile.avatarUrl}
+            size="2xl"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="page-title break-words leading-tight">
+                {profile.displayName}
+              </h1>
+              {profile.isSelf && (
+                <ButtonLink href="/profile" variant="secondary" size="sm" className="shrink-0">
+                  Editar perfil
+                </ButtonLink>
+              )}
             </div>
+            <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+              {profile.location && <span>📍 {profile.location}</span>}
+              {profile.location && (
+                <span className="text-[var(--text-muted)]"> · </span>
+              )}
+              <span className="text-xs text-[var(--text-muted)]">
+                desde {formatMonthYear(profile.memberSince)}
+              </span>
+            </p>
+            {profile.bggUsername && (
+              <a
+                href={bggUserUrl(profile.bggUsername)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`@${profile.bggUsername} en BoardGameGeek`}
+                className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all duration-200"
+              >
+                <Image
+                  src="/bgg-icon.svg"
+                  alt="BGG"
+                  width={14}
+                  height={14}
+                  className="w-[14px] h-auto"
+                />
+                <span className="text-[11px] font-medium leading-none">
+                  @{profile.bggUsername}
+                </span>
+              </a>
+            )}
+          </div>
+        </div>
 
-            {/* En el móvil la colección no tiene pestaña propia: cuelga de aquí */}
-            {profile.isSelf && (
+        {/* En el móvil la colección no tiene pestaña propia: cuelga de aquí */}
+        {profile.isSelf && (
+          <Link
+            href="/collection"
+            className="mt-4 flex items-center gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 group"
+          >
+            <span className="text-xl" aria-hidden>🎲</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors">
+                Mi colección
+              </span>
+              <span className="block text-xs text-[var(--text-muted)] truncate">
+                Tus juegos, tu vitrina y qué estrenar después
+              </span>
+            </span>
+            <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </Link>
+        )}
+
+        {/* Amigos, denunciar y bloquear: solo con sesión y en el perfil de otro */}
+        {session && !profile.isSelf && (
+          <ProfileActions
+            user={{
+              id: profile.id,
+              name: null,
+              displayName: profile.displayName,
+              avatarUrl: profile.avatarUrl,
+              slug: profile.slug,
+            }}
+            addedViewer={profile.addedViewer}
+            initialBlocked={blockedByViewer}
+          />
+        )}
+
+        {/* Grupos en común */}
+        {profile.sharedGroups.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-[var(--border)]">
+            <p className="text-xs text-[var(--text-muted)] mb-2">
+              {profile.isSelf ? "Tus grupos" : "Grupos que tenéis en común"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {profile.sharedGroups.map((group) => (
+                <Link
+                  key={group.id}
+                  href={`/groups/${group.id}`}
+                  prefetch={false}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition-all duration-200"
+                >
+                  <span>{getGroupType(group.type).emoji}</span>
+                  {group.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Vitrina ──────────────────────────────────────────────── */}
+      {showShowcase && (
+        <SectionCard
+          className="mt-4"
+          title={
+            profile.isSelf
+              ? "Mi vitrina"
+              : profile.showcase.length > 0
+                ? "Su vitrina"
+                : "Su colección"
+          }
+          subtitle={
+            profile.isSelf || profile.showcase.length > 0
+              ? "Los imprescindibles, los que enseñaría a cualquiera que entre en casa."
+              : "Aún no ha elegido sus imprescindibles, pero la estantería entera está a la vista."
+          }
+          action={
+            profile.isSelf ? (
               <Link
                 href="/collection"
-                className="mt-4 flex items-center gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 group"
+                className="shrink-0 text-xs text-[var(--primary)] hover:underline"
               >
-                <span className="text-xl" aria-hidden>🎲</span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors">
-                    Mi colección
-                  </span>
-                  <span className="block text-xs text-[var(--text-muted)] truncate">
-                    Tus juegos, tu vitrina y qué estrenar después
-                  </span>
-                </span>
-                <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+                Editar
               </Link>
-            )}
+            ) : undefined
+          }
+        >
+          {profile.showcase.length === 0 ? (
+            profile.isSelf && (
+              <p className="text-sm text-[var(--text-muted)]">
+                Todavía no has puesto nada.{" "}
+                <Link href="/collection" className="text-[var(--primary)] hover:underline">
+                  Elige tus favoritos en Mi colección
+                </Link>{" "}
+                y aparecerán aquí.
+              </p>
+            )
+          ) : (
+            <GameShelf games={profile.showcase} compact />
+          )}
+          {hasCollection && (
+            <Link
+              href={collectionHref}
+              prefetch={false}
+              className={`${profile.showcase.length > 0 || profile.isSelf ? "mt-4" : ""} flex items-center gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 group`}
+            >
+              <span className="text-xl" aria-hidden>🗄️</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors">
+                  {profile.isSelf ? "Ver mi colección entera" : "Ver su colección entera"}
+                </span>
+                <span className="block text-xs text-[var(--text-muted)] truncate">
+                  {plural(ownedGames, "juego", "juegos")}
+                  {header.stats.expansions > 0 &&
+                    ` y ${header.stats.expansions.toLocaleString("es-ES")} expansi${header.stats.expansions === 1 ? "ón" : "ones"}`}
+                  {profile.isSelf
+                    ? " · como la ven los demás"
+                    : " · con filtros, partidas y wishlist"}
+                </span>
+              </span>
+              <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+          )}
+        </SectionCard>
+      )}
 
-            {/* Amigos, denunciar y bloquear: solo con sesión y en el perfil de otro */}
-            {session && !profile.isSelf && (
-              <ProfileActions
-                user={{
-                  id: profile.id,
-                  name: null,
-                  displayName: profile.displayName,
-                  avatarUrl: profile.avatarUrl,
-                  slug: profile.slug,
-                }}
-                addedViewer={profile.addedViewer}
-                initialBlocked={blockedByViewer}
-              />
-            )}
+      {/* ── Insignias ────────────────────────────────────────────── */}
+      {/* Sin nada conseguido, a otro no se le enseña una fila de
+          candados; a ti sí, que es tu lista de cosas por hacer. */}
+      {(earned > 0 || profile.isSelf) && (
+        <SectionCard
+          className="mt-4"
+          title={profile.isSelf ? "Mis insignias" : "Insignias"}
+          subtitle={
+            profile.isSelf
+              ? "Bronce, plata y oro. A por las que te faltan."
+              : "Lo que lleva jugado, votado y organizado en BG Planner."
+          }
+          action={
+            <span className="shrink-0 text-xs font-semibold text-[var(--text-muted)]">
+              {earned}/{badges.length}
+            </span>
+          }
+        >
+          <BadgeCarousel badges={badges} isSelf={profile.isSelf} />
+        </SectionCard>
+      )}
 
-            {/* Grupos en común */}
-            {profile.sharedGroups.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-[var(--border)]">
-                <p className="text-xs text-[var(--text-muted)] mb-2">
-                  {profile.isSelf ? "Tus grupos" : "Grupos que tenéis en común"}
+      {/* ── Eventos ──────────────────────────────────────────────── */}
+      {hasEvents && (
+        <SectionCard className="mt-4" title="Eventos" subtitle="A los que asiste.">
+          <div className="space-y-4">
+            {profile.upcomingEvents.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">
+                  Próximos
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {profile.sharedGroups.map((group) => (
-                    <Link
-                      key={group.id}
-                      href={`/groups/${group.id}`}
-                      prefetch={false}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition-all duration-200"
-                    >
-                      <span>{getGroupType(group.type).emoji}</span>
-                      {group.name}
-                    </Link>
+                <div className="space-y-2">
+                  {profile.upcomingEvents.map((event) => (
+                    <EventRow key={event.id} event={event} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {profile.pastEvents.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">
+                  Ya pasados
+                </p>
+                <div className="space-y-2">
+                  {profile.pastEvents.map((event) => (
+                    <EventRow key={event.id} event={event} />
                   ))}
                 </div>
               </div>
             )}
           </div>
+        </SectionCard>
+      )}
 
-          {/* ── Vitrina ──────────────────────────────────────────────── */}
-          {showShowcase && (
-            <Section
-              title={
-                profile.isSelf
-                  ? "Mi vitrina"
-                  : profile.showcase.length > 0
-                    ? "Su vitrina"
-                    : "Su colección"
-              }
-              subtitle={
-                profile.isSelf || profile.showcase.length > 0
-                  ? "Los imprescindibles, los que enseñaría a cualquiera que entre en casa."
-                  : "Aún no ha elegido sus imprescindibles, pero la estantería entera está a la vista."
-              }
-              action={
-                profile.isSelf ? (
-                  <Link
-                    href="/collection"
-                    className="shrink-0 text-xs text-[var(--primary)] hover:underline"
-                  >
-                    Editar
-                  </Link>
-                ) : undefined
-              }
-            >
-              {profile.showcase.length === 0 ? (
-                profile.isSelf && (
-                  <p className="text-sm text-[var(--text-muted)]">
-                    Todavía no has puesto nada.{" "}
-                    <Link href="/collection" className="text-[var(--primary)] hover:underline">
-                      Elige tus favoritos en Mi colección
-                    </Link>{" "}
-                    y aparecerán aquí.
-                  </p>
-                )
-              ) : (
-                <GameShelf games={profile.showcase} compact />
-              )}
-              {hasCollection && (
-                <Link
-                  href={collectionHref}
-                  prefetch={false}
-                  className={`${profile.showcase.length > 0 || profile.isSelf ? "mt-4" : ""} flex items-center gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--primary)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 group`}
-                >
-                  <span className="text-xl" aria-hidden>🗄️</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-[var(--text)] group-hover:text-[var(--primary)] transition-colors">
-                      {profile.isSelf ? "Ver mi colección entera" : "Ver su colección entera"}
-                    </span>
-                    <span className="block text-xs text-[var(--text-muted)] truncate">
-                      {ownedGames.toLocaleString("es-ES")} juego{ownedGames === 1 ? "" : "s"}
-                      {header.stats.expansions > 0 &&
-                        ` y ${header.stats.expansions.toLocaleString("es-ES")} expansi${header.stats.expansions === 1 ? "ón" : "ones"}`}
-                      {profile.isSelf
-                        ? " · como la ven los demás"
-                        : " · con filtros, partidas y wishlist"}
-                    </span>
-                  </span>
-                  <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              )}
-            </Section>
-          )}
+      {/* ── Actividad reciente ───────────────────────────────────── */}
+      {profile.activity.length > 0 && (
+        <SectionCard className="mt-4" title="Actividad reciente">
+          <ActivityFeed
+            items={profile.activity}
+            showContext
+            minBlocks={0}
+            linkUsers={false}
+          />
+        </SectionCard>
+      )}
 
-          {/* ── Insignias ────────────────────────────────────────────── */}
-          {/* Sin nada conseguido, a otro no se le enseña una fila de
-              candados; a ti sí, que es tu lista de cosas por hacer. */}
-          {(earned > 0 || profile.isSelf) && (
-            <Section
-              title={profile.isSelf ? "Mis insignias" : "Insignias"}
-              subtitle={
-                profile.isSelf
-                  ? "Bronce, plata y oro. A por las que te faltan."
-                  : "Lo que lleva jugado, votado y organizado en BG Planner."
-              }
-              action={
-                <span className="shrink-0 text-xs font-semibold text-[var(--text-muted)]">
-                  {earned}/{badges.length}
-                </span>
-              }
-            >
-              <BadgeCarousel badges={badges} isSelf={profile.isSelf} />
-            </Section>
-          )}
-
-          {/* ── Eventos ──────────────────────────────────────────────── */}
-          {hasEvents && (
-            <Section title="Eventos" subtitle="A los que asiste.">
-              <div className="space-y-4">
-                {profile.upcomingEvents.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">
-                      Próximos
-                    </p>
-                    <div className="space-y-2">
-                      {profile.upcomingEvents.map((event) => (
-                        <EventRow key={event.id} event={event} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {profile.pastEvents.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">
-                      Ya pasados
-                    </p>
-                    <div className="space-y-2">
-                      {profile.pastEvents.map((event) => (
-                        <EventRow key={event.id} event={event} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Section>
-          )}
-
-          {/* ── Actividad reciente ───────────────────────────────────── */}
-          {profile.activity.length > 0 && (
-            <Section title="Actividad reciente">
-              <ActivityFeed
-                items={profile.activity}
-                showContext
-                minBlocks={0}
-                linkUsers={false}
-              />
-            </Section>
-          )}
-
-          {/* ── Invitación para quien llega de fuera ─────────────────── */}
-          {!session && (
-            <section className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 shadow-[var(--card-shadow)] text-center">
-              <h2 className="text-base font-bold text-[var(--text)]">
-                ¿Y tu mesa?
-              </h2>
-              <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">
-                En BG Planner tu grupo vota los juegos que tenéis, sale un ranking
-                y de ahí salen las partidas. Monta tu perfil como este en un rato.
-              </p>
-              <Link
-                href="/login"
-                className="inline-flex px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Entrar o crear cuenta
-              </Link>
-            </section>
-          )}
-        </div>
-      </div>
-      <Footer />
-    </>
+      {/* ── Invitación para quien llega de fuera ─────────────────── */}
+      {!session && (
+        <section className={cardClass({ className: "mt-4 text-center" })}>
+          <h2 className="text-base font-bold text-[var(--text)]">
+            ¿Y tu mesa?
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">
+            En BG Planner tu grupo vota los juegos que tenéis, sale un ranking
+            y de ahí salen las partidas. Monta tu perfil como este en un rato.
+          </p>
+          <ButtonLink href={loginHref(`/users/${encodeURIComponent(profile.slug)}`)} size="lg">
+            Entrar o crear cuenta
+          </ButtonLink>
+        </section>
+      )}
+    </PageShell>
   );
 }

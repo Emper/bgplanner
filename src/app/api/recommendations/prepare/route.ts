@@ -1,24 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
 import { getPrepStatus, prepareStep } from "@/lib/recommendations";
 
 // Un paso de preparación de las recomendaciones (una o dos llamadas a BGG,
 // unos segundos). La página llama en bucle mientras queden cosas por hacer,
 // igual que con las expansiones de "Mi colección", para no agotar el tiempo
 // de la función.
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { bggUsername: true },
   });
   if (!user?.bggUsername) {
-    return NextResponse.json({ error: "Sin usuario de BGG" }, { status: 400 });
+    throw new ApiError(400, "Conecta tu usuario de BGG para ver recomendaciones");
   }
 
   try {
@@ -27,7 +24,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ step, status });
   } catch (error) {
     console.error("[Recomendaciones] Error preparando:", error);
-    const message = error instanceof Error ? error.message : "BGG no ha respondido";
-    return NextResponse.json({ error: message }, { status: 502 });
+    throw new ApiError(502, "BGG no ha respondido");
   }
-}
+});

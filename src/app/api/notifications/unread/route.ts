@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireSession } from "@/lib/api";
 
 /** Solo el número, para el globo de la campana (se consulta a menudo). */
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
   const unread = await prisma.notification.count({
     where: { userId: session.userId, readAt: null },
   });
   return NextResponse.json({ unread });
-}
+});

@@ -1,54 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
-import { inBackground, notifyNow } from "@/lib/notifications";
+import { notifyNow } from "@/lib/notifications";
+import { inBackground } from "@/lib/background";
 import { describeReportTarget, moderatorIds } from "@/lib/moderation";
 import { REPORT_TARGET_LABELS } from "@/lib/reports";
 import { reportSchema } from "@/lib/validations";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
 
 const MAX_REPORTS_PER_HOUR = 10;
 
 // Denunciar un hilo, una respuesta, una foto, una opinión o a un usuario. Se
 // avisa a quien modera por la campana (y su push), que lleva a /admin/reports.
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => null);
-  const parsed = reportSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-  const { targetType, targetId, reason, text } = parsed.data;
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { targetType, targetId, reason, text } = await parseBody(request, reportSchema);
 
   const recent = await prisma.report.count({
     where: { reporterId: session.userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
   });
   if (recent >= MAX_REPORTS_PER_HOUR) {
-    return NextResponse.json(
-      { error: "Has enviado muchas denuncias seguidas. Prueba de nuevo en un rato" },
-      { status: 429 }
-    );
+    throw new ApiError(429, "Has enviado muchas denuncias seguidas. Prueba de nuevo en un rato");
   }
 
   // Solo se denuncia lo que uno puede ver (y no lo propio).
   const target = await describeReportTarget(targetType, targetId, session.userId);
-  if (!target) {
-    return NextResponse.json({ error: "No encontramos lo que quieres denunciar" }, { status: 404 });
-  }
+  if (!target) throw new ApiError(404, "No encontramos lo que quieres denunciar");
   if (target.authorId === session.userId) {
-    return NextResponse.json(
-      { error: targetType === "user" ? "No puedes denunciarte a ti mismo" : "No puedes denunciar algo tuyo" },
-      { status: 400 }
+    throw new ApiError(
+      400,
+      targetType === "user" ? "No puedes denunciarte a ti mismo" : "No puedes denunciar algo tuyo"
     );
   }
 
-  let reportId: string;
-  try {
-    const report = await prisma.report.create({
+  const report = await prisma.report
+    .create({
       data: {
         reporterId: session.userId,
         targetType,
@@ -58,17 +45,14 @@ export async function POST(request: NextRequest) {
         text: text || null,
       },
       select: { id: true },
+    })
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ApiError(409, "Ya lo habías denunciado. Lo estamos revisando");
+      }
+      throw err;
     });
-    reportId = report.id;
-  } catch (err) {
-    if ((err as { code?: string })?.code === "P2002") {
-      return NextResponse.json(
-        { error: "Ya lo habías denunciado. Lo estamos revisando" },
-        { status: 409 }
-      );
-    }
-    throw err;
-  }
+  const reportId = report.id;
 
   const targetLabel = REPORT_TARGET_LABELS[targetType].a;
   logActivity("report_created", session.userId, { reportId, targetType, targetLabel, reason });
@@ -83,4 +67,4 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});

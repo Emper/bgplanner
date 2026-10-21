@@ -4,10 +4,17 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
-import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
 import { spotlightMove } from "@/components/motion";
+import PageShell from "@/components/ui/PageShell";
+import PageHeader from "@/components/ui/PageHeader";
+import Alert from "@/components/ui/Alert";
+import { ButtonLink } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 import { getGroupType } from "@/lib/groupTypes";
+import { displayName } from "@/lib/users";
+import { plural } from "@/lib/text";
 
 // Todos tus grupos. La portada con la actividad es / (con sesión).
 
@@ -28,6 +35,7 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     fetch("/api/groups", { credentials: "include" })
@@ -39,66 +47,76 @@ export default function GroupsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const togglePin = async (group: Group) => {
+    const newPinned = !group.pinned;
+    try {
+      const res = await fetch(`/api/groups/${group.id}/pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned: newPinned }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      toast.error(newPinned ? "No se ha podido fijar el grupo" : "No se ha podido desfijar el grupo");
+      return;
+    }
+    setGroups((prev) =>
+      prev
+        .map((g) => (g.id === group.id ? { ...g, pinned: newPinned } : g))
+        .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
+    );
+  };
+
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-main">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="page-title">Mis grupos</h1>
-            <Link
-              href="/groups/new"
-              prefetch={false}
-              className="px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              Crear grupo
-            </Link>
-          </div>
+    <PageShell nav={<Navbar />} width="main">
+      <PageHeader
+        title="Mis grupos"
+        action={
+          <ButtonLink href="/groups/new" prefetch={false} className="py-2.5">
+            Crear grupo
+          </ButtonLink>
+        }
+      />
 
-          {loading && <PageLoader withNavbar />}
-          {error && <p className="text-sm text-red-400">{error}</p>}
+      {loading && <PageLoader withNavbar />}
+      {error && <Alert>{error}</Alert>}
 
-          {!loading && !error && groups.length === 0 && (
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 text-center text-[var(--text-secondary)] mb-8 shadow-[var(--card-shadow)]">
-              No perteneces a ningún grupo todavía. ¡Crea uno o acepta una invitación!
-            </div>
-          )}
+      {!loading && !error && groups.length === 0 && (
+        <EmptyState
+          variant="card"
+          icon="👥"
+          title="No perteneces a ningún grupo todavía"
+          description="¡Crea uno o acepta una invitación!"
+          className="mb-8"
+        />
+      )}
 
-          {!loading && groups.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 fx-stagger">
-              {groups.map((group) => (
-                <div
-                  key={group.id}
-                  onPointerMove={spotlightMove}
-                  className="fx-spotlight group/card relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5 transition-all duration-200 shadow-[var(--card-shadow)]"
-                >
-                  <Link
-                    href={`/groups/${group.id}`}
-                    prefetch={false}
-                    className="block"
-                  >
-                  <h3 className="text-lg font-semibold text-[var(--text)] mb-2 pr-9 truncate">
-                    {group.name}
-                  </h3>
+      {!loading && groups.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 fx-stagger">
+          {groups.map((group) => {
+            const cfg = getGroupType(group.type);
+            return (
+              <div
+                key={group.id}
+                onPointerMove={spotlightMove}
+                className="fx-spotlight group/card relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5 transition-all duration-200 shadow-[var(--card-shadow)]"
+              >
+                <Link href={`/groups/${group.id}`} prefetch={false} className="block">
+                  <h3 className="text-lg font-semibold text-[var(--text)] mb-2 pr-9 truncate">{group.name}</h3>
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      {(() => {
-                        const cfg = getGroupType(group.type);
-                        return (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-soft)] text-[var(--primary)]"
-                            title={cfg.description}
-                          >
-                            <span>{cfg.emoji}</span>
-                            <span className="font-medium">{cfg.label}</span>
-                          </span>
-                        );
-                      })()}
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-medium">
-                        {group._count?.members || 0} {group._count?.members === 1 ? "miembro" : "miembros"}
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-soft)] text-[var(--primary)]"
+                        title={cfg.description}
+                      >
+                        <span aria-hidden>{cfg.emoji}</span>
+                        <span className="font-medium">{cfg.label}</span>
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
-                        {group._count?.games || 0} {group._count?.games === 1 ? "juego" : "juegos"}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 font-medium">
+                        {plural(group._count?.members || 0, "miembro", "miembros")}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-medium">
+                        {plural(group._count?.games || 0, "juego", "juegos")}
                       </span>
                     </div>
                     {group.members?.length > 0 && (
@@ -106,7 +124,7 @@ export default function GroupsPage() {
                         {group.members.slice(0, 4).map((m, i) => (
                           <Avatar
                             key={i}
-                            name={m.user.displayName || m.user.name || "?"}
+                            name={displayName(m.user, "?")}
                             avatarUrl={m.user.avatarUrl}
                             size="xs"
                             className="ring-2 ring-[var(--surface)]"
@@ -120,39 +138,30 @@ export default function GroupsPage() {
                       </div>
                     )}
                   </div>
-                  </Link>
-                  <button
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const newPinned = !group.pinned;
-                      await fetch(`/api/groups/${group.id}/pin`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ pinned: newPinned }),
-                      });
-                      setGroups((prev) =>
-                        prev
-                          .map((g) => g.id === group.id ? { ...g, pinned: newPinned } : g)
-                          .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
-                      );
-                    }}
-                    className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg transition-all text-sm ${
-                      group.pinned
-                        ? "text-[var(--primary)] bg-[var(--accent-soft)]"
-                        : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] opacity-0 group-hover/card:opacity-100"
-                    }`}
-                    title={group.pinned ? "Desfijar" : "Fijar arriba"}
-                  >
-                    📌
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                </Link>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    togglePin(group);
+                  }}
+                  aria-pressed={group.pinned}
+                  aria-label={group.pinned ? "Desfijar" : "Fijar arriba"}
+                  title={group.pinned ? "Desfijar" : "Fijar arriba"}
+                  className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg transition-all text-sm ${
+                    group.pinned
+                      ? "text-[var(--primary)] bg-[var(--accent-soft)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100"
+                  }`}
+                >
+                  📌
+                </button>
+              </div>
+            );
+          })}
         </div>
-      </div>
-      <Footer />
-    </>
+      )}
+    </PageShell>
   );
 }

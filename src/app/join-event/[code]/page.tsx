@@ -5,7 +5,25 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
+import Button, { ButtonLink } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/EmptyState";
+import { FieldError } from "@/components/ui/Field";
+import { formatDateLong } from "@/lib/format";
 import { nudgePush } from "@/lib/pushNudge";
+import { loginHref } from "@/lib/site";
+import { plural } from "@/lib/text";
+
+/** Pantalla completa sin cabecera: el logo y el aviso centrados. */
+function InviteScreen({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
+      <div className="w-full max-w-md text-center">
+        <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
+        {children}
+      </div>
+    </main>
+  );
+}
 
 export default function JoinEventPage() {
   const { code } = useParams<{ code: string }>();
@@ -80,108 +98,87 @@ export default function JoinEventPage() {
     }
   };
 
-  const handleLogin = () => {
-    router.push(`/login?redirect=/join-event/${code}`);
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("es-ES", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
   if (loading) {
-    return <div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>;
+    return <PageLoader fullScreen />;
   }
 
   if (error && !eventName) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-        <div className="w-full max-w-md text-center">
-          <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-            <p className="text-red-400 mb-4">{error}</p>
-            <button
-              onClick={() => router.push("/")}
-              className="px-4 py-2.5 bg-[var(--surface-hover)] text-[var(--text)] rounded-xl text-sm transition-all duration-200"
-            >
-              Ir al inicio
-            </button>
-          </div>
-        </div>
-      </div>
+      <InviteScreen>
+        <Notice
+          icon="🔗"
+          title={error}
+          actions={<ButtonLink href="/" variant="secondary">Ir al inicio</ButtonLink>}
+        />
+      </InviteScreen>
     );
   }
 
   if (alreadyAttending) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-        <div className="w-full max-w-md text-center">
-          <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-            <div className="text-4xl mb-3">👋</div>
-            <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
-              ¡Ya estás apuntado a &ldquo;{eventName}&rdquo;!
-            </h2>
-            <p className="text-[var(--text-secondary)] text-sm mb-6">
-              No hace falta que te apuntes de nuevo.
-            </p>
-            <button
-              onClick={() => router.push(`/events/${eventId}`)}
-              className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-            >
+      <InviteScreen>
+        <Notice
+          icon="👋"
+          title={<>¡Ya estás apuntado a &ldquo;{eventName}&rdquo;!</>}
+          actions={
+            <ButtonLink href={`/events/${eventId}`} block>
               Ir al evento
-            </button>
-          </div>
-        </div>
-      </div>
+            </ButtonLink>
+          }
+        >
+          <p>No hace falta que te apuntes de nuevo.</p>
+        </Notice>
+      </InviteScreen>
     );
   }
 
   if (joined) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-        <div className="w-full max-w-md text-center">
-          <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-            <div className="text-4xl mb-3">🎉</div>
-            <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
-              ¡Te has apuntado a &ldquo;{eventName}&rdquo;!
-            </h2>
-            <p className="text-[var(--text-secondary)] text-sm mb-6">
-              Ya puedes marcar tus juegos favoritos y montar tu lista.
-            </p>
-            <button
-              onClick={() => router.push(`/events/${eventId}`)}
-              className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-            >
+      <InviteScreen>
+        <Notice
+          icon="🎉"
+          title={<>¡Te has apuntado a &ldquo;{eventName}&rdquo;!</>}
+          actions={
+            <ButtonLink href={`/events/${eventId}`} block>
               Ir al evento
-            </button>
-          </div>
-        </div>
-      </div>
+            </ButtonLink>
+          }
+        >
+          <p>Ya puedes marcar tus juegos favoritos y montar tu lista.</p>
+        </Notice>
+      </InviteScreen>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-      <div className="w-full max-w-md text-center">
-        <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-          <div className="text-4xl mb-3">🎲</div>
-          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
+    <InviteScreen>
+      <Notice
+        icon="🎲"
+        title={
+          <>
             Te han invitado a un evento
-          </h2>
-          <p className="text-2xl font-bold text-[var(--primary)] mb-2">
-            &ldquo;{eventName}&rdquo;
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 mb-4">
+            <span className="block mt-2 text-2xl font-bold text-[var(--primary)]">
+              &ldquo;{eventName}&rdquo;
+            </span>
+          </>
+        }
+        actions={
+          isLoggedIn ? (
+            <Button onClick={handleJoin} loading={joining} block>
+              {joining ? "Apuntándote…" : "Apuntarme al evento"}
+            </Button>
+          ) : (
+            <ButtonLink href={loginHref(`/join-event/${code}`)} block>
+              Iniciar sesión / Crear cuenta
+            </ButtonLink>
+          )
+        }
+      >
+        {(eventDate || eventLocation) && (
+          <div className="flex flex-wrap justify-center gap-2">
             {eventDate && (
               <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
-                {formatDate(eventDate)}
+                {formatDateLong(eventDate)}
               </span>
             )}
             {eventLocation && (
@@ -190,35 +187,13 @@ export default function JoinEventPage() {
               </span>
             )}
           </div>
-          <p className="text-sm text-[var(--text-muted)] mb-6">
-            {attendeeCount} asistente{attendeeCount !== 1 ? "s" : ""} · {gameCount} juego{gameCount !== 1 ? "s" : ""}
-          </p>
-
-          {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
-
-          {isLoggedIn ? (
-            <button
-              onClick={handleJoin}
-              disabled={joining}
-              className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              {joining ? "Apuntándote..." : "Apuntarme al evento"}
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-[var(--text-secondary)]">
-                Necesitas iniciar sesión para apuntarte al evento.
-              </p>
-              <button
-                onClick={handleLogin}
-                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Iniciar sesión / Crear cuenta
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+        )}
+        <p className="text-[var(--text-muted)]">
+          {plural(attendeeCount, "asistente", "asistentes")} · {plural(gameCount, "juego", "juegos")}
+        </p>
+        <FieldError>{error}</FieldError>
+        {!isLoggedIn && <p>Necesitas iniciar sesión para apuntarte al evento.</p>}
+      </Notice>
+    </InviteScreen>
   );
 }

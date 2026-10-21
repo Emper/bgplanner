@@ -6,13 +6,24 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import { clearNavUser, refreshNavUser } from "@/lib/navUser";
 import { disablePush } from "@/lib/pushClient";
-import Footer from "@/components/Footer";
 import Avatar from "@/components/Avatar";
 import PageLoader from "@/components/PageLoader";
 import ProfileShowcase from "@/components/ProfileShowcase";
 import BlockedUsers from "@/components/BlockedUsers";
+import PageShell from "@/components/ui/PageShell";
+import PageHeader from "@/components/ui/PageHeader";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Spinner, { InlineLoading } from "@/components/ui/Spinner";
+import { Field, FieldError, Input, LABEL_CLASS } from "@/components/ui/Field";
+import { useToast } from "@/components/ui/Toast";
 import { resizeImage } from "@/lib/image";
 import { safeRedirect } from "@/lib/safeRedirect";
+import { bggUserUrl } from "@/lib/bggLinks";
+import { APP_URL } from "@/lib/site";
+import { plural } from "@/lib/text";
+import { profileHref } from "@/lib/users";
 
 interface Handover {
   id: string;
@@ -26,7 +37,8 @@ interface DeletionPlan {
   kept: { posts: number; reviews: number; comments: number; photos: number };
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+// «bgplanner.app» (o el dominio en el que estemos), para enseñar direcciones.
+const APP_HOST = APP_URL.replace(/^https?:\/\//, "");
 
 interface Profile {
   name: string;
@@ -65,7 +77,7 @@ function ProfileForm() {
   const [emailCode, setEmailCode] = useState(["", "", "", "", "", ""]);
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailError, setEmailError] = useState("");
-  const [toast, setToast] = useState("");
+  const toast = useToast();
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Borrar la cuenta: el modal enseña antes qué pasa con grupos, eventos y
@@ -111,11 +123,6 @@ function ProfileForm() {
     fetchProfile();
   }, []);
 
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(""), 4000);
-  };
-
   const openEmailModal = (step: "email" | "code") => {
     setEmailError("");
     setEmailCode(["", "", "", "", "", ""]);
@@ -148,7 +155,7 @@ function ProfileForm() {
       setEmailCode(["", "", "", "", "", ""]);
       setEmailStep("code");
       setTimeout(() => codeRefs.current[0]?.focus(), 50);
-      if (resend) showToast("Te hemos enviado un código nuevo");
+      if (resend) toast("Te hemos enviado un código nuevo");
     } catch (err: unknown) {
       setEmailError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -206,7 +213,7 @@ function ProfileForm() {
       setPendingEmail(null);
       setEmailModal(false);
       setEmailCode(["", "", "", "", "", ""]);
-      showToast("Email actualizado");
+      toast.success("Email actualizado");
     } catch (err: unknown) {
       setEmailError(err instanceof Error ? err.message : "Error inesperado");
       setEmailCode(["", "", "", "", "", ""]);
@@ -219,15 +226,17 @@ function ProfileForm() {
   const handleCancelEmailChange = async () => {
     setEmailBusy(true);
     try {
-      await fetch("/api/profile/email", {
+      const res = await fetch("/api/profile/email", {
         method: "DELETE",
         credentials: "include",
       });
+      if (!res.ok) throw new Error();
       setPendingEmail(null);
       setEmailModal(false);
-      showToast("Cambio de email cancelado");
+      toast("Cambio de email cancelado");
     } catch {
-      setEmailError("No se ha podido cancelar la solicitud");
+      // Puede pulsarse desde el aviso de la página, con el modal cerrado.
+      toast.error("No se ha podido cancelar la solicitud");
     } finally {
       setEmailBusy(false);
     }
@@ -238,19 +247,23 @@ function ProfileForm() {
     if (!file) return;
 
     setUploadingAvatar(true);
+    const previous = avatarUrl;
     try {
       const resized = await resizeImage(file, 200, 0.8);
       setAvatarUrl(resized); // Optimistic
-      await fetch("/api/profile", {
+      const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ avatarUrl: resized }),
       });
+      if (!res.ok) throw new Error();
     } catch {
-      setError("Error al subir la imagen");
+      setAvatarUrl(previous);
+      toast.error("Error al subir la imagen");
     } finally {
       setUploadingAvatar(false);
+      e.target.value = "";
     }
   };
 
@@ -301,13 +314,20 @@ function ProfileForm() {
   };
 
   const handleRemoveAvatar = async () => {
+    const previous = avatarUrl;
     setAvatarUrl(null);
-    await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ avatarUrl: null }),
-    });
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ avatarUrl: null }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAvatarUrl(previous);
+      toast.error("No se ha podido eliminar la foto");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -347,553 +367,489 @@ function ProfileForm() {
     );
   }
 
+  const linkButton = "text-xs text-[var(--primary)] hover:text-[var(--primary-hover)] disabled:opacity-50 transition-colors";
+  const mutedDangerButton =
+    "text-xs text-[var(--text-muted)] hover:text-[var(--danger)] disabled:opacity-50 transition-colors";
+
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-form">
-          <div className="flex items-center justify-between gap-3 mb-6">
-            <h1 className="page-title">Mi perfil</h1>
-            {profileSlug && (
-              <Link
-                href={`/users/${encodeURIComponent(profileSlug)}`}
-                className="text-xs text-[var(--primary)] hover:underline shrink-0"
-              >
-                Ver mi perfil público &rarr;
-              </Link>
+    <PageShell nav={<Navbar />} width="form">
+      <PageHeader
+        title="Mi perfil"
+        action={
+          profileSlug && (
+            <Link
+              href={profileHref({ id: profileSlug })}
+              className="text-xs text-[var(--primary)] hover:underline shrink-0"
+            >
+              Ver mi perfil público &rarr;
+            </Link>
+          )
+        }
+      />
+
+      <Card padding="lg">
+        {/* Avatar section */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="relative">
+            <Avatar
+              name={form.name || form.bggUsername || "?"}
+              avatarUrl={avatarUrl}
+              size="lg"
+            />
+            {uploadingAvatar && (
+              <div className="absolute inset-0 rounded-full bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] flex items-center justify-center">
+                <Spinner size="sm" label="Subiendo foto" />
+              </div>
             )}
           </div>
-
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-            {/* Avatar section */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="relative">
-                <Avatar
-                  name={form.name || form.bggUsername || "?"}
-                  avatarUrl={avatarUrl}
-                  size="lg"
-                />
-                {uploadingAvatar && (
-                  <div className="absolute inset-0 rounded-full bg-[color-mix(in_srgb,var(--bg)_60%,transparent)] flex items-center justify-center">
-                    <span className="text-xs text-[var(--primary)] animate-pulse">...</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
-                >
-                  {avatarUrl ? "Cambiar foto" : "Subir foto"}
-                </button>
-                {avatarUrl && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveAvatar}
-                    className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  >
-                    Eliminar foto
-                  </button>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="hidden"
-                />
-              </div>
-            </div>
-
-            {/* Email de acceso */}
-            <div className="mb-6 pb-6 border-b border-[var(--border)]">
-              <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                Email de acceso
-              </label>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <span className="text-sm text-[var(--text-secondary)] break-all">
-                  {email || "—"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => openEmailModal("email")}
-                  className="text-xs text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
-                >
-                  Cambiar email
-                </button>
-              </div>
-
-              {pendingEmail ? (
-                <div className="mt-3 rounded-xl border border-[var(--primary)]/40 bg-[var(--accent-soft)] p-3">
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    Pendiente de confirmar:{" "}
-                    <strong className="text-[var(--text)] break-all">{pendingEmail}</strong>.
-                    Te hemos enviado un código a esa dirección. Hasta que lo introduzcas
-                    sigues entrando con tu email actual.
-                  </p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => openEmailModal("code")}
-                      className="text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
-                    >
-                      Introducir código
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelEmailChange}
-                      disabled={emailBusy}
-                      className="text-xs text-[var(--text-muted)] hover:text-red-400 disabled:opacity-50 transition-colors"
-                    >
-                      Cancelar cambio
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--text-muted)] mt-1">
-                  Es la dirección a la que te llega el código para entrar. Para cambiarla
-                  tendrás que confirmar la nueva con un código.
-                </p>
-              )}
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                  Nombre
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                  Apellido
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.surname}
-                  onChange={(e) => setForm({ ...form, surname: e.target.value })}
-                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                  Nombre para mostrar
-                </label>
-                <input
-                  type="text"
-                  value={form.displayName}
-                  onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-                  placeholder={form.name || "Tu nombre visible para el resto"}
-                  maxLength={50}
-                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                />
-                <p className="text-xs text-[var(--text-muted)] mt-1">
-                  Aparecerá en el feed de actividad, votos y listas de miembros. Si lo dejas vacío se usará tu nombre.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                  Ubicación
-                </label>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder="Ciudad, País"
-                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                  Usuario de BGG
-                </label>
-                <input
-                  type="text"
-                  value={form.bggUsername}
-                  onChange={(e) =>
-                    setForm({ ...form, bggUsername: e.target.value })
-                  }
-                  placeholder="Tu nombre de usuario en BoardGameGeek"
-                  className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                />
-                {form.bggUsername && (
-                  <a
-                    href={`https://boardgamegeek.com/user/${form.bggUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 mt-1.5 text-xs text-[var(--primary)] hover:text-[var(--primary-hover)]"
-                  >
-                    Ver perfil de @{form.bggUsername} en BGG &rarr;
-                  </a>
-                )}
-                <p className="text-xs text-[var(--text-muted)] mt-1">
-                  Se usará para importar tu colección de juegos. Asegúrate de que tu colección es pública en BGG.
-                </p>
-                {profileSlug && (
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
-                    La dirección de tu perfil público es{" "}
-                    <span className="font-mono text-[var(--text-secondary)] break-all">
-                      bgplanner.app/users/{profileSlug}
-                    </span>
-                  </p>
-                )}
-              </div>
-
-              {error && <p className="text-sm text-red-400">{error}</p>}
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                {saving ? "Guardando..." : "Guardar perfil"}
-              </button>
-            </form>
-          </div>
-
-          <ProfileShowcase />
-
-          <BlockedUsers />
-
-          {/* Zona de peligro */}
-          <div className="mt-10 rounded-2xl border border-red-500/30 p-6">
-            <h2 className="text-base font-semibold text-red-400 mb-1">Borrar mi cuenta</h2>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-              Se borran tus datos, tu colección, tus votos y tus amigos. Lo que publicaste en
-              grupos, eventos y la Comunidad se queda, pero firmado como «Usuario eliminado».
-              No se puede deshacer.{" "}
-              <Link href="/privacy" className="text-[var(--primary)] hover:underline">
-                Más detalles en la política de privacidad
-              </Link>
-              .
-            </p>
+          <div className="flex flex-col items-start gap-1.5">
             <button
               type="button"
-              onClick={openDeleteModal}
-              className="px-4 py-2.5 border border-red-500/50 text-red-400 rounded-xl hover:bg-red-500/10 font-semibold text-sm transition-all duration-200"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className={linkButton}
             >
-              Borrar mi cuenta…
+              {avatarUrl ? "Cambiar foto" : "Subir foto"}
+            </button>
+            {avatarUrl && (
+              <button type="button" onClick={handleRemoveAvatar} disabled={uploadingAvatar} className={mutedDangerButton}>
+                Eliminar foto
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {/* Email de acceso */}
+        <div className="mb-6 pb-6 border-b border-[var(--border)]">
+          <p className={LABEL_CLASS}>Email de acceso</p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-sm text-[var(--text-secondary)] break-all">
+              {email || "—"}
+            </span>
+            <button type="button" onClick={() => openEmailModal("email")} className={linkButton}>
+              Cambiar email
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Modal de borrar la cuenta */}
-      {deleteOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={closeDeleteModal}
-        >
-          <div
-            className="bg-[var(--surface)] rounded-2xl border border-red-500/40 p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-[var(--card-shadow)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-red-400">Borrar tu cuenta</h2>
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                aria-label="Cerrar"
-                className="text-[var(--text-secondary)] hover:text-[var(--text)]"
-              >
-                ✕
-              </button>
+          {pendingEmail ? (
+            <div className="mt-3 rounded-xl border border-[var(--primary)]/40 bg-[var(--accent-soft)] p-3">
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Pendiente de confirmar:{" "}
+                <strong className="text-[var(--text)] break-all">{pendingEmail}</strong>.
+                Te hemos enviado un código a esa dirección. Hasta que lo introduzcas
+                sigues entrando con tu email actual.
+              </p>
+              <div className="flex items-center gap-4 mt-2">
+                <button type="button" onClick={() => openEmailModal("code")} className={`${linkButton} font-semibold`}>
+                  Introducir código
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEmailChange}
+                  disabled={emailBusy}
+                  className={mutedDangerButton}
+                >
+                  Cancelar cambio
+                </button>
+              </div>
             </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Es la dirección a la que te llega el código para entrar. Para cambiarla
+              tendrás que confirmar la nueva con un código.
+            </p>
+          )}
+        </div>
 
-            {!deletePlan && !deleteError && (
-              <p className="text-sm text-[var(--text-muted)] py-6 text-center animate-pulse">
-                Mirando qué hay que hacer…
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Field label="Nombre">
+            {(id) => (
+              <Input
+                id={id}
+                type="text"
+                required
+                size="lg"
+                autoComplete="given-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            )}
+          </Field>
+
+          <Field label="Apellido">
+            {(id) => (
+              <Input
+                id={id}
+                type="text"
+                required
+                size="lg"
+                autoComplete="family-name"
+                value={form.surname}
+                onChange={(e) => setForm({ ...form, surname: e.target.value })}
+              />
+            )}
+          </Field>
+
+          <Field
+            label="Nombre para mostrar"
+            hint="Aparecerá en el feed de actividad, votos y listas de miembros. Si lo dejas vacío se usará tu nombre."
+          >
+            {(id) => (
+              <Input
+                id={id}
+                type="text"
+                size="lg"
+                value={form.displayName}
+                onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+                placeholder={form.name || "Tu nombre visible para el resto"}
+                maxLength={50}
+              />
+            )}
+          </Field>
+
+          <Field label="Ubicación">
+            {(id) => (
+              <Input
+                id={id}
+                type="text"
+                size="lg"
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                placeholder="Ciudad, País"
+              />
+            )}
+          </Field>
+
+          <div>
+            <Field
+              label="Usuario de BGG"
+              hint="Se usará para importar tu colección de juegos. Asegúrate de que tu colección es pública en BGG."
+            >
+              {(id) => (
+                <>
+                  <Input
+                    id={id}
+                    type="text"
+                    size="lg"
+                    autoCapitalize="none"
+                    value={form.bggUsername}
+                    onChange={(e) => setForm({ ...form, bggUsername: e.target.value })}
+                    placeholder="Tu nombre de usuario en BoardGameGeek"
+                  />
+                  {form.bggUsername && (
+                    <a
+                      href={bggUserUrl(form.bggUsername)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-1.5 text-xs text-[var(--primary)] hover:text-[var(--primary-hover)]"
+                    >
+                      Ver perfil de @{form.bggUsername} en BGG &rarr;
+                    </a>
+                  )}
+                </>
+              )}
+            </Field>
+            {profileSlug && (
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                La dirección de tu perfil público es{" "}
+                <span className="font-mono text-[var(--text-secondary)] break-all">
+                  {APP_HOST}/users/{profileSlug}
+                </span>
               </p>
             )}
+          </div>
 
-            {deletePlan && (
-              <form onSubmit={handleDeleteAccount} className="space-y-4 text-sm">
-                <div>
-                  <p className="font-medium text-[var(--text)] mb-1">Se borra para siempre</p>
-                  <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-secondary)]">
-                    <li>Tu email, tu nombre, tu foto y tu usuario de BGG</li>
-                    <li>Tu colección, tus notas y tu vitrina</li>
-                    <li>Tus votos en los rankings de los grupos</li>
-                    <li>Tus amigos, tus avisos y los dispositivos con avisos activados</li>
-                  </ul>
-                </div>
+          <FieldError>{error}</FieldError>
 
-                {(deletePlan.kept.posts > 0 ||
-                  deletePlan.kept.reviews > 0 ||
-                  deletePlan.kept.comments > 0 ||
-                  (deletePlan.kept.photos > 0 && !deletePhotos)) && (
-                  <div>
-                    <p className="font-medium text-[var(--text)] mb-1">
-                      Se queda, firmado como «Usuario eliminado»
-                    </p>
-                    <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-secondary)]">
-                      {deletePlan.kept.posts > 0 && (
-                        <li>{plural(deletePlan.kept.posts, "mensaje", "mensajes")} en la Comunidad</li>
-                      )}
-                      {deletePlan.kept.reviews > 0 && (
-                        <li>{plural(deletePlan.kept.reviews, "opinión o valoración", "opiniones y valoraciones")}</li>
-                      )}
-                      {deletePlan.kept.comments > 0 && (
-                        <li>{plural(deletePlan.kept.comments, "comentario", "comentarios")} en juegos de tus grupos</li>
-                      )}
-                      {deletePlan.kept.photos > 0 && !deletePhotos && (
-                        <li>{plural(deletePlan.kept.photos, "foto", "fotos")} en galerías y opiniones</li>
-                      )}
-                    </ul>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">
-                      Así las conversaciones y las galerías de los demás no se quedan cojas.
-                    </p>
-                  </div>
-                )}
+          <Button type="submit" size="lg" block loading={saving} className="py-3">
+            {saving ? "Guardando…" : "Guardar perfil"}
+          </Button>
+        </form>
+      </Card>
 
-                {(deletePlan.groups.length > 0 || deletePlan.events.length > 0) && (
-                  <div>
-                    <p className="font-medium text-[var(--text)] mb-1">Lo que gestionas</p>
-                    <ul className="space-y-1 text-[var(--text-secondary)]">
-                      {deletePlan.groups.map((g) => (
-                        <li key={g.id}>
-                          👥 <strong className="text-[var(--text)]">{g.name}</strong>{" "}
-                          {g.heir ? (
-                            <>pasa a {g.heir.name}</>
-                          ) : (
-                            <span className="text-red-400">se borra: no queda nadie más</span>
-                          )}
-                        </li>
-                      ))}
-                      {deletePlan.events.map((e) => (
-                        <li key={e.id}>
-                          📅 <strong className="text-[var(--text)]">{e.name}</strong>{" "}
-                          {e.heir ? (
-                            <>pasa a {e.heir.name}</>
-                          ) : (
-                            <span className="text-red-400">se borra: no hay más asistentes</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">
-                      Pasan al admin que más tiempo lleva dentro o, si no hay admins, a quien
-                      más tiempo lleva. Si prefieres a otra persona, hazla admin antes.
-                    </p>
-                  </div>
-                )}
+      <ProfileShowcase />
 
-                {deletePlan.kept.photos > 0 && (
-                  <label className="flex items-start gap-2 text-[var(--text-secondary)] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={deletePhotos}
-                      onChange={(e) => setDeletePhotos(e.target.checked)}
-                      disabled={deleteBusy}
-                      className="mt-0.5 accent-red-500"
-                    />
-                    <span>
-                      Borrar también mis {plural(deletePlan.kept.photos, "foto", "fotos")} de las
-                      galerías y opiniones
-                    </span>
-                  </label>
-                )}
+      <BlockedUsers />
 
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1.5">
-                    Para confirmar, escribe <span className="font-mono font-semibold text-[var(--text)]">BORRAR</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={deleteConfirm}
-                    onChange={(e) => setDeleteConfirm(e.target.value)}
-                    placeholder="BORRAR"
-                    autoFocus
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    disabled={deleteBusy}
-                    className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-red-500/40 focus:border-red-500 focus:outline-none transition-all duration-200"
-                  />
-                </div>
+      {/* Zona de peligro */}
+      <section className="mt-10 rounded-2xl border border-[var(--danger)]/30 p-6">
+        <h2 className="text-base font-semibold text-[var(--danger)] mb-1">Borrar mi cuenta</h2>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          Se borran tus datos, tu colección, tus votos y tus amigos. Lo que publicaste en
+          grupos, eventos y la Comunidad se queda, pero firmado como «Usuario eliminado».
+          No se puede deshacer.{" "}
+          <Link href="/privacy" className="text-[var(--primary)] hover:underline">
+            Más detalles en la política de privacidad
+          </Link>
+          .
+        </p>
+        <Button variant="dangerOutline" onClick={openDeleteModal} className="py-2.5">
+          Borrar mi cuenta…
+        </Button>
+      </section>
 
-                {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+      {/* Modal de borrar la cuenta */}
+      <Modal open={deleteOpen} onClose={closeDeleteModal} title="Borrar tu cuenta" tone="danger" busy={deleteBusy}>
+        {!deletePlan && !deleteError && <InlineLoading text="Mirando qué hay que hacer…" className="py-6" />}
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={closeDeleteModal}
-                    disabled={deleteBusy}
-                    className="flex-1 px-4 py-3 bg-[var(--input-bg)] text-[var(--text-secondary)] border border-[var(--input-border)] rounded-xl hover:text-[var(--text)] disabled:opacity-50 font-semibold transition-all duration-200"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={deleteBusy || deleteConfirm.trim().toUpperCase() !== "BORRAR"}
-                    className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-all duration-200 shadow-sm"
-                  >
-                    {deleteBusy ? "Borrando..." : "Borrar mi cuenta"}
-                  </button>
-                </div>
-              </form>
+        {deletePlan && (
+          <form onSubmit={handleDeleteAccount} className="space-y-4 text-sm">
+            <div>
+              <p className="font-medium text-[var(--text)] mb-1">Se borra para siempre</p>
+              <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-secondary)]">
+                <li>Tu email, tu nombre, tu foto y tu usuario de BGG</li>
+                <li>Tu colección, tus notas y tu vitrina</li>
+                <li>Tus votos en los rankings de los grupos</li>
+                <li>Tus amigos, tus avisos y los dispositivos con avisos activados</li>
+              </ul>
+            </div>
+
+            {(deletePlan.kept.posts > 0 ||
+              deletePlan.kept.reviews > 0 ||
+              deletePlan.kept.comments > 0 ||
+              (deletePlan.kept.photos > 0 && !deletePhotos)) && (
+              <div>
+                <p className="font-medium text-[var(--text)] mb-1">
+                  Se queda, firmado como «Usuario eliminado»
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 pl-1 text-[var(--text-secondary)]">
+                  {deletePlan.kept.posts > 0 && (
+                    <li>{plural(deletePlan.kept.posts, "mensaje", "mensajes")} en la Comunidad</li>
+                  )}
+                  {deletePlan.kept.reviews > 0 && (
+                    <li>{plural(deletePlan.kept.reviews, "opinión o valoración", "opiniones y valoraciones")}</li>
+                  )}
+                  {deletePlan.kept.comments > 0 && (
+                    <li>{plural(deletePlan.kept.comments, "comentario", "comentarios")} en juegos de tus grupos</li>
+                  )}
+                  {deletePlan.kept.photos > 0 && !deletePhotos && (
+                    <li>{plural(deletePlan.kept.photos, "foto", "fotos")} en galerías y opiniones</li>
+                  )}
+                </ul>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Así las conversaciones y las galerías de los demás no se quedan cojas.
+                </p>
+              </div>
             )}
 
-            {!deletePlan && deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
-          </div>
-        </div>
-      )}
-
-      {/* Modal de cambio de email */}
-      {emailModal && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={closeEmailModal}
-        >
-          <div
-            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 w-full max-w-md shadow-[var(--card-shadow)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {emailStep === "email" ? (
-              <>
-                <h2 className="text-lg font-bold text-[var(--text)] mb-1">
-                  Cambiar email
-                </h2>
-                <p className="text-sm text-[var(--text-secondary)] mb-5 leading-relaxed">
-                  Te enviaremos un código a la nueva dirección para comprobar que es
-                  tuya. El cambio no se aplica hasta que lo confirmes.
+            {(deletePlan.groups.length > 0 || deletePlan.events.length > 0) && (
+              <div>
+                <p className="font-medium text-[var(--text)] mb-1">Lo que gestionas</p>
+                <ul className="space-y-1 text-[var(--text-secondary)]">
+                  {deletePlan.groups.map((g) => (
+                    <li key={g.id}>
+                      👥 <strong className="text-[var(--text)]">{g.name}</strong>{" "}
+                      {g.heir ? (
+                        <>pasa a {g.heir.name}</>
+                      ) : (
+                        <span className="text-[var(--danger)]">se borra: no queda nadie más</span>
+                      )}
+                    </li>
+                  ))}
+                  {deletePlan.events.map((e) => (
+                    <li key={e.id}>
+                      📅 <strong className="text-[var(--text)]">{e.name}</strong>{" "}
+                      {e.heir ? (
+                        <>pasa a {e.heir.name}</>
+                      ) : (
+                        <span className="text-[var(--danger)]">se borra: no hay más asistentes</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Pasan al admin que más tiempo lleva dentro o, si no hay admins, a quien
+                  más tiempo lleva. Si prefieres a otra persona, hazla admin antes.
                 </p>
-
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text)] mb-1.5">
-                      Nuevo email
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      autoFocus
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="tu@email.com"
-                      className="w-full px-4 py-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                    />
-                  </div>
-
-                  {emailError && (
-                    <p className="text-sm text-red-400">{emailError}</p>
-                  )}
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={closeEmailModal}
-                      className="flex-1 px-4 py-3 bg-[var(--input-bg)] text-[var(--text-secondary)] border border-[var(--input-border)] rounded-xl hover:text-[var(--text)] font-semibold transition-all duration-200"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={emailBusy || !newEmail.trim()}
-                      className="flex-1 px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      {emailBusy ? "Enviando..." : "Enviarme el código"}
-                    </button>
-                  </div>
-                </form>
-              </>
-            ) : (
-              <>
-                <h2 className="text-lg font-bold text-[var(--text)] mb-1">
-                  Confirma tu nuevo email
-                </h2>
-                <p className="text-sm text-[var(--text-secondary)] mb-5 leading-relaxed">
-                  Hemos enviado un código de 6 dígitos a{" "}
-                  <strong className="text-[var(--text)] break-all">
-                    {pendingEmail || newEmail}
-                  </strong>
-                  . Caduca en 10 minutos.
-                </p>
-
-                <form onSubmit={handleConfirmEmail} className="space-y-4">
-                  <div className="flex gap-2 justify-center" onPaste={handleCodePaste}>
-                    {emailCode.map((digit, i) => (
-                      <input
-                        key={i}
-                        ref={(el) => {
-                          codeRefs.current[i] = el;
-                        }}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handleCodeChange(i, e.target.value)}
-                        onKeyDown={(e) => handleCodeKeyDown(i, e)}
-                        className="w-12 h-14 text-center text-2xl font-semibold bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
-                      />
-                    ))}
-                  </div>
-
-                  {emailError && (
-                    <p className="text-sm text-red-400 text-center">{emailError}</p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={emailBusy || emailCode.join("").length !== 6}
-                    className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    {emailBusy ? "Confirmando..." : "Confirmar cambio"}
-                  </button>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        requestEmailChange(pendingEmail || newEmail, true)
-                      }
-                      disabled={emailBusy}
-                      className="text-[var(--primary)] hover:text-[var(--primary-hover)] disabled:opacity-50 transition-colors"
-                    >
-                      Reenviar código
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelEmailChange}
-                      disabled={emailBusy}
-                      className="text-[var(--text-muted)] hover:text-red-400 disabled:opacity-50 transition-colors"
-                    >
-                      Cancelar cambio
-                    </button>
-                  </div>
-                </form>
-              </>
+              </div>
             )}
-          </div>
-        </div>
-      )}
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
-          {toast}
-        </div>
-      )}
+            {deletePlan.kept.photos > 0 && (
+              <label className="flex items-start gap-2 text-[var(--text-secondary)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deletePhotos}
+                  onChange={(e) => setDeletePhotos(e.target.checked)}
+                  disabled={deleteBusy}
+                  className="mt-0.5 accent-[var(--danger)]"
+                />
+                <span>
+                  Borrar también mis {plural(deletePlan.kept.photos, "foto", "fotos")} de las
+                  galerías y opiniones
+                </span>
+              </label>
+            )}
 
-      <Footer />
-    </>
+            <div>
+              <label htmlFor="delete-confirm" className="block text-xs text-[var(--text-secondary)] mb-1.5">
+                Para confirmar, escribe <span className="font-mono font-semibold text-[var(--text)]">BORRAR</span>
+              </label>
+              <Input
+                id="delete-confirm"
+                type="text"
+                size="lg"
+                tone="danger"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="BORRAR"
+                autoFocus
+                autoComplete="off"
+                autoCapitalize="characters"
+                disabled={deleteBusy}
+              />
+            </div>
+
+            <FieldError>{deleteError}</FieldError>
+
+            <div className="flex gap-3">
+              <Button variant="secondary" size="lg" onClick={closeDeleteModal} disabled={deleteBusy} className="flex-1 py-3">
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="danger"
+                size="lg"
+                loading={deleteBusy}
+                disabled={deleteConfirm.trim().toUpperCase() !== "BORRAR"}
+                className="flex-1 py-3"
+              >
+                {deleteBusy ? "Borrando…" : "Borrar mi cuenta"}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {!deletePlan && <FieldError>{deleteError}</FieldError>}
+      </Modal>
+
+      {/* Modal de cambio de email: primero la dirección, luego el código */}
+      <Modal
+        open={emailModal}
+        onClose={closeEmailModal}
+        busy={emailBusy}
+        title={emailStep === "email" ? "Cambiar email" : "Confirma tu nuevo email"}
+        description={
+          emailStep === "email" ? (
+            "Te enviaremos un código a la nueva dirección para comprobar que es tuya. El cambio no se aplica hasta que lo confirmes."
+          ) : (
+            <>
+              Hemos enviado un código de 6 dígitos a{" "}
+              <strong className="text-[var(--text)] break-all">{pendingEmail || newEmail}</strong>. Caduca en 10
+              minutos.
+            </>
+          )
+        }
+      >
+        {emailStep === "email" ? (
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <Field label="Nuevo email">
+              {(id) => (
+                <Input
+                  id={id}
+                  type="email"
+                  required
+                  size="lg"
+                  autoComplete="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                />
+              )}
+            </Field>
+
+            <FieldError>{emailError}</FieldError>
+
+            <div className="flex gap-3">
+              <Button variant="secondary" size="lg" onClick={closeEmailModal} disabled={emailBusy} className="flex-1 py-3">
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                loading={emailBusy}
+                disabled={!newEmail.trim()}
+                className="flex-1 py-3"
+              >
+                {emailBusy ? "Enviando…" : "Enviarme el código"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleConfirmEmail} className="space-y-4">
+            <div className="flex gap-2 justify-center" onPaste={handleCodePaste}>
+              {emailCode.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => {
+                    codeRefs.current[i] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
+                  aria-label={`Dígito ${i + 1} de 6`}
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleCodeChange(i, e.target.value)}
+                  onKeyDown={(e) => handleCodeKeyDown(i, e)}
+                  className="w-12 h-14 text-center text-2xl font-semibold bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
+                />
+              ))}
+            </div>
+
+            <FieldError className="text-center">{emailError}</FieldError>
+
+            <Button
+              type="submit"
+              size="lg"
+              block
+              loading={emailBusy}
+              disabled={emailCode.join("").length !== 6}
+              className="py-3"
+            >
+              {emailBusy ? "Confirmando…" : "Confirmar cambio"}
+            </Button>
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => requestEmailChange(pendingEmail || newEmail, true)}
+                disabled={emailBusy}
+                className={linkButton}
+              >
+                Reenviar código
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelEmailChange}
+                disabled={emailBusy}
+                className={mutedDangerButton}
+              >
+                Cancelar cambio
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </PageShell>
   );
 }
 
 export default function ProfilePage() {
   return (
     <Suspense
-      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
+      fallback={
+        <>
+          <Navbar />
+          <PageLoader withNavbar />
+        </>
+      }
     >
       <ProfileForm />
     </Suspense>

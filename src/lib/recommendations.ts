@@ -3,6 +3,7 @@ import {
   fetchBggGameDetails,
   fetchBggHotIds,
   fetchBggUserGames,
+  normalizeBggUsername,
 } from "@/lib/bgg";
 import {
   categoryLabel,
@@ -257,7 +258,7 @@ function fmtRating(r: number): string {
 }
 
 async function loadUserSignals(userId: string, bggUsername: string): Promise<UserSignals> {
-  const username = bggUsername.toLowerCase().trim();
+  const username = normalizeBggUsername(bggUsername);
   const [collection, history, entries, votes, reviews, flags] = await Promise.all([
     prisma.collectionGame.findMany({
       where: { bggUsername: username },
@@ -585,7 +586,7 @@ export async function getRecommendations(
   }
 
   const community = communityAffinity(
-    bggUsername.toLowerCase().trim(),
+    normalizeBggUsername(bggUsername),
     likes,
     liked.slice(0, 40),
     new Set(candidates.map((c) => c.bggId))
@@ -760,7 +761,7 @@ export async function saveGameInfo(bggIds: number[]): Promise<number> {
 
 /** Trae de BGG lo que has jugado, puntuado o tenido, y lo guarda. */
 export async function syncUserHistory(bggUsername: string): Promise<number> {
-  const username = bggUsername.toLowerCase().trim();
+  const username = normalizeBggUsername(bggUsername);
   const items = await fetchBggUserGames(username);
   const now = new Date();
   await prisma.$transaction([
@@ -776,7 +777,7 @@ export async function syncUserHistory(bggUsername: string): Promise<number> {
 
 async function historyFetchedAt(bggUsername: string): Promise<Date | null> {
   const latest = await prisma.bggUserGame.findFirst({
-    where: { bggUsername: bggUsername.toLowerCase().trim() },
+    where: { bggUsername: normalizeBggUsername(bggUsername) },
     orderBy: { fetchedAt: "desc" },
     select: { fetchedAt: true },
   });
@@ -894,7 +895,7 @@ export async function getPrepStatus(
   bggUsername: string,
   signals?: UserSignals
 ): Promise<RecommendationsStatus> {
-  const username = bggUsername.toLowerCase().trim();
+  const username = normalizeBggUsername(bggUsername);
   const userSignals = signals ?? (await loadUserSignals(userId, username));
   const [fetchedAt, tasteMissing, poolMissing, poolSize] = await Promise.all([
     historyFetchedAt(username),
@@ -924,7 +925,7 @@ export async function prepareStep(
   userId: string,
   bggUsername: string
 ): Promise<"history" | "taste" | "done"> {
-  const username = bggUsername.toLowerCase().trim();
+  const username = normalizeBggUsername(bggUsername);
 
   if (isHistoryStale(username, await historyFetchedAt(username))) {
     const count = await syncUserHistory(username);

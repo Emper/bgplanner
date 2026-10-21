@@ -4,6 +4,7 @@ import Image from "next/image";
 import Avatar from "./Avatar";
 import { syncAppBadge } from "@/lib/pushClient";
 import { formatRelativeCompact } from "@/lib/format";
+import { EmptyState } from "./ui/EmptyState";
 
 // Piezas compartidas por la campana del navbar y la página /notifications.
 
@@ -119,12 +120,11 @@ export function NotificationItem({
 
 export function NotificationsEmpty() {
   return (
-    <div className="px-6 py-10 text-center">
-      <p className="text-3xl mb-2">✨</p>
-      <p className="text-sm font-semibold text-[var(--text)]">Todo al día</p>
-      <p className="text-xs text-[var(--text-muted)] mt-1">
-        Aquí te avisaremos cuando alguien te añada a sus amigos, se apunte a tus eventos o toque valorar una partida.
-      </p>
-    </div>
+    <EmptyState
+      icon="✨"
+      title="Todo al día"
+      description="Aquí te avisaremos cuando alguien te añada a sus amigos, se apunte a tus eventos o toque valorar una partida."
+      className="px-6"
+    />
   );
 }

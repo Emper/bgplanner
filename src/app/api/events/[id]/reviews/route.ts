@@ -1,71 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import { getEventParticipation } from "@/lib/events";
 import { eventReviewSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { apiHandler, parseBody, requireEventAccess, requireSession } from "@/lib/api";
 
-// Lista las valoraciones del evento.
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
+
+const REVIEW_USER = { select: { id: true, name: true, displayName: true, avatarUrl: true } };
+
+// Las valoraciones del evento
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: eventId } = await params;
 
-  const p = await getEventParticipation(eventId, session.userId);
-  if (!p) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-  if (!p.canView) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
+  await requireEventAccess(eventId, session.userId, "view");
 
   const reviews = await prisma.eventReview.findMany({
     where: { eventId },
     orderBy: { updatedAt: "desc" },
-    include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
-    },
+    include: { user: REVIEW_USER },
   });
   const response = NextResponse.json({ reviews });
   response.headers.set("Cache-Control", "private, no-store");
   return response;
-}
+});
 
-// Crea o actualiza la valoración propia del evento (una por usuario).
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+// Crea o actualiza la valoración propia del evento (una por usuario)
+export const PUT = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: eventId } = await params;
 
-  const p = await getEventParticipation(eventId, session.userId);
-  if (!p) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-  if (!p.canParticipate) {
-    return NextResponse.json(
-      { error: "Solo los asistentes pueden valorar el evento" },
-      { status: 403 }
-    );
-  }
+  const p = await requireEventAccess(eventId, session.userId, "participate");
 
-  const body = await request.json().catch(() => null);
-  const parsed = eventReviewSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-  const rating = parsed.data.rating ?? null;
-  const text = parsed.data.text?.trim() || null;
+  const body = await parseBody(request, eventReviewSchema);
+  const rating = body.rating ?? null;
+  const text = body.text?.trim() || null;
 
   const existing = await prisma.eventReview.findUnique({
     where: { eventId_userId: { eventId, userId: session.userId } },
     select: { id: true },
   });
 
-  // Vacía por completo → borrar la valoración.
+  // Vacía por completo → borrar la valoración
   if (rating === null && !text) {
     if (existing) await prisma.eventReview.delete({ where: { id: existing.id } });
     return NextResponse.json({ ok: true, review: null });
@@ -75,9 +51,7 @@ export async function PUT(
     where: { eventId_userId: { eventId, userId: session.userId } },
     create: { eventId, userId: session.userId, rating, text },
     update: { rating, text },
-    include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
-    },
+    include: { user: REVIEW_USER },
   });
 
   if (!existing) {
@@ -89,4 +63,4 @@ export async function PUT(
   }
 
   return NextResponse.json({ ok: true, review });
-}
+});

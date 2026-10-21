@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useTheme, type Theme } from "@/lib/theme";
 import type { NavUser } from "@/lib/navUser";
+import { bggUserUrl } from "@/lib/bggLinks";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 // Tu cuenta en la cabecera de escritorio: un círculo con tu inicial que abre
 // tu colección, tu perfil, BGG, admin, tema y el cierre de sesión. El menú
@@ -67,14 +69,10 @@ export default function AccountMenu({
     const onPointer = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("pointerdown", onPointer);
   }, [open]);
+  useEscapeKey(() => setOpen(false), open);
 
   if (!user) return <span className="w-9 h-9" aria-hidden />;
 
@@ -135,12 +133,12 @@ export function AccountPanel({
       <p className="text-sm font-semibold text-[var(--text)] truncate">{user.name || "Tu cuenta"}</p>
       {user.bggUsername ? (
         <a
-          href={`https://boardgamegeek.com/user/${user.bggUsername}`}
+          href={bggUserUrl(user.bggUsername)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+          className="mt-1 inline-flex items-center gap-1.5 text-xs text-[var(--success)] hover:underline"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
           <Image src="/bgg-icon.svg" alt="BGG" width={12} height={12} className="w-3 h-auto" />
           @{user.bggUsername}
         </a>
@@ -218,7 +216,7 @@ export function AccountPanel({
         onClick={onLogout}
         disabled={loggingOut}
         role="menuitem"
-        className={`${ITEM} hover:!text-rose-500 dark:hover:!text-rose-400 disabled:opacity-50`}
+        className={`${ITEM} hover:!text-[var(--danger)] disabled:opacity-50`}
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />

@@ -1,43 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { eventInterestSchema } from "@/lib/validations";
+import { eventInterestDeleteSchema, eventInterestSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 import { isVeto } from "@/lib/intensity";
+import { ApiError, apiHandler, parseBody, requireEventAccess, requireSession } from "@/lib/api";
 
-// Set/update interest for a game
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+/** La ficha de asistente de quien llama: los intereses cuelgan de ella. */
+async function requireAttendee(eventId: string, userId: string) {
+  const [, attendee] = await Promise.all([
+    requireEventAccess(eventId, userId, "participate"),
+    prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+      select: { id: true },
+    }),
+  ]);
+  if (!attendee) throw new ApiError(403, "Debes estar apuntado al evento");
+  return attendee;
+}
+
+// Marcar o cambiar el interés por un juego del evento
+export const PUT = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: eventId } = await params;
 
-  // Must be attending
-  const attendee = await prisma.eventAttendee.findUnique({
-    where: { eventId_userId: { eventId, userId: session.userId } },
-  });
-  if (!attendee) {
-    return NextResponse.json({ error: "Debes estar apuntado al evento" }, { status: 403 });
-  }
-
-  const body = await request.json();
-  const parsed = eventInterestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-
-  const { eventGameId, intensity, notes, played } = parsed.data;
+  const attendee = await requireAttendee(eventId, session.userId);
+  const { eventGameId, intensity, notes, played } = await parseBody(request, eventInterestSchema);
   const playedAt = played === undefined ? undefined : played ? new Date() : null;
 
-  // Verify the game belongs to this event
+  // El juego tiene que ser de este evento
   const eventGame = await prisma.eventGame.findUnique({
     where: { id: eventGameId },
     include: { game: { select: { name: true } } },
   });
   if (!eventGame || eventGame.eventId !== eventId) {
-    return NextResponse.json({ error: "Juego no encontrado en este evento" }, { status: 404 });
+    throw new ApiError(404, "Juego no encontrado en este evento");
   }
 
   const interest = await prisma.eventGameInterest.upsert({
@@ -52,34 +50,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   return NextResponse.json(interest);
-}
+});
 
-// Remove interest
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// Quitar el interés
+export const DELETE = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: eventId } = await params;
 
-  const attendee = await prisma.eventAttendee.findUnique({
-    where: { eventId_userId: { eventId, userId: session.userId } },
-  });
-  if (!attendee) {
-    return NextResponse.json({ error: "Debes estar apuntado al evento" }, { status: 403 });
-  }
-
-  const body = await request.json();
-  const { eventGameId } = body;
-
-  if (!eventGameId) {
-    return NextResponse.json({ error: "eventGameId es obligatorio" }, { status: 400 });
-  }
+  const attendee = await requireAttendee(eventId, session.userId);
+  const { eventGameId } = await parseBody(request, eventInterestDeleteSchema);
 
   await prisma.eventGameInterest.deleteMany({
     where: { eventGameId, attendeeId: attendee.id },
   });
 
   return NextResponse.json({ deleted: true });
-}
+});

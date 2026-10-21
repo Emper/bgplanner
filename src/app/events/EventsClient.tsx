@@ -4,9 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { formatDateShort } from "@/lib/format";
+import { plural } from "@/lib/text";
 import PageLoader from "@/components/PageLoader";
+import PageShell from "@/components/ui/PageShell";
+import PageHeader from "@/components/ui/PageHeader";
+import { ButtonLink } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SectionLabel } from "@/components/ui/Card";
 import DateTile from "@/components/DateTile";
 import { spotlightMove } from "@/components/motion";
 
@@ -47,58 +52,45 @@ export default function EventsClient() {
   const past = events.filter((e) => new Date(e.date) < now);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <Navbar />
-      <div className="page-main page-pad">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="page-title">Eventos</h1>
-          <Link
-            href="/events/new"
-            className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-4 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            Crear evento
-          </Link>
-        </div>
+    <PageShell nav={<Navbar />} width="main">
+      <PageHeader
+        title="Eventos"
+        action={<ButtonLink href="/events/new">Crear evento</ButtonLink>}
+      />
 
-        {loading ? (
-          <PageLoader withNavbar />
-        ) : events.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-[var(--text-secondary)] text-lg mb-2">No hay eventos todavía</p>
-            <p className="text-[var(--text-muted)] text-sm">Crea el primero para organizar tu próxima jornada de juegos</p>
-          </div>
-        ) : (
-          <>
-            {upcoming.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-                  Próximos eventos ({upcoming.length})
-                </h2>
-                <div className="grid sm:grid-cols-2 gap-4 fx-stagger">
-                  {upcoming.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                </div>
+      {loading ? (
+        <PageLoader withNavbar />
+      ) : events.length === 0 ? (
+        <EmptyState
+          title="No hay eventos todavía"
+          description="Crea el primero para organizar tu próxima jornada de juegos"
+        />
+      ) : (
+        <>
+          {upcoming.length > 0 && (
+            <section className="mb-8">
+              <SectionLabel>Próximos eventos ({upcoming.length})</SectionLabel>
+              <div className="grid sm:grid-cols-2 gap-4 fx-stagger">
+                {upcoming.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
               </div>
-            )}
+            </section>
+          )}
 
-            {past.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-                  Eventos pasados ({past.length})
-                </h2>
-                <div className="grid sm:grid-cols-2 gap-4 fx-stagger">
-                  {past.map((event) => (
-                    <EventCard key={event.id} event={event} past />
-                  ))}
-                </div>
+          {past.length > 0 && (
+            <section>
+              <SectionLabel>Eventos pasados ({past.length})</SectionLabel>
+              <div className="grid sm:grid-cols-2 gap-4 fx-stagger">
+                {past.map((event) => (
+                  <EventCard key={event.id} event={event} past />
+                ))}
               </div>
-            )}
-          </>
-        )}
-      </div>
-      <Footer />
-    </div>
+            </section>
+          )}
+        </>
+      )}
+    </PageShell>
   );
 }
 
@@ -167,10 +159,10 @@ function EventCard({ event, past = false }: { event: EventData; past?: boolean }
               </span>
             )}
             <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-600 dark:text-blue-300">
-              {event._count.attendees} asistente{event._count.attendees !== 1 ? "s" : ""}
+              {plural(event._count.attendees, "asistente", "asistentes")}
             </span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
-              {event._count.games} juego{event._count.games !== 1 ? "s" : ""}
+              {plural(event._count.games, "juego", "juegos")}
             </span>
           </div>
         </div>

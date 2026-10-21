@@ -1,10 +1,9 @@
 import { createHash, randomInt, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, signToken, sessionCookieOptions } from "@/lib/auth";
-import { EMAIL_FROM } from "@/lib/contact";
-import { resend } from "@/lib/resend";
-import { escapeHtml } from "@/lib/html";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
+import { signToken, sessionCookieOptions } from "@/lib/auth";
+import { EMAIL_COLORS as C, emailCode, emailNote, html, sendAppEmail } from "@/lib/email";
 import { logActivity } from "@/lib/activity";
 import { isEmailBanned } from "@/lib/moderation";
 import {
@@ -30,42 +29,12 @@ function codeMatches(userId: string, code: string, codeHash: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-function emailLayout(inner: string): string {
-  return `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-        <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-        ${inner}
-      </div>
-    `;
-}
-
-// Los envíos se esperan (como en la convocatoria de grupo): en serverless,
-// una promesa sin await se pierde al congelarse la instancia en cuanto se
-// devuelve la respuesta. El catch por envío mantiene la regla de que un
-// fallo de email nunca rompe la respuesta, pero deja traza en los logs.
-function sendEmail(
-  to: string,
-  subject: string,
-  inner: string
-): Promise<unknown> {
-  return resend.emails
-    .send({
-      from: EMAIL_FROM,
-      to,
-      subject,
-      html: emailLayout(inner),
-    })
-    .catch((err) => {
-      console.error(`[email-change] fallo al enviar "${subject}"`, err);
-    });
-}
+// Los envíos se esperan antes de responder: el del código es la respuesta
+// misma, y los avisos de seguridad (al email antiguo) no deben perderse.
 
 // GET — email actual + solicitud de cambio pendiente (si la hay)
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   const [user, pending] = await Promise.all([
     prisma.user.findUnique({
@@ -83,9 +52,7 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  if (!user) {
-    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-  }
+  if (!user) throw new ApiError(404, "Usuario no encontrado");
 
   return NextResponse.json({
     email: user.email,
@@ -96,69 +63,43 @@ export async function GET(request: NextRequest) {
         }
       : null,
   });
-}
+});
 
 // POST — pedir el cambio: manda un código de 6 dígitos al email NUEVO
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const parsed = emailChangeRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const newEmail = parsed.data.email;
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { id: true, email: true, name: true, displayName: true },
-  });
-  if (!user) {
-    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-  }
-
-  if (user.email.toLowerCase() === newEmail) {
-    return NextResponse.json(
-      { error: "Ese ya es tu email actual" },
-      { status: 400 }
-    );
-  }
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { email: newEmail } = await parseBody(request, emailChangeRequestSchema);
 
   // Comparación sin distinguir mayúsculas: en BD puede haber emails antiguos
   // con mayúsculas y no queremos dos cuentas que solo se diferencien en eso.
-  const taken = await prisma.user.findFirst({
-    where: {
-      email: { equals: newEmail, mode: "insensitive" },
-      id: { not: user.id },
-    },
-    select: { id: true },
-  });
-  // Un email expulsado responde igual que uno ocupado: no se dice por qué.
-  if (taken || (await isEmailBanned(newEmail))) {
-    return NextResponse.json(
-      { error: "Ya hay una cuenta con ese email" },
-      { status: 409 }
-    );
+  const [user, taken, banned, recentRequests] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { id: true, email: true },
+    }),
+    prisma.user.findFirst({
+      where: {
+        email: { equals: newEmail, mode: "insensitive" },
+        id: { not: session.userId },
+      },
+      select: { id: true },
+    }),
+    isEmailBanned(newEmail),
+    prisma.emailChangeRequest.count({
+      where: {
+        userId: session.userId,
+        createdAt: { gte: new Date(Date.now() - RATE_LIMIT_WINDOW_MS) },
+      },
+    }),
+  ]);
+  if (!user) throw new ApiError(404, "Usuario no encontrado");
+  if (user.email.toLowerCase() === newEmail) {
+    throw new ApiError(400, "Ese ya es tu email actual");
   }
-
-  const recentRequests = await prisma.emailChangeRequest.count({
-    where: {
-      userId: user.id,
-      createdAt: { gte: new Date(Date.now() - RATE_LIMIT_WINDOW_MS) },
-    },
-  });
+  // Un email expulsado responde igual que uno ocupado: no se dice por qué.
+  if (taken || banned) throw new ApiError(409, "Ya hay una cuenta con ese email");
   if (recentRequests >= MAX_REQUESTS_PER_WINDOW) {
-    return NextResponse.json(
-      { error: "Demasiados intentos. Espera unos minutos." },
-      { status: 429 }
-    );
+    throw new ApiError(429, "Demasiados intentos. Espera unos minutos.");
   }
 
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
@@ -170,62 +111,55 @@ export async function POST(request: NextRequest) {
     data: { usedAt: new Date() },
   });
 
-  await prisma.emailChangeRequest.create({
+  const changeRequest = await prisma.emailChangeRequest.create({
     data: {
       userId: user.id,
       newEmail,
       codeHash: hashCode(user.id, code),
       expiresAt,
     },
+    select: { id: true },
   });
 
-  await Promise.all([
-    sendEmail(
-      newEmail,
-      "Confirma tu nuevo email en BG Planner",
-      `
-        <p>Has pedido usar esta dirección como email de tu cuenta de BG Planner. Tu código de confirmación es:</p>
-        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #1e293b; border-radius: 8px; margin: 20px 0; color: #f59e0b;">
-          ${code}
-        </div>
-        <p style="color: #94a3b8; font-size: 14px;">Este código expira en 10 minutos. Hasta que lo introduzcas, tu cuenta sigue con el email de siempre.</p>
-        <p style="color: #94a3b8; font-size: 14px;">Si no has sido tú, ignora este email.</p>
-      `
-    ),
+  const [codeSent] = await Promise.all([
+    sendAppEmail({
+      to: newEmail,
+      subject: "Confirma tu nuevo email en BG Planner",
+      body: html`<p>Has pedido usar esta dirección como email de tu cuenta de BG Planner. Tu código de confirmación es:</p>
+${emailCode(code)}
+${emailNote("Este código expira en 10 minutos. Hasta que lo introduzcas, tu cuenta sigue con el email de siempre.")}
+${emailNote("Si no has sido tú, ignora este email.")}`,
+    }),
     // Aviso al email antiguo: si alguien intenta robar la cuenta, el dueño se entera.
-    sendEmail(
-      user.email,
-      "Se ha pedido cambiar el email de tu cuenta",
-      `
-        <p>Se ha solicitado cambiar el email de tu cuenta de BG Planner a <strong style="color: #f59e0b;">${escapeHtml(newEmail)}</strong>.</p>
-        <p>El cambio no se aplicará hasta que se confirme con el código enviado a esa dirección.</p>
-        <p style="color: #94a3b8; font-size: 14px;">Si no has sido tú, entra en tu perfil y cancela la solicitud. Tu cuenta sigue asociada a este email.</p>
-      `
-    ),
+    sendAppEmail({
+      to: user.email,
+      subject: "Se ha pedido cambiar el email de tu cuenta",
+      body: html`<p>Se ha solicitado cambiar el email de tu cuenta de BG Planner a <strong style="color: ${C.accent};">${newEmail}</strong>.</p>
+<p>El cambio no se aplicará hasta que se confirme con el código enviado a esa dirección.</p>
+${emailNote("Si no has sido tú, entra en tu perfil y cancela la solicitud. Tu cuenta sigue asociada a este email.")}`,
+    }),
   ]);
+
+  // Sin código no hay cambio que confirmar: la solicitud no queda pendiente.
+  if (!codeSent) {
+    await prisma.emailChangeRequest.update({
+      where: { id: changeRequest.id },
+      data: { usedAt: new Date() },
+    });
+    throw new ApiError(502, "No hemos podido enviar el código. Prueba de nuevo en un momento.");
+  }
 
   return NextResponse.json({
     success: true,
     newEmail,
     expiresAt: expiresAt.toISOString(),
   });
-}
+});
 
 // PUT — confirmar el cambio con el código recibido en el email nuevo
-export async function PUT(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const parsed = emailChangeConfirmSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
+export const PUT = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { code } = await parseBody(request, emailChangeConfirmSchema);
 
   const pending = await prisma.emailChangeRequest.findFirst({
     where: { userId: session.userId, usedAt: null },
@@ -233,61 +167,49 @@ export async function PUT(request: NextRequest) {
   });
 
   if (!pending || pending.expiresAt <= new Date()) {
-    return NextResponse.json(
-      { error: "No hay ningún cambio de email pendiente. Pide un código nuevo." },
-      { status: 400 }
-    );
+    throw new ApiError(400, "No hay ningún cambio de email pendiente. Pide un código nuevo.");
   }
 
   if (pending.attempts >= MAX_ATTEMPTS) {
-    return NextResponse.json(
-      { error: "Demasiados intentos fallidos. Pide un código nuevo." },
-      { status: 429 }
-    );
+    throw new ApiError(429, "Demasiados intentos fallidos. Pide un código nuevo.");
   }
 
-  if (!codeMatches(session.userId, parsed.data.code, pending.codeHash)) {
+  if (!codeMatches(session.userId, code, pending.codeHash)) {
     const updated = await prisma.emailChangeRequest.update({
       where: { id: pending.id },
       data: { attempts: { increment: 1 } },
       select: { attempts: true },
     });
     const left = Math.max(MAX_ATTEMPTS - updated.attempts, 0);
-    return NextResponse.json(
-      {
-        error: left
-          ? `Código incorrecto. Te ${left === 1 ? "queda 1 intento" : `quedan ${left} intentos`}.`
-          : "Código incorrecto. Pide un código nuevo.",
-      },
-      { status: 401 }
+    throw new ApiError(
+      401,
+      left
+        ? `Código incorrecto. Te ${left === 1 ? "queda 1 intento" : `quedan ${left} intentos`}.`
+        : "Código incorrecto. Pide un código nuevo."
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { id: true, email: true },
-  });
-  if (!user) {
-    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-  }
-
   // Alguien puede haber registrado ese email entre la solicitud y la confirmación.
-  const taken = await prisma.user.findFirst({
-    where: {
-      email: { equals: pending.newEmail, mode: "insensitive" },
-      id: { not: user.id },
-    },
-    select: { id: true },
-  });
+  const [user, taken] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { id: true, email: true },
+    }),
+    prisma.user.findFirst({
+      where: {
+        email: { equals: pending.newEmail, mode: "insensitive" },
+        id: { not: session.userId },
+      },
+      select: { id: true },
+    }),
+  ]);
+  if (!user) throw new ApiError(404, "Usuario no encontrado");
   if (taken) {
     await prisma.emailChangeRequest.update({
       where: { id: pending.id },
       data: { usedAt: new Date() },
     });
-    return NextResponse.json(
-      { error: "Ya hay una cuenta con ese email" },
-      { status: 409 }
-    );
+    throw new ApiError(409, "Ya hay una cuenta con ese email");
   }
 
   const previousEmail = user.email;
@@ -305,33 +227,27 @@ export async function PUT(request: NextRequest) {
     ]);
   } catch (err: unknown) {
     if ((err as { code?: string })?.code === "P2002") {
-      return NextResponse.json(
-        { error: "Ya hay una cuenta con ese email" },
-        { status: 409 }
-      );
+      throw new ApiError(409, "Ya hay una cuenta con ese email");
     }
     throw err;
   }
 
   logActivity("email_changed", user.id, {});
 
+  // El cambio ya está hecho: si un aviso no sale, queda en los logs y ya.
   await Promise.all([
-    sendEmail(
-      pending.newEmail,
-      "Tu email de BG Planner ya está actualizado",
-      `
-        <p>Listo: tu cuenta de BG Planner ya usa esta dirección. A partir de ahora recibirás aquí los códigos de acceso y los avisos de tus grupos.</p>
-        <p style="color: #94a3b8; font-size: 14px;">El email anterior (${escapeHtml(previousEmail)}) ya no sirve para entrar.</p>
-      `
-    ),
-    sendEmail(
-      previousEmail,
-      "El email de tu cuenta de BG Planner ha cambiado",
-      `
-        <p>El email de tu cuenta de BG Planner es ahora <strong style="color: #f59e0b;">${escapeHtml(pending.newEmail)}</strong>. Esta dirección ya no sirve para entrar.</p>
-        <p style="color: #94a3b8; font-size: 14px;">Si no has sido tú, escríbenos respondiendo a este email lo antes posible.</p>
-      `
-    ),
+    sendAppEmail({
+      to: pending.newEmail,
+      subject: "Tu email de BG Planner ya está actualizado",
+      body: html`<p>Listo: tu cuenta de BG Planner ya usa esta dirección. A partir de ahora recibirás aquí los códigos de acceso y los avisos de tus grupos.</p>
+${emailNote(`El email anterior (${previousEmail}) ya no sirve para entrar.`)}`,
+    }),
+    sendAppEmail({
+      to: previousEmail,
+      subject: "El email de tu cuenta de BG Planner ha cambiado",
+      body: html`<p>El email de tu cuenta de BG Planner es ahora <strong style="color: ${C.accent};">${pending.newEmail}</strong>. Esta dirección ya no sirve para entrar.</p>
+${emailNote("Si no has sido tú, escríbenos respondiendo a este email lo antes posible.")}`,
+    }),
   ]);
 
   // El email viaja dentro del JWT de sesión: hay que reemitir la cookie para
@@ -340,14 +256,11 @@ export async function PUT(request: NextRequest) {
   const response = NextResponse.json({ success: true, email: pending.newEmail });
   response.cookies.set(sessionCookieOptions(token));
   return response;
-}
+});
 
 // DELETE — cancelar la solicitud pendiente
-export async function DELETE(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const DELETE = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   await prisma.emailChangeRequest.updateMany({
     where: { userId: session.userId, usedAt: null },
@@ -355,4 +268,4 @@ export async function DELETE(request: NextRequest) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

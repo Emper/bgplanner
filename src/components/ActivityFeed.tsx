@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Avatar from "./Avatar";
-import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activity";
-import { profileHref } from "@/lib/users";
+import { getGroupedActivity, isGroupableActivity, type GroupedActivity } from "@/lib/activityFormat";
+import { displayName, profileHref } from "@/lib/users";
 import { formatRelativeCompact } from "@/lib/format";
+import Button from "./ui/Button";
 
 interface ActivityItem {
   id: string;
@@ -206,7 +207,7 @@ function groupItems(items: ActivityItem[]): UserGroup[] {
     } else {
       groups.push({
         userId: item.userId,
-        userName: item.user.displayName || item.user.name || "Alguien",
+        userName: displayName(item.user, "Alguien"),
         userHref: profileHref({ id: item.userId, slug: item.user.slug }),
         avatarUrl: item.user.avatarUrl,
         runs: [{ type: item.type, items: [item] }],
@@ -456,13 +457,9 @@ export default function ActivityFeed({
         );
       })}
       {hasMore && onLoadMore && (
-        <button
-          onClick={onLoadMore}
-          disabled={loading}
-          className="w-full py-2 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-        >
-          {loading ? "Cargando..." : "Ver más"}
-        </button>
+        <Button variant="ghost" size="xs" block onClick={onLoadMore} loading={loading} className="py-2">
+          {loading ? "Cargando…" : "Ver más"}
+        </Button>
       )}
     </div>
   );

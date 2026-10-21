@@ -2,6 +2,14 @@
 
 import { useState, type ReactNode } from "react";
 import { formatRelativeTime } from "@/lib/format";
+import { bggGeeklistUrl } from "@/lib/bggLinks";
+import Button from "@/components/ui/Button";
+import { cardClass } from "@/components/ui/Card";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { FieldError, Input } from "@/components/ui/Field";
+import { SegmentedControl } from "@/components/ui/Tabs";
+import Spinner from "@/components/ui/Spinner";
+import { useToast } from "@/components/ui/Toast";
 
 export interface GeeklistState {
   bggGeeklistId: number | null;
@@ -16,8 +24,6 @@ interface SyncResult {
   removed: number;
   flagged: number;
 }
-
-const geeklistUrl = (id: number) => `https://boardgamegeek.com/geeklist/${id}`;
 
 function resultMessage(r: SyncResult, first: boolean) {
   const parts = [
@@ -39,7 +45,7 @@ export function GeeklistNotice({ event }: { event: GeeklistState }) {
     <p className="mb-4 text-sm text-[var(--text-secondary)]">
       📋 Los juegos salen de la lista{" "}
       <a
-        href={geeklistUrl(event.bggGeeklistId)}
+        href={bggGeeklistUrl(event.bggGeeklistId)}
         target="_blank"
         rel="noopener noreferrer"
         className="font-medium text-[var(--text)] hover:text-[var(--primary)] transition-colors"
@@ -72,12 +78,8 @@ export default function GeeklistPanel({
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState<"" | "link" | "sync" | "unlink">("");
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
-
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(""), 4000);
-  };
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const run = async (kind: "link" | "sync", req: Promise<Response>) => {
     setBusy(kind);
@@ -86,10 +88,10 @@ export default function GeeklistPanel({
       const res = await req;
       const data = await res.json().catch(() => ({}));
       if (res.status === 202) {
-        showToast(data.message || "BGG aún está preparando la lista");
+        toast(data.message || "BGG aún está preparando la lista");
         onChanged();
       } else if (res.ok) {
-        showToast(resultMessage(data, kind === "link"));
+        toast(resultMessage(data, kind === "link"));
         if (kind === "link") setUrl("");
         onChanged();
       } else {
@@ -120,52 +122,58 @@ export default function GeeklistPanel({
       setError("");
       return;
     }
-    if (!confirm("¿Volver a elegir los juegos a mano? Los que hay ahora se quedan, pero dejarán de seguir a la lista de BGG.")) return;
+    const ok = await confirm({
+      title: "¿Volver a elegir los juegos a mano?",
+      body: "Los que hay ahora se quedan, pero dejarán de seguir a la lista de BGG.",
+      confirmLabel: "Elegirlos a mano",
+    });
+    if (!ok) return;
     setBusy("unlink");
+    setError("");
     try {
       const res = await fetch(`/api/events/${eventId}/geeklist`, { method: "DELETE" });
       if (res.ok) {
         setChoice("manual");
-        showToast("Ahora los juegos los eliges tú");
+        toast("Ahora los juegos los eliges tú");
         onChanged();
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error || "No se ha podido desvincular la lista");
       }
+    } catch {
+      setError("No se ha podido conectar. Inténtalo de nuevo.");
     } finally {
       setBusy("");
     }
   };
 
   const options = [
-    { key: "manual" as const, label: "Los elijo yo", emoji: "✋" },
-    { key: "geeklist" as const, label: "Lista de BGG", emoji: "📋" },
+    { value: "manual" as const, label: <><span aria-hidden>✋</span> Los elijo yo</> },
+    { value: "geeklist" as const, label: <><span aria-hidden>📋</span> Lista de BGG</> },
   ];
+
+  const onChoose = (value: "manual" | "geeklist") => {
+    if (busy || value === choice) return;
+    if (value === "manual") {
+      chooseManual();
+    } else {
+      setChoice("geeklist");
+      setError("");
+    }
+  };
 
   return (
     <div className="mb-4">
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4">
+      <div className={cardClass({ padding: "sm", className: "sm:p-4" })}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-semibold text-[var(--text)]">¿De dónde salen los juegos?</span>
-          <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--input-bg)] p-0.5" role="radiogroup" aria-label="Origen de los juegos">
-            {options.map((o) => (
-              <button
-                key={o.key}
-                type="button"
-                role="radio"
-                aria-checked={choice === o.key}
-                disabled={!!busy}
-                onClick={() => (o.key === "manual" ? chooseManual() : (setChoice("geeklist"), setError("")))}
-                className={`px-3 py-1.5 rounded-[10px] text-xs sm:text-sm font-medium transition-colors disabled:opacity-60 ${
-                  choice === o.key
-                    ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-sm"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text)]"
-                }`}
-              >
-                <span aria-hidden>{o.emoji}</span> {o.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Origen de los juegos"
+            value={choice}
+            onChange={onChoose}
+            options={options}
+            className={busy ? "opacity-60 pointer-events-none" : ""}
+          />
         </div>
 
         {choice === "geeklist" && !linked && (
@@ -182,22 +190,20 @@ export default function GeeklistPanel({
               }}
               className="flex flex-col sm:flex-row gap-2"
             >
-              <input
+              <Input
                 type="url"
                 inputMode="url"
+                aria-label="Enlace de la geeklist de BGG"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://boardgamegeek.com/geeklist/…"
                 disabled={!!busy}
-                className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]"
+                size="sm"
+                className="flex-1 min-w-0"
               />
-              <button
-                type="submit"
-                disabled={!url.trim() || !!busy}
-                className="px-4 py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-text)] text-sm font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors"
-              >
+              <Button type="submit" disabled={!url.trim() || (!!busy && busy !== "link")} loading={busy === "link"}>
                 {busy === "link" ? "Importando…" : "Vincular lista"}
-              </button>
+              </Button>
             </form>
             {busy === "link" && (
               <p className="mt-2 text-xs text-[var(--text-muted)]">
@@ -211,7 +217,7 @@ export default function GeeklistPanel({
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0 text-sm">
               <a
-                href={geeklistUrl(event.bggGeeklistId)}
+                href={bggGeeklistUrl(event.bggGeeklistId)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-[var(--text)] hover:text-[var(--primary)] transition-colors break-words"
@@ -226,30 +232,19 @@ export default function GeeklistPanel({
                     : "Aún sin importar."}
               </div>
               {event.geeklistError && busy !== "sync" && (
-                <div className="text-xs text-amber-400 mt-1">⚠️ {event.geeklistError}</div>
+                <div className="text-xs text-[var(--warning)] mt-1">⚠️ {event.geeklistError}</div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={sync}
-              disabled={!!busy}
-              className="shrink-0 px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50 transition-colors"
-            >
-              {busy === "sync" ? "Reimportando…" : "↻ Reimportar ahora"}
-            </button>
+            <Button variant="secondary" size="sm" onClick={sync} disabled={!!busy} className="shrink-0">
+              {busy === "sync" ? <><Spinner size="xs" tone="current" /> Reimportando…</> : "↻ Reimportar ahora"}
+            </Button>
           </div>
         )}
 
-        {error && <p className="mt-2 text-xs sm:text-sm text-red-400">{error}</p>}
+        <FieldError className="mt-2 text-xs sm:text-sm">{error}</FieldError>
       </div>
 
       {choice === "manual" && !linked && <div className="mt-3">{children}</div>}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center">
-          {toast}
-        </div>
-      )}
     </div>
   );
 }

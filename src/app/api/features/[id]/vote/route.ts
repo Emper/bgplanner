@@ -1,37 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
 import { isVotableStatus } from "@/lib/features";
 
-async function getVotableFeature(id: string) {
-  return prisma.feature.findUnique({
-    where: { id },
-    select: { id: true, title: true, status: true },
-  });
+type Params = { params: Promise<{ id: string }> };
+
+function voteCount(featureId: string) {
+  return prisma.featureVote.count({ where: { featureId } });
 }
 
 // Vota una propuesta del roadmap. Un voto por usuario y propuesta; se pueden
 // votar tantas propuestas como se quiera.
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const POST = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
   const { id } = await params;
-  const feature = await getVotableFeature(id);
-  if (!feature) {
-    return NextResponse.json({ error: "Propuesta no encontrada" }, { status: 404 });
-  }
+
+  const feature = await prisma.feature.findUnique({
+    where: { id },
+    select: { id: true, title: true, status: true },
+  });
+  if (!feature) throw new ApiError(404, "Propuesta no encontrada");
   if (!isVotableStatus(feature.status)) {
-    return NextResponse.json(
-      { error: "Esta propuesta ya no admite votos" },
-      { status: 409 }
-    );
+    throw new ApiError(409, "Esta propuesta ya no admite votos");
   }
 
   // Idempotente: votar dos veces no suma ni da error.
@@ -43,23 +34,13 @@ export async function POST(
 
   logActivity("feature_voted", session.userId, { featureId: id, featureTitle: feature.title });
 
-  const votes = await prisma.featureVote.count({ where: { featureId: id } });
-  return NextResponse.json({ votes, hasVoted: true });
-}
+  return NextResponse.json({ votes: await voteCount(id), hasVoted: true });
+});
 
 // Quita el voto.
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const DELETE = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
   const { id } = await params;
   await prisma.featureVote.deleteMany({ where: { featureId: id, userId: session.userId } });
-
-  const votes = await prisma.featureVote.count({ where: { featureId: id } });
-  return NextResponse.json({ votes, hasVoted: false });
-}
+  return NextResponse.json({ votes: await voteCount(id), hasVoted: false });
+});

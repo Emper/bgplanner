@@ -1,11 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
 import CollectionBrowser from "@/components/CollectionBrowser";
+import Alert from "@/components/ui/Alert";
+import Button, { ButtonLink } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/EmptyState";
+import PageHeader from "@/components/ui/PageHeader";
+import PageShell from "@/components/ui/PageShell";
+import Spinner from "@/components/ui/Spinner";
+import { useToast } from "@/components/ui/Toast";
+import { shareOrCopy } from "@/lib/clipboard";
+import { absoluteUrl } from "@/lib/site";
 import type { CollectionItemView } from "@/lib/collection";
 
 interface ApiResponse {
@@ -26,15 +33,10 @@ function CollectionPageInner() {
   const [meta, setMeta] = useState<ApiResponse | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const toast = useToast();
 
   const [linkProgress, setLinkProgress] = useState<{ done: number; total: number } | null>(null);
   const enrichedRef = useRef(false);
-
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(""), 4000);
-  };
 
   // ── Carga ─────────────────────────────────────────────────────────────
 
@@ -53,7 +55,7 @@ function CollectionPageInner() {
         setMeta(json);
         setAll(json.connected ? json.items : []);
         if (json.syncError) {
-          showToast(
+          toast(
             `BGG no ha respondido (${json.syncError}). Te enseñamos lo último que teníamos.`
           );
         }
@@ -65,7 +67,7 @@ function CollectionPageInner() {
         if (refresh) setSyncing(false);
       }
     },
-    []
+    [toast]
   );
 
   // Primero lo que hay en caché (rápido) y, si hace falta, la sincronización
@@ -177,7 +179,7 @@ function CollectionPageInner() {
       }
     } catch (err) {
       setAll(previous);
-      showToast(err instanceof Error ? err.message : "No se ha podido guardar");
+      toast.error(err instanceof Error ? err.message : "No se ha podido guardar");
     }
   };
 
@@ -192,10 +194,10 @@ function CollectionPageInner() {
         body: JSON.stringify({ flag: null }),
       });
       if (!res.ok) throw new Error();
-      showToast("Quitado de tu wishlist");
+      toast("Quitado de tu wishlist");
     } catch {
       setAll(previous);
-      showToast("No se ha podido quitar");
+      toast.error("No se ha podido quitar");
     }
   };
 
@@ -203,22 +205,12 @@ function CollectionPageInner() {
   // tus amigos, así que el enlace se puede soltar donde sea.
   const share = async () => {
     if (!meta?.profileSlug) return;
-    const url = `${window.location.origin}/users/${encodeURIComponent(meta.profileSlug)}/collection`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Mi colección en BG Planner", url });
-        return;
-      } catch (err) {
-        // Cerrar el menú de compartir no es un error; lo demás, al portapapeles.
-        if (err instanceof DOMException && err.name === "AbortError") return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast("Enlace copiado. La permanencia solo la ven tus amigos");
-    } catch {
-      showToast("No se ha podido copiar el enlace");
-    }
+    const result = await shareOrCopy({
+      title: "Mi colección en BG Planner",
+      url: absoluteUrl(`/users/${encodeURIComponent(meta.profileSlug)}/collection`),
+    });
+    if (result === "copied") toast("Enlace copiado. La permanencia solo la ven tus amigos");
+    else if (result === "failed") toast.error("No se ha podido copiar el enlace");
   };
 
   const toggleShowcase = (bggId: number) => {
@@ -230,121 +222,93 @@ function CollectionPageInner() {
   // Sin usuario de BGG no hay colección que enseñar.
   if (meta && !meta.connected) {
     return (
-      <>
-        <Navbar />
-        <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-          <div className="max-w-xl mx-auto bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-8 text-center">
-            <div className="text-4xl mb-3">🗄️</div>
-            <h1 className="text-xl font-bold text-[var(--text)] mb-2">Mi colección</h1>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
-              Conecta tu usuario de BoardGameGeek y traemos tu colección aquí para
-              que puedas puntuar qué juegos se quedan y cuáles se van.
-            </p>
-            <Link
-              href="/profile"
-              className="inline-flex px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
-            >
-              Conectar mi cuenta de BGG
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </>
+      <PageShell nav={<Navbar />} width="form">
+        <Notice
+          icon="🗄️"
+          title="Mi colección"
+          actions={<ButtonLink href="/profile">Conectar mi cuenta de BGG</ButtonLink>}
+        >
+          <p>
+            Conecta tu usuario de BoardGameGeek y traemos tu colección aquí para
+            que puedas puntuar qué juegos se quedan y cuáles se van.
+          </p>
+        </Notice>
+      </PageShell>
     );
   }
 
   const firstSync = syncing && (!all || all.length === 0);
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-wide">
-          {/* Cabecera */}
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div>
-              <h1 className="page-title">
-                Mi colección
-              </h1>
-              <p className="page-lead mt-1">
-                Puntúa cada juego según lo seguro que estés de que se queda
-                contigo. Tus puntuaciones solo las ven tus amigos.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                href="/collection/recommendations"
-                title="Juegos que te pueden gustar"
-                className="px-3 py-2 bg-[var(--accent-soft)] border border-[var(--primary)]/30 rounded-xl text-sm font-semibold text-[var(--primary)] hover:border-[var(--primary)]/60 transition-all duration-200"
-              >
-                <span className="sm:hidden">✨</span>
-                <span className="hidden sm:inline">✨ Recomendaciones</span>
-              </Link>
-              <button
-                onClick={share}
-                disabled={!meta?.profileSlug}
-                title="Compartir mi colección"
-                className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 disabled:opacity-50 transition-all duration-200"
-              >
-                <span className="sm:hidden">↗</span>
-                <span className="hidden sm:inline">↗ Compartir</span>
-              </button>
-              <button
-                onClick={refreshFromBgg}
-                disabled={syncing}
-                title="Volver a traer la colección desde BGG"
-                className="px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 disabled:opacity-50 transition-all duration-200"
-              >
-                <span className={syncing ? "animate-spin inline-block" : ""}>↻</span>
-              </button>
-            </div>
-          </div>
+    <PageShell nav={<Navbar />} width="wide">
+      <PageHeader
+        title="Mi colección"
+        lead="Puntúa cada juego según lo seguro que estés de que se queda contigo. Tus puntuaciones solo las ven tus amigos."
+        action={
+          <>
+            <ButtonLink
+              href="/collection/recommendations"
+              variant="soft"
+              title="Juegos que te pueden gustar"
+              aria-label="Recomendaciones"
+            >
+              <span className="sm:hidden" aria-hidden>✨</span>
+              <span className="hidden sm:inline">✨ Recomendaciones</span>
+            </ButtonLink>
+            <Button
+              variant="secondary"
+              onClick={share}
+              disabled={!meta?.profileSlug}
+              title="Compartir mi colección"
+              aria-label="Compartir mi colección"
+            >
+              <span className="sm:hidden" aria-hidden>↗</span>
+              <span className="hidden sm:inline">↗ Compartir</span>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={refreshFromBgg}
+              disabled={syncing}
+              title="Volver a traer la colección desde BGG"
+              aria-label="Volver a traer la colección desde BGG"
+            >
+              {syncing ? <Spinner size="xs" tone="current" /> : <span aria-hidden>↻</span>}
+            </Button>
+          </>
+        }
+      />
 
-          {/* Qué está pasando ahora mismo */}
-          {syncing && (
-            <Banner
-              title={
-                firstSync
-                  ? "Trayendo tu colección de BoardGameGeek…"
-                  : "Actualizando desde BoardGameGeek…"
-              }
-              text="BGG tarda unos segundos en preparar los datos de una colección. Puedes quedarte mirando o volver luego."
-            />
-          )}
-
-          {linkProgress && (
-            <Banner
-              title={`Colocando las expansiones… ${linkProgress.done} de ${linkProgress.total}`}
-              text="Le estamos preguntando a BGG de qué juego es cada expansión para agruparlas con él. Mientras tanto puedes puntuar con normalidad."
-              progress={linkProgress.total > 0 ? linkProgress.done / linkProgress.total : 0}
-            />
-          )}
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          <CollectionBrowser
-            items={all}
-            loading={firstSync}
-            fetchedAt={meta?.fetchedAt}
-            onScore={(bggId, value) => saveEntry(bggId, { keepScore: value })}
-            onToggleShowcase={toggleShowcase}
-            onRemoveSaved={removeSaved}
-          />
-        </div>
-      </div>
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center">
-          {toast}
-        </div>
+      {/* Qué está pasando ahora mismo */}
+      {syncing && (
+        <Banner
+          title={
+            firstSync
+              ? "Trayendo tu colección de BoardGameGeek…"
+              : "Actualizando desde BoardGameGeek…"
+          }
+          text="BGG tarda unos segundos en preparar los datos de una colección. Puedes quedarte mirando o volver luego."
+        />
       )}
 
-      <Footer />
-    </>
+      {linkProgress && (
+        <Banner
+          title={`Colocando las expansiones… ${linkProgress.done} de ${linkProgress.total}`}
+          text="Le estamos preguntando a BGG de qué juego es cada expansión para agruparlas con él. Mientras tanto puedes puntuar con normalidad."
+          progress={linkProgress.total > 0 ? linkProgress.done / linkProgress.total : 0}
+        />
+      )}
+
+      {error && <Alert className="mb-4">{error}</Alert>}
+
+      <CollectionBrowser
+        items={all}
+        loading={firstSync}
+        fetchedAt={meta?.fetchedAt}
+        onScore={(bggId, value) => saveEntry(bggId, { keepScore: value })}
+        onToggleShowcase={toggleShowcase}
+        onRemoveSaved={removeSaved}
+      />
+    </PageShell>
   );
 }
 
@@ -375,9 +339,9 @@ function Banner({
   progress?: number;
 }) {
   return (
-    <div className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4">
+    <div role="status" className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+        <Spinner size="sm" className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[var(--primary)]">{title}</p>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">{text}</p>

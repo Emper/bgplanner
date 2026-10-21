@@ -6,13 +6,16 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Avatar from "@/components/Avatar";
 import ActivityFeed from "@/components/ActivityFeed";
-import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
+import PageShell from "@/components/ui/PageShell";
+import Alert from "@/components/ui/Alert";
+import { cardClass } from "@/components/ui/Card";
 import DateTile from "@/components/DateTile";
 import { CountUp } from "@/components/motion";
 import { getGroupType } from "@/lib/groupTypes";
 import { useFriends } from "@/lib/friends";
-import { profileHref } from "@/lib/users";
+import { displayName, profileHref } from "@/lib/users";
+import { plural, pluralWord } from "@/lib/text";
 import { useNavUser } from "@/lib/navUser";
 import { TagChip, type CommunityAuthor } from "@/components/CommunityBits";
 import { formatRelativeTime } from "@/lib/format";
@@ -181,8 +184,7 @@ function GroupsSection({ groups }: { groups: Group[] }) {
                     {group.name}
                   </span>
                   <span className="block text-[11px] text-[var(--text-muted)] truncate">
-                    {group._count.games} {group._count.games === 1 ? "juego" : "juegos"} · {group._count.members}{" "}
-                    {group._count.members === 1 ? "miembro" : "miembros"}
+                    {plural(group._count.games, "juego", "juegos")} · {plural(group._count.members, "miembro", "miembros")}
                   </span>
                 </span>
                 {group.pinned && (
@@ -230,7 +232,7 @@ function EventsSection({ events }: { events: UpcomingEvent[] }) {
                     {whenLabel(event.date)}
                   </span>
                   {isGoing(event) ? (
-                    <span className="px-1.5 py-px rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 font-medium">
+                    <span className="px-1.5 py-px rounded bg-[var(--success-soft)] text-[var(--success)] font-medium">
                       {event.myStatus === "maybe" ? "Quizás" : "Vas"}
                     </span>
                   ) : (
@@ -260,7 +262,7 @@ function FriendsSection() {
       ) : (
         <div className={SIDE_LIST}>
           {friends.map((friend) => {
-            const name = friend.displayName || friend.name || "Jugador";
+            const name = displayName(friend);
             return (
               <Link
                 key={friend.id}
@@ -313,7 +315,7 @@ function CommunitySection({ threads }: { threads: CommunityThread[] }) {
           <span className="font-semibold text-[var(--primary)]">Abre el primer hilo →</span>
         </Link>
       ) : (
-        <ul className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] divide-y divide-[var(--border)] overflow-hidden">
+        <ul className={cardClass({ padding: "none", className: "divide-y divide-[var(--border)] overflow-hidden" })}>
           {threads.map((t) => {
             const who = t.lastReply ?? { author: t.author, createdAt: t.lastActivityAt };
             return (
@@ -339,7 +341,7 @@ function CommunitySection({ threads }: { threads: CommunityThread[] }) {
                   </span>
                   <span
                     className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-[var(--text-muted)]"
-                    title={`${t.replyCount} respuesta${t.replyCount === 1 ? "" : "s"}`}
+                    title={plural(t.replyCount, "respuesta", "respuestas")}
                   >
                     💬 {t.replyCount}
                   </span>
@@ -473,12 +475,9 @@ export default function HomeDashboard() {
   const nextEvent = myEvents[0] ?? null;
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-wide">
+    <PageShell nav={<Navbar />} width="wide">
           {loading && <PageLoader withNavbar />}
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <Alert>{error}</Alert>}
 
           {!loading && !error && (
             <>
@@ -507,7 +506,7 @@ export default function HomeDashboard() {
                   </h1>
                   <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
-                      👥 <CountUp value={groups.length} /> {groups.length === 1 ? "grupo" : "grupos"}
+                      👥 <CountUp value={groups.length} /> {pluralWord(groups.length, "grupo", "grupos")}
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
                       🎲 <CountUp value={groups.reduce((n, g) => n + (g._count?.games || 0), 0)} /> juegos en tus mesas
@@ -515,7 +514,8 @@ export default function HomeDashboard() {
                     {/* Sin eventos a la vista, mejor no presumir de un cero */}
                     {myEvents.length > 0 && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        📅 <CountUp value={myEvents.length} /> {myEvents.length === 1 ? "evento próximo" : "eventos próximos"}
+                        📅 <CountUp value={myEvents.length} />{" "}
+                        {pluralWord(myEvents.length, "evento próximo", "eventos próximos")}
                       </span>
                     )}
                   </div>
@@ -548,7 +548,7 @@ export default function HomeDashboard() {
                   {/* Actividad reciente */}
                   <section>
                     <h2 className="text-xl font-bold text-[var(--text)] mb-3">Actividad reciente</h2>
-                    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 shadow-[var(--card-shadow)]">
+                    <div className={cardClass({ padding: "none", className: "p-4" })}>
                       <ActivityFeed
                         items={feedItems}
                         showContext
@@ -562,9 +562,6 @@ export default function HomeDashboard() {
               </div>
             </>
           )}
-        </div>
-      </div>
-      <Footer />
-    </>
+    </PageShell>
   );
 }

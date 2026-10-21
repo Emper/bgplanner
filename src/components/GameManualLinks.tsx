@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { MoreMenu, ReportModal } from "@/components/Moderation";
 import { checkManualUrl, manualSourceLabel, manualTitleFromUrl } from "@/lib/bggLinks";
+import Button from "@/components/ui/Button";
+import { Input } from "@/components/ui/Field";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 export interface ManualGame {
   id: string;
@@ -32,6 +36,8 @@ export default function GameManualLinks({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [reporting, setReporting] = useState(false);
+  const confirm = useConfirm();
+  const toast = useToast();
   const mine = !!game.manualUrl && game.manualAddedById === currentUserId;
 
   const startEditing = () => {
@@ -69,9 +75,16 @@ export default function GameManualLinks({
   };
 
   const remove = async () => {
-    if (!confirm("¿Quitar el enlace al manual? Dejará de verse en todos los eventos y grupos.")) return;
-    const res = await fetch(`/api/games/${game.id}/manual`, { method: "DELETE" });
-    if (res.ok) onChange({ manualUrl: null, manualAddedById: null });
+    const ok = await confirm({
+      title: "¿Quitar el enlace al manual?",
+      body: "Dejará de verse en todos los eventos y grupos.",
+      confirmLabel: "Quitar",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/games/${game.id}/manual`, { method: "DELETE" }).catch(() => null);
+    if (res?.ok) onChange({ manualUrl: null, manualAddedById: null });
+    else toast.error("No se ha podido quitar el enlace");
   };
 
   const linkClass = "text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors";
@@ -124,7 +137,8 @@ export default function GameManualLinks({
               if (!saving) save();
             }}
           >
-            <input
+            <Input
+              size="sm"
               type="url"
               inputMode="url"
               autoFocus
@@ -133,27 +147,19 @@ export default function GameManualLinks({
               onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
               placeholder="Enlace al manual (BGG, Drive, Dropbox…)"
               disabled={saving}
-              className="w-full px-2.5 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+              tone={error ? "danger" : "default"}
             />
-            <p className={`mt-1.5 text-[11px] leading-snug ${error ? "text-red-400" : "text-[var(--text-muted)]"}`}>
+            <p className={`mt-1.5 text-[11px] leading-snug ${error ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}>
               {error ||
                 "La página del reglamento en la pestaña «Files» del juego en BGG, o un enlace de Drive, Dropbox o la editorial. No vale el de descarga de BGG, que caduca. Servirá a todo el que tenga este juego."}
             </p>
             <div className="mt-2 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="px-2.5 py-1 rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-              >
+              <Button variant="ghost" size="xs" onClick={() => setEditing(false)}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={saving || !value.trim()}
-                className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-all duration-200"
-              >
+              </Button>
+              <Button type="submit" size="xs" disabled={!value.trim()} loading={saving}>
                 {saving ? "Guardando…" : "Guardar"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

@@ -7,16 +7,15 @@ import { safeRedirect } from "@/lib/safeRedirect";
 import Landing, { type DemoDate, type LandingEvent, type LandingThread } from "@/components/landing/Landing";
 import { CHANGELOG } from "@/lib/changelog";
 import { getLatestThreads, type ThreadListItem } from "@/lib/communityServer";
-import { formatRelativeTime } from "@/lib/format";
+import { APP_TZ, formatRelativeTime } from "@/lib/format";
+import { jsonLdHtml } from "@/lib/html";
+import { APP_URL, loginHref } from "@/lib/site";
 import HomeDashboard from "@/components/HomeDashboard";
-import { APP_TZ } from "@/lib/format";
 
 // Con sesión, tu inicio (grupos, eventos, amigos y actividad); sin ella, la
 // portada con los próximos eventos abiertos. Se decide en el servidor para no enseñar un loader a
 // quien viene de fuera (y para que los buscadores vean el contenido).
 export const dynamic = "force-dynamic";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 export const metadata: Metadata = {
   title: "BG Planner · Decide con tus amigos a qué jugar",
@@ -69,12 +68,10 @@ const SITE_JSON_LD = {
 
 // Las fechas se formatean aquí, en hora de España, para que servidor y
 // navegador pinten lo mismo.
-const TZ = APP_TZ;
-
 function toLandingEvent(e: Awaited<ReturnType<typeof getUpcomingPublicEvents>>[number]): LandingEvent {
   const d = new Date(e.date);
   const part = (opts: Intl.DateTimeFormatOptions) =>
-    d.toLocaleString("es-ES", { timeZone: TZ, ...opts }).replace(".", "");
+    d.toLocaleString("es-ES", { timeZone: APP_TZ, ...opts }).replace(".", "");
   return {
     id: e.id,
     name: e.name,
@@ -137,20 +134,14 @@ export default async function Home({
     getUpcomingPublicEvents(3).catch(() => []),
     getLatestThreads(4).catch(() => []),
   ]);
-  const loginHref = target ? `/login?redirect=${encodeURIComponent(target)}` : "/login";
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(SITE_JSON_LD).replace(/</g, "\\u003c"),
-        }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(SITE_JSON_LD) }} />
       <Landing
         events={events.map(toLandingEvent)}
         threads={threads.map(toLandingThread)}
-        loginHref={loginHref}
+        loginHref={loginHref(target)}
         latest={
           // La última entrada con algo nuevo: una de solo arreglos no luce en
           // el aviso «Nuevo».

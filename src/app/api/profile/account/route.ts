@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notifications";
 import { deleteAccount, getDeletionPlan } from "@/lib/accountDeletion";
@@ -7,37 +7,25 @@ import { accountDeleteSchema } from "@/lib/validations";
 
 // GET: qué pasará al borrar la cuenta (grupos y eventos que cambian de manos
 // o desaparecen, y lo que se queda anonimizado). Lo pinta el modal.
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
   const plan = await getDeletionPlan(session.userId);
   return NextResponse.json(plan);
-}
+});
 
 // DELETE: borra la cuenta de quien tiene la sesión y la cierra.
-export async function DELETE(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => null);
-  const parsed = accountDeleteSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
+export const DELETE = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { removePhotos } = await parseBody(request, accountDeleteSchema);
 
   let result;
   try {
-    result = await deleteAccount(session.userId, { removePhotos: parsed.data.removePhotos });
+    result = await deleteAccount(session.userId, { removePhotos });
   } catch (err) {
     console.error("[account] fallo al borrar la cuenta:", err);
-    return NextResponse.json(
-      { error: "No hemos podido borrar la cuenta. No se ha tocado nada: inténtalo de nuevo o escríbenos." },
-      { status: 500 }
+    throw new ApiError(
+      500,
+      "No hemos podido borrar la cuenta. No se ha tocado nada: inténtalo de nuevo o escríbenos."
     );
   }
 
@@ -55,10 +43,10 @@ export async function DELETE(request: NextRequest) {
     groupsDeleted: plan.groups.filter((g) => !g.heir).length,
     eventsHandedOver: plan.events.filter((e) => e.heir).length,
     eventsDeleted: plan.events.filter((e) => !e.heir).length,
-    photosRemoved: parsed.data.removePhotos,
+    photosRemoved: removePhotos,
   });
 
   const response = NextResponse.json({ deleted: true });
   response.cookies.set("session", "", { maxAge: 0, path: "/" });
   return response;
-}
+});

@@ -1,11 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { formatActivity } from "@/lib/activity";
-import { toDateTimeLocalInput } from "@/lib/format";
+import { formatActivity } from "@/lib/activityFormat";
+import { formatDateFull, toDateTimeLocalInput } from "@/lib/format";
 import { isVeto } from "@/lib/intensity";
+import { displayName } from "@/lib/users";
+import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Field, FieldError, Input, Select, Textarea } from "@/components/ui/Field";
+import { InlineLoading } from "@/components/ui/Spinner";
+import { BackLink } from "@/components/ui/PageHeader";
+import { useToast } from "@/components/ui/Toast";
+import { AdminHeader } from "../../AdminUI";
 
 interface AdminEventDetail {
   id: string;
@@ -45,6 +54,7 @@ interface AdminEventDetail {
 export default function AdminEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const toast = useToast();
   const [data, setData] = useState<AdminEventDetail | null>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
@@ -58,6 +68,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
     visibility: "public" as "public" | "private",
   });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -81,6 +92,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
   async function saveEvent() {
     if (saving) return;
     setSaving(true);
+    setFormError("");
     try {
       const body: Record<string, unknown> = {
         name: form.name,
@@ -104,7 +116,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
       setData((d) => (d ? { ...d, ...updated, createdBy: d.createdBy, attendees: d.attendees, games: d.games, activity: d.activity } : d));
       setEditing(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo guardar");
+      setFormError(e instanceof Error ? e.message : "No se pudo guardar");
     } finally {
       setSaving(false);
     }
@@ -117,13 +129,20 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
       if (!res.ok) throw new Error();
       router.push("/admin/events");
     } catch {
-      setError("No se pudo eliminar");
+      toast.error("No se pudo eliminar");
       setSaving(false);
     }
   }
 
-  if (error && !data) return <div className="text-sm text-[var(--color-danger,#ef4444)]">{error}</div>;
-  if (!data) return <div className="text-sm text-[var(--text-muted)]">Cargando…</div>;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <BackLink href="/admin/events">Todos los eventos</BackLink>
+        <Alert>{error}</Alert>
+      </div>
+    );
+  }
+  if (!data) return <InlineLoading />;
 
   const attending = data.attendees.filter((a) => a.status === "attending");
   const maybe = data.attendees.filter((a) => a.status === "maybe");
@@ -131,46 +150,42 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <div className="text-xs text-[var(--text-muted)]">
-        <Link href="/admin/events" className="hover:text-purple-600">← Todos los eventos</Link>
-      </div>
-
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-display font-semibold">{data.name}</h1>
-            {data.visibility === "private" && (
-              <span className="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300">
-                Privado
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Creado por <span className="font-medium">{data.createdBy.displayName || data.createdBy.name || data.createdBy.email}</span> · {new Date(data.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setEditing(true)}
-            className="px-3 py-2 rounded-xl text-sm border border-[var(--border)] hover:bg-[var(--surface-hover)]"
-          >
-            Editar evento
-          </button>
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="px-3 py-2 rounded-xl text-sm border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
-          >
-            Eliminar evento
-          </button>
-        </div>
-      </header>
-
-      {error && data && (
-        <div className="text-sm rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-300 px-3 py-2">{error}</div>
-      )}
+      <AdminHeader
+        back={{ href: "/admin/events", label: "Todos los eventos" }}
+        title={data.name}
+        badge={
+          data.visibility === "private" && (
+            <span className="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300">
+              Privado
+            </span>
+          )
+        }
+        lead={
+          <>
+            Creado por <span className="font-medium">{displayName(data.createdBy, data.createdBy.email)}</span> ·{" "}
+            {new Date(data.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })}
+          </>
+        }
+        action={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFormError("");
+                setEditing(true);
+              }}
+            >
+              Editar evento
+            </Button>
+            <Button variant="dangerOutline" onClick={() => setConfirmDelete(true)}>
+              Eliminar evento
+            </Button>
+          </>
+        }
+      />
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-1 text-sm">
-        <div><span className="text-[var(--text-muted)] uppercase tracking-wide text-xs">Cuándo:</span> {new Date(data.date).toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" })}{data.endDate && ` → ${new Date(data.endDate).toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" })}`}</div>
+        <div><span className="text-[var(--text-muted)] uppercase tracking-wide text-xs">Cuándo:</span> {formatDateFull(data.date)}{data.endDate && ` → ${formatDateFull(data.endDate)}`}</div>
         {data.location && <div><span className="text-[var(--text-muted)] uppercase tracking-wide text-xs">Dónde:</span> {data.location}</div>}
         {data.maxAttendees && <div><span className="text-[var(--text-muted)] uppercase tracking-wide text-xs">Aforo:</span> {data.maxAttendees}</div>}
         {data.description && <div className="whitespace-pre-wrap text-[var(--text-secondary)] mt-2">{data.description}</div>}
@@ -188,7 +203,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
               {attending.map((a) => (
                 <li key={a.id} className="py-2 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{a.user.name}</div>
+                    <div className="font-medium truncate">{displayName(a.user, a.user.email)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{a.user.email}</div>
                   </div>
                   <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">{new Date(a.joinedAt).toLocaleDateString("es-ES")}</span>
@@ -198,8 +213,8 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
           )}
           {(maybe.length > 0 || cancelled.length > 0) && (
             <div className="mt-3 pt-3 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
-              {maybe.length > 0 && <div>Tal vez: {maybe.map((a) => a.user.name).join(", ")}</div>}
-              {cancelled.length > 0 && <div>Cancelaron: {cancelled.map((a) => a.user.name).join(", ")}</div>}
+              {maybe.length > 0 && <div>Tal vez: {maybe.map((a) => displayName(a.user, a.user.email)).join(", ")}</div>}
+              {cancelled.length > 0 && <div>Cancelaron: {cancelled.map((a) => displayName(a.user, a.user.email)).join(", ")}</div>}
             </div>
           )}
         </div>
@@ -251,85 +266,103 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
         )}
       </section>
 
-      {editing && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => !saving && setEditing(false)}
-        >
-          <div
-            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-display font-semibold mb-4">Editar evento</h3>
-            <div className="space-y-3 text-sm">
-              <label className="block">
-                <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Nombre</span>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none" />
-              </label>
-              <label className="block">
-                <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Descripción</span>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none resize-none" />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Inicio</span>
-                  <input type="datetime-local" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none" />
-                </label>
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Fin (opcional)</span>
-                  <input type="datetime-local" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none" />
-                </label>
-              </div>
-              <label className="block">
-                <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Lugar</span>
-                <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none" />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Aforo</span>
-                  <input type="number" min={1} value={form.maxAttendees} onChange={(e) => setForm({ ...form, maxAttendees: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none" />
-                </label>
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Visibilidad</span>
-                  <select value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value as "public" | "private" })} className="mt-1 w-full px-3 py-2 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none">
-                    <option value="public">Público</option>
-                    <option value="private">Privado</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end mt-5">
-              <button onClick={() => setEditing(false)} disabled={saving} className="px-3 py-2 rounded-xl text-sm border border-[var(--border)] hover:bg-[var(--surface-hover)]">Cancelar</button>
-              <button onClick={saveEvent} disabled={saving || !form.name.trim()} className="px-3 py-2 rounded-xl text-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60">
-                {saving ? "Guardando…" : "Guardar"}
-              </button>
-            </div>
+      <Modal
+        open={editing}
+        onClose={() => setEditing(false)}
+        title="Editar evento"
+        size="lg"
+        busy={saving}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={saveEvent} loading={saving} disabled={!form.name.trim()}>
+              {saving ? "Guardando…" : "Guardar"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Nombre">
+            {(fieldId) => <Input id={fieldId} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}
+          </Field>
+          <Field label="Descripción">
+            {(fieldId) => (
+              <Textarea
+                id={fieldId}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={3}
+              />
+            )}
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Inicio">
+              {(fieldId) => (
+                <Input
+                  id={fieldId}
+                  type="datetime-local"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="Fin (opcional)">
+              {(fieldId) => (
+                <Input
+                  id={fieldId}
+                  type="datetime-local"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
+              )}
+            </Field>
           </div>
+          <Field label="Lugar">
+            {(fieldId) => (
+              <Input id={fieldId} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+            )}
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Aforo">
+              {(fieldId) => (
+                <Input
+                  id={fieldId}
+                  type="number"
+                  min={1}
+                  value={form.maxAttendees}
+                  onChange={(e) => setForm({ ...form, maxAttendees: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="Visibilidad">
+              {(fieldId) => (
+                <Select
+                  id={fieldId}
+                  value={form.visibility}
+                  onChange={(e) => setForm({ ...form, visibility: e.target.value as "public" | "private" })}
+                >
+                  <option value="public">Público</option>
+                  <option value="private">Privado</option>
+                </Select>
+              )}
+            </Field>
+          </div>
+          <FieldError>{formError}</FieldError>
         </div>
-      )}
+      </Modal>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => !saving && setConfirmDelete(false)}
-        >
-          <div
-            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-display font-semibold mb-2">Eliminar evento</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Esta acción es irreversible. Se borrarán asistentes, juegos propuestos y actividad asociada.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmDelete(false)} disabled={saving} className="px-3 py-2 rounded-xl text-sm border border-[var(--border)] hover:bg-[var(--surface-hover)]">Cancelar</button>
-              <button onClick={deleteEvent} disabled={saving} className="px-3 py-2 rounded-xl text-sm bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50">
-                {saving ? "Eliminando…" : "Eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmDelete}
+        tone="danger"
+        title="Eliminar evento"
+        body="Esta acción es irreversible. Se borrarán asistentes, juegos propuestos y actividad asociada."
+        confirmLabel={saving ? "Eliminando…" : "Eliminar"}
+        busy={saving}
+        onConfirm={deleteEvent}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import Avatar from "@/components/Avatar";
+import Button from "@/components/ui/Button";
+import { cardClass } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import GameThumb from "@/components/ui/GameThumb";
+import { useToast } from "@/components/ui/Toast";
+import { useCopy } from "@/hooks/useCopy";
+import { displayName } from "@/lib/users";
+import { joinNames } from "@/lib/text";
 import { INTENSITY_COLORS, INTENSITY_LABELS, intensityMark } from "@/lib/intensity";
 import { buildMesa, type MesaGameInput, type MesaMood, type MesaRow } from "@/lib/mesa";
 
@@ -25,13 +31,7 @@ const MOODS: Record<Exclude<MesaMood, null>, { label: string; cls: string }> = {
 };
 
 function fullName(m: MesaMember) {
-  return m.user.displayName || m.user.name || "Jugador";
-}
-
-/** "Tú, Alex y Nuria" */
-function joinNames(names: string[]) {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+  return displayName(m.user);
 }
 
 export default function MesaView({
@@ -47,7 +47,8 @@ export default function MesaView({
   shareUrl: string;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopy();
+  const toast = useToast();
   const memberIds = members.map((m) => m.id);
   const nameOf = (id: string) => {
     if (id === currentAttendeeId) return "Tú";
@@ -66,11 +67,8 @@ export default function MesaView({
     return `Ya lo ${others.length === 1 ? "ha" : "han"} jugado ${joinNames(others)}`;
   };
 
-  const copy = () => {
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
+  const copy = async () => {
+    if (!(await copyText(shareUrl))) toast.error("No se ha podido copiar el enlace");
   };
 
   const vetoedText = (ids: string[]) => {
@@ -89,13 +87,7 @@ export default function MesaView({
         {rank !== null && (
           <span className="w-5 shrink-0 text-right text-sm font-bold text-[var(--text-muted)] tabular-nums">{rank}</span>
         )}
-        <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${dim ? "opacity-60" : ""}`}>
-          {game.thumbnail ? (
-            <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-contain" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-          )}
-        </div>
+        <GameThumb src={game.thumbnail} name={game.name} size="sm" fit="contain" className={dim ? "opacity-60" : ""} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
             <span
@@ -150,7 +142,7 @@ export default function MesaView({
     );
   };
 
-  const box = "bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2";
+  const box = cardClass({ padding: "none", className: "px-3 sm:px-4 py-2" });
   const heading = "text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5";
 
   return (
@@ -158,18 +150,12 @@ export default function MesaView({
       {/* Cabecera de la mesa */}
       <div className={`${box} py-3`}>
         <div className="flex items-center justify-between gap-3">
-          <button
-            onClick={onClose}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-          >
+          <Button variant="ghost" size="xs" onClick={onClose} className="-ml-2.5">
             ← Asistentes
-          </button>
-          <button
-            onClick={copy}
-            className="px-3 py-1 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:text-[var(--primary)] transition-all duration-200"
-          >
+          </Button>
+          <Button variant="secondary" size="xs" onClick={copy}>
             {copied ? "Enlace copiado" : "↗ Copiar enlace"}
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-3 mt-3">
           <div className="flex -space-x-2 shrink-0">
@@ -236,9 +222,10 @@ export default function MesaView({
       )}
 
       {all.length === 0 && almost.length === 0 && played.length === 0 && vetoed.length === 0 && (
-        <p className="text-[var(--text-secondary)] text-center py-8">
-          No hay juegos en común en esta mesa. Probad a marcar más juegos en la pestaña «Juegos».
-        </p>
+        <EmptyState
+          title="No hay juegos en común en esta mesa"
+          description="Probad a marcar más juegos en la pestaña «Juegos»."
+        />
       )}
     </div>
   );

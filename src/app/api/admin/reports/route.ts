@@ -1,29 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { apiHandler, requireSuperadmin } from "@/lib/api";
 import { describeReportTarget } from "@/lib/moderation";
 import { AUTO_HIDE_REPORTS, REPORT_TARGET_TYPES, type ReportTargetType } from "@/lib/reports";
-import { profileHref } from "@/lib/users";
+import { displayName, profileHref } from "@/lib/users";
 
 const PERSON = { id: true, slug: true, name: true, displayName: true, avatarUrl: true } as const;
 const CLOSED_LIMIT = 100;
 
 function person(u: { id: string; slug: string | null; name: string | null; displayName: string | null; avatarUrl: string | null } | null) {
   if (!u) return null;
-  return { id: u.id, name: u.displayName || u.name || "Jugador", avatarUrl: u.avatarUrl, href: profileHref(u) };
+  return { id: u.id, name: displayName(u), avatarUrl: u.avatarUrl, href: profileHref(u) };
 }
 
 // Cola de denuncias de /admin/reports, agrupadas por lo denunciado: diez
 // personas que denuncian el mismo hilo son una sola fila con diez motivos.
 // ?status=pending (por defecto) o ?status=closed (las últimas revisadas).
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  await requireSuperadmin(request);
 
   const closed = request.nextUrl.searchParams.get("status") === "closed";
   const [reports, pendingCount] = await Promise.all([
@@ -87,4 +81,4 @@ export async function GET(request: NextRequest) {
     { items, pendingCount },
     { headers: { "Cache-Control": "no-store" } }
   );
-}
+});

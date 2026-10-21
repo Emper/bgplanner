@@ -1,43 +1,27 @@
 import { randomInt } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { EMAIL_FROM } from "@/lib/contact";
-import { resend } from "@/lib/resend";
+import { ApiError, apiHandler, parseBody } from "@/lib/api";
+import { emailCode, emailNote, html, sendAppEmail } from "@/lib/email";
 import { emailSchema } from "@/lib/validations";
 import { reviewLoginCode } from "@/lib/auth";
 import { BANNED_MESSAGE, isEmailBanned } from "@/lib/moderation";
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const parsed = emailSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const { email } = parsed.data;
+export const POST = apiHandler(async (request: NextRequest) => {
+  const { email } = await parseBody(request, emailSchema);
 
   // Quien fue expulsado no puede volver a entrar (ver /terms)
-  if (await isEmailBanned(email)) {
-    return NextResponse.json({ error: BANNED_MESSAGE }, { status: 403 });
-  }
+  if (await isEmailBanned(email)) throw new ApiError(403, BANNED_MESSAGE);
 
-  // Rate limit: max 3 codes in last 5 minutes
+  // Rate limit: máximo 3 códigos en los últimos 5 minutos
   const recentCodes = await prisma.otpCode.count({
     where: {
       email,
       createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
     },
   });
-
   if (recentCodes >= 3) {
-    return NextResponse.json(
-      { error: "Demasiados intentos. Espera unos minutos." },
-      { status: 429 }
-    );
+    throw new ApiError(429, "Demasiados intentos. Espera unos minutos.");
   }
 
   // La cuenta de revisión de las tiendas tiene un código fijo y no recibe email
@@ -48,29 +32,25 @@ export async function POST(request: NextRequest) {
     data: {
       email,
       code,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutos
     },
   });
 
-  if (reviewCode) {
-    return NextResponse.json({ success: true });
-  }
+  if (reviewCode) return NextResponse.json({ success: true });
 
-  await resend.emails.send({
-    from: EMAIL_FROM,
+  // El email ES la respuesta: si no sale, hay que decirlo (antes un fallo de
+  // Resend se daba por bueno y la persona se quedaba esperando un código).
+  const sent = await sendAppEmail({
     to: email,
     subject: "Tu código de acceso a BG Planner",
-    html: `
-      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-        <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner</h2>
-        <p>Tu código de acceso es:</p>
-        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background: #1e293b; border-radius: 8px; margin: 20px 0; color: #f59e0b;">
-          ${code}
-        </div>
-        <p style="color: #94a3b8; font-size: 14px;">Este código expira en 10 minutos.</p>
-      </div>
-    `,
+    maxWidth: 400,
+    body: html`<p>Tu código de acceso es:</p>
+${emailCode(code)}
+${emailNote("Este código expira en 10 minutos.")}`,
   });
+  if (!sent) {
+    throw new ApiError(502, "No hemos podido enviar el código. Prueba de nuevo en un momento.");
+  }
 
   return NextResponse.json({ success: true });
-}
+});

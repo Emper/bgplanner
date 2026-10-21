@@ -8,6 +8,8 @@ import NotificationBell from "./NotificationBell";
 import AccountMenu, { AccountPanel } from "./AccountMenu";
 import { useNavUser, clearNavUser } from "@/lib/navUser";
 import { disablePush } from "@/lib/pushClient";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { CloseButton } from "./ui/Button";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -30,6 +32,7 @@ export default function Navbar() {
       };
     }
   }, [menuOpen]);
+  useEscapeKey(() => setMenuOpen(false), menuOpen);
 
   // Desde sm, las secciones en texto junto a la campana y tu cuenta. En móvil
   // van en la barra de pestañas de abajo (MobileTabBar). La colección y el
@@ -126,15 +129,7 @@ export default function Navbar() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
               <span className="text-sm font-display font-semibold text-[var(--text)]">Menú</span>
-              <button
-                onClick={() => setMenuOpen(false)}
-                aria-label="Cerrar menú"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <CloseButton label="Cerrar menú" onClick={() => setMenuOpen(false)} />
             </div>
 
             <div className="flex-1 overflow-y-auto p-2">

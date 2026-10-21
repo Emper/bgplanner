@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getPublicGroup, groupTagline } from "@/lib/publicLinks";
 import { getGroupType } from "@/lib/groupTypes";
+import { loginHref } from "@/lib/site";
+import { plural } from "@/lib/text";
 import PublicPeek from "@/components/PublicPeek";
 import GroupClient from "./GroupClient";
 
@@ -52,26 +55,16 @@ export default async function GroupPage({
   const { id } = await params;
   const group = await getPublicGroup(id);
 
-  if (!group) {
-    return (
-      <PublicPeek
-        emoji="🔍"
-        title="Este grupo no existe"
-        note="Puede que lo hayan borrado o que el enlace esté mal copiado."
-        cta={{ href: "/", label: "Ir a BG Planner" }}
-      />
-    );
-  }
+  // Un 404 de verdad (con la cara de la app de src/app/not-found.tsx).
+  if (!group) notFound();
 
   // Lo mismo que se ve en el listado de grupos y nada más: ni quién está
   // dentro, ni qué juegos tienen, ni cómo va el ranking.
   const cfg = getGroupType(group.type);
   const facts = [
     `${cfg.emoji} ${cfg.label}`,
-    `👥 ${group.memberCount} jugador${group.memberCount === 1 ? "" : "es"}${
-      group.gameCount > 0
-        ? ` · 🎲 ${group.gameCount} juego${group.gameCount === 1 ? "" : "s"}`
-        : ""
+    `👥 ${plural(group.memberCount, "jugador", "jugadores")}${
+      group.gameCount > 0 ? ` · 🎲 ${plural(group.gameCount, "juego", "juegos")}` : ""
     }`,
   ];
 
@@ -83,7 +76,7 @@ export default async function GroupPage({
       facts={facts}
       note="Lo que pasa dentro (quién está, qué juegos tienen y cómo va el ranking) es cosa de sus miembros. Si eres uno, entra con tu cuenta."
       cta={{
-        href: `/login?redirect=${encodeURIComponent(`/groups/${id}`)}`,
+        href: loginHref(`/groups/${id}`),
         label: "Entrar",
         hint: "¿No eres del grupo? Pide a alguien de dentro que te mande su enlace de invitación.",
       }}

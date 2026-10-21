@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
-import { DELETED_USER_ROLE } from "@/lib/users";
+import { apiHandler, requireSuperadmin } from "@/lib/api";
+import { DELETED_USER_ROLE, displayName } from "@/lib/users";
 
 const DAYS = 30;
 
@@ -24,14 +24,8 @@ function bucketByDay(rows: { createdAt: Date }[]): { date: string; count: number
   return buckets.map((b) => ({ date: b.date, count: map.get(b.date) || 0 }));
 }
 
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  await requireSuperadmin(request);
 
   const since = new Date();
   since.setDate(since.getDate() - DAYS);
@@ -109,17 +103,38 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  // Resolve top voted games (groupGameId → game name + group)
+  // Los nombres de los tops, de una vez: juego y grupo de cada groupGameId,
+  // datos de los grupos con más noches y de los usuarios más activos.
   const topGroupGameIds = topVotedGames.map((v) => v.groupGameId);
-  const groupGames = topGroupGameIds.length
-    ? await prisma.groupGame.findMany({
-        where: { id: { in: topGroupGameIds } },
-        include: {
-          game: { select: { name: true, thumbnail: true } },
-          group: { select: { id: true, name: true } },
-        },
-      })
-    : [];
+  const topGroupIds = topGroupsByNights.map((g) => g.groupId);
+  const topUserIds = [
+    ...new Set([...topUsersByVotes, ...topUsersByNights].map((u) => u.userId)),
+  ];
+  const [groupGames, topGroupsData, topUsersData] = await Promise.all([
+    topGroupGameIds.length
+      ? prisma.groupGame.findMany({
+          where: { id: { in: topGroupGameIds } },
+          include: {
+            game: { select: { name: true, thumbnail: true } },
+            group: { select: { id: true, name: true } },
+          },
+        })
+      : [],
+    topGroupIds.length
+      ? prisma.group.findMany({
+          where: { id: { in: topGroupIds } },
+          select: { id: true, name: true, _count: { select: { members: true, games: true } } },
+        })
+      : [],
+    topUserIds.length
+      ? prisma.user.findMany({
+          where: { id: { in: topUserIds } },
+          select: { id: true, name: true, displayName: true, email: true, avatarUrl: true },
+        })
+      : [],
+  ]);
+
+  // Top voted games (groupGameId → game name + group)
   const groupGameMap = new Map(groupGames.map((gg) => [gg.id, gg]));
   const topGames = topVotedGames
     .map((v) => {
@@ -137,13 +152,6 @@ export async function GET(request: NextRequest) {
     .filter(Boolean);
 
   // Top groups
-  const topGroupIds = topGroupsByNights.map((g) => g.groupId);
-  const topGroupsData = topGroupIds.length
-    ? await prisma.group.findMany({
-        where: { id: { in: topGroupIds } },
-        select: { id: true, name: true, _count: { select: { members: true, games: true } } },
-      })
-    : [];
   const topGroupsMap = new Map(topGroupsData.map((g) => [g.id, g]));
   const topGroups = topGroupsByNights
     .map((g) => {
@@ -169,19 +177,12 @@ export async function GET(request: NextRequest) {
     existing.nights = n._count.userId;
     userActivityMap.set(n.userId, existing);
   }
-  const topUserIds = Array.from(userActivityMap.keys());
-  const topUsersData = topUserIds.length
-    ? await prisma.user.findMany({
-        where: { id: { in: topUserIds } },
-        select: { id: true, name: true, displayName: true, email: true, avatarUrl: true },
-      })
-    : [];
   const topUsers = topUsersData
     .map((u) => {
       const stats = userActivityMap.get(u.id) || { votes: 0, nights: 0 };
       return {
         id: u.id,
-        name: u.displayName || u.name || u.email,
+        name: displayName(u, u.email),
         email: u.email,
         avatarUrl: u.avatarUrl,
         votes: stats.votes,
@@ -219,7 +220,7 @@ export async function GET(request: NextRequest) {
         id: a.id,
         type: a.type,
         createdAt: a.createdAt,
-        userName: a.user.displayName || a.user.name || a.user.email,
+        userName: displayName(a.user, a.user.email),
         groupName: a.group?.name || null,
         groupId: a.group?.id || null,
         eventName: a.event?.name || null,
@@ -228,4 +229,4 @@ export async function GET(request: NextRequest) {
       })),
     },
   });
-}
+});

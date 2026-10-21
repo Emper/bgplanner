@@ -6,6 +6,14 @@ import { useCallback, useEffect, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
 import { REPORT_TARGET_LABELS, reportReasonLabel, type ReportTargetType } from "@/lib/reports";
+import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { InlineLoading } from "@/components/ui/Spinner";
+import { useToast } from "@/components/ui/Toast";
+import { AdminChip, AdminHeader } from "../AdminUI";
 
 interface Person {
   id: string;
@@ -58,12 +66,8 @@ export default function AdminReportsPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState("");
-
-  const showToast = (text: string) => {
-    setToast(text);
-    setTimeout(() => setToast(""), 4000);
-  };
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const load = useCallback((status: Tab) => {
     if (status === "bans") {
@@ -87,7 +91,16 @@ export default function AdminReportsPage() {
   }, [load, tab]);
 
   const act = async (item: QueueItem, action: Action) => {
-    if (action === "remove" && !confirm(`¿Retirar ${REPORT_TARGET_LABELS[item.targetType].this}? Desaparece para todo el mundo.`)) return;
+    if (
+      action === "remove" &&
+      !(await confirm({
+        title: `¿Retirar ${REPORT_TARGET_LABELS[item.targetType].this}?`,
+        body: "Desaparece para todo el mundo.",
+        confirmLabel: "Retirar",
+        tone: "danger",
+      }))
+    )
+      return;
     setBusy(item.reportId);
     try {
       const res = await fetch(`/api/admin/reports/${item.reportId}`, {
@@ -99,9 +112,9 @@ export default function AdminReportsPage() {
       if (!res.ok) throw new Error(data.error || "No se pudo resolver");
       setItems((prev) => (prev ?? []).filter((i) => i.reportId !== item.reportId));
       setPendingCount((n) => Math.max(0, n - item.reports.length));
-      showToast(action === "remove" ? "Contenido retirado 🧹" : action === "dismiss" ? "Denuncia descartada" : "Denuncia resuelta");
+      toast(action === "remove" ? "Contenido retirado 🧹" : action === "dismiss" ? "Denuncia descartada" : "Denuncia resuelta");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo resolver");
+      toast.error(err instanceof Error ? err.message : "No se pudo resolver");
     } finally {
       setBusy(null);
     }
@@ -122,16 +135,23 @@ export default function AdminReportsPage() {
       setExpelling(null);
       // Se cierran también las demás denuncias contra esa persona: se recarga.
       load("pending");
-      showToast(`${item.author?.name ?? "Usuario"} expulsado 🚪`);
+      toast(`${item.author?.name ?? "Usuario"} expulsado 🚪`);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo expulsar");
+      toast.error(err instanceof Error ? err.message : "No se pudo expulsar");
     } finally {
       setBusy(null);
     }
   };
 
   const readmit = async (ban: Ban) => {
-    if (!confirm(`¿Readmitir a ${ban.name || ban.email}? Podrá volver a crear una cuenta con ${ban.email}, empezando de cero.`)) return;
+    if (
+      !(await confirm({
+        title: `¿Readmitir a ${ban.name || ban.email}?`,
+        body: `Podrá volver a crear una cuenta con ${ban.email}, empezando de cero.`,
+        confirmLabel: "Readmitir",
+      }))
+    )
+      return;
     setBusy(ban.email);
     try {
       const res = await fetch("/api/admin/bans", {
@@ -142,9 +162,9 @@ export default function AdminReportsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "No se pudo readmitir");
       setBans((prev) => (prev ?? []).filter((b) => b.email !== ban.email));
-      showToast("Readmitido");
+      toast("Readmitido");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo readmitir");
+      toast.error(err instanceof Error ? err.message : "No se pudo readmitir");
     } finally {
       setBusy(null);
     }
@@ -152,19 +172,17 @@ export default function AdminReportsPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-display font-semibold">Denuncias</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Lo que han denunciado los usuarios, agrupado por contenido. Hilos y respuestas con 3 denuncias o más
-          se ocultan solos hasta que los revises.
-        </p>
-      </header>
+      <AdminHeader
+        title="Denuncias"
+        lead="Lo que han denunciado los usuarios, agrupado por contenido. Hilos y respuestas con 3 denuncias o más se ocultan solos hasta que los revises."
+      />
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(["pending", "closed", "bans"] as const).map((t) => (
-          <button
+          <AdminChip
             key={t}
-            type="button"
+            active={tab === t}
+            count={t === "pending" && pendingCount ? pendingCount : undefined}
             onClick={() => {
               if (t === tab) return;
               setItems(null);
@@ -172,27 +190,19 @@ export default function AdminReportsPage() {
               setError("");
               setTab(t);
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-sm font-medium border transition-colors ${
-              tab === t
-                ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300"
-                : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)]"
-            }`}
           >
-            {t === "pending" ? `Pendientes${pendingCount ? ` (${pendingCount})` : ""}` : t === "closed" ? "Revisadas" : "Expulsados"}
-          </button>
+            {t === "pending" ? "Pendientes" : t === "closed" ? "Revisadas" : "Expulsados"}
+          </AdminChip>
         ))}
       </div>
 
       {error ? (
-        <p className="text-[var(--text-secondary)]">{error}</p>
+        <Alert>{error}</Alert>
       ) : tab === "bans" ? (
         bans === null ? (
-          <p className="text-sm text-[var(--text-muted)]">Cargando expulsados…</p>
+          <InlineLoading text="Cargando expulsados…" />
         ) : bans.length === 0 ? (
-          <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--border)]">
-            <p className="text-4xl mb-3">🤝</p>
-            <p className="text-sm text-[var(--text-secondary)]">Nadie expulsado. Que siga así.</p>
-          </div>
+          <EmptyState variant="dashed" icon="🤝" title="Nadie expulsado. Que siga así." />
         ) : (
           <ul className="space-y-3">
             {bans.map((ban) => (
@@ -212,27 +222,21 @@ export default function AdminReportsPage() {
                     </time>
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => readmit(ban)}
-                  disabled={busy === ban.email}
-                  className="px-4 py-2 rounded-xl text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
-                >
+                <Button variant="secondary" onClick={() => readmit(ban)} loading={busy === ban.email}>
                   Readmitir
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )
       ) : items === null ? (
-        <p className="text-sm text-[var(--text-muted)]">Cargando denuncias…</p>
+        <InlineLoading text="Cargando denuncias…" />
       ) : items.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--border)]">
-          <p className="text-4xl mb-3">🕊️</p>
-          <p className="text-sm text-[var(--text-secondary)]">
-            {tab === "pending" ? "No hay denuncias pendientes. Todo en calma." : "Aún no se ha revisado ninguna denuncia."}
-          </p>
-        </div>
+        <EmptyState
+          variant="dashed"
+          icon="🕊️"
+          title={tab === "pending" ? "No hay denuncias pendientes. Todo en calma." : "Aún no se ha revisado ninguna denuncia."}
+        />
       ) : (
         <ul className="space-y-4">
           {items.map((item) => {
@@ -244,7 +248,7 @@ export default function AdminReportsPage() {
                 className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 shadow-[var(--card-shadow)]"
               >
                 <div className="flex flex-wrap items-center gap-2 mb-3 text-xs">
-                  <span className="px-2 py-0.5 rounded-full font-semibold bg-rose-500/10 text-rose-500">
+                  <span className="px-2 py-0.5 rounded-full font-semibold bg-[var(--danger-soft)] text-[var(--danger)]">
                     🚩 {item.reports.length} denuncia{item.reports.length === 1 ? "" : "s"}
                   </span>
                   <span className="px-2 py-0.5 rounded-full font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
@@ -331,44 +335,29 @@ export default function AdminReportsPage() {
                 {item.status === "pending" && (
                   <div className="flex flex-wrap justify-end gap-2">
                     {item.author && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="dangerOutline"
                         onClick={() => {
                           setRemoveContent(true);
                           setExpelling(item);
                         }}
                         disabled={busy === item.reportId}
-                        className="mr-auto px-4 py-2 rounded-xl text-sm font-medium border border-rose-500/40 text-rose-500 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
+                        className="mr-auto"
                       >
                         🚪 Expulsar a {item.author.name}
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => act(item, "dismiss")}
-                      disabled={busy === item.reportId}
-                      className="px-4 py-2 rounded-xl text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
-                    >
+                    <Button variant="secondary" onClick={() => act(item, "dismiss")} disabled={busy === item.reportId}>
                       Descartar
-                    </button>
+                    </Button>
                     {isUser || item.target.gone ? (
-                      <button
-                        type="button"
-                        onClick={() => act(item, "resolve")}
-                        disabled={busy === item.reportId}
-                        className="px-4 py-2 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-50"
-                      >
+                      <Button onClick={() => act(item, "resolve")} loading={busy === item.reportId}>
                         Marcar como resuelta
-                      </button>
+                      </Button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => act(item, "remove")}
-                        disabled={busy === item.reportId}
-                        className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
-                      >
-                        {busy === item.reportId ? "…" : "Retirar contenido"}
-                      </button>
+                      <Button variant="danger" onClick={() => act(item, "remove")} loading={busy === item.reportId}>
+                        Retirar contenido
+                      </Button>
                     )}
                   </div>
                 )}
@@ -378,28 +367,37 @@ export default function AdminReportsPage() {
         </ul>
       )}
 
-      {expelling?.author && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => busy !== expelling.reportId && setExpelling(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-3">¿Expulsar a {expelling.author.name}?</h3>
+      <Modal
+        open={!!expelling?.author}
+        onClose={() => setExpelling(null)}
+        tone="danger"
+        title={expelling?.author ? `¿Expulsar a ${expelling.author.name}?` : undefined}
+        busy={!!expelling && busy === expelling.reportId}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setExpelling(null)} disabled={!!expelling && busy === expelling.reportId}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={expel} loading={!!expelling && busy === expelling.reportId}>
+              {expelling && busy === expelling.reportId ? "Expulsando…" : "Expulsar"}
+            </Button>
+          </>
+        }
+      >
+        {expelling && (
+          <>
             <ul className="space-y-1.5 text-sm text-[var(--text-secondary)] leading-relaxed list-disc list-inside mb-4">
               {expelling.targetType !== "user" && <li>Se retira {REPORT_TARGET_LABELS[expelling.targetType].this}.</li>}
               <li>Se borra su cuenta y se cierran todas las denuncias contra esta persona.</li>
               <li>Su email no podrá volver a entrar. Le avisamos por email.</li>
               <li>Sus grupos y eventos pasan a otro miembro, como al borrar una cuenta.</li>
             </ul>
-            <label className="flex items-start gap-2.5 text-sm mb-5 cursor-pointer">
+            <label className="flex items-start gap-2.5 text-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={removeContent}
                 onChange={(e) => setRemoveContent(e.target.checked)}
-                className="mt-0.5 accent-rose-500"
+                className="mt-0.5 accent-red-600"
               />
               <span>
                 Retirar también todos sus mensajes de la Comunidad y sus fotos
@@ -408,33 +406,9 @@ export default function AdminReportsPage() {
                 </span>
               </span>
             </label>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setExpelling(null)}
-                disabled={busy === expelling.reportId}
-                className="px-4 py-2 rounded-xl text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={expel}
-                disabled={busy === expelling.reportId}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
-              >
-                {busy === expelling.reportId ? "Expulsando…" : "Expulsar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-xl px-4 py-2.5 text-sm z-50">
-          {toast}
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

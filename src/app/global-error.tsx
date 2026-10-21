@@ -19,6 +19,24 @@ export default function GlobalError({
 
   return (
     <html lang="es">
+      <head>
+        {/* Sin globals.css ni providers: la paleta de la app a mano, clara u
+            oscura según el sistema. */}
+        <style>{`
+          :root {
+            --bg: #faf8f5; --surface: #ffffff; --border: #e8e0d8;
+            --text: #1a1612; --text-secondary: #5c534a;
+            --primary: #c87a1a; --primary-text: #ffffff;
+          }
+          @media (prefers-color-scheme: dark) {
+            :root {
+              --bg: #151118; --surface: #23202b; --border: #3a3548;
+              --text: #f0ece8; --text-secondary: #a09890;
+              --primary: #e8a840; --primary-text: #151118;
+            }
+          }
+        `}</style>
+      </head>
       <body
         style={{
           minHeight: "100vh",
@@ -27,8 +45,8 @@ export default function GlobalError({
           alignItems: "center",
           justifyContent: "center",
           padding: "1rem",
-          background: "#0f172a",
-          color: "#f1f5f9",
+          background: "var(--bg)",
+          color: "var(--text)",
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
@@ -36,28 +54,28 @@ export default function GlobalError({
           style={{
             maxWidth: 480,
             width: "100%",
-            background: "#1e293b",
-            border: "1px solid #334155",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             borderRadius: 16,
             padding: 24,
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎲</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }} aria-hidden>🎲</div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>
             Algo ha fallado
           </h1>
-          <p style={{ color: "#94a3b8", fontSize: 14, margin: "0 0 16px" }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: 14, margin: "0 0 16px" }}>
             Se ha producido un error inesperado. Suele arreglarse reintentando.
           </p>
           <pre
             style={{
-              background: "#0f172a",
-              border: "1px solid #334155",
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
               borderRadius: 8,
               padding: 10,
               fontSize: 12,
-              color: "#f59e0b",
+              color: "var(--primary)",
               textAlign: "left",
               overflow: "auto",
               maxHeight: 160,
@@ -71,11 +89,12 @@ export default function GlobalError({
           </pre>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             <button
+              type="button"
               onClick={() => reset()}
               style={{
                 padding: "10px 20px",
-                background: "#f59e0b",
-                color: "#0f172a",
+                background: "var(--primary)",
+                color: "var(--primary-text)",
                 border: 0,
                 borderRadius: 12,
                 fontWeight: 700,
@@ -92,8 +111,8 @@ export default function GlobalError({
               style={{
                 padding: "10px 20px",
                 background: "transparent",
-                color: "#f1f5f9",
-                border: "1px solid #334155",
+                color: "var(--text)",
+                border: "1px solid var(--border)",
                 borderRadius: 12,
                 fontWeight: 600,
                 fontSize: 14,

@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { ApiError, apiHandler, requireSuperadmin } from "@/lib/api";
+import { displayName } from "@/lib/users";
 import { computeRanking } from "@/lib/ranking";
 
-export async function GET(
+export const GET = apiHandler(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
+) => {
+  await requireSuperadmin(request);
 
   const { id } = await params;
 
@@ -61,9 +56,7 @@ export async function GET(
     }),
   ]);
 
-  if (!group) {
-    return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
-  }
+  if (!group) throw new ApiError(404, "Grupo no encontrado");
 
   return NextResponse.json({
     id: group.id,
@@ -80,7 +73,7 @@ export async function GET(
       lastPingedAt: m.lastPingedAt,
       user: {
         id: m.user.id,
-        name: m.user.displayName || m.user.name || m.user.email,
+        name: displayName(m.user, m.user.email),
         email: m.user.email,
         avatarUrl: m.user.avatarUrl,
         bggUsername: m.user.bggUsername,
@@ -114,7 +107,7 @@ export async function GET(
       thumbnail: v.groupGame.game.thumbnail,
       user: {
         id: v.user.id,
-        name: v.user.displayName || v.user.name || v.user.email,
+        name: displayName(v.user, v.user.email),
         email: v.user.email,
       },
     })),
@@ -122,8 +115,8 @@ export async function GET(
       id: n.id,
       date: n.date,
       playerCount: n._count.players,
-      createdBy: n.createdBy.displayName || n.createdBy.name || n.createdBy.email,
+      createdBy: displayName(n.createdBy, n.createdBy.email),
       games: n.games.map((g) => g.game.name),
     })),
   });
-}
+});

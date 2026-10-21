@@ -72,14 +72,28 @@ Mejoras y arreglos detectados en la revisión de SEO y rendimiento (octubre 2026
 - Incluirlos todos.
 - Añadir una opción en el perfil («Que mi perfil aparezca en buscadores»), incluir solo a quien la active y poner `noindex` al resto. Necesita un campo nuevo en `User`.
 
-Si se decide indexarlos, quitar el `nofollow` de `AuthorLink` (`src/components/CommunityBits.tsx`) y añadir `author.url` en `src/app/community/[id]/layout.tsx`.
+Si se decide indexarlos, quitar el `nofollow` de `AuthorLink` (`src/components/CommunityBits.tsx`) y añadir `author.url` en el JSON-LD del hilo (`src/app/community/[id]/page.tsx`).
 
 ---
 
 ## Otros puntos menores detectados
 
-- **Roadmap renderizado en servidor.** `src/app/roadmap/page.tsx` pide las propuestas desde el navegador, así que su contenido no está en el HTML. Se puede renderizar la lista en servidor con `revalidate` y pedir desde el cliente solo los votos propios.
 - **Portada como componente de servidor.** `Landing.tsx` y `mockups.tsx` (unos 80 KB) son enteros de cliente. Bastaría con dejar en cliente solo las partes animadas (`Reveal`, el carrusel, el ranking en directo).
 - **404 reales.** Un evento o perfil inexistente responde 200 con `noindex`. Con `notFound()` y una página `not-found.tsx` con el estilo de la app daría un 404 de verdad.
 - **Consultas encadenadas en algunas rutas.** `/api/groups` vuelve a consultar las membresías y `/api/groups/[id]/feed` comprueba la membresía antes de lanzar la consulta del feed. Ambas se pueden juntar o hacer en paralelo.
-- **Dashboard de grupo.** `/api/groups/[id]/dashboard` carga todas las sesiones de la historia del grupo y los juegos con todas sus columnas. Le vendría bien un `take` y un `select`.
+- **Dashboard de grupo.** `/api/groups/[id]/dashboard` carga todas las sesiones (`GameNight`) de la historia del grupo y los juegos con todas sus columnas. Le vendría bien un `take` y un `select`.
+
+---
+
+## 6. Partir los ficheros gigantes (fase 3 de la auditoría de octubre 2026)
+
+**Tipo:** mantenibilidad · **Impacto:** alto · **Esfuerzo:** alto · **Toca BD:** no
+
+Las fases 0, 1, 2 y 4 de la auditoría (seguridad, kit de UI en `src/components/ui`, helpers en `src/lib` y limpieza) están hechas. Queda la 3, que ya se puede hacer apoyándose en el kit:
+- `GroupClient.tsx` (~2.500 líneas): pestañas, fila del ranking, modales de convocatoria y de borrar, y hooks (`useGroupVoting`, `useFrozenRanking`).
+- `EventClient.tsx` (~1.900): pestañas a ficheros propios y un `EventForm` compartido con `events/new` (85 % de código repetido).
+- «Añadir juegos» sobre `CollectionBrowser` con una acción «Añadir» por juego; sobraría `api/bgg/collection/[username]`.
+- `profile/page.tsx` y `ThreadClient.tsx` (formulario de hilo compartido con `CommunityClient`).
+- Galerías de grupo y evento: `usePhotoGallery`, `PhotoGrid` y `Lightbox` comunes, y lo mismo en sus rutas de API.
+- `useActivityFeed` compartido por grupo, evento e inicio.
+- Invitaciones (`join`, `join-event`, `invite`) pintadas en servidor: su layout ya carga los datos.

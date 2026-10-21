@@ -3,16 +3,11 @@ import { prisma } from "./prisma";
 import { excerpt, truncateChars } from "./text";
 import { THREADS_PAGE_SIZE } from "./community";
 import { getAutoHiddenCommunityIds, getBlockedIds } from "./moderation";
+import { PUBLIC_USER_SELECT, displayName } from "./users";
 
 // Lo único que se enseña del autor de un hilo o respuesta: el foro se lee sin
 // cuenta, así que nunca sale el email.
-export const AUTHOR_SELECT = {
-  id: true,
-  slug: true,
-  name: true,
-  displayName: true,
-  avatarUrl: true,
-} as const;
+export const AUTHOR_SELECT = PUBLIC_USER_SELECT;
 
 export function publicAuthor(user: {
   id: string;
@@ -24,7 +19,7 @@ export function publicAuthor(user: {
   return {
     id: user.id,
     slug: user.slug,
-    name: user.displayName || user.name || "Jugador",
+    name: displayName(user),
     avatarUrl: user.avatarUrl,
   };
 }

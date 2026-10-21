@@ -1,9 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { findVoteOption } from "@/lib/groupTypes";
+import { displayName } from "@/lib/users";
+import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Field, Input } from "@/components/ui/Field";
+import { InlineLoading } from "@/components/ui/Spinner";
+import { BackLink } from "@/components/ui/PageHeader";
+import { useToast } from "@/components/ui/Toast";
+import { AdminHeader } from "../../AdminUI";
 
 interface AdminGroupDetail {
   id: string;
@@ -62,13 +71,13 @@ function voteLabel(typeId: string, value: number): { text: string; color: string
 export default function AdminGroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const toast = useToast();
   const [data, setData] = useState<AdminGroupDetail | null>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteText, setDeleteText] = useState("");
 
   useEffect(() => {
     fetch(`/api/admin/groups/${id}`)
@@ -93,81 +102,63 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
       setData((d) => (d ? { ...d, name: editName.trim() } : d));
       setEditing(false);
     } catch {
-      setError("No se pudo guardar");
+      toast.error("No se pudo guardar");
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteGroup() {
-    if (!data || deleteText !== data.name) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/groups/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       router.push("/admin/groups");
     } catch {
-      setError("No se pudo eliminar");
+      toast.error("No se pudo eliminar");
       setSaving(false);
     }
   }
 
-  if (error) return <div className="text-sm text-[var(--color-danger,#ef4444)]">{error}</div>;
-  if (!data) return <div className="text-sm text-[var(--text-muted)]">Cargando…</div>;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <BackLink href="/admin/groups">Todos los grupos</BackLink>
+        <Alert>{error}</Alert>
+      </div>
+    );
+  }
+  if (!data) return <InlineLoading />;
 
   return (
     <div className="space-y-6">
-      <div className="text-xs text-[var(--text-muted)]">
-        <Link href="/admin/groups" className="hover:text-purple-600">← Todos los grupos</Link>
-      </div>
-
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          {editing ? (
-            <div className="flex gap-2 items-center">
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="px-3 py-2 rounded-xl text-base bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none font-display"
-              />
-              <button
-                onClick={saveName}
-                disabled={saving}
-                className="px-3 py-2 rounded-xl text-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => { setEditing(false); setEditName(data.name); }}
-                className="px-3 py-2 rounded-xl text-sm border border-[var(--border)] hover:bg-[var(--surface-hover)]"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <h1 className="text-2xl font-display font-semibold">{data.name}</h1>
-          )}
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Creado por <span className="font-medium">{data.owner.displayName || data.owner.name || data.owner.email}</span> · {new Date(data.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })} · {data.type}
-          </p>
-        </div>
-        {!editing && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing(true)}
-              className="px-3 py-2 rounded-xl text-sm border border-[var(--border)] hover:bg-[var(--surface-hover)]"
+      <AdminHeader
+        back={{ href: "/admin/groups", label: "Todos los grupos" }}
+        title={data.name}
+        lead={
+          <>
+            Creado por <span className="font-medium">{displayName(data.owner, data.owner.email)}</span> ·{" "}
+            {new Date(data.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })} ·{" "}
+            {data.type}
+          </>
+        }
+        action={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setEditName(data.name);
+                setEditing(true);
+              }}
             >
               Editar nombre
-            </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="px-3 py-2 rounded-xl text-sm border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
-            >
+            </Button>
+            <Button variant="dangerOutline" onClick={() => setConfirmDelete(true)}>
               Eliminar grupo
-            </button>
-          </div>
-        )}
-      </header>
+            </Button>
+          </>
+        }
+      />
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -176,7 +167,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
             {data.members.map((m) => (
               <li key={m.id} className="py-2 flex items-center justify-between gap-2 text-sm">
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{m.user.name}</div>
+                  <div className="font-medium truncate">{displayName(m.user, m.user.email)}</div>
                   <div className="text-xs text-[var(--text-muted)] truncate">{m.user.email}</div>
                 </div>
                 <div className="text-right">
@@ -263,7 +254,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
                 return (
                   <li key={v.id} className="py-2 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <span className="font-medium">{v.user.name}</span>{" "}
+                      <span className="font-medium">{displayName(v.user, v.user.email)}</span>{" "}
                       <span className={`text-xs ${label.color}`}>{label.text}</span>
                       <span className="text-[var(--text-secondary)]"> en </span>
                       <span className="font-medium">{v.gameName}</span>
@@ -279,44 +270,46 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
         )}
       </section>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => !saving && setConfirmDelete(false)}
+      <Modal
+        open={editing}
+        onClose={() => setEditing(false)}
+        title="Editar nombre"
+        busy={saving}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={saveName} loading={saving} disabled={!editName.trim()}>
+              Guardar
+            </Button>
+          </>
+        }
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveName();
+          }}
         >
-          <div
-            className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-display font-semibold mb-2">Eliminar grupo</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Esta acción es irreversible. Se borrarán todos los juegos, votos, sesiones y miembros.
-              Escribe <span className="font-mono font-semibold">{data.name}</span> para confirmar.
-            </p>
-            <input
-              value={deleteText}
-              onChange={(e) => setDeleteText(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl text-sm bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-rose-500 focus:outline-none mb-4"
-              placeholder={data.name}
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                disabled={saving}
-                className="px-3 py-2 rounded-xl text-sm border border-[var(--border)] hover:bg-[var(--surface-hover)]"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={deleteGroup}
-                disabled={saving || deleteText !== data.name}
-                className="px-3 py-2 rounded-xl text-sm bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
-              >
-                {saving ? "Eliminando…" : "Eliminar definitivamente"}
-              </button>
-            </div>
-          </div>
-        </div>
+          <Field label="Nombre del grupo">
+            {(fieldId) => <Input id={fieldId} value={editName} onChange={(e) => setEditName(e.target.value)} />}
+          </Field>
+        </form>
+      </Modal>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          open
+          tone="danger"
+          title="Eliminar grupo"
+          body="Esta acción es irreversible. Se borrarán todos los juegos, votos, sesiones y miembros."
+          requireText={data.name}
+          confirmLabel={saving ? "Eliminando…" : "Eliminar definitivamente"}
+          busy={saving}
+          onConfirm={deleteGroup}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );

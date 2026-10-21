@@ -1,7 +1,9 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { withGameCovers } from "@/lib/activityCovers";
-import { DELETED_USER_ROLE } from "@/lib/users";
+import { normalizeBggUsername } from "@/lib/bgg";
+import { DELETED_USER_ROLE, PUBLIC_USER_SELECT, displayName } from "@/lib/users";
+import { joinNames, plural } from "@/lib/text";
 
 // Perfil público de un jugador. Se ve SIN cuenta, así que lo que sale de aquí
 // es lo que cualquiera puede leer en internet. Deliberadamente NO sale:
@@ -162,7 +164,7 @@ export const getProfileHeader = cache(
       where: { userId: user.id, showcased: true },
       select: { bggId: true },
     });
-    const bggUsername = user.bggUsername?.toLowerCase().trim() || null;
+    const bggUsername = user.bggUsername ? normalizeBggUsername(user.bggUsername) || null : null;
     const [
       showcaseCount,
       upcomingEventCount,
@@ -222,7 +224,7 @@ export const getProfileHeader = cache(
 
     return {
       slug: user.slug || user.id,
-      displayName: user.displayName || user.name || "Jugador",
+      displayName: displayName(user),
       location: user.location,
       bggUsername: user.bggUsername,
       avatarUrl: user.avatarUrl,
@@ -253,32 +255,26 @@ export function profileTagline(header: ProfileHeader): string {
     ? `${header.displayName}, de ${header.location}`
     : header.displayName;
   const { games, groups } = header.stats;
-  const n = (count: number, one: string, many: string) =>
-    `${count.toLocaleString("es-ES")} ${count === 1 ? one : many}`;
 
   const tiene: string[] = [];
-  if (games > 0) tiene.push(`${n(games, "juego", "juegos")} en su colección`);
+  if (games > 0) tiene.push(`${plural(games, "juego", "juegos")} en su colección`);
   if (header.showcaseCount > 0) {
     // Con la colección delante, "juegos" ya se sobreentiende.
     tiene.push(
       games > 0
         ? `${header.showcaseCount} en su vitrina`
-        : `${n(header.showcaseCount, "juego", "juegos")} en su vitrina`
+        : `${plural(header.showcaseCount, "juego", "juegos")} en su vitrina`
     );
   }
-  if (groups > 0) tiene.push(n(groups, "grupo de juego", "grupos de juego"));
+  if (groups > 0) tiene.push(plural(groups, "grupo de juego", "grupos de juego"));
   if (header.upcomingEventCount > 0) {
-    tiene.push(`${n(header.upcomingEventCount, "evento", "eventos")} a la vista`);
+    tiene.push(`${plural(header.upcomingEventCount, "evento", "eventos")} a la vista`);
   }
 
   if (tiene.length === 0) {
     return `${quien}. Su vitrina, sus eventos y lo último que ha jugado, en BG Planner.`;
   }
-  const lista =
-    tiene.length === 1
-      ? tiene[0]
-      : `${tiene.slice(0, -1).join(", ")} y ${tiene[tiene.length - 1]}`;
-  return `${quien}. ${lista}, en BG Planner.`;
+  return `${quien}. ${joinNames(tiene)}, en BG Planner.`;
 }
 
 /**
@@ -380,7 +376,7 @@ export async function getPublicProfile(
     if (entries.length === 0) return [];
     const rows = await prisma.collectionGame.findMany({
       where: {
-        bggUsername: bggUsername.toLowerCase().trim(),
+        bggUsername: normalizeBggUsername(bggUsername),
         bggId: { in: entries.map((e) => e.bggId) },
       },
       select: { bggId: true, name: true, image: true, thumbnail: true },
@@ -452,15 +448,7 @@ export async function getPublicProfile(
       userId: true,
       metadata: true,
       createdAt: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          displayName: true,
-          avatarUrl: true,
-          slug: true,
-        },
-      },
+      user: { select: PUBLIC_USER_SELECT },
       group: { select: { id: true, name: true } },
       event: { select: { id: true, name: true } },
     },
@@ -492,7 +480,7 @@ export async function getPublicProfile(
   return {
     id: user.id,
     slug: user.slug || user.id,
-    displayName: user.displayName || user.name || "Jugador",
+    displayName: displayName(user),
     location: user.location,
     bggUsername: user.bggUsername,
     avatarUrl: user.avatarUrl,
@@ -535,7 +523,7 @@ export async function getCollectionAccess(
   return {
     id: user.id,
     slug: user.slug || user.id,
-    displayName: user.displayName || user.name || "Jugador",
+    displayName: displayName(user),
     bggUsername: user.bggUsername,
     isSelf,
     showScores: isSelf || isFriend,

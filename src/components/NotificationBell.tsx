@@ -13,6 +13,7 @@ import {
   type NotificationsPage,
 } from "./NotificationList";
 import { enablePush, getPushState, type PushState } from "@/lib/pushClient";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 // Sin tiempo real: se mira al cargar la página, al volver a la pestaña y cada
 // minuto mientras está a la vista. De sobra para una app de quedar a jugar.
@@ -92,12 +93,7 @@ export default function NotificationBell() {
   }, [refreshCount]);
 
   // Escape cierra el panel
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useEscapeKey(() => setOpen(false), open);
 
   const toggle = async () => {
     if (open) {
@@ -240,7 +236,7 @@ export default function NotificationBell() {
               </button>
             )}
             {pushState === "on" && pushJustOn && (
-              <p className="flex items-center justify-center gap-2 text-xs font-medium py-2.5 border-t border-[var(--border)] text-emerald-500">
+              <p className="flex items-center justify-center gap-2 text-xs font-medium py-2.5 border-t border-[var(--border)] text-[var(--success)]">
                 <span aria-hidden>✅</span>
                 Listo: te avisaremos aquí aunque cierres la app
               </p>

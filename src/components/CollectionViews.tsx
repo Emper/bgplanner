@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
+import { useRef } from "react";
 import BggRating from "@/components/BggRating";
 import KeepScoreSlider from "@/components/KeepScoreSlider";
 import {
@@ -12,6 +12,12 @@ import {
   type CollectionItemView,
 } from "@/lib/collection";
 import GameTags, { GameTag } from "@/components/GameTags";
+import Button, { buttonClass, CloseButton } from "@/components/ui/Button";
+import { cardClass } from "@/components/ui/Card";
+import GameThumb from "@/components/ui/GameThumb";
+import Modal from "@/components/ui/Modal";
+import { bggGameUrl } from "@/lib/bggLinks";
+import { plural } from "@/lib/text";
 
 // Las tarjetas de la colección (lista y cuadrícula) y la ficha de un juego.
 // La tercera vista, la estantería, es GameShelf, que se comparte con las
@@ -84,18 +90,20 @@ function ShowcaseStar({
     );
   }
 
+  const label = showcased
+    ? "Quitar de la vitrina de tu perfil"
+    : "Añadir a la vitrina de tu perfil";
+
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onToggle();
       }}
       aria-pressed={showcased}
-      title={
-        showcased
-          ? "Quitar de la vitrina de tu perfil"
-          : "Añadir a la vitrina de tu perfil"
-      }
+      aria-label={label}
+      title={label}
       className={
         floating
           ? `absolute top-2 right-2 w-7 h-7 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-sm transition-colors ${
@@ -142,10 +150,9 @@ export function ListRow({
   hideScores?: boolean;
   owner?: string;
 }) {
-  const thumb = item.thumbnail;
   return (
     <div
-      className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3"
+      className={cardClass({ padding: "sm" })}
       style={
         item.keepScore
           ? { borderLeft: `3px solid ${KEEP_HEX[item.keepScore]}` }
@@ -153,27 +160,13 @@ export function ListRow({
       }
     >
       <div className="flex gap-3">
-        <button
-          onClick={onOpen}
-          className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-[var(--surface-hover)] flex items-center justify-center"
-          title="Ver la ficha"
-        >
-          {thumb ? (
-            <Image
-              src={thumb}
-              alt={item.name}
-              width={56}
-              height={56}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-xl">🎲</span>
-          )}
+        <button type="button" onClick={onOpen} className="shrink-0 rounded-xl" title="Ver la ficha">
+          <GameThumb src={item.thumbnail} name={item.name} size="md" />
         </button>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2">
-            <button onClick={onOpen} className="text-left min-w-0 flex-1">
+            <button type="button" onClick={onOpen} className="text-left min-w-0 flex-1">
               <h3 className="font-semibold text-sm text-[var(--text)] truncate hover:text-[var(--primary)] transition-colors">
                 {item.name}
                 {item.yearPublished && (
@@ -210,11 +203,13 @@ export function ListRow({
 
           {item.expansions.length > 0 && (
             <button
+              type="button"
               onClick={onToggleExpanded}
+              aria-expanded={expanded}
               className="mt-1.5 text-[11px] text-[var(--primary)] hover:underline"
             >
-              {expanded ? "▾" : "▸"} {item.expansions.length} expansi
-              {item.expansions.length === 1 ? "ón" : "ones"}
+              <span aria-hidden>{expanded ? "▾" : "▸"}</span>{" "}
+              {plural(item.expansions.length, "expansión", "expansiones")}
             </button>
           )}
 
@@ -291,11 +286,12 @@ export function GridCard({
 }) {
   const img = cover(item);
   return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden flex flex-col">
+    <div className={cardClass({ padding: "none", className: "overflow-hidden flex flex-col" })}>
       {/* La portada es un div y no un botón: dentro va la estrella, y un
           botón dentro de otro botón no es HTML válido. */}
       <div className="relative aspect-square bg-[var(--surface-hover)]">
         <button
+          type="button"
           onClick={onOpen}
           title="Ver la ficha"
           className="absolute inset-0 w-full h-full"
@@ -331,7 +327,7 @@ export function GridCard({
         />
       </div>
       <div className="p-2.5 flex-1 flex flex-col gap-1.5">
-        <button onClick={onOpen} className="text-left">
+        <button type="button" onClick={onOpen} className="text-left">
           <h3 className="text-xs font-semibold text-[var(--text)] line-clamp-2 hover:text-[var(--primary)] transition-colors">
             {item.name}
           </h3>
@@ -380,175 +376,151 @@ export function DetailModal({
   owner?: string;
 }) {
   const img = cover(item);
+  // El foco entra por la cabecera y no por el slider: con él enfocado, una
+  // flecha del teclado cambiaría la puntuación sin querer.
+  const headRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar con Escape: la ficha se abre y se cierra muchas veces seguidas
-  // mientras repasas la colección.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
+  // La cabecera es propia (portada, nombre y datos de BGG), así que el modal
+  // va sin título ni ✕ de serie: la ✕ va en esa cabecera. Escape y pulsar
+  // fuera cierran, que la ficha se abre y se cierra muchas veces seguidas.
   return (
-    <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-5">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-[var(--surface-hover)] flex items-center justify-center">
-              {img ? (
-                <Image
-                  src={img}
-                  alt={item.name}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-3xl">🎲</span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-[var(--text)] leading-snug">
-                {item.name}
-                {item.yearPublished && (
-                  <span className="font-normal text-base text-[var(--text-muted)] ml-1.5">
-                    ({item.yearPublished})
-                  </span>
-                )}
-              </h2>
-              <div className="mt-2">
-                <GameMeta item={item} owner={owner} />
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                {item.bggRating !== null && <BggRating rating={item.bggRating} size={30} />}
-                <a
-                  href={`https://boardgamegeek.com/boardgame/${item.bggId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] text-[var(--primary)] hover:underline"
-                >
-                  Ver en BGG ↗
-                </a>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              ✕
-            </button>
-          </div>
-
-          {item.savedHere && !readOnly && (
-            <div className="mt-5 p-4 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/30">
-              <p className="text-xs text-[var(--text-secondary)]">
-                Lo guardaste desde tus recomendaciones. BGG no deja apuntar
-                cosas en tu wishlist desde fuera: añádelo allí también y lo
-                tendrás en todas partes.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-3">
-                <a
-                  href={`https://boardgamegeek.com/boardgame/${item.bggId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-lg text-xs font-semibold hover:bg-[var(--primary-hover)] transition-colors"
-                >
-                  Añadirlo en BGG ↗
-                </a>
-                {onRemoveSaved && (
-                  <button
-                    onClick={onRemoveSaved}
-                    className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-xs hover:text-[var(--text)] transition-colors"
-                  >
-                    Quitar de mi wishlist
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!hideScores && (
-            <div className="mt-5 p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border)]">
-              <p className="text-xs text-[var(--text-secondary)] mb-2">
-                {readOnly
-                  ? `¿Se queda en la colección${owner ? ` de ${owner}` : ""}?`
-                  : "¿Se queda en tu colección?"}
-              </p>
-              {readOnly ? (
-                <KeepBadge score={item.keepScore} />
-              ) : (
-                <KeepScoreSlider value={item.keepScore} onChange={onScore} />
-              )}
-            </div>
-          )}
-
-          {item.expansions.length > 0 && (
-            <div className={hideScores ? "mt-5" : "mt-4"}>
-              <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
-                {hideScores
-                  ? "Expansiones"
-                  : "Expansiones · heredan la puntuación del juego base salvo que tengan una propia"}
-              </p>
-              <div className="space-y-2">
-                {item.expansions.map((exp) => (
-                  <div
-                    key={exp.bggId}
-                    className="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)]"
-                  >
-                    <div className={`flex items-center justify-between gap-2${hideScores ? "" : " mb-1"}`}>
-                      <span className="text-xs text-[var(--text)] truncate">{exp.name}</span>
-                      {exp.numPlays > 0 && (
-                        <span className="text-[10px] text-[var(--text-muted)] shrink-0">
-                          🎲 {exp.numPlays}
-                        </span>
-                      )}
-                    </div>
-                    {hideScores ? null : readOnly ? (
-                      <KeepBadge
-                        score={exp.ownKeepScore ?? item.keepScore}
-                        inherited={exp.ownKeepScore === null}
-                      />
-                    ) : (
-                      <KeepScoreSlider
-                        value={exp.ownKeepScore ?? item.keepScore}
-                        onChange={(score) => onExpansionScore(exp.bggId, score)}
-                        inherited={exp.ownKeepScore === null}
-                        inheritedFrom={item.name}
-                        compact
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!readOnly && (
-            <button
-              onClick={onToggleShowcase}
-              className={`mt-4 w-full px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
-                item.showcased
-                  ? "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]/40"
-                  : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
-              }`}
-            >
-              {item.showcased
-                ? "⭐ En la vitrina de tu perfil"
-                : "☆ Añadir a la vitrina de tu perfil"}
-            </button>
+    <Modal open onClose={onClose} size="lg" showClose={false} initialFocusRef={headRef}>
+      <div ref={headRef} tabIndex={-1} className="flex items-start gap-4 outline-none">
+        <div className="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-[var(--surface-hover)] flex items-center justify-center">
+          {img ? (
+            <Image
+              src={img}
+              alt={item.name}
+              width={96}
+              height={96}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-3xl">🎲</span>
           )}
         </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-bold text-[var(--text)] leading-snug">
+            {item.name}
+            {item.yearPublished && (
+              <span className="font-normal text-base text-[var(--text-muted)] ml-1.5">
+                ({item.yearPublished})
+              </span>
+            )}
+          </h2>
+          <div className="mt-2">
+            <GameMeta item={item} owner={owner} />
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            {item.bggRating !== null && <BggRating rating={item.bggRating} size={30} />}
+            <a
+              href={bggGameUrl(item.bggId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-[var(--primary)] hover:underline"
+            >
+              Ver en BGG ↗
+            </a>
+          </div>
+        </div>
+        <CloseButton onClick={onClose} className="-mr-1 -mt-1" />
       </div>
-    </div>
+
+      {item.savedHere && !readOnly && (
+        <div className="mt-5 p-4 rounded-xl bg-[var(--accent-soft)] border border-[var(--primary)]/30">
+          <p className="text-xs text-[var(--text-secondary)]">
+            Lo guardaste desde tus recomendaciones. BGG no deja apuntar
+            cosas en tu wishlist desde fuera: añádelo allí también y lo
+            tendrás en todas partes.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <a
+              href={bggGameUrl(item.bggId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass({ size: "xs" })}
+            >
+              Añadirlo en BGG ↗
+            </a>
+            {onRemoveSaved && (
+              <Button variant="secondary" size="xs" onClick={onRemoveSaved}>
+                Quitar de mi wishlist
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!hideScores && (
+        <div className="mt-5 p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border)]">
+          <p className="text-xs text-[var(--text-secondary)] mb-2">
+            {readOnly
+              ? `¿Se queda en la colección${owner ? ` de ${owner}` : ""}?`
+              : "¿Se queda en tu colección?"}
+          </p>
+          {readOnly ? (
+            <KeepBadge score={item.keepScore} />
+          ) : (
+            <KeepScoreSlider value={item.keepScore} onChange={onScore} />
+          )}
+        </div>
+      )}
+
+      {item.expansions.length > 0 && (
+        <div className={hideScores ? "mt-5" : "mt-4"}>
+          <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
+            {hideScores
+              ? "Expansiones"
+              : "Expansiones · heredan la puntuación del juego base salvo que tengan una propia"}
+          </p>
+          <div className="space-y-2">
+            {item.expansions.map((exp) => (
+              <div
+                key={exp.bggId}
+                className="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)]"
+              >
+                <div className={`flex items-center justify-between gap-2${hideScores ? "" : " mb-1"}`}>
+                  <span className="text-xs text-[var(--text)] truncate">{exp.name}</span>
+                  {exp.numPlays > 0 && (
+                    <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+                      🎲 {exp.numPlays}
+                    </span>
+                  )}
+                </div>
+                {hideScores ? null : readOnly ? (
+                  <KeepBadge
+                    score={exp.ownKeepScore ?? item.keepScore}
+                    inherited={exp.ownKeepScore === null}
+                  />
+                ) : (
+                  <KeepScoreSlider
+                    value={exp.ownKeepScore ?? item.keepScore}
+                    onChange={(score) => onExpansionScore(exp.bggId, score)}
+                    inherited={exp.ownKeepScore === null}
+                    inheritedFrom={item.name}
+                    compact
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!readOnly && (
+        <Button
+          variant={item.showcased ? "soft" : "secondary"}
+          block
+          onClick={onToggleShowcase}
+          aria-pressed={item.showcased}
+          className="mt-4"
+        >
+          {item.showcased
+            ? "⭐ En la vitrina de tu perfil"
+            : "☆ Añadir a la vitrina de tu perfil"}
+        </Button>
+      )}
+    </Modal>
   );
 }
 

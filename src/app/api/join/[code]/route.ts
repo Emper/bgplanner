@@ -3,103 +3,65 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { notifyManagers } from "@/lib/notifications";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
 
-// GET — resolve invite code to group info (+ membership check if logged in)
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
-) {
+type Ctx = { params: Promise<{ code: string }> };
+
+/** El grupo de un enlace de invitación activo, o 404. */
+async function findGroupByCode(code: string) {
+  const group = await prisma.group.findUnique({
+    where: { inviteCode: code },
+    select: { id: true, name: true, inviteEnabled: true, _count: { select: { members: true } } },
+  });
+  if (!group || !group.inviteEnabled) {
+    throw new ApiError(404, "Enlace de invitación no válido o desactivado");
+  }
+  return group;
+}
+
+// Qué grupo hay detrás del enlace (sin sesión también) y, con sesión, si ya
+// eres miembro
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
   const { code } = await params;
 
-  const [session, group] = await Promise.all([
-    getSession(request),
-    prisma.group.findUnique({
-      where: { inviteCode: code },
-      select: {
-        id: true,
-        name: true,
-        inviteEnabled: true,
-        _count: { select: { members: true } },
-      },
-    }),
-  ]);
+  const [session, group] = await Promise.all([getSession(request), findGroupByCode(code)]);
 
-  if (!group || !group.inviteEnabled) {
-    return NextResponse.json(
-      { error: "Enlace de invitación no válido o desactivado" },
-      { status: 404 }
-    );
-  }
-
-  // If logged in, check membership
-  let alreadyMember = false;
-  if (session) {
-    const membership = await prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId: group.id, userId: session.userId } },
-    });
-    alreadyMember = !!membership;
-  }
+  const membership = session
+    ? await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: group.id, userId: session.userId } },
+        select: { id: true },
+      })
+    : null;
 
   return NextResponse.json({
     groupId: group.id,
     groupName: group.name,
     memberCount: group._count.members,
-    alreadyMember,
+    alreadyMember: !!membership,
   });
-}
+});
 
-// POST — auth required: join the group
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// Unirse al grupo con el enlace
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { code } = await params;
 
-  const group = await prisma.group.findUnique({
-    where: { inviteCode: code },
-    select: { id: true, name: true, inviteEnabled: true },
-  });
+  const group = await findGroupByCode(code);
 
-  if (!group || !group.inviteEnabled) {
-    return NextResponse.json(
-      { error: "Enlace de invitación no válido o desactivado" },
-      { status: 404 }
-    );
-  }
-
-  // Check if already a member
   const existing = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId: group.id, userId: session.userId } },
+    select: { id: true },
   });
-
   if (existing) {
-    return NextResponse.json({
-      alreadyMember: true,
-      groupId: group.id,
-      groupName: group.name,
-    });
+    return NextResponse.json({ alreadyMember: true, groupId: group.id, groupName: group.name });
   }
 
-  // Join the group
   await prisma.groupMember.create({
-    data: {
-      groupId: group.id,
-      userId: session.userId,
-      role: "member",
-    },
+    data: { groupId: group.id, userId: session.userId, role: "member" },
   });
 
   logActivity("group_joined", session.userId, { groupId: group.id, groupName: group.name });
   notifyManagers({ groupId: group.id }, { type: "group_member_joined", actorId: session.userId });
 
-  return NextResponse.json({
-    joined: true,
-    groupId: group.id,
-    groupName: group.name,
-  });
-}
+  return NextResponse.json({ joined: true, groupId: group.id, groupName: group.name });
+});

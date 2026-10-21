@@ -3,8 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import PageLoader from "@/components/PageLoader";
+import PageShell from "@/components/ui/PageShell";
+import PageHeader from "@/components/ui/PageHeader";
+import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import PushToggle from "@/components/PushToggle";
 import {
   NotificationItem,
@@ -79,66 +83,47 @@ export default function NotificationsPageView() {
   };
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-text">
-          <div className="flex items-center justify-between gap-3 mb-6">
-            <div className="min-w-0">
-              <h1 className="page-title">Notificaciones</h1>
-              {!loading && !error && (
-                <p className="text-sm text-[var(--text-muted)] mt-0.5">
-                  {unread > 0 ? `${unread} sin leer` : "Estás al día"}
-                </p>
+    <PageShell nav={<Navbar />} width="text">
+      <PageHeader
+        title="Notificaciones"
+        lead={!loading && !error ? (unread > 0 ? `${unread} sin leer` : "Estás al día") : undefined}
+        action={
+          unread > 0 && (
+            <Button variant="secondary" onClick={markAll}>
+              <span className="sm:hidden">Todas leídas</span>
+              <span className="hidden sm:inline">Marcar todas como leídas</span>
+            </Button>
+          )
+        }
+      />
+
+      <PushToggle />
+
+      {loading && <PageLoader withNavbar />}
+      {error && <Alert>{error}</Alert>}
+
+      {!loading && !error && (
+        <Card padding="none" className="p-1.5">
+          {items.length === 0 ? (
+            <NotificationsEmpty />
+          ) : (
+            <>
+              {items.map((item) => (
+                <NotificationItem key={item.id} item={item} onOpen={openItem} />
+              ))}
+              {cursor && (
+                <Button variant="ghost" size="xs" block loading={loadingMore} onClick={loadMore} className="py-2.5 font-normal">
+                  {loadingMore ? "Cargando…" : "Ver más"}
+                </Button>
               )}
-            </div>
-            {unread > 0 && (
-              <button
-                type="button"
-                onClick={markAll}
-                className="shrink-0 px-3.5 py-2 rounded-xl text-sm font-medium border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition-all duration-200"
-              >
-                <span className="sm:hidden">Todas leídas</span>
-                <span className="hidden sm:inline">Marcar todas como leídas</span>
-              </button>
-            )}
-          </div>
-
-          <PushToggle />
-
-          {loading && <PageLoader withNavbar />}
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
-          {!loading && !error && (
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-1.5 shadow-[var(--card-shadow)]">
-              {items.length === 0 ? (
-                <NotificationsEmpty />
-              ) : (
-                <>
-                  {items.map((item) => (
-                    <NotificationItem key={item.id} item={item} onOpen={openItem} />
-                  ))}
-                  {cursor && (
-                    <button
-                      type="button"
-                      onClick={loadMore}
-                      disabled={loadingMore}
-                      className="w-full py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                    >
-                      {loadingMore ? "Cargando..." : "Ver más"}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            </>
           )}
+        </Card>
+      )}
 
-          <p className="text-xs text-[var(--text-muted)] text-center mt-4">
-            Guardamos las notificaciones de los últimos 90 días.
-          </p>
-        </div>
-      </div>
-      <Footer />
-    </>
+      <p className="text-xs text-[var(--text-muted)] text-center mt-4">
+        Guardamos las notificaciones de los últimos 90 días.
+      </p>
+    </PageShell>
   );
 }

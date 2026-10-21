@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { isSuperadminRole } from "./auth";
 import { deleteAccount } from "./accountDeletion";
-import { profileHref, DELETED_USER_ROLE } from "./users";
+import { displayName, profileHref, DELETED_USER_ROLE } from "./users";
 import { excerpt } from "./text";
 import { getEventParticipation } from "./events";
 import { deletePhotos, pathFromPublicUrl } from "./supabaseStorage";
@@ -226,7 +226,7 @@ export async function describeReportTarget(
       if (!u || (viewerId && u.role === DELETED_USER_ROLE)) return null;
       return {
         authorId: u.id,
-        preview: [u.displayName || u.name, u.location].filter(Boolean).join(" · ") || null,
+        preview: [displayName(u, ""), u.location].filter(Boolean).join(" · ") || null,
         imageUrl: null,
         href: profileHref(u),
         context: null,
@@ -364,7 +364,7 @@ export async function expelUser(
   if (isSuperadminRole(user.role, user.email)) throw new ExpelError("No se puede expulsar a un superadmin", 400);
 
   const email = user.email.trim().toLowerCase();
-  const name = user.displayName || user.name || null;
+  const name = displayName(user, "") || null;
   const now = new Date();
 
   await prisma.bannedEmail.upsert({

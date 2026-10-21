@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Footer from "@/components/Footer";
 import SmartNav from "@/components/SmartNav";
 import EmojiField from "@/components/EmojiField";
+import PageShell from "@/components/ui/PageShell";
+import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { Field, FieldError, Input, fieldClass } from "@/components/ui/Field";
 import { CONTACT_EMAIL } from "@/lib/contact";
 
 export default function ContactPage() {
@@ -42,126 +46,119 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <SmartNav />
+    <PageShell nav={<SmartNav />} width="text">
+      <PageHeader
+        title="Contacto"
+        lead="¿Tienes alguna pregunta, quieres saber más sobre BG Planner o simplemente quieres saludar? Escríbenos y te responderemos lo antes posible."
+      />
 
-      <main className="page-text page-pad">
-        <h1 className="page-title mb-2">Contacto</h1>
-        <p className="text-[var(--text-secondary)] mb-8">
-          ¿Tienes alguna pregunta, quieres saber más sobre BG Planner o simplemente quieres saludar? Escríbenos y te responderemos lo antes posible.
-        </p>
+      {sent ? (
+        <div className="bg-[var(--success-soft)] border border-[var(--success)]/30 rounded-xl p-6 text-center" role="status">
+          <div className="text-2xl mb-2" aria-hidden>✅</div>
+          <h2 className="text-lg font-semibold text-[var(--success)] mb-1">Mensaje enviado</h2>
+          <p className="text-sm text-[var(--text-secondary)]">Gracias por escribirnos. Te responderemos lo antes posible.</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Honeypot - hidden from users */}
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden
+            className="absolute opacity-0 h-0 w-0 pointer-events-none"
+            onChange={() => {}}
+          />
 
-        {sent ? (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-6 text-center">
-            <div className="text-2xl mb-2">&#x2705;</div>
-            <h2 className="text-lg font-semibold text-emerald-400 mb-1">Mensaje enviado</h2>
-            <p className="text-sm text-[var(--text-secondary)]">Gracias por escribirnos. Te responderemos lo antes posible.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Honeypot - hidden from users */}
-            <input
-              type="text"
-              name="website"
-              tabIndex={-1}
-              autoComplete="off"
-              className="absolute opacity-0 h-0 w-0 pointer-events-none"
-              onChange={() => {}}
-            />
-
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Nombre</label>
-              <input
+          <Field label="Nombre">
+            {(id) => (
+              <Input
+                id={id}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+                autoComplete="name"
                 placeholder="Tu nombre"
               />
-            </div>
+            )}
+          </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Email</label>
-              <input
+          <Field label="Email">
+            {(id) => (
+              <Input
+                id={id}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+                autoComplete="email"
                 placeholder="tu@email.com"
               />
-            </div>
+            )}
+          </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Asunto</label>
-              <input
+          <Field label="Asunto">
+            {(id) => (
+              <Input
+                id={id}
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 required
                 maxLength={200}
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
                 placeholder="¿Sobre qué quieres escribirnos?"
               />
-            </div>
+            )}
+          </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mensaje</label>
+          <Field label="Mensaje">
+            {(id) => (
               <EmojiField
+                id={id}
                 value={message}
                 onChange={setMessage}
                 required
                 maxLength={5000}
                 rows={6}
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200 resize-none"
-                placeholder="Cuéntanos..."
+                className={fieldClass({ className: "resize-none" })}
+                placeholder="Cuéntanos…"
               />
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
             )}
+          </Field>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={sending}
-                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-6 py-2.5 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
-              >
-                {sending ? "Enviando..." : "Enviar mensaje"}
-              </button>
-            </div>
-          </form>
-        )}
+          <FieldError>{error}</FieldError>
 
-        {/* Lo piden App Store y Google Play: un contacto visible para moderación */}
-        <section
-          id="moderacion"
-          className="mt-12 scroll-mt-24 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-[var(--card-shadow)]"
-        >
-          <h2 className="text-lg font-semibold mb-2">🛡️ Moderación y denuncias</h2>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-            ¿Has visto algo que no debería estar en BG Planner, como spam, acoso o fotos inapropiadas? Usa
-            «Denunciar» en el menú <span aria-label="tres puntos">⋯</span> de cualquier hilo, respuesta, foto,
-            opinión o perfil. Si alguien te molesta, también puedes bloquearle: dejarás de ver lo que escribe en la
-            Comunidad y de recibir sus avisos.
-          </p>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            Para cualquier otra cosa de moderación, escríbenos a{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-[var(--primary)] hover:underline">
-              {CONTACT_EMAIL}
-            </a>{" "}
-            o usa el formulario de arriba. Revisamos cada denuncia en menos de 24 horas, retiramos lo que incumpla{" "}
-            <Link href="/terms#normas" className="font-medium text-[var(--primary)] hover:underline">
-              los términos de uso
-            </Link>{" "}
-            y expulsamos a quien lo publicó.
-          </p>
-        </section>
-      </main>
+          <div className="flex justify-end">
+            <Button type="submit" loading={sending} className="px-6 py-2.5">
+              {sending ? "Enviando…" : "Enviar mensaje"}
+            </Button>
+          </div>
+        </form>
+      )}
 
-      <Footer />
-    </div>
+      {/* Lo piden App Store y Google Play: un contacto visible para moderación */}
+      <Card as="section" id="moderacion" padding="lg" className="mt-12 scroll-mt-24">
+        <h2 className="text-lg font-semibold text-[var(--text)] mb-2">🛡️ Moderación y denuncias</h2>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          ¿Has visto algo que no debería estar en BG Planner, como spam, acoso o fotos inapropiadas? Usa
+          «Denunciar» en el menú <span aria-label="tres puntos">⋯</span> de cualquier hilo, respuesta, foto,
+          opinión o perfil. Si alguien te molesta, también puedes bloquearle: dejarás de ver lo que escribe en la
+          Comunidad y de recibir sus avisos.
+        </p>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+          Para cualquier otra cosa de moderación, escríbenos a{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-[var(--primary)] hover:underline">
+            {CONTACT_EMAIL}
+          </a>{" "}
+          o usa el formulario de arriba. Revisamos cada denuncia en menos de 24 horas, retiramos lo que incumpla{" "}
+          <Link href="/terms#normas" className="font-medium text-[var(--primary)] hover:underline">
+            los términos de uso
+          </Link>{" "}
+          y expulsamos a quien lo publicó.
+        </p>
+      </Card>
+    </PageShell>
   );
 }

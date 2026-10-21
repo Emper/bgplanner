@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, parseBody, requireGroupMember, requireSession } from "@/lib/api";
 import { logActivity } from "@/lib/activity";
 import { gameNightPlaySchema } from "@/lib/validations";
 import { GAME_NIGHT_INCLUDE } from "@/lib/gameNights";
@@ -9,21 +9,14 @@ import { markGroupGamePlayed } from "@/lib/playedGames";
 /** Una noche se puede seguir ampliando durante este rato desde que se abrió. */
 const NIGHT_OPEN_MS = 12 * 60 * 60 * 1000;
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const [membership, nights] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: session.userId } },
-    }),
+  const [, nights] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
     prisma.gameNight.findMany({
       where: { groupId },
       orderBy: { date: "desc" },
@@ -31,40 +24,19 @@ export async function GET(
     }),
   ]);
 
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
   return NextResponse.json(nights);
-}
+});
 
 // "¡Lo jugamos!": apunta un juego en la noche (y la abre si es la primera
 // partida) y lo marca como jugado en el grupo.
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
-  const body = await request.json().catch(() => null);
-  const parsed = gameNightPlaySchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-  const { nightId, gameId } = parsed.data;
-  const playerIds = Array.from(new Set(parsed.data.playerIds));
+  await requireGroupMember(groupId, session.userId);
+  const parsed = await parseBody(request, gameNightPlaySchema);
+  const { nightId, gameId } = parsed;
+  const playerIds = Array.from(new Set(parsed.playerIds));
 
   const [groupGame, members, existing] = await Promise.all([
     prisma.groupGame.findUnique({
@@ -77,15 +49,11 @@ export async function POST(
       : null,
   ]);
 
-  if (!groupGame) {
-    return NextResponse.json({ error: "Ese juego no está en el grupo" }, { status: 404 });
-  }
+  if (!groupGame) throw new ApiError(404, "Ese juego no está en el grupo");
   if (members !== playerIds.length) {
-    return NextResponse.json({ error: "Solo pueden jugar miembros del grupo" }, { status: 400 });
+    throw new ApiError(400, "Solo pueden jugar miembros del grupo");
   }
-  if (nightId && !existing) {
-    return NextResponse.json({ error: "Esa sesión ya no existe" }, { status: 404 });
-  }
+  if (nightId && !existing) throw new ApiError(404, "Esa sesión ya no existe");
 
   const reuse = existing && Date.now() - existing.createdAt.getTime() < NIGHT_OPEN_MS;
 
@@ -125,4 +93,4 @@ export async function POST(
   });
 
   return NextResponse.json(night, { status: 201 });
-}
+});

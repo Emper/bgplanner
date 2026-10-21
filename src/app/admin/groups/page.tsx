@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { formatDateShort } from "@/lib/format";
+import { displayName } from "@/lib/users";
+import Alert from "@/components/ui/Alert";
+import { Input, Select } from "@/components/ui/Field";
+import { AdminHeader } from "../AdminUI";
 
 interface AdminGroup {
   id: string;
@@ -58,38 +63,37 @@ export default function AdminGroupsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-display font-semibold">Todos los grupos</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {loading ? "Cargando…" : `${filtered.length} de ${groups.length}`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="search"
-            placeholder="Buscar por nombre o email…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="px-3 py-2 rounded-xl text-sm bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none w-56"
-          />
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="px-3 py-2 rounded-xl text-sm bg-[var(--input-bg)] border border-[var(--input-border)] focus:border-purple-500 focus:outline-none"
-          >
-            <option value="createdAt">Más recientes</option>
-            <option value="name">Nombre</option>
-            <option value="members">Más miembros</option>
-            <option value="games">Más juegos</option>
-            <option value="nights">Más sesiones</option>
-          </select>
-        </div>
-      </header>
+      <AdminHeader
+        title="Todos los grupos"
+        lead={loading ? "Cargando…" : `${filtered.length} de ${groups.length}`}
+        action={
+          <>
+            <div className="w-56">
+              <Input
+                type="search"
+                size="sm"
+                aria-label="Buscar grupos"
+                placeholder="Buscar por nombre o email…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div>
+              <Select size="sm" aria-label="Ordenar" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+                <option value="createdAt">Más recientes</option>
+                <option value="name">Nombre</option>
+                <option value="members">Más miembros</option>
+                <option value="games">Más juegos</option>
+                <option value="nights">Más sesiones</option>
+              </Select>
+            </div>
+          </>
+        }
+      />
 
-      {error && <div className="text-sm text-[var(--color-danger,#ef4444)]">{error}</div>}
+      {error && <Alert>{error}</Alert>}
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--surface-alt)] text-[var(--text-secondary)] uppercase text-xs tracking-wide">
             <tr>
@@ -117,18 +121,14 @@ export default function AdminGroupsPage() {
                   <div className="text-xs text-[var(--text-muted)]">{g.type}</div>
                 </td>
                 <td className="px-4 py-2">
-                  <div>{g.owner.name}</div>
+                  <div>{displayName(g.owner, g.owner.email)}</div>
                   <div className="text-xs text-[var(--text-muted)]">{g.owner.email}</div>
                 </td>
                 <td className="px-4 py-2 text-right font-mono">{g.members}</td>
                 <td className="px-4 py-2 text-right font-mono">{g.games}</td>
                 <td className="px-4 py-2 text-right font-mono">{g.nights}</td>
                 <td className="px-4 py-2 text-right text-xs text-[var(--text-muted)] whitespace-nowrap">
-                  {new Date(g.createdAt).toLocaleDateString("es-ES", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {formatDateShort(g.createdAt)}
                 </td>
               </tr>
             ))}

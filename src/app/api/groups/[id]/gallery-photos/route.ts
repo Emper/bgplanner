@@ -1,74 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, requireGroupMember, requireSession } from "@/lib/api";
 import { uploadPhoto, getStorageClient } from "@/lib/supabaseStorage";
 import { logActivity } from "@/lib/activity";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_PER_REQUEST = 10;
 
+const PHOTO_USER_SELECT = { id: true, name: true, displayName: true, avatarUrl: true } as const;
+
+type Ctx = { params: Promise<{ id: string }> };
+
 // Fotos sueltas de la galería del grupo (no atadas a una opinión).
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
+  const [, photos] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
+    prisma.groupPhoto.findMany({
+      where: { groupId },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      include: { user: { select: PHOTO_USER_SELECT } },
+    }),
+  ]);
 
-  const photos = await prisma.groupPhoto.findMany({
-    where: { groupId },
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
-    },
-  });
   const response = NextResponse.json({ photos });
   response.headers.set("Cache-Control", "private, no-store");
   return response;
-}
+});
 
 // Sube una o varias fotos sueltas a la galería del grupo.
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
+  await requireGroupMember(groupId, session.userId);
   if (!getStorageClient()) {
-    return NextResponse.json({ error: "La subida de fotos no está configurada" }, { status: 503 });
+    throw new ApiError(503, "La subida de fotos no está configurada");
   }
 
   const formData = await request.formData().catch(() => null);
   const files = (formData?.getAll("file") ?? []).filter((f): f is File => f instanceof File);
   if (files.length === 0) {
-    return NextResponse.json({ error: "No se recibió ninguna imagen" }, { status: 400 });
+    throw new ApiError(400, "No se recibió ninguna imagen");
   }
   if (files.length > MAX_PER_REQUEST) {
-    return NextResponse.json({ error: `Máximo ${MAX_PER_REQUEST} fotos a la vez` }, { status: 400 });
+    throw new ApiError(400, `Máximo ${MAX_PER_REQUEST} fotos a la vez`);
   }
 
   const created = [];
+  // Si no sube ninguna, se explica con el último fallo, en palabras del usuario.
   let lastError = "";
   for (const file of files) {
     if (file.size > MAX_BYTES) {
@@ -80,22 +63,20 @@ export async function POST(
       const { url } = await uploadPhoto(buffer, file.type, `groups/${groupId}`);
       const photo = await prisma.groupPhoto.create({
         data: { groupId, userId: session.userId, url },
-        include: {
-          user: { select: { id: true, name: true, displayName: true, avatarUrl: true } },
-        },
+        include: { user: { select: PHOTO_USER_SELECT } },
       });
       created.push(photo);
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : "Error desconocido al subir";
-      console.error("[gallery-photos] fallo al subir foto de grupo:", e);
+    } catch (err) {
+      console.error("[gallery-photos] fallo al subir foto de grupo:", err);
+      lastError =
+        err instanceof Error && err.message === "Formato de imagen no soportado"
+          ? "Formato de imagen no soportado (usa JPG, PNG o WebP)"
+          : "No se pudo subir la imagen";
     }
   }
 
   if (created.length === 0) {
-    return NextResponse.json(
-      { error: lastError || "No se pudo subir ninguna imagen" },
-      { status: 400 }
-    );
+    throw new ApiError(400, lastError || "No se pudo subir ninguna imagen");
   }
 
   logActivity("group_photo_added", session.userId, {
@@ -104,4 +85,4 @@ export async function POST(
   });
 
   return NextResponse.json({ photos: created }, { status: 201 });
-}
+});

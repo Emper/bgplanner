@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { prisma } from "./prisma";
+import { APP_URL } from "./site";
 
 // Notificaciones push: el mismo aviso de la campana, pero en el móvil o el
 // escritorio aunque la app esté cerrada. Las dispara `notifyNow` en
@@ -26,8 +27,6 @@ interface PushProvider {
 }
 
 // ── Web Push (VAPID) ────────────────────────────────────────────────────────
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 /** Clave pública VAPID, o null si el push no está configurado en este entorno. */
 export function vapidPublicKey(): string | null {

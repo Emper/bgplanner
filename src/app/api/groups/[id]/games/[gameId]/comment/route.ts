@@ -1,49 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, parseBody, requireGroupMember, requireSession } from "@/lib/api";
 import { gameCommentSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 import { truncateChars } from "@/lib/text";
 
-export async function PUT(
+// La nota de cada uno sobre un juego del ranking. Texto vacío = borrarla.
+export const PUT = apiHandler(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string; gameId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+) => {
+  const session = await requireSession(request);
   const { id: groupId, gameId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
+  const [, groupGame] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
+    prisma.groupGame.findUnique({
+      where: { groupId_gameId: { groupId, gameId } },
+      include: { game: { select: { name: true } } },
+    }),
+  ]);
+  if (!groupGame) throw new ApiError(404, "Juego no encontrado en este grupo");
 
-  const groupGame = await prisma.groupGame.findUnique({
-    where: { groupId_gameId: { groupId, gameId } },
-    include: { game: { select: { name: true } } },
-  });
-  if (!groupGame) {
-    return NextResponse.json(
-      { error: "Juego no encontrado en este grupo" },
-      { status: 404 }
-    );
-  }
-
-  const body = await request.json();
-  const parsed = gameCommentSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const text = parsed.data.text;
+  const { text } = await parseBody(request, gameCommentSchema);
 
   const existingComment = await prisma.gameComment.findUnique({
     where: {
@@ -103,4 +82,4 @@ export async function PUT(
     ok: true,
     comment: { text: comment.text, updatedAt: comment.updatedAt },
   });
-}
+});

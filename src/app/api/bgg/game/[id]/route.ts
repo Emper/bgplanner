@@ -1,39 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
 import { fetchBggGameDetails } from "@/lib/bgg";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Params = { params: Promise<{ id: string }> };
+
+// La ficha de un juego tal y como la da BGG.
+export const GET = apiHandler(async (request: NextRequest, { params }: Params) => {
+  await requireSession(request);
 
   const { id } = await params;
-  const bggId = parseInt(id);
-
-  if (isNaN(bggId)) {
-    return NextResponse.json({ error: "ID no válido" }, { status: 400 });
+  const bggId = Number(id);
+  if (!Number.isInteger(bggId) || bggId <= 0) {
+    throw new ApiError(400, "ID no válido");
   }
 
+  let game;
   try {
-    const [game] = await fetchBggGameDetails([bggId]);
-    if (!game) {
-      return NextResponse.json(
-        { error: "Juego no encontrado" },
-        { status: 404 }
-      );
-    }
-    // La ficha de un juego apenas cambia: que el navegador no vuelva a
-    // preguntar en un rato (privada: la ruta pide sesión)
-    return NextResponse.json(game, {
-      headers: { "Cache-Control": "private, max-age=3600" },
-    });
+    [game] = await fetchBggGameDetails([bggId]);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Error al obtener juego";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[BGG] Error al traer la ficha del juego:", error);
+    throw new ApiError(502, "BGG no ha respondido. Prueba de nuevo en un rato");
   }
-}
+  if (!game) throw new ApiError(404, "Juego no encontrado");
+
+  // La ficha de un juego apenas cambia: que el navegador no vuelva a
+  // preguntar en un rato (privada: la ruta pide sesión)
+  return NextResponse.json(game, {
+    headers: { "Cache-Control": "private, max-age=3600" },
+  });
+});

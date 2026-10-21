@@ -6,12 +6,12 @@ import { getCommunityTag } from "@/lib/community";
 import { getLikedReplyIds, getThreadDetail } from "@/lib/communityServer";
 import { getBlockedIds } from "@/lib/moderation";
 import { excerpt } from "@/lib/text";
+import { jsonLdHtml } from "@/lib/html";
+import { APP_URL } from "@/lib/site";
 import SmartNav from "@/components/SmartNav";
-import Footer from "@/components/Footer";
 import SignupBanner from "@/components/SignupBanner";
+import PageShell from "@/components/ui/PageShell";
 import ThreadClient, { type ThreadInitial } from "./ThreadClient";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 // El hilo y sus respuestas salen pintados del servidor: se leen sin cuenta y
 // los encuentran los buscadores. Lo interactivo vive en ThreadClient.
@@ -104,12 +104,8 @@ export default async function CommunityThreadPage({
   const initial = JSON.parse(JSON.stringify(detail)) as ThreadInitial;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(threadJsonLd(initial)).replace(/</g, "\\u003c") }}
-      />
-      <SmartNav />
+    <PageShell nav={<SmartNav />} width="main">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(threadJsonLd(initial)) }} />
       <ThreadClient
         initial={initial}
         viewerId={session?.userId ?? null}
@@ -118,7 +114,6 @@ export default async function CommunityThreadPage({
         initialLikedIds={likedIds}
         banner={!session && <SignupBanner variant="community" redirect={`/community/${id}`} />}
       />
-      <Footer />
-    </div>
+    </PageShell>
   );
 }

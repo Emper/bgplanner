@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ApiError, jsonError, requireCronSecret } from "@/lib/api";
+import { apiHandler, requireCronSecret } from "@/lib/api";
 import {
   ENRICH_BATCH,
   hotMissingIds,
@@ -20,14 +20,9 @@ const TIME_BUDGET_MS = 240 * 1000;
 // eligen las recomendaciones: primero los más comentados de BGG, luego los
 // que aparecen en las colecciones de la comunidad y, si sobra tiempo, las
 // fichas más antiguas.
-export async function GET(request: NextRequest) {
+export const GET = apiHandler(async (request: NextRequest) => {
   // Vercel Cron manda Authorization: Bearer <CRON_SECRET>.
-  try {
-    requireCronSecret(request);
-  } catch (err) {
-    if (err instanceof ApiError) return jsonError(err.status, err.message);
-    throw err;
-  }
+  requireCronSecret(request);
 
   const startedAt = Date.now();
   const outOfTime = () => Date.now() - startedAt > TIME_BUDGET_MS;
@@ -75,4 +70,4 @@ export async function GET(request: NextRequest) {
     remaining: Math.max(0, missing.length - added),
     seconds: Math.round((Date.now() - startedAt) / 1000),
   });
-}
+});

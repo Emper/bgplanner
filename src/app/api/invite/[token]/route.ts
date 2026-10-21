@@ -1,30 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { notifyManagers } from "@/lib/notifications";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
 
-// GET — resolve token to invitation info
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
-) {
-  const { token } = await params;
+type Ctx = { params: Promise<{ token: string }> };
 
+/** Una invitación por email aún sin usar, o 404/410. */
+async function findPendingInvitation(token: string) {
   const invitation = await prisma.groupInvitation.findUnique({
     where: { token },
     include: {
       group: { select: { id: true, name: true, _count: { select: { members: true } } } },
     },
   });
+  if (!invitation) throw new ApiError(404, "Invitación no válida");
+  if (invitation.status !== "pending") throw new ApiError(410, "Esta invitación ya fue utilizada");
+  return invitation;
+}
 
-  if (!invitation) {
-    return NextResponse.json({ error: "Invitación no válida" }, { status: 404 });
-  }
-
-  if (invitation.status !== "pending") {
-    return NextResponse.json({ error: "Esta invitación ya fue utilizada" }, { status: 410 });
-  }
+// Qué grupo hay detrás de la invitación (sin sesión también)
+export const GET = apiHandler(async (_request: NextRequest, { params }: Ctx) => {
+  const { token } = await params;
+  const invitation = await findPendingInvitation(token);
 
   return NextResponse.json({
     groupId: invitation.group.id,
@@ -32,46 +30,27 @@ export async function GET(
     memberCount: invitation.group._count.members,
     // Sin el email invitado: el enlace se puede reenviar y es un dato privado.
   });
-}
+});
 
-// POST — accept invitation and join group
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// Aceptar la invitación y entrar en el grupo. Vale con cualquier cuenta,
+// aunque no sea la del email invitado: el enlace se puede reenviar.
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { token } = await params;
 
-  const invitation = await prisma.groupInvitation.findUnique({
-    where: { token },
-    include: { group: { select: { id: true, name: true } } },
-  });
+  const invitation = await findPendingInvitation(token);
+  const { id: groupId, name: groupName } = invitation.group;
 
-  if (!invitation) {
-    return NextResponse.json({ error: "Invitación no válida" }, { status: 404 });
-  }
-
-  if (invitation.status !== "pending") {
-    return NextResponse.json({ error: "Esta invitación ya fue utilizada" }, { status: 410 });
-  }
-
-  const groupId = invitation.groupId;
-
-  // Check if already a member
   const existing = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId, userId: session.userId } },
+    select: { id: true },
   });
-
   if (existing) {
     await prisma.groupInvitation.update({
       where: { id: invitation.id },
       data: { status: "accepted" },
     });
-    return NextResponse.json({ groupId, groupName: invitation.group.name, alreadyMember: true });
+    return NextResponse.json({ groupId, groupName, alreadyMember: true });
   }
 
   await prisma.$transaction([
@@ -84,8 +63,8 @@ export async function POST(
     }),
   ]);
 
-  logActivity("group_joined", session.userId, { groupId: invitation.groupId });
-  notifyManagers({ groupId: invitation.groupId }, { type: "group_member_joined", actorId: session.userId });
+  logActivity("group_joined", session.userId, { groupId, groupName });
+  notifyManagers({ groupId }, { type: "group_member_joined", actorId: session.userId });
 
-  return NextResponse.json({ groupId, groupName: invitation.group.name });
-}
+  return NextResponse.json({ groupId, groupName });
+});

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import EmojiField from "@/components/EmojiField";
 import Avatar from "@/components/Avatar";
 import {
@@ -23,6 +23,13 @@ import {
 } from "@/lib/community";
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
 import { nudgePush } from "@/lib/pushNudge";
+import { loginHref } from "@/lib/site";
+import { plural } from "@/lib/text";
+import Button, { ButtonLink, CloseButton } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FieldError, Input, fieldClass } from "@/components/ui/Field";
+import { BackLink } from "@/components/ui/PageHeader";
+import { useToast } from "@/components/ui/Toast";
 
 interface Thread {
   id: string;
@@ -58,14 +65,9 @@ type LiveReply = Extract<Reply, { deleted: false }>;
 
 type PendingDelete = { kind: "thread" } | { kind: "reply"; id: string } | null;
 
-const inputClass =
-  "w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200";
-const primaryBtn =
-  "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md";
-const ghostBtn =
-  "px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors";
-const dangerBtn =
-  "px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors";
+// «Borrar» en las acciones pequeñas de cada mensaje: fantasma como el resto
+// hasta que se pasa por encima, y entonces en rojo.
+const smallDanger = "hover:text-[var(--danger)]! hover:bg-[var(--danger-soft)]!";
 
 function Timestamp({ createdAt, editedAt }: { createdAt: string; editedAt?: string | null }) {
   return (
@@ -109,7 +111,7 @@ export default function ThreadClient({
 
   const [thread, setThread] = useState<Thread>(initial.thread);
   const [replies, setReplies] = useState<Reply[]>(initial.replies);
-  const [toast, setToast] = useState("");
+  const toast = useToast();
 
   // Edición del hilo
   const [editingThread, setEditingThread] = useState(false);
@@ -142,11 +144,6 @@ export default function ThreadClient({
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [reporting, setReporting] = useState<{ type: "thread" | "reply"; id: string } | null>(null);
   const [blocking, setBlocking] = useState<CommunityAuthor | null>(null);
-
-  const showToast = useCallback((text: string) => {
-    setToast(text);
-    setTimeout(() => setToast(""), 4000);
-  }, []);
 
   // Abrir el hilo da por vistos sus avisos de respuestas; la campana se pone
   // al día con lo que devuelva.
@@ -182,9 +179,9 @@ export default function ThreadClient({
         ? {
             label: `Desbloquear a ${author.name}`,
             onClick: async () => {
-              if (!(await unblockUser(author.id))) return showToast("No se pudo desbloquear");
+              if (!(await unblockUser(author.id))) return toast.error("No se pudo desbloquear");
               setBlockedIds((prev) => prev.filter((b) => b !== author.id));
-              showToast(`Has desbloqueado a ${author.name}`);
+              toast(`Has desbloqueado a ${author.name}`);
             },
           }
         : { label: `🚫 Bloquear a ${author.name}`, onClick: () => setBlocking(author), danger: true },
@@ -215,7 +212,7 @@ export default function ThreadClient({
       setLike(data.liked, data.likes);
     } catch (err) {
       setLike(wasLiked, r.likes);
-      showToast(err instanceof Error ? err.message : "No se pudo guardar tu «me gusta»");
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar tu «me gusta»");
     } finally {
       setLikeBusy((prev) => {
         const next = new Set(prev);
@@ -262,7 +259,7 @@ export default function ThreadClient({
       setThread((prev) => (prev ? { ...prev, ...data.thread } : prev));
       setEditingThread(false);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo guardar");
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {
       setSavingThread(false);
     }
@@ -279,10 +276,10 @@ export default function ThreadClient({
     }).catch(() => null);
     if (!res?.ok) {
       setThread((prev) => (prev ? { ...prev, pinned: !pinned } : prev));
-      showToast("No se pudo cambiar");
+      toast.error("No se pudo cambiar");
       return;
     }
-    showToast(pinned ? "Hilo fijado arriba 📌" : "Hilo desfijado");
+    toast(pinned ? "Hilo fijado arriba 📌" : "Hilo desfijado");
   };
 
   const sendReply = async (e?: React.FormEvent) => {
@@ -331,7 +328,7 @@ export default function ThreadClient({
       );
       setEditingReplyId(null);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo guardar");
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar");
     } finally {
       setSavingReply(false);
     }
@@ -367,7 +364,7 @@ export default function ThreadClient({
       if (quoting?.id === replyId) setQuoting(null);
       setPendingDelete(null);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo borrar");
+      toast.error(err instanceof Error ? err.message : "No se pudo borrar");
     } finally {
       setDeleting(false);
     }
@@ -375,325 +372,315 @@ export default function ThreadClient({
 
   return (
     <>
-      <main className="page-main page-pad">
-        {banner}
-        <Link
-          href="/community"
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors mb-5"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-          Comunidad
-        </Link>
+      {banner}
+      <BackLink href="/community" className="mb-5">
+        Comunidad
+      </BackLink>
 
-        {/* Mensaje que abre el hilo */}
-        <article className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-[var(--card-shadow)]">
-          {editingThread ? (
-            <form onSubmit={saveThread} className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {COMMUNITY_TAGS.map((t) => {
-                  const selected = draftTag === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setDraftTag(t.id)}
-                      aria-pressed={selected}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                        selected ? "" : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"
-                      }`}
-                      style={selected ? { color: t.accent, borderColor: t.accent, backgroundColor: `${t.accent}1a` } : undefined}
-                    >
-                      <span aria-hidden>{t.emoji}</span>
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <input
-                type="text"
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                required
-                minLength={3}
-                maxLength={THREAD_TITLE_MAX}
-                className={`${inputClass} font-semibold`}
-                aria-label="Título"
-              />
-              <EmojiField
-                value={draftBody}
-                onChange={setDraftBody}
-                required
-                maxLength={THREAD_BODY_MAX}
-                rows={8}
-                className={`${inputClass} resize-y`}
-              />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setEditingThread(false)} className={ghostBtn}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={savingThread} className={primaryBtn}>
-                  {savingThread ? "Guardando…" : "Guardar cambios"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                {thread.pinned && (
-                  <span className="text-[11px] font-semibold text-[var(--primary)]">📌 Fijado</span>
-                )}
-                <TagChip tag={thread.tag} />
-              </div>
-              <h1 className="page-title leading-tight mb-4">{thread.title}</h1>
-              <div className="flex items-center gap-2 mb-5">
-                <AuthorLink author={thread.author} size="sm" className="text-sm" />
-                <span className="text-[var(--text-muted)] text-xs">·</span>
-                <Timestamp createdAt={thread.createdAt} editedAt={thread.editedAt} />
-                <MoreMenu
-                  items={moderationItems("thread", thread.id, thread.author)}
-                  className="ml-auto -my-1"
-                />
-              </div>
-              {isBlocked(thread.author.id) && !revealed.has(thread.id) ? (
-                <BlockedNotice
-                  what="Este hilo es de un usuario que has bloqueado."
-                  onShow={() => setRevealed((prev) => new Set(prev).add(thread.id))}
-                />
-              ) : (
-                <PostText text={thread.body} className="text-[15px] text-[var(--text)]" />
-              )}
-
-              {(isThreadAuthor || isAdmin) && (
-                <div className="flex flex-wrap justify-end gap-1 mt-5 pt-3 border-t border-[var(--border)]">
-                  {isAdmin && (
-                    <button type="button" onClick={togglePinned} className={ghostBtn}>
-                      {thread.pinned ? "Desfijar" : "📌 Fijar arriba"}
-                    </button>
-                  )}
-                  {isThreadAuthor && (
-                    <button type="button" onClick={startEditThread} className={ghostBtn}>
-                      Editar
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setPendingDelete({ kind: "thread" })} className={dangerBtn}>
-                    Borrar hilo
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </article>
-
-        {/* Respuestas */}
-        <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mt-10 mb-4">
-          {liveReplies === 0 ? "Sin respuestas todavía" : `${liveReplies} respuesta${liveReplies === 1 ? "" : "s"}`}
-        </h2>
-
-        {replies.length > 0 && (
-          <ol className="space-y-3">
-            {replies.map((r, i) =>
-              r.deleted ? (
-                <li
-                  key={r.id}
-                  id={`reply-${r.id}`}
-                  className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-3 text-sm italic text-[var(--text-muted)]"
-                >
-                  {r.hidden ? "Mensaje oculto mientras lo revisamos" : "Mensaje eliminado"}
-                </li>
-              ) : isBlocked(r.author.id) && !revealed.has(r.id) ? (
-                <li
-                  key={r.id}
-                  id={`reply-${r.id}`}
-                  className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-3"
-                >
-                  <BlockedNotice
-                    what="Mensaje de un usuario bloqueado."
-                    onShow={() => setRevealed((prev) => new Set(prev).add(r.id))}
-                  />
-                </li>
-              ) : (
-                <li
-                  key={r.id}
-                  id={`reply-${r.id}`}
-                  className="flex gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24 transition-colors duration-700 data-[highlight]:border-[var(--primary)] data-[highlight]:ring-2 data-[highlight]:ring-[var(--primary)]/30"
-                >
-                  <div className="shrink-0 hidden sm:block">
-                    <Avatar name={r.author.name} avatarUrl={r.author.avatarUrl} size="sm" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1.5">
-                      <AuthorLink author={r.author} className="text-sm" avatarClassName="sm:hidden" />
-                      {r.author.id === thread.author.id && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-[var(--accent-soft)] text-[var(--primary)]">
-                          Autor
-                        </span>
-                      )}
-                      <Timestamp createdAt={r.createdAt} editedAt={r.editedAt} />
-                      <a
-                        href={`#reply-${r.id}`}
-                        className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--primary)] tabular-nums"
-                        title="Enlace a esta respuesta"
-                      >
-                        #{i + 1}
-                      </a>
-                      <MoreMenu items={moderationItems("reply", r.id, r.author)} className="-my-1.5 -mr-1.5" />
-                    </div>
-
-                    {editingReplyId === r.id ? (
-                      <div className="space-y-2">
-                        <EmojiField
-                          value={draftReply}
-                          onChange={setDraftReply}
-                          maxLength={REPLY_BODY_MAX}
-                          rows={4}
-                          className={`${inputClass} resize-y text-sm`}
-                          autoFocus
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => setEditingReplyId(null)} className={ghostBtn}>
-                            Cancelar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => saveReply(r.id)}
-                            disabled={savingReply || !draftReply.trim()}
-                            className={primaryBtn}
-                          >
-                            {savingReply ? "Guardando…" : "Guardar"}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {r.quote && (
-                          <QuoteBlock
-                            quote={r.quote}
-                            blocked={!r.quote.deleted && isBlocked(r.quote.author.id)}
-                            onJump={() => highlightReply(r.quote!.replyId)}
-                          />
-                        )}
-                        <PostText text={r.body} className="text-sm text-[var(--text)]" />
-                      </>
-                    )}
-
-                    {editingReplyId !== r.id && (
-                      <div className="flex items-center gap-1 mt-2 -mb-1 -ml-2">
-                        <LikeButton
-                          count={r.likes}
-                          liked={likedIds.has(r.id)}
-                          own={r.author.id === viewerId}
-                          loginHref={isLoggedIn ? null : `/login?redirect=/community/${thread.id}%23reply-${r.id}`}
-                          busy={likeBusy.has(r.id)}
-                          onToggle={() => toggleLike(r)}
-                        />
-                        {isLoggedIn && (
-                          <button type="button" onClick={() => startQuote(r)} className={ghostBtn} title="Responder a este mensaje citándolo">
-                            ↩︎ Citar
-                          </button>
-                        )}
-                        <span className="flex-1" />
-                        {r.author.id === viewerId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDraftReply(r.body);
-                              setEditingReplyId(r.id);
-                            }}
-                            className={ghostBtn}
-                          >
-                            Editar
-                          </button>
-                        )}
-                        {(r.author.id === viewerId || isAdmin) && (
-                          <button
-                            type="button"
-                            onClick={() => setPendingDelete({ kind: "reply", id: r.id })}
-                            className={dangerBtn}
-                          >
-                            Borrar
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              )
-            )}
-          </ol>
-        )}
-
-        {/* Caja para responder */}
-        <div className="mt-6">
-          {isLoggedIn ? (
-            <form
-              id="reply-composer"
-              onSubmit={sendReply}
-              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24"
-            >
-              {quoting && (
-                <div className="flex items-start gap-2 mb-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-[var(--text-muted)] mb-1">
-                      ↩︎ Respondiendo a <span className="text-[var(--text-secondary)]">{quoting.author.name}</span>
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--primary)]/50 pl-2.5 line-clamp-2 whitespace-pre-wrap break-words">
-                      {quoting.body}
-                    </p>
-                  </div>
+      {/* Mensaje que abre el hilo */}
+      <article className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-[var(--card-shadow)]">
+        {editingThread ? (
+          <form onSubmit={saveThread} className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {COMMUNITY_TAGS.map((t) => {
+                const selected = draftTag === t.id;
+                return (
                   <button
+                    key={t.id}
                     type="button"
-                    onClick={() => setQuoting(null)}
-                    aria-label="Quitar la cita"
-                    title="Quitar la cita"
-                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
+                    onClick={() => setDraftTag(t.id)}
+                    aria-pressed={selected}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                      selected ? "" : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"
+                    }`}
+                    style={selected ? { color: t.accent, borderColor: t.accent, backgroundColor: `${t.accent}1a` } : undefined}
                   >
-                    ✕
+                    <span aria-hidden>{t.emoji}</span>
+                    {t.label}
                   </button>
-                </div>
-              )}
-              <EmojiField
-                value={replyText}
-                onChange={setReplyText}
-                maxLength={REPLY_BODY_MAX}
-                rows={4}
-                placeholder={
-                  quoting
-                    ? `Contesta a ${quoting.author.name}…`
-                    : liveReplies === 0
-                      ? "Sé el primero en responder…"
-                      : "Escribe tu respuesta…"
-                }
-                className={`${inputClass} resize-y text-sm`}
-                onKeyDown={(e) => {
-                  // Cmd/Ctrl + Enter publica, como en casi todos los foros.
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    sendReply();
-                  }
-                }}
-              />
-              {replyError && <p className="text-red-400 text-sm mt-2">{replyError}</p>}
-              <div className="flex items-center justify-between gap-3 mt-3">
-                <span className="hidden sm:inline text-xs text-[var(--text-muted)]">⌘/Ctrl + Enter para publicar</span>
-                <button type="submit" disabled={sendingReply || !replyText.trim()} className={`${primaryBtn} ml-auto`}>
-                  {sendingReply ? "Publicando…" : "Responder"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-center">
-              <p className="text-[var(--text-secondary)] mb-3">¿Tienes algo que añadir?</p>
-              <Link href={`/login?redirect=/community/${thread.id}`} className={primaryBtn}>
-                Entra para responder
-              </Link>
+                );
+              })}
             </div>
-          )}
-        </div>
+            <Input
+              type="text"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              required
+              minLength={3}
+              maxLength={THREAD_TITLE_MAX}
+              className="font-semibold"
+              aria-label="Título"
+            />
+            <EmojiField
+              value={draftBody}
+              onChange={setDraftBody}
+              required
+              maxLength={THREAD_BODY_MAX}
+              rows={8}
+              className={fieldClass({ className: "resize-y" })}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setEditingThread(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" loading={savingThread}>
+                {savingThread ? "Guardando…" : "Guardar cambios"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {thread.pinned && (
+                <span className="text-[11px] font-semibold text-[var(--primary)]">📌 Fijado</span>
+              )}
+              <TagChip tag={thread.tag} />
+            </div>
+            <h1 className="page-title leading-tight mb-4">{thread.title}</h1>
+            <div className="flex items-center gap-2 mb-5">
+              <AuthorLink author={thread.author} size="sm" className="text-sm" />
+              <span className="text-[var(--text-muted)] text-xs">·</span>
+              <Timestamp createdAt={thread.createdAt} editedAt={thread.editedAt} />
+              <MoreMenu
+                items={moderationItems("thread", thread.id, thread.author)}
+                className="ml-auto -my-1"
+              />
+            </div>
+            {isBlocked(thread.author.id) && !revealed.has(thread.id) ? (
+              <BlockedNotice
+                what="Este hilo es de un usuario que has bloqueado."
+                onShow={() => setRevealed((prev) => new Set(prev).add(thread.id))}
+              />
+            ) : (
+              <PostText text={thread.body} className="text-[15px] text-[var(--text)]" />
+            )}
 
-        <ModerationNote />
-      </main>
+            {(isThreadAuthor || isAdmin) && (
+              <div className="flex flex-wrap justify-end gap-1 mt-5 pt-3 border-t border-[var(--border)]">
+                {isAdmin && (
+                  <Button variant="ghost" size="xs" onClick={togglePinned}>
+                    {thread.pinned ? "Desfijar" : "📌 Fijar arriba"}
+                  </Button>
+                )}
+                {isThreadAuthor && (
+                  <Button variant="ghost" size="xs" onClick={startEditThread}>
+                    Editar
+                  </Button>
+                )}
+                <Button variant="ghost" size="xs" onClick={() => setPendingDelete({ kind: "thread" })} className={smallDanger}>
+                  Borrar hilo
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </article>
+
+      {/* Respuestas */}
+      <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mt-10 mb-4">
+        {liveReplies === 0 ? "Sin respuestas todavía" : plural(liveReplies, "respuesta", "respuestas")}
+      </h2>
+
+      {replies.length > 0 && (
+        <ol className="space-y-3">
+          {replies.map((r, i) =>
+            r.deleted ? (
+              <li
+                key={r.id}
+                id={`reply-${r.id}`}
+                className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-3 text-sm italic text-[var(--text-muted)]"
+              >
+                {r.hidden ? "Mensaje oculto mientras lo revisamos" : "Mensaje eliminado"}
+              </li>
+            ) : isBlocked(r.author.id) && !revealed.has(r.id) ? (
+              <li
+                key={r.id}
+                id={`reply-${r.id}`}
+                className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-3"
+              >
+                <BlockedNotice
+                  what="Mensaje de un usuario bloqueado."
+                  onShow={() => setRevealed((prev) => new Set(prev).add(r.id))}
+                />
+              </li>
+            ) : (
+              <li
+                key={r.id}
+                id={`reply-${r.id}`}
+                className="flex gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24 transition-colors duration-700 data-[highlight]:border-[var(--primary)] data-[highlight]:ring-2 data-[highlight]:ring-[var(--primary)]/30"
+              >
+                <div className="shrink-0 hidden sm:block">
+                  <Avatar name={r.author.name} avatarUrl={r.author.avatarUrl} size="sm" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1.5">
+                    <AuthorLink author={r.author} className="text-sm" avatarClassName="sm:hidden" />
+                    {r.author.id === thread.author.id && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-[var(--accent-soft)] text-[var(--primary)]">
+                        Autor
+                      </span>
+                    )}
+                    <Timestamp createdAt={r.createdAt} editedAt={r.editedAt} />
+                    <a
+                      href={`#reply-${r.id}`}
+                      className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--primary)] tabular-nums"
+                      title="Enlace a esta respuesta"
+                    >
+                      #{i + 1}
+                    </a>
+                    <MoreMenu items={moderationItems("reply", r.id, r.author)} className="-my-1.5 -mr-1.5" />
+                  </div>
+
+                  {editingReplyId === r.id ? (
+                    <div className="space-y-2">
+                      <EmojiField
+                        value={draftReply}
+                        onChange={setDraftReply}
+                        maxLength={REPLY_BODY_MAX}
+                        rows={4}
+                        className={fieldClass({ className: "resize-y" })}
+                        autoFocus
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setEditingReplyId(null)}>
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => saveReply(r.id)}
+                          disabled={!draftReply.trim()}
+                          loading={savingReply}
+                        >
+                          {savingReply ? "Guardando…" : "Guardar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {r.quote && (
+                        <QuoteBlock
+                          quote={r.quote}
+                          blocked={!r.quote.deleted && isBlocked(r.quote.author.id)}
+                          onJump={() => highlightReply(r.quote!.replyId)}
+                        />
+                      )}
+                      <PostText text={r.body} className="text-sm text-[var(--text)]" />
+                    </>
+                  )}
+
+                  {editingReplyId !== r.id && (
+                    <div className="flex items-center gap-1 mt-2 -mb-1 -ml-2">
+                      <LikeButton
+                        count={r.likes}
+                        liked={likedIds.has(r.id)}
+                        own={r.author.id === viewerId}
+                        loginHref={isLoggedIn ? null : loginHref(`/community/${thread.id}#reply-${r.id}`)}
+                        busy={likeBusy.has(r.id)}
+                        onToggle={() => toggleLike(r)}
+                      />
+                      {isLoggedIn && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => startQuote(r)}
+                         
+                          title="Responder a este mensaje citándolo"
+                        >
+                          ↩︎ Citar
+                        </Button>
+                      )}
+                      <span className="flex-1" />
+                      {r.author.id === viewerId && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => {
+                            setDraftReply(r.body);
+                            setEditingReplyId(r.id);
+                          }}
+                         
+                        >
+                          Editar
+                        </Button>
+                      )}
+                      {(r.author.id === viewerId || isAdmin) && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setPendingDelete({ kind: "reply", id: r.id })}
+                          className={smallDanger}
+                        >
+                          Borrar
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </li>
+            )
+          )}
+        </ol>
+      )}
+
+      {/* Caja para responder */}
+      <div className="mt-6">
+        {isLoggedIn ? (
+          <form
+            id="reply-composer"
+            onSubmit={sendReply}
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-[var(--card-shadow)] scroll-mt-24"
+          >
+            {quoting && (
+              <div className="flex items-start gap-2 mb-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-[var(--text-muted)] mb-1">
+                    ↩︎ Respondiendo a <span className="text-[var(--text-secondary)]">{quoting.author.name}</span>
+                  </p>
+                  <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--primary)]/50 pl-2.5 line-clamp-2 whitespace-pre-wrap break-words">
+                    {quoting.body}
+                  </p>
+                </div>
+                <CloseButton size="sm" label="Quitar la cita" onClick={() => setQuoting(null)} />
+              </div>
+            )}
+            <EmojiField
+              value={replyText}
+              onChange={setReplyText}
+              maxLength={REPLY_BODY_MAX}
+              rows={4}
+              placeholder={
+                quoting
+                  ? `Contesta a ${quoting.author.name}…`
+                  : liveReplies === 0
+                    ? "Sé el primero en responder…"
+                    : "Escribe tu respuesta…"
+              }
+              className={fieldClass({ className: "resize-y" })}
+              onKeyDown={(e) => {
+                // Cmd/Ctrl + Enter publica, como en casi todos los foros.
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  sendReply();
+                }
+              }}
+            />
+            <FieldError className="mt-2">{replyError}</FieldError>
+            <div className="flex items-center justify-between gap-3 mt-3">
+              <span className="hidden sm:inline text-xs text-[var(--text-muted)]">⌘/Ctrl + Enter para publicar</span>
+              <Button type="submit" disabled={!replyText.trim()} loading={sendingReply} className="ml-auto">
+                {sendingReply ? "Publicando…" : "Responder"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-center">
+            <p className="text-[var(--text-secondary)] mb-3">¿Tienes algo que añadir?</p>
+            <ButtonLink href={loginHref(`/community/${thread.id}`)}>Entra para responder</ButtonLink>
+          </div>
+        )}
+      </div>
+
+      <ModerationNote />
 
       {reporting && (
         <ReportModal targetType={reporting.type} targetId={reporting.id} onClose={() => setReporting(null)} />
@@ -707,55 +694,25 @@ export default function ThreadClient({
             const name = blocking.name;
             setBlockedIds((prev) => [...prev, blocking.id]);
             setBlocking(null);
-            showToast(`Has bloqueado a ${name}. Ya no verás sus mensajes`);
+            toast(`Has bloqueado a ${name}. Ya no verás sus mensajes`);
           }}
         />
       )}
 
-      {pendingDelete && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => !deleting && setPendingDelete(null)}
-        >
-          <div
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-sm shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-2">
-              {pendingDelete.kind === "thread" ? "¿Borrar el hilo?" : "¿Borrar la respuesta?"}
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-5">
-              {pendingDelete.kind === "thread"
-                ? "Desaparecerá de la comunidad junto con todas sus respuestas."
-                : "En su lugar quedará un aviso de «Mensaje eliminado»."}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingDelete(null)}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
-              >
-                {deleting ? "Borrando…" : "Borrar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-xl px-4 py-2.5 text-sm z-50">
-          {toast}
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        tone="danger"
+        title={pendingDelete?.kind === "thread" ? "¿Borrar el hilo?" : "¿Borrar la respuesta?"}
+        body={
+          pendingDelete?.kind === "thread"
+            ? "Desaparecerá de la comunidad junto con todas sus respuestas."
+            : "En su lugar quedará un aviso de «Mensaje eliminado»."
+        }
+        confirmLabel={deleting ? "Borrando…" : "Borrar"}
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }

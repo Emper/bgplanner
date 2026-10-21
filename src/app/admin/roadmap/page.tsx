@@ -4,6 +4,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FEATURE_STATUSES, featureStatusAccent, featureStatusLabel } from "@/lib/features";
+import { formatDateShort } from "@/lib/format";
+import { displayName } from "@/lib/users";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import Avatar from "@/components/Avatar";
+import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Field, FieldError, Input, Select, Textarea } from "@/components/ui/Field";
+import { InlineLoading } from "@/components/ui/Spinner";
+import { useToast } from "@/components/ui/Toast";
+import { AdminChip, AdminHeader } from "../AdminUI";
 
 interface Origin {
   id: string;
@@ -24,15 +37,11 @@ interface AdminFeature {
   origins: Origin[];
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
-}
-
 export default function AdminRoadmapPage() {
   const [features, setFeatures] = useState<AdminFeature[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const toast = useToast();
   const [filter, setFilter] = useState("all");
 
   const [editing, setEditing] = useState<AdminFeature | null>(null);
@@ -43,13 +52,11 @@ export default function AdminRoadmapPage() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<AdminFeature | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [zoomed, setZoomed] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const showToast = useCallback((text: string) => {
-    setToast(text);
-    setTimeout(() => setToast(""), 4000);
-  }, []);
+  useEscapeKey(() => setZoomed(null), !!zoomed);
 
   // Al recargar tras guardar no se vuelve a «Cargando…»: se refresca en el sitio.
   const load = useCallback(() => {
@@ -121,10 +128,10 @@ export default function AdminRoadmapPage() {
 
       if (editing) {
         setFeatures((prev) => prev.map((f) => (f.id === saved.id ? { ...f, ...saved } : f)));
-        showToast("Propuesta actualizada");
+        toast("Propuesta actualizada");
       } else {
         setFeatures((prev) => [{ ...saved, voters: [], origins: [] }, ...prev]);
-        showToast("Propuesta creada — ya se ve en el roadmap");
+        toast("Propuesta creada — ya se ve en el roadmap");
       }
       closeModal();
       load();
@@ -144,31 +151,33 @@ export default function AdminRoadmapPage() {
       body: JSON.stringify({ status: next }),
     });
     if (res.ok) {
-      showToast(`Ahora es «${featureStatusLabel(next)}»`);
+      toast(`Ahora es «${featureStatusLabel(next)}»`);
     } else {
       setFeatures(previous);
-      showToast("No se pudo cambiar el estado");
+      toast.error("No se pudo cambiar el estado");
     }
   };
 
   const remove = async () => {
-    if (!confirmDelete) return;
-    const res = await fetch(`/api/admin/features/${confirmDelete.id}`, { method: "DELETE" });
-    if (res.ok) {
+    if (!confirmDelete || deleting) return;
+    setDeleting(true);
+    const res = await fetch(`/api/admin/features/${confirmDelete.id}`, { method: "DELETE" }).catch(() => null);
+    setDeleting(false);
+    if (res?.ok) {
       setFeatures((prev) => prev.filter((f) => f.id !== confirmDelete.id));
       setConfirmDelete(null);
-      showToast("Entrada eliminada");
+      toast("Entrada eliminada");
     } else {
-      showToast("No se pudo eliminar");
+      toast.error("No se pudo eliminar");
     }
   };
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-display font-semibold">Roadmap e ideas</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
+      <AdminHeader
+        title="Roadmap e ideas"
+        lead={
+          <>
             Todo lo que propone la gente se publica al momento.{" "}
             <Link
               href="/roadmap"
@@ -178,42 +187,24 @@ export default function AdminRoadmapPage() {
             >
               Ver la página pública ↗
             </Link>
-          </p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="px-4 py-2 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
-        >
-          Nueva propuesta
-        </button>
-      </header>
+          </>
+        }
+        action={<Button onClick={openCreate}>Nueva propuesta</Button>}
+      />
 
       <div className="flex gap-2 flex-wrap">
         {[{ id: "all", label: "Todas" }, ...FEATURE_STATUSES.map((s) => ({ id: s.id, label: s.label }))].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setFilter(tab.id)}
-            className={`px-3.5 py-1.5 rounded-xl text-sm font-medium transition-colors border ${
-              filter === tab.id
-                ? "bg-purple-600 text-white border-purple-600"
-                : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--surface-hover)]"
-            }`}
-          >
+          <AdminChip key={tab.id} active={filter === tab.id} count={counts[tab.id] ?? 0} onClick={() => setFilter(tab.id)}>
             {tab.label}
-            <span className={`ml-1.5 text-xs ${filter === tab.id ? "text-white/80" : "text-[var(--text-muted)]"}`}>
-              {counts[tab.id] ?? 0}
-            </span>
-          </button>
+          </AdminChip>
         ))}
       </div>
 
-      {error && <div className="text-sm text-red-500">{error}</div>}
-      {loading && <div className="text-sm text-[var(--text-muted)]">Cargando…</div>}
+      {error && <Alert>{error}</Alert>}
+      {loading && <InlineLoading />}
 
       {!loading && filtered.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[var(--border)] p-10 text-center text-sm text-[var(--text-muted)]">
-          {features.length === 0 ? "Aún no hay propuestas." : "Nada con ese estado."}
-        </div>
+        <EmptyState variant="dashed" title={features.length === 0 ? "Aún no hay propuestas." : "Nada con ese estado."} />
       )}
 
       <div className="space-y-3">
@@ -239,32 +230,22 @@ export default function AdminRoadmapPage() {
                     >
                       {featureStatusLabel(f.status)}
                     </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">· {formatDate(f.createdAt)}</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">· {formatDateShort(f.createdAt)}</span>
                   </div>
                   <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap mt-1">{f.description}</p>
 
                   {origin && (
                     <button
+                      type="button"
+                      aria-expanded={isOpen}
                       onClick={() => toggleExpanded(f.id)}
                       className="mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-purple-600"
                     >
-                      {origin.author.avatarUrl ? (
-                        <Image
-                          src={origin.author.avatarUrl}
-                          alt={origin.author.name}
-                          width={18}
-                          height={18}
-                          className="w-[18px] h-[18px] rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="w-[18px] h-[18px] rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 flex items-center justify-center text-[9px] font-semibold">
-                          {origin.author.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                      Propuesta de {origin.author.name}
+                      <Avatar name={displayName(origin.author, origin.author.email)} avatarUrl={origin.author.avatarUrl} size="xs" />
+                      Propuesta de {displayName(origin.author, origin.author.email)}
                       {f.origins.length > 1 && ` y ${f.origins.length - 1} más`}
                       {origin.images.length > 0 && ` · ${origin.images.length} captura${origin.images.length === 1 ? "" : "s"}`}
-                      <span>{isOpen ? "▴" : "▾"}</span>
+                      <span aria-hidden>{isOpen ? "▴" : "▾"}</span>
                     </button>
                   )}
 
@@ -275,7 +256,7 @@ export default function AdminRoadmapPage() {
                         className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-3"
                       >
                         <div className="text-xs text-[var(--text-muted)] mb-1">
-                          {o.author.name} · {o.author.email} · {formatDate(o.createdAt)}
+                          {displayName(o.author, o.author.email)} · {o.author.email} · {formatDateShort(o.createdAt)}
                         </div>
                         <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">{o.message}</p>
                         {o.images.length > 0 && (
@@ -283,6 +264,8 @@ export default function AdminRoadmapPage() {
                             {o.images.map((url) => (
                               <button
                                 key={url}
+                                type="button"
+                                aria-label="Ampliar captura"
                                 onClick={() => setZoomed(url)}
                                 className="w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)]"
                               >
@@ -303,27 +286,11 @@ export default function AdminRoadmapPage() {
                   {f.voters.length > 0 && (
                     <div className="flex items-center gap-1.5 mt-3">
                       <div className="flex -space-x-2">
-                        {f.voters.slice(0, 8).map((v) =>
-                          v.avatarUrl ? (
-                            <Image
-                              key={v.id}
-                              src={v.avatarUrl}
-                              alt={v.name}
-                              title={v.name}
-                              width={24}
-                              height={24}
-                              className="w-6 h-6 rounded-full object-cover border border-[var(--surface)]"
-                            />
-                          ) : (
-                            <span
-                              key={v.id}
-                              title={v.name}
-                              className="w-6 h-6 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 flex items-center justify-center text-[10px] font-semibold border border-[var(--surface)]"
-                            >
-                              {v.name.charAt(0).toUpperCase()}
-                            </span>
-                          )
-                        )}
+                        {f.voters.slice(0, 8).map((v) => (
+                          <span key={v.id} title={v.name} className="rounded-full ring-1 ring-[var(--surface)]">
+                            <Avatar name={v.name} avatarUrl={v.avatarUrl} size="xs" />
+                          </span>
+                        ))}
                       </div>
                       {f.votes > f.voters.length && (
                         <span className="text-xs text-[var(--text-muted)]">y {f.votes - f.voters.length} más</span>
@@ -332,29 +299,26 @@ export default function AdminRoadmapPage() {
                   )}
 
                   <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <select
-                      value={f.status}
-                      onChange={(e) => changeStatus(f, e.target.value)}
-                      className="px-3 py-1.5 rounded-xl text-xs bg-[var(--input-bg)] border border-[var(--input-border)]"
-                    >
-                      {FEATURE_STATUSES.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => openEdit(f)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-purple-600"
-                    >
+                    <div className="w-36">
+                      <Select
+                        size="sm"
+                        aria-label="Estado"
+                        value={f.status}
+                        onChange={(e) => changeStatus(f, e.target.value)}
+                      >
+                        {FEATURE_STATUSES.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <Button variant="secondary" size="xs" onClick={() => openEdit(f)}>
                       Editar
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(f)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-red-500"
-                    >
+                    </Button>
+                    <Button variant="dangerOutline" size="xs" onClick={() => setConfirmDelete(f)}>
                       Eliminar
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -363,115 +327,82 @@ export default function AdminRoadmapPage() {
         })}
       </div>
 
-      {(editing || creating) && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => !saving && closeModal()}
-        >
-          <div
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl w-full max-w-lg p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-display font-semibold mb-1">
-              {editing ? "Editar propuesta" : "Nueva propuesta"}
-            </h2>
-            <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Así es como la ven los usuarios en el roadmap.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Título</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  maxLength={200}
-                  className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm"
-                  placeholder="Poder apuntar invitados que no tienen cuenta"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Descripción</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={2000}
-                  rows={4}
-                  className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm resize-none"
-                  placeholder="Explícalo como se lo contarías a un jugador, sin tecnicismos."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Estado</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm"
-                >
-                  {FEATURE_STATUSES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label} — {s.hint}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {modalError && <p className="text-sm text-red-500 mt-3">{modalError}</p>}
-
-            <div className="flex justify-end gap-2 mt-5">
-              <button
-                onClick={closeModal}
-                disabled={saving}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border)]"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={save}
-                disabled={saving || !title.trim() || !description.trim()}
-                className="px-5 py-2 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
-              >
-                {saving ? "Guardando…" : "Guardar"}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={!!editing || creating}
+        onClose={closeModal}
+        title={editing ? "Editar propuesta" : "Nueva propuesta"}
+        description="Así es como la ven los usuarios en el roadmap."
+        size="lg"
+        busy={saving}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={save} loading={saving} disabled={!title.trim() || !description.trim()}>
+              {saving ? "Guardando…" : "Guardar"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Título">
+            {(fieldId) => (
+              <Input
+                id={fieldId}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={200}
+                placeholder="Poder apuntar invitados que no tienen cuenta"
+              />
+            )}
+          </Field>
+          <Field label="Descripción">
+            {(fieldId) => (
+              <Textarea
+                id={fieldId}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={2000}
+                rows={4}
+                placeholder="Explícalo como se lo contarías a un jugador, sin tecnicismos."
+              />
+            )}
+          </Field>
+          <Field label="Estado">
+            {(fieldId) => (
+              <Select id={fieldId} value={status} onChange={(e) => setStatus(e.target.value)}>
+                {FEATURE_STATUSES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label} — {s.hint}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <FieldError>{modalError}</FieldError>
         </div>
-      )}
+      </Modal>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => setConfirmDelete(null)}
-        >
-          <div
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl w-full max-w-md p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-display font-semibold mb-2">Eliminar del roadmap</h2>
-            <p className="text-sm text-[var(--text-secondary)] mb-5">
+      <ConfirmDialog
+        open={!!confirmDelete}
+        tone="danger"
+        title="Eliminar del roadmap"
+        body={
+          confirmDelete && (
+            <p>
               Se borra «{confirmDelete.title}», sus {confirmDelete.votes} voto
               {confirmDelete.votes === 1 ? "" : "s"} y el mensaje original de quien la propuso. Si solo quieres
               sacarla de la lista pública, márcala como «Lista» o «Descartada».
             </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border)]"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={remove}
-                className="px-5 py-2 rounded-xl text-sm font-semibold bg-red-500 hover:bg-red-600 text-white"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          )
+        }
+        confirmLabel="Eliminar"
+        busy={deleting}
+        onConfirm={remove}
+        onCancel={() => setConfirmDelete(null)}
+      />
 
       {zoomed && (
         <div
@@ -486,12 +417,6 @@ export default function AdminRoadmapPage() {
             className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-xl"
             onClick={(e) => e.stopPropagation()}
           />
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-xl px-4 py-2.5 text-sm z-50">
-          {toast}
         </div>
       )}
     </div>

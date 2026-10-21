@@ -5,6 +5,7 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import PushPrompt from "@/components/PushPrompt";
 import MobileTabBar from "@/components/MobileTabBar";
 import UiProviders from "@/components/ui/Providers";
+import { APP_URL } from "@/lib/site";
 import "./globals.css";
 
 // Las dos son fuentes variables: sin lista de pesos, Next descarga un único
@@ -25,8 +26,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
   preload: false,
 });
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 export const metadata: Metadata = {
   // Sin esto, las imágenes de las tarjetas de compartir salen con rutas

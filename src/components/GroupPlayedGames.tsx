@@ -1,6 +1,10 @@
 "use client";
 
-import Image from "next/image";
+import { bggGameUrl } from "@/lib/bggLinks";
+import { formatDateShort } from "@/lib/format";
+import { cardClass } from "./ui/Card";
+import { EmptyState } from "./ui/EmptyState";
+import GameThumb from "./ui/GameThumb";
 
 interface PlayedItem {
   groupGameId: string;
@@ -23,15 +27,12 @@ export default function GroupPlayedGames({
 }: Props) {
   if (games.length === 0) {
     return (
-      <div className="text-center py-16">
-        <p className="text-4xl mb-3">🎲</p>
-        <p className="font-medium mb-1" style={{ color: "var(--text)" }}>
-          Aún no habéis jugado nada
-        </p>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Marca un juego como jugado desde el ranking y aparecerá aquí.
-        </p>
-      </div>
+      <EmptyState
+        icon="🎲"
+        title="Aún no habéis jugado nada"
+        description="Marca un juego como jugado desde el ranking y aparecerá aquí."
+        className="py-16"
+      />
     );
   }
 
@@ -46,20 +47,14 @@ export default function GroupPlayedGames({
         {games.map((item) => (
           <div
             key={item.groupGameId}
-            className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 transition-all duration-200"
+            className={cardClass({ padding: "sm", className: "relative" })}
           >
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)]">
-                {item.game.thumbnail ? (
-                  <Image src={item.game.thumbnail} alt={item.game.name} width={40} height={40} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-                )}
-              </div>
+              <GameThumb src={item.game.thumbnail} name={item.game.name} size="sm" />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-[var(--text-secondary)] text-sm leading-tight">
                   <a
-                    href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
+                    href={bggGameUrl(item.game.bggId)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-[var(--primary)] transition-colors"
@@ -71,7 +66,7 @@ export default function GroupPlayedGames({
               <div className="text-right shrink-0">
                 {item.lastPlayedDate ? (
                   <div className="text-xs text-[var(--text-muted)]">
-                    {new Date(item.lastPlayedDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                    {formatDateShort(item.lastPlayedDate)}
                   </div>
                 ) : (
                   <div className="text-xs text-[var(--text-muted)]">—</div>

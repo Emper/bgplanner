@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { ApiError, apiHandler, requireSuperadmin } from "@/lib/api";
+import { displayName } from "@/lib/users";
 
-export async function GET(
+export const GET = apiHandler(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
+) => {
+  await requireSuperadmin(request);
 
   const { id } = await params;
 
@@ -52,9 +47,7 @@ export async function GET(
     }),
   ]);
 
-  if (!event) {
-    return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-  }
+  if (!event) throw new ApiError(404, "Evento no encontrado");
 
   return NextResponse.json({
     id: event.id,
@@ -74,7 +67,7 @@ export async function GET(
       joinedAt: a.joinedAt,
       user: {
         id: a.user.id,
-        name: a.user.displayName || a.user.name || a.user.email,
+        name: displayName(a.user, a.user.email),
         email: a.user.email,
         avatarUrl: a.user.avatarUrl,
       },
@@ -84,18 +77,18 @@ export async function GET(
       gameName: g.game.name,
       thumbnail: g.game.thumbnail,
       addedAt: g.addedAt,
-      addedBy: g.addedBy.displayName || g.addedBy.name || g.addedBy.email,
+      addedBy: displayName(g.addedBy, g.addedBy.email),
       interests: g.interests.map((i) => ({
         intensity: i.intensity,
-        userName: i.attendee.user.displayName || i.attendee.user.name || i.attendee.user.email,
+        userName: displayName(i.attendee.user, i.attendee.user.email),
       })),
     })),
     activity: activity.map((a) => ({
       id: a.id,
       type: a.type,
       createdAt: a.createdAt,
-      userName: a.user.displayName || a.user.name || a.user.email,
+      userName: displayName(a.user, a.user.email),
       metadata: a.metadata,
     })),
   });
-}
+});

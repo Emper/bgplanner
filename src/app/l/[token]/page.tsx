@@ -1,13 +1,18 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import { findSharedList, type SharedList } from "@/lib/sharedList";
 import { formatEventWhen } from "@/lib/publicLinks";
 import { INTENSITY_COLORS, intensityText, isVeto } from "@/lib/intensity";
+import { bggGameUrl } from "@/lib/bggLinks";
 import SmartNav from "@/components/SmartNav";
-import Footer from "@/components/Footer";
 import SignupBanner from "@/components/SignupBanner";
+import PageShell from "@/components/ui/PageShell";
+import { BackLink } from "@/components/ui/PageHeader";
+import { ButtonLink } from "@/components/ui/Button";
+import { EmptyState, Notice } from "@/components/ui/EmptyState";
+import { cardClass } from "@/components/ui/Card";
+import GameThumb from "@/components/ui/GameThumb";
 
 // Depende de quién mire y de datos vivos: nada que prerrenderizar.
 export const dynamic = "force-dynamic";
@@ -57,16 +62,16 @@ function Row({ item, played }: { item: SharedList["pending"][number]; played: bo
           </svg>
         </span>
       )}
-      <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${struck ? "opacity-60" : ""} ${isVeto(item.intensity) ? "grayscale" : ""}`}>
-        {item.game.thumbnail ? (
-          <Image src={item.game.thumbnail} alt={item.game.name} width={40} height={40} className="w-full h-full object-contain" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-        )}
-      </div>
+      <GameThumb
+        src={item.game.thumbnail}
+        name={item.game.name}
+        size="sm"
+        fit="contain"
+        className={`${struck ? "opacity-60" : ""} ${isVeto(item.intensity) ? "grayscale" : ""}`}
+      />
       <div className="flex-1 min-w-0 flex items-center gap-x-2 gap-y-1 flex-wrap">
         <a
-          href={`https://boardgamegeek.com/boardgame/${item.game.bggId}`}
+          href={bggGameUrl(item.game.bggId)}
           target="_blank"
           rel="noopener noreferrer"
           className={`font-semibold text-sm sm:text-base hover:text-[var(--primary)] transition-colors ${
@@ -100,25 +105,21 @@ export default async function SharedListPage({
 
   if (!list) {
     return (
-      <>
-        <SmartNav />
-        <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-          <div className="max-w-xl mx-auto bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-8 text-center">
-            <div className="text-4xl mb-3">🔒</div>
-            <h1 className="text-xl font-bold text-[var(--text)] mb-2">Este enlace ya no funciona</h1>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
-              Puede que su dueño haya dejado de compartir la lista o haya generado un enlace nuevo. Pídeselo otra vez.
-            </p>
-            <Link
-              href={session ? "/events" : "/"}
-              className="inline-flex px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
-            >
+      <PageShell nav={<SmartNav />} width="form">
+        <Notice
+          icon="🔒"
+          title="Este enlace ya no funciona"
+          actions={
+            <ButtonLink href={session ? "/events" : "/"} size="lg">
               {session ? "Ir a mis eventos" : "Conocer BG Planner"}
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </>
+            </ButtonLink>
+          }
+        >
+          <p>
+            Puede que su dueño haya dejado de compartir la lista o haya generado un enlace nuevo. Pídeselo otra vez.
+          </p>
+        </Notice>
+      </PageShell>
     );
   }
 
@@ -126,73 +127,70 @@ export default async function SharedListPage({
   const empty = list.pending.length === 0 && list.played.length === 0 && list.vetoed.length === 0;
 
   return (
-    <>
-      <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-main">
-          <div className="mb-6">
-            <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] mb-1">Lista compartida</p>
-            <h1 className="page-title">La lista de {list.ownerName}</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Para{" "}
-              <Link href={`/events/${list.event.id}`} className="font-semibold text-[var(--text)] hover:text-[var(--primary)] transition-colors">
-                {list.event.name}
-              </Link>
-              {" · "}
-              {formatEventWhen(list.event.date.toISOString())}
-              {list.event.location ? ` · ${list.event.location}` : ""}
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
-              {isSelf
-                ? "Esto es lo que ve quien abra tu enlace. Tus notas no salen aquí."
-                : `Lo que ${list.ownerName} quiere jugar, de más a menos ganas.`}
-            </p>
-          </div>
+    <PageShell nav={<SmartNav />} width="main">
+      <header className="mb-6">
+        <BackLink href={`/events/${list.event.id}`} className="mb-3">
+          {list.event.name}
+        </BackLink>
+        <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] mb-1">Lista compartida</p>
+        <h1 className="page-title">La lista de {list.ownerName}</h1>
+        <p className="page-lead mt-1">
+          Para{" "}
+          <Link href={`/events/${list.event.id}`} className="font-semibold text-[var(--text)] hover:text-[var(--primary)] transition-colors">
+            {list.event.name}
+          </Link>
+          {" · "}
+          {formatEventWhen(list.event.date.toISOString())}
+          {list.event.location ? ` · ${list.event.location}` : ""}
+        </p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          {isSelf
+            ? "Esto es lo que ve quien abra tu enlace. Tus notas no salen aquí."
+            : `Lo que ${list.ownerName} quiere jugar, de más a menos ganas.`}
+        </p>
+      </header>
 
-          {!session && (
-            <SignupBanner variant="event" redirect={`/l/${encodeURIComponent(token)}`} />
+      {!session && (
+        <SignupBanner variant="event" redirect={`/l/${encodeURIComponent(token)}`} />
+      )}
+
+      {empty ? (
+        <EmptyState title="Todavía no hay juegos en esta lista" />
+      ) : (
+        <div className="space-y-6">
+          {list.pending.length > 0 ? (
+            <div className={cardClass({ padding: "none", className: "px-3 sm:px-4 py-1" })}>
+              <ul className="divide-y divide-[var(--border)]">
+                {list.pending.map((item) => <Row key={item.id} item={item} played={false} />)}
+              </ul>
+            </div>
+          ) : list.played.length > 0 ? (
+            <EmptyState title="¡Ya lo ha jugado todo! 🎉" />
+          ) : null}
+
+          {list.played.length > 0 && (
+            <div className={cardClass({ padding: "none", className: "px-3 sm:px-4 py-2" })}>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
+                Jugados ({list.played.length})
+              </h2>
+              <ul className="divide-y divide-[var(--border)]">
+                {list.played.map((item) => <Row key={item.id} item={item} played />)}
+              </ul>
+            </div>
           )}
 
-          {empty ? (
-            <p className="text-[var(--text-secondary)] text-center py-8">Todavía no hay juegos en esta lista.</p>
-          ) : (
-            <div className="space-y-6">
-              {list.pending.length > 0 ? (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-1">
-                  <ul className="divide-y divide-[var(--border)]">
-                    {list.pending.map((item) => <Row key={item.id} item={item} played={false} />)}
-                  </ul>
-                </div>
-              ) : list.played.length > 0 ? (
-                <p className="text-[var(--text-secondary)] text-center py-6">¡Ya lo ha jugado todo! 🎉</p>
-              ) : null}
-
-              {list.played.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
-                    Jugados ({list.played.length})
-                  </h2>
-                  <ul className="divide-y divide-[var(--border)]">
-                    {list.played.map((item) => <Row key={item.id} item={item} played />)}
-                  </ul>
-                </div>
-              )}
-
-              {list.vetoed.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-dashed border-[var(--border)] px-3 sm:px-4 py-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
-                    No quiere jugarlos ({list.vetoed.length})
-                  </h2>
-                  <ul className="divide-y divide-[var(--border)]">
-                    {list.vetoed.map((item) => <Row key={item.id} item={item} played={false} />)}
-                  </ul>
-                </div>
-              )}
+          {list.vetoed.length > 0 && (
+            <div className="bg-[var(--surface)] rounded-2xl border border-dashed border-[var(--border)] px-3 sm:px-4 py-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
+                No quiere jugarlos ({list.vetoed.length})
+              </h2>
+              <ul className="divide-y divide-[var(--border)]">
+                {list.vetoed.map((item) => <Row key={item.id} item={item} played={false} />)}
+              </ul>
             </div>
           )}
         </div>
-      </div>
-      <Footer />
-    </>
+      )}
+    </PageShell>
   );
 }

@@ -6,6 +6,15 @@ import Avatar from "./Avatar";
 import EmojiField from "./EmojiField";
 import { MoreMenu, ReportModal } from "./Moderation";
 import { resizeImageToBlob } from "@/lib/image";
+import { displayName } from "@/lib/users";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import Button, { buttonClass, IconButton } from "./ui/Button";
+import { fieldClass } from "./ui/Field";
+import { useConfirm } from "./ui/ConfirmDialog";
+import { useToast } from "./ui/Toast";
+import { EmptyState } from "./ui/EmptyState";
+import Spinner, { InlineLoading } from "./ui/Spinner";
+import { cardClass } from "./ui/Card";
 
 interface EventPhoto {
   id: string;
@@ -53,8 +62,12 @@ export default function EventGallery({
   const [hover, setHover] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [savingReview, setSavingReview] = useState(false);
-  const [reviewMsg, setReviewMsg] = useState("");
   const reviewRef = useRef<HTMLDivElement>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
+
+  // El visor se cierra con Escape (si no hay una denuncia abierta encima).
+  useEscapeKey(() => setLightbox(null), lightbox != null && !reportingPhoto);
 
   // Al recargar (tras guardar la valoración, p. ej.) no se vuelve a «Cargando…»:
   // se refresca en el sitio.
@@ -111,13 +124,13 @@ export default function EventGallery({
   };
 
   const deletePhoto = async (id: string) => {
-    if (!confirm("¿Borrar esta foto?")) return;
+    if (!(await confirm({ title: "¿Borrar esta foto?", confirmLabel: "Borrar", tone: "danger" }))) return;
     setDeletingPhoto(id);
     try {
       const res = await fetch(`/api/events/${eventId}/photos/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Error al borrar");
+        toast.error(data.error || "Error al borrar");
       } else {
         setPhotos((prev) => prev.filter((p) => p.id !== id));
       }
@@ -128,7 +141,6 @@ export default function EventGallery({
 
   const saveReview = async () => {
     setSavingReview(true);
-    setReviewMsg("");
     try {
       const res = await fetch(`/api/events/${eventId}/reviews`, {
         method: "PUT",
@@ -137,11 +149,10 @@ export default function EventGallery({
       });
       const data = await res.json();
       if (!res.ok) {
-        setReviewMsg(data.error || "Error al guardar");
+        toast.error(data.error || "Error al guardar");
       } else {
-        setReviewMsg("¡Guardado!");
+        toast("¡Guardado!");
         load();
-        setTimeout(() => setReviewMsg(""), 3000);
       }
     } finally {
       setSavingReview(false);
@@ -149,11 +160,7 @@ export default function EventGallery({
   };
 
   if (loading) {
-    return (
-      <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>
-        Cargando galería…
-      </p>
-    );
+    return <InlineLoading text="Cargando galería…" className="py-12" />;
   }
 
   const rated = reviews.filter((r) => r.rating && r.rating > 0);
@@ -163,34 +170,22 @@ export default function EventGallery({
 
   return (
     <div className="space-y-8">
-      {error && (
-        <p className="text-sm" style={{ color: "#ef4444" }}>
-          {error}
-        </p>
-      )}
+      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
 
       {/* ── Valoraciones ── */}
       <section ref={reviewRef}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold" style={{ color: "var(--text)", fontFamily: "var(--font-display)" }}>
-            Valoraciones
-          </h3>
+          <h3 className="text-lg font-semibold text-[var(--text)]">Valoraciones</h3>
           {avg != null && (
-            <span className="text-sm" style={{ color: "#f59e0b" }}>
-              ★ {avg.toFixed(1)}{" "}
-              <span style={{ color: "var(--text-muted)" }}>({rated.length})</span>
+            <span className="text-sm text-[var(--primary)]">
+              ★ {avg.toFixed(1)} <span className="text-[var(--text-muted)]">({rated.length})</span>
             </span>
           )}
         </div>
 
         {canParticipate && (
-          <div
-            className="rounded-2xl p-4 mb-4"
-            style={{ background: "var(--surface)", boxShadow: "var(--card-shadow)" }}
-          >
-            <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-              Tu valoración
-            </p>
+          <div className={cardClass({ padding: "none", className: "p-4 mb-4" })}>
+            <p className="text-sm mb-2 text-[var(--text-secondary)]">Tu valoración</p>
             <div className="flex gap-1 mb-3">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -199,8 +194,9 @@ export default function EventGallery({
                   onClick={() => setRating(n === rating ? 0 : n)}
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(0)}
-                  className="text-3xl leading-none transition-transform hover:scale-110"
-                  style={{ color: (hover || rating) >= n ? "#f59e0b" : "var(--border)" }}
+                  className={`text-3xl leading-none transition-transform hover:scale-110 ${
+                    (hover || rating) >= n ? "text-[var(--primary)]" : "text-[var(--border)]"
+                  }`}
                   aria-label={`${n} estrellas`}
                 >
                   ★
@@ -213,53 +209,34 @@ export default function EventGallery({
               maxLength={1000}
               rows={3}
               placeholder="¿Qué tal el evento? Lo mejor, lo que repetirías…"
-              className="w-full rounded-xl p-3 text-sm resize-none"
-              style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text)" }}
+              className={fieldClass({ className: "resize-none" })}
             />
             <div className="flex items-center justify-end gap-3 mt-2">
-              {reviewMsg && (
-                <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                  {reviewMsg}
-                </span>
-              )}
-              <button
-                onClick={saveReview}
-                disabled={savingReview}
-                className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-                style={{ background: "#f59e0b", color: "#0f172a" }}
-              >
+              <Button onClick={saveReview} loading={savingReview}>
                 {savingReview ? "Guardando…" : "Guardar valoración"}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {reviews.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Aún no hay valoraciones.
-          </p>
+          <p className="text-sm text-[var(--text-muted)]">Aún no hay valoraciones.</p>
         ) : (
           <div className="space-y-3">
             {reviews.map((r) => {
-              const authorName = r.user.displayName || r.user.name || "Alguien";
+              const authorName = displayName(r.user, "Alguien");
               return (
                 <div key={r.id} className="flex items-start gap-3">
                   <Avatar name={authorName} avatarUrl={r.user.avatarUrl} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                      {authorName}
-                    </p>
+                    <p className="text-sm font-semibold text-[var(--text)]">{authorName}</p>
                     {r.rating != null && r.rating > 0 && (
-                      <p className="text-sm" style={{ color: "#f59e0b" }}>
+                      <p className="text-sm text-[var(--primary)]">
                         {"★".repeat(r.rating)}
-                        <span style={{ color: "var(--border)" }}>{"★".repeat(5 - r.rating)}</span>
+                        <span className="text-[var(--border)]">{"★".repeat(5 - r.rating)}</span>
                       </p>
                     )}
-                    {r.text && (
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text)" }}>
-                        {r.text}
-                      </p>
-                    )}
+                    {r.text && <p className="text-sm whitespace-pre-wrap text-[var(--text)]">{r.text}</p>}
                   </div>
                 </div>
               );
@@ -271,17 +248,17 @@ export default function EventGallery({
       {/* ── Fotos ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold" style={{ color: "var(--text)", fontFamily: "var(--font-display)" }}>
-            Fotos
-          </h3>
+          <h3 className="text-lg font-semibold text-[var(--text)]">Fotos</h3>
           {canParticipate && (
             <label
-              className={`px-4 py-2 rounded-xl text-sm font-medium inline-flex items-center gap-2 ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
-              style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+              className={buttonClass({
+                variant: "secondary",
+                className: uploading ? "opacity-60 cursor-wait" : "cursor-pointer",
+              })}
             >
               {uploading ? (
                 <>
-                  <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  <Spinner size="sm" tone="current" />
                   Subiendo…
                 </>
               ) : (
@@ -303,12 +280,11 @@ export default function EventGallery({
         </div>
 
         {photos.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-4xl mb-3">📷</p>
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-              Aún no hay fotos. {canParticipate ? "¡Sé el primero en subir alguna!" : ""}
-            </p>
-          </div>
+          <EmptyState
+            icon="📷"
+            title="Aún no hay fotos."
+            description={canParticipate ? "¡Sé el primero en subir alguna!" : undefined}
+          />
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {photos.map((p, i) => {
@@ -347,17 +323,19 @@ export default function EventGallery({
           className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
           onClick={() => setLightbox(null)}
         >
-          <button
-            className="absolute top-4 right-4 text-white text-3xl leading-none"
+          <IconButton
+            label="Cerrar"
+            tone="onImage"
+            className="absolute top-4 right-4 text-2xl leading-none"
             onClick={() => setLightbox(null)}
-            aria-label="Cerrar"
           >
             ×
-          </button>
+          </IconButton>
           {photos[lightbox].userId !== currentUserId && (
             <MoreMenu
               tone="dark"
               className="absolute top-4 left-4 z-10"
+              align="left"
               items={[{ label: "🚩 Denunciar foto", onClick: () => setReportingPhoto(photos[lightbox].id) }]}
             />
           )}

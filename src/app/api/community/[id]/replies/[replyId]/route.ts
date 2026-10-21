@@ -1,64 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { replyEditSchema } from "@/lib/validations";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
 
 type Params = { params: Promise<{ id: string; replyId: string }> };
 
-function findLiveReply(threadId: string, replyId: string) {
-  return prisma.communityReply.findFirst({
+async function requireLiveReply(threadId: string, replyId: string) {
+  const reply = await prisma.communityReply.findFirst({
     where: { id: replyId, threadId, deletedAt: null, thread: { deletedAt: null } },
     select: { id: true, authorId: true },
   });
+  if (!reply) throw new ApiError(404, "Respuesta no encontrada");
+  return reply;
 }
 
 // Edita una respuesta propia.
-export async function PATCH(request: NextRequest, { params }: Params) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const PATCH = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
   const { id, replyId } = await params;
-  const reply = await findLiveReply(id, replyId);
-  if (!reply) {
-    return NextResponse.json({ error: "Respuesta no encontrada" }, { status: 404 });
-  }
+  const reply = await requireLiveReply(id, replyId);
   if (reply.authorId !== session.userId) {
-    return NextResponse.json({ error: "No puedes editar esta respuesta" }, { status: 403 });
+    throw new ApiError(403, "No puedes editar esta respuesta");
   }
 
-  const body = await request.json().catch(() => null);
-  const parsed = replyEditSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
+  const { body } = await parseBody(request, replyEditSchema);
 
   const updated = await prisma.communityReply.update({
     where: { id: replyId },
-    data: { body: parsed.data.body, editedAt: new Date() },
+    data: { body, editedAt: new Date() },
     select: { id: true, body: true, editedAt: true },
   });
 
   return NextResponse.json({ reply: updated });
-}
+});
 
 // Borra una respuesta (deja su hueco). Su autor o un superadmin.
-export async function DELETE(request: NextRequest, { params }: Params) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const DELETE = apiHandler(async (request: NextRequest, { params }: Params) => {
+  const session = await requireSession(request);
   const { id, replyId } = await params;
-  const reply = await findLiveReply(id, replyId);
-  if (!reply) {
-    return NextResponse.json({ error: "Respuesta no encontrada" }, { status: 404 });
-  }
+  const reply = await requireLiveReply(id, replyId);
   if (reply.authorId !== session.userId && !(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No puedes borrar esta respuesta" }, { status: 403 });
+    throw new ApiError(403, "No puedes borrar esta respuesta");
   }
 
   await prisma.communityReply.update({ where: { id: replyId }, data: { deletedAt: new Date() } });
   return NextResponse.json({ success: true });
-}
+});

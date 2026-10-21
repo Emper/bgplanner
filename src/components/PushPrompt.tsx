@@ -13,6 +13,8 @@ import {
   snoozeNudges,
   type PushNudgeReason,
 } from "@/lib/pushNudge";
+import Modal from "./ui/Modal";
+import Button from "./ui/Button";
 
 // Nuestra propia hoja para ofrecer los avisos antes de que salga el diálogo
 // del sistema. Ese diálogo solo se lanza al pulsar «Activar avisos»: pedirlo
@@ -102,18 +104,6 @@ export default function PushPrompt() {
     close();
   }, [close]);
 
-  // Escape = «Ahora no» mientras se pregunta
-  useEffect(() => {
-    if (!reason) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (phase === "ask") later();
-      else if (phase !== "busy") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [reason, phase, later, close]);
-
   // Hecho: se va sola salvo que haya algo más que ofrecer (instalar la app)
   useEffect(() => {
     if (phase !== "done" || installable) return;
@@ -150,31 +140,21 @@ export default function PushPrompt() {
   };
 
   const copy = COPY[reason];
-  const backdrop = () => {
+  // Escape o pulsar fuera = «Ahora no» mientras se pregunta (el Modal ya no
+  // deja cerrar mientras se activa)
+  const dismiss = () => {
     if (phase === "ask") later();
-    else if (phase !== "busy") close();
+    else close();
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-4 animate-[fade-in_0.2s_ease-out]"
-      onClick={backdrop}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="push-prompt-title"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 animate-[fade-up_0.3s_ease-out]"
-      >
+    <Modal open onClose={dismiss} busy={phase === "busy"} size="sm" showClose={false} className="animate-[fade-up_0.3s_ease-out]">
         {phase === "done" ? (
           <div className="text-center py-2">
             <div className="text-4xl mb-2" aria-hidden>
               🔔
             </div>
-            <p id="push-prompt-title" className="text-lg font-bold text-[var(--text)]">
-              ¡Avisos activados!
-            </p>
+            <h2 className="text-lg font-bold text-[var(--text)]">¡Avisos activados!</h2>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
               Te llegarán a este dispositivo aunque tengas BG Planner cerrado.
             </p>
@@ -184,20 +164,12 @@ export default function PushPrompt() {
                   Y si la instalas, la tienes a un toque, como cualquier otra app.
                 </p>
                 <div className="mt-4 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={install}
-                    className="w-full rounded-xl py-2.5 text-sm font-semibold bg-[var(--primary)] text-[var(--primary-text)] hover:bg-[var(--primary-hover)] transition-colors"
-                  >
+                  <Button block onClick={install}>
                     📥 Instalar la app
-                  </button>
-                  <button
-                    type="button"
-                    onClick={close}
-                    className="w-full rounded-xl py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
-                  >
+                  </Button>
+                  <Button block variant="ghost" onClick={close}>
                     Así está bien
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -207,20 +179,14 @@ export default function PushPrompt() {
             <div className="text-4xl mb-2" aria-hidden>
               🤐
             </div>
-            <p id="push-prompt-title" className="text-lg font-bold text-[var(--text)]">
-              Entendido, sin avisos
-            </p>
+            <h2 className="text-lg font-bold text-[var(--text)]">Entendido, sin avisos</h2>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
               Lo tendrás todo en la campana. Si cambias de idea, permite las notificaciones de BG Planner en los ajustes
               del navegador.
             </p>
-            <button
-              type="button"
-              onClick={close}
-              className="mt-4 w-full rounded-xl py-2.5 text-sm font-semibold border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors"
-            >
+            <Button block variant="secondary" onClick={close} className="mt-4">
               Vale
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -229,9 +195,7 @@ export default function PushPrompt() {
                 {copy.emoji}
               </span>
               <div className="min-w-0">
-                <p id="push-prompt-title" className="text-lg font-bold leading-snug text-[var(--text)]">
-                  {copy.title}
-                </p>
+                <h2 className="text-lg font-bold leading-snug text-[var(--text)]">{copy.title}</h2>
                 <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">{copy.lead}</p>
               </div>
             </div>
@@ -246,28 +210,21 @@ export default function PushPrompt() {
             <p className="text-xs text-[var(--text-muted)] mt-3 leading-relaxed">
               Solo lo que ya sale en tu campana. Se apaga cuando quieras desde Notificaciones.
             </p>
-            {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+            {error && (
+              <p role="alert" className="text-xs text-[var(--danger)] mt-2">
+                {error}
+              </p>
+            )}
             <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={activate}
-                disabled={phase === "busy"}
-                className="w-full rounded-xl py-2.5 text-sm font-semibold bg-[var(--primary)] text-[var(--primary-text)] hover:bg-[var(--primary-hover)] disabled:opacity-60 transition-colors"
-              >
+              <Button block onClick={activate} loading={phase === "busy"}>
                 {phase === "busy" ? "Activando…" : "Activar avisos"}
-              </button>
-              <button
-                type="button"
-                onClick={later}
-                disabled={phase === "busy"}
-                className="w-full rounded-xl py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text)] disabled:opacity-60 transition-colors"
-              >
+              </Button>
+              <Button block variant="ghost" onClick={later} disabled={phase === "busy"}>
                 Ahora no
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

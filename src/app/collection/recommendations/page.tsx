@@ -1,12 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import BggRating from "@/components/BggRating";
 import GameTags from "@/components/GameTags";
+import Alert from "@/components/ui/Alert";
+import Button, { ButtonLink } from "@/components/ui/Button";
+import { EmptyState, Notice } from "@/components/ui/EmptyState";
+import GameThumb from "@/components/ui/GameThumb";
+import PageHeader from "@/components/ui/PageHeader";
+import PageShell from "@/components/ui/PageShell";
+import Spinner from "@/components/ui/Spinner";
+import { Chip } from "@/components/ui/Tabs";
+import { useToast } from "@/components/ui/Toast";
+import { bggGameUrl } from "@/lib/bggLinks";
 import { fitsWeight } from "@/lib/gameLabels";
 import type {
   RecommendationsResponse,
@@ -47,18 +55,12 @@ function matches(game: RecommendedGame, players: Players, weight: Weight): boole
   return true;
 }
 
-interface Toast {
-  message: string;
-  undo?: () => void;
-}
-
 export default function RecommendationsPage() {
   const [data, setData] = useState<RecommendationsResponse | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<RecommendationsStatus | null>(null);
   const [phase, setPhase] = useState<"history" | "taste" | null>(null);
-  const [toast, setToast] = useState<Toast | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toast = useToast();
 
   const [players, setPlayers] = useState<Players>("");
   const [weight, setWeight] = useState<Weight>("");
@@ -68,12 +70,6 @@ export default function RecommendationsPage() {
   const [saved, setSaved] = useState<Set<number>>(new Set());
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState<Set<number>>(new Set());
-
-  const showToast = (t: Toast) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(t);
-    toastTimer.current = setTimeout(() => setToast(null), 4000);
-  };
 
   // ── Carga ─────────────────────────────────────────────────────────────
 
@@ -123,9 +119,7 @@ export default function RecommendationsPage() {
           setPhase(json.step);
         } catch (err) {
           if (!cancelled) {
-            showToast({
-              message: `${err instanceof Error ? err.message : "BGG no ha respondido"}. Te recomendamos con lo que ya teníamos.`,
-            });
+            toast(`${err instanceof Error ? err.message : "BGG no ha respondido"}. Te recomendamos con lo que ya teníamos.`);
           }
           break;
         }
@@ -138,7 +132,7 @@ export default function RecommendationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, toast]);
 
   // ── Acciones ──────────────────────────────────────────────────────────
 
@@ -160,7 +154,7 @@ export default function RecommendationsPage() {
       }
       return true;
     } catch (err) {
-      showToast({ message: err instanceof Error ? err.message : "No se ha podido guardar" });
+      toast.error(err instanceof Error ? err.message : "No se ha podido guardar");
       return false;
     } finally {
       setBusy((prev) => {
@@ -192,7 +186,7 @@ export default function RecommendationsPage() {
       return;
     }
     if (!wasSaved) {
-      showToast({ message: `${game.name} está en tu wishlist, dentro de «Mi colección»` });
+      toast(`${game.name} está en tu wishlist, dentro de «Mi colección»`);
     }
   };
 
@@ -204,13 +198,14 @@ export default function RecommendationsPage() {
       toggleSet(setDismissed, game.bggId, false);
       return;
     }
-    showToast({
-      message: `No volveremos a recomendarte ${game.name}`,
-      undo: async () => {
-        setToast(null);
-        toggleSet(setDismissed, game.bggId, false);
-        const undone = await setFlag(game.bggId, null);
-        if (!undone) toggleSet(setDismissed, game.bggId, true);
+    toast(`No volveremos a recomendarte ${game.name}`, {
+      action: {
+        label: "Deshacer",
+        onClick: async () => {
+          toggleSet(setDismissed, game.bggId, false);
+          const undone = await setFlag(game.bggId, null);
+          if (!undone) toggleSet(setDismissed, game.bggId, true);
+        },
       },
     });
   };
@@ -240,193 +235,134 @@ export default function RecommendationsPage() {
 
   if (data && !data.connected) {
     return (
-      <>
-        <Navbar />
-        <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-          <div className="max-w-xl mx-auto bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-8 text-center">
-            <div className="text-4xl mb-3">✨</div>
-            <h1 className="text-xl font-bold text-[var(--text)] mb-2">Recomendaciones</h1>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
-              Conecta tu usuario de BoardGameGeek y te recomendaremos juegos
-              que no tienes a partir de los que te gustan.
-            </p>
-            <Link
-              href="/profile"
-              className="inline-flex px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
-            >
-              Conectar mi cuenta de BGG
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </>
+      <PageShell nav={<Navbar />} width="form">
+        <Notice
+          icon="✨"
+          title="Recomendaciones"
+          actions={<ButtonLink href="/profile">Conectar mi cuenta de BGG</ButtonLink>}
+        >
+          <p>
+            Conecta tu usuario de BoardGameGeek y te recomendaremos juegos
+            que no tienes a partir de los que te gustan.
+          </p>
+        </Notice>
+      </PageShell>
     );
   }
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-[var(--bg)] page-pad">
-        <div className="page-wide">
-          <Link
-            href="/collection"
-            className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors mb-3"
-          >
-            ← Mi colección
-          </Link>
+    <PageShell nav={<Navbar />} width="wide">
+      <PageHeader
+        back={{ href: "/collection", label: "Mi colección" }}
+        title="Recomendaciones para ti"
+        lead="Juegos que no tienes, no has tenido y no has jugado, elegidos a partir de tu colección y tus valoraciones."
+      />
 
-          <div className="mb-6">
-            <h1 className="page-title">
-              Recomendaciones para ti
-            </h1>
-            <p className="page-lead mt-1">
-              Juegos que no tienes, no has tenido y no has jugado, elegidos a
-              partir de tu colección y tus valoraciones.
-            </p>
+      {phase && status && <PrepBanner phase={phase} status={status} />}
+
+      {error && <Alert className="mb-4">{error}</Alert>}
+
+      {loading && <Skeleton />}
+
+      {nothing && !phase && <NothingYet status={data.status} />}
+
+      {data && !nothing && (
+        <>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-5">
+            <ChipGroup
+              label="Jugadores"
+              options={PLAYER_OPTIONS}
+              value={players}
+              onChange={(v) => {
+                setPlayers(v);
+                setForYouShown(FOR_YOU_BATCH);
+              }}
+            />
+            <ChipGroup
+              label="Peso"
+              options={WEIGHT_OPTIONS}
+              value={weight}
+              onChange={(v) => {
+                setWeight(v);
+                setForYouShown(FOR_YOU_BATCH);
+              }}
+            />
           </div>
 
-          {phase && status && <PrepBanner phase={phase} status={status} />}
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          {loading && <Skeleton />}
-
-          {nothing && !phase && <EmptyState status={data.status} />}
-
-          {data && !nothing && (
-            <>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-5">
-                <ChipGroup
-                  label="Jugadores"
-                  options={PLAYER_OPTIONS}
-                  value={players}
-                  onChange={(v) => {
-                    setPlayers(v);
-                    setForYouShown(FOR_YOU_BATCH);
-                  }}
-                />
-                <ChipGroup
-                  label="Peso"
-                  options={WEIGHT_OPTIONS}
-                  value={weight}
-                  onChange={(v) => {
-                    setWeight(v);
-                    setForYouShown(FOR_YOU_BATCH);
-                  }}
-                />
-              </div>
-
-              <section className="mb-10">
-                <h2 className="text-lg font-bold text-[var(--text)]">Para ti</h2>
-                <p className="text-xs text-[var(--text-muted)] mb-3">
-                  En base a tus gustos, échales un vistazo.
-                </p>
-                {forYou.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
-                    {filtering
-                      ? "Nada con esos filtros. Prueba a quitar alguno."
-                      : "Ya lo has descartado todo. Vuelve otro día, que seguimos buscando."}
-                  </p>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {forYou.slice(0, forYouShown).map((game) => (
-                        <RecCard
-                          key={game.bggId}
-                          game={game}
-                          saved={saved.has(game.bggId)}
-                          busy={busy.has(game.bggId)}
-                          onToggleWishlist={() => toggleWishlist(game)}
-                          onDismiss={() => dismiss(game)}
-                        />
-                      ))}
-                    </div>
-                    {forYou.length > forYouShown && (
-                      <div className="text-center mt-4">
-                        <button
-                          onClick={() => setForYouShown((n) => n + FOR_YOU_BATCH)}
-                          className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition-all duration-200"
-                        >
-                          Ver más
-                        </button>
-                      </div>
-                    )}
-                  </>
+          <section className="mb-10">
+            <h2 className="text-lg font-bold text-[var(--text)]">Para ti</h2>
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              En base a tus gustos, échales un vistazo.
+            </p>
+            {forYou.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
+                {filtering
+                  ? "Nada con esos filtros. Prueba a quitar alguno."
+                  : "Ya lo has descartado todo. Vuelve otro día, que seguimos buscando."}
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {forYou.slice(0, forYouShown).map((game) => (
+                    <RecCard
+                      key={game.bggId}
+                      game={game}
+                      saved={saved.has(game.bggId)}
+                      busy={busy.has(game.bggId)}
+                      onToggleWishlist={() => toggleWishlist(game)}
+                      onDismiss={() => dismiss(game)}
+                    />
+                  ))}
+                </div>
+                {forYou.length > forYouShown && (
+                  <div className="text-center mt-4">
+                    <Button variant="secondary" onClick={() => setForYouShown((n) => n + FOR_YOU_BATCH)}>
+                      Ver más
+                    </Button>
+                  </div>
                 )}
-              </section>
+              </>
+            )}
+          </section>
 
-              {rows.map((row) => (
-                <section key={row.anchor.bggId} className="mb-10">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="shrink-0 w-11 h-11 rounded-xl overflow-hidden bg-[var(--surface-hover)] flex items-center justify-center">
-                      {row.anchor.thumbnail ? (
-                        <Image
-                          src={row.anchor.thumbnail}
-                          alt={row.anchor.name}
-                          width={44}
-                          height={44}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span>🎲</span>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-bold text-[var(--text)] leading-tight">
-                        Si te gustó <span className="text-[var(--primary)]">{row.anchor.name}</span>…
-                      </h2>
-                      <p className="text-xs text-[var(--text-muted)]">{row.anchor.why}</p>
-                    </div>
+          {rows.map((row) => (
+            <section key={row.anchor.bggId} className="mb-10">
+              <div className="flex items-center gap-3 mb-3">
+                <GameThumb src={row.anchor.thumbnail} name={row.anchor.name} size="sm" />
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-[var(--text)] leading-tight">
+                    Si te gustó <span className="text-[var(--primary)]">{row.anchor.name}</span>…
+                  </h2>
+                  <p className="text-xs text-[var(--text-muted)]">{row.anchor.why}</p>
+                </div>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x">
+                {row.games.map((game) => (
+                  <div key={game.bggId} className="snap-start shrink-0 w-[260px] flex">
+                    <RecCard
+                      game={game}
+                      compact
+                      saved={saved.has(game.bggId)}
+                      busy={busy.has(game.bggId)}
+                      onToggleWishlist={() => toggleWishlist(game)}
+                      onDismiss={() => dismiss(game)}
+                    />
                   </div>
-                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x">
-                    {row.games.map((game) => (
-                      <div key={game.bggId} className="snap-start shrink-0 w-[260px] flex">
-                        <RecCard
-                          game={game}
-                          compact
-                          saved={saved.has(game.bggId)}
-                          busy={busy.has(game.bggId)}
-                          onToggleWishlist={() => toggleWishlist(game)}
-                          onDismiss={() => dismiss(game)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))}
+                ))}
+              </div>
+            </section>
+          ))}
 
-              {status && (
-                <p className="text-center text-[11px] text-[var(--text-muted)] mt-2">
-                  Hemos usado {status.tasteCount} juegos tuyos para conocer tus
-                  gustos y elegido entre {status.poolSize.toLocaleString("es-ES")} juegos.
-                  {status.poolMissing > 0 && " Cada día estudiamos más, así que vuelve de vez en cuando."}
-                </p>
-              )}
-            </>
+          {status && (
+            <p className="text-center text-[11px] text-[var(--text-muted)] mt-2">
+              Hemos usado {status.tasteCount} juegos tuyos para conocer tus
+              gustos y elegido entre {status.poolSize.toLocaleString("es-ES")} juegos.
+              {status.poolMissing > 0 && " Cada día estudiamos más, así que vuelve de vez en cuando."}
+            </p>
           )}
-        </div>
-      </div>
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center flex items-center gap-3">
-          <span>{toast.message}</span>
-          {toast.undo && (
-            <button
-              onClick={toast.undo}
-              className="shrink-0 text-[var(--primary)] font-semibold hover:underline"
-            >
-              Deshacer
-            </button>
-          )}
-        </div>
+        </>
       )}
-
-      <Footer />
-    </>
+    </PageShell>
   );
 }
 
@@ -492,7 +428,7 @@ function RecCard({
       <div className="p-3 flex-1 min-w-0 flex flex-col gap-2">
         <div>
           <a
-            href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+            href={bggGameUrl(game.bggId)}
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-sm text-[var(--text)] hover:text-[var(--primary)] transition-colors line-clamp-2"
@@ -547,17 +483,9 @@ function RecCard({
         )}
 
         <div className="mt-auto pt-1">
-          <button
-            onClick={onToggleWishlist}
-            disabled={busy}
-            className={`w-full px-3 py-2 rounded-xl text-xs font-semibold border transition-colors disabled:opacity-60 ${
-              saved
-                ? "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]/40"
-                : "bg-[var(--primary)] text-[var(--primary-text)] border-transparent hover:bg-[var(--primary-hover)]"
-            }`}
-          >
+          <Button variant={saved ? "soft" : "primary"} size="sm" block onClick={onToggleWishlist} disabled={busy}>
             {saved ? "✓ En tu wishlist" : "♡ Añadir a la wishlist"}
-          </button>
+          </Button>
         </div>
       </div>
     </article>
@@ -579,18 +507,9 @@ function ChipGroup<T extends string>({
     <div className="flex items-center gap-1.5 flex-wrap">
       <span className="text-xs text-[var(--text-muted)] mr-0.5">{label}</span>
       {options.map((o) => (
-        <button
-          key={o.value || "any"}
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-          className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
-            value === o.value
-              ? "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]/40 font-semibold"
-              : "bg-[var(--surface)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--text)]"
-          }`}
-        >
+        <Chip key={o.value || "any"} size="sm" active={value === o.value} onClick={() => onChange(o.value)}>
           {o.label}
-        </button>
+        </Chip>
       ))}
     </div>
   );
@@ -620,9 +539,9 @@ function PrepBanner({
         };
 
   return (
-    <div className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4">
+    <div role="status" className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+        <Spinner size="sm" className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[var(--primary)]">{title}</p>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">{text}</p>
@@ -640,28 +559,20 @@ function PrepBanner({
   );
 }
 
-function EmptyState({ status }: { status: RecommendationsStatus }) {
+function NothingYet({ status }: { status: RecommendationsStatus }) {
   const noTaste = status.tasteCount === 0;
   return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-8 text-center">
-      <div className="text-4xl mb-3">{noTaste ? "🧭" : "🔭"}</div>
-      <h2 className="text-lg font-bold text-[var(--text)] mb-2">
-        {noTaste ? "Aún no sabemos qué te gusta" : "Todavía no tenemos nada para ti"}
-      </h2>
-      <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
-        {noTaste
+    <EmptyState
+      variant="card"
+      icon={noTaste ? "🧭" : "🔭"}
+      title={noTaste ? "Aún no sabemos qué te gusta" : "Todavía no tenemos nada para ti"}
+      description={
+        noTaste
           ? "Puntúa algunos juegos en BGG o dinos en tu colección cuáles no se irán nunca, y vuelve: con eso ya podemos empezar."
-          : "Seguimos estudiando juegos para encontrarte algo que no conozcas. Vuelve en un rato."}
-      </p>
-      {noTaste && (
-        <Link
-          href="/collection"
-          className="inline-flex mt-5 px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
-        >
-          Ir a mi colección
-        </Link>
-      )}
-    </div>
+          : "Seguimos estudiando juegos para encontrarte algo que no conozcas. Vuelve en un rato."
+      }
+      action={noTaste && <ButtonLink href="/collection">Ir a mi colección</ButtonLink>}
+    />
   );
 }
 

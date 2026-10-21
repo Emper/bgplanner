@@ -1,28 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireGroupMember, requireSession } from "@/lib/api";
 import { compareRanking, voteScore } from "@/lib/rankingOrder";
 import { GAME_NIGHT_INCLUDE } from "@/lib/gameNights";
 import { isGroupManager } from "@/lib/groupTypes";
 import { displayName } from "@/lib/users";
 
-export async function GET(
+export const GET = apiHandler(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  // Run ALL queries in parallel — single cold start, single DB connection
+  // Todas las consultas a la vez (la membresía, 403 si no lo es, incluida)
   const [membership, group, memberCount, groupGames, nights, manualPlaysLog] =
     await Promise.all([
-      prisma.groupMember.findUnique({
-        where: { groupId_userId: { groupId, userId: session.userId } },
-      }),
+      requireGroupMember(groupId, session.userId),
       prisma.group.findUnique({
         where: { id: groupId },
         include: {
@@ -71,10 +65,6 @@ export async function GET(
         select: { metadata: true, createdAt: true },
       }),
     ]);
-
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
 
   // Partidas por juego y última fecha jugada, desde las noches de juego
   const playCountByGameId = new Map<string, number>();
@@ -203,4 +193,4 @@ export async function GET(
   response.headers.set("Cache-Control", "private, no-store");
 
   return response;
-}
+});

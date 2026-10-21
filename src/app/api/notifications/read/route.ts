@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
 import { notificationsReadSchema } from "@/lib/validations";
+import { apiHandler, parseBody, requireSession } from "@/lib/api";
 
 /** Marca como leídas las indicadas, o todas si no se indica ninguna. */
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const parsed = notificationsReadSchema.safeParse(body ?? {});
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-  const { ids } = parsed.data;
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { ids } = await parseBody(request, notificationsReadSchema);
 
   await prisma.notification.updateMany({
     where: {
@@ -30,4 +21,4 @@ export async function POST(request: NextRequest) {
     where: { userId: session.userId, readAt: null },
   });
   return NextResponse.json({ unread });
-}
+});

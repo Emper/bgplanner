@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
+import { APP_URL } from "@/lib/site";
 
 // Lo público (portada, eventos abiertos, perfiles, changelog…) se indexa.
 // Fuera solo lo que es de cada cuenta. Los enlaces para compartir (grupos,

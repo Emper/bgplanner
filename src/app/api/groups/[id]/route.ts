@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/auth";
+import { ApiError, apiHandler, parseBody, requireGroupMember, requireSession } from "@/lib/api";
 import { isGroupManager } from "@/lib/groupTypes";
 import { groupSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id } = await params;
 
-  // Run membership check and group data fetch in parallel
+  // Membresía y datos del grupo a la vez
   const [membership, group] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId: id, userId: session.userId } },
-    }),
+    requireGroupMember(id, session.userId),
     prisma.group.findUnique({
       where: { id },
       include: {
@@ -48,10 +42,6 @@ export async function GET(
     }),
   ]);
 
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
   const response = NextResponse.json({
     ...group,
     // Los emails invitados solo los ve quien gestiona las invitaciones.
@@ -62,76 +52,44 @@ export async function GET(
   // Personal (rol, invitaciones): que ninguna caché compartida la guarde.
   response.headers.set("Cache-Control", "private, no-store");
   return response;
-}
+});
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const PUT = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id } = await params;
 
-  const admin = await isSuperadmin(session);
-  const membership = admin
-    ? null
-    : await prisma.groupMember.findUnique({
-        where: { groupId_userId: { groupId: id, userId: session.userId } },
-      });
-
-  if (!admin && (!membership || (membership.role !== "admin" && membership.role !== "owner"))) {
-    return NextResponse.json({ error: "Solo el admin puede editar" }, { status: 403 });
+  // El superadmin puede renombrar cualquier grupo; los demás, si lo gestionan.
+  if (!(await isSuperadmin(session))) {
+    await requireGroupMember(id, session.userId, { manager: true });
   }
 
-  const body = await request.json();
-  const parsed = groupSchema.safeParse(body);
+  const { name } = await parseBody(request, groupSchema);
 
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
+  const exists = await prisma.group.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) throw new ApiError(404, "Grupo no encontrado");
 
   const group = await prisma.group.update({
     where: { id },
-    data: { name: parsed.data.name },
+    data: { name },
   });
 
   return NextResponse.json(group);
-}
+});
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const DELETE = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id } = await params;
 
   const admin = await isSuperadmin(session);
   const [membership, group] = await Promise.all([
-    admin
-      ? Promise.resolve(null)
-      : prisma.groupMember.findUnique({
-          where: { groupId_userId: { groupId: id, userId: session.userId } },
-        }),
+    admin ? null : requireGroupMember(id, session.userId),
     prisma.group.findUnique({ where: { id }, select: { name: true } }),
   ]);
 
-  if (!admin && (!membership || membership.role !== "owner")) {
-    return NextResponse.json({ error: "Solo el propietario puede eliminar el grupo" }, { status: 403 });
+  if (membership && membership.role !== "owner") {
+    throw new ApiError(403, "Solo el propietario puede eliminar el grupo");
   }
-
-  if (!group) {
-    return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
-  }
+  if (!group) throw new ApiError(404, "Grupo no encontrado");
 
   await prisma.group.delete({ where: { id } });
 
@@ -143,4 +101,4 @@ export async function DELETE(
   });
 
   return NextResponse.json({ success: true });
-}
+});

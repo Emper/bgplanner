@@ -4,8 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import EmojiField from "@/components/EmojiField";
+import PageShell from "@/components/ui/PageShell";
+import PageHeader from "@/components/ui/PageHeader";
+import Button, { buttonClass } from "@/components/ui/Button";
+import { Field, FieldError, Input, LABEL_CLASS, fieldClass } from "@/components/ui/Field";
+import { SegmentedControl } from "@/components/ui/Tabs";
 import { EVENT_ABOUT_MAX } from "@/lib/text";
 import { resizeImage } from "@/lib/image";
 
@@ -73,209 +77,176 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <Navbar />
-      <div className="page-form page-pad">
-        <h1 className="page-title mb-6">Crear evento</h1>
+    <PageShell nav={<Navbar />} width="form">
+      <PageHeader title="Crear evento" back={{ href: "/events", label: "Eventos" }} />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Nombre del evento *
-            </label>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Nombre del evento *">
+          {(id) => (
             <EmojiField
+              id={id}
               multiline={false}
               value={name}
               onChange={setName}
               required
               maxLength={200}
               placeholder="Ej: Jornada de juegos de mesa en Madrid"
-              className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+              className={fieldClass()}
             />
-          </div>
+          )}
+        </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Descripción corta
-            </label>
+        <Field label="Descripción corta">
+          {(id) => (
             <EmojiField
+              id={id}
               value={description}
               onChange={setDescription}
               maxLength={2000}
               rows={2}
               placeholder="Una frase que resuma el evento"
-              className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] resize-none transition-all duration-200"
+              className={fieldClass({ className: "resize-none" })}
             />
-          </div>
+          )}
+        </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Info general
-            </label>
+        <Field
+          label="Info general"
+          hint={
+            <>
+              Opcional. Se ve en el evento y en su página pública. Usa <code>## </code> para títulos, <code>- </code> para listas y <code>**texto**</code> para negrita.
+            </>
+          }
+        >
+          {(id) => (
             <EmojiField
+              id={id}
               value={about}
               onChange={setAbout}
               maxLength={EVENT_ABOUT_MAX}
               rows={6}
               placeholder={"Horarios, normas, qué traer, cómo llegar…\n\n## Horarios\n- Sábado de 10:00 a 22:00"}
-              className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] resize-y transition-all duration-200"
+              className={fieldClass({ className: "resize-y" })}
             />
-            <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-              Opcional. Se ve en el evento y en su página pública. Usa <code>## </code> para títulos, <code>- </code> para listas y <code>**texto**</code> para negrita.
-            </p>
-          </div>
+          )}
+        </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Fecha de inicio *
-              </label>
-              <input
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Fecha de inicio *">
+            {(id) => (
+              <Input
+                id={id}
                 type="datetime-local"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Fecha de fin
-              </label>
-              <input
+            )}
+          </Field>
+          <Field label="Fecha de fin">
+            {(id) => (
+              <Input
+                id={id}
                 type="datetime-local"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
               />
-            </div>
-          </div>
+            )}
+          </Field>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Ubicación
-              </label>
-              <input
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Ubicación">
+            {(id) => (
+              <Input
+                id={id}
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 maxLength={300}
                 placeholder="Ej: Cafetería Ludo, Madrid"
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Máximo de asistentes
-              </label>
-              <input
+            )}
+          </Field>
+          <Field label="Máximo de asistentes">
+            {(id) => (
+              <Input
+                id={id}
                 type="number"
                 value={maxAttendees}
                 onChange={(e) => setMaxAttendees(e.target.value)}
                 min={1}
                 placeholder="Sin límite"
-                className="w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
               />
-            </div>
-          </div>
+            )}
+          </Field>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Imagen del evento
-            </label>
-            <div className="flex items-center gap-3">
-              {imageUrl ? (
-                <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
-                  <Image src={imageUrl} alt="Preview" width={96} height={96} unoptimized className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center shrink-0">
-                  <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-                  </svg>
-                </div>
-              )}
-              <div className="flex flex-col gap-1.5">
-                <label className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-all duration-200 cursor-pointer text-center">
-                  {uploadingImage ? "Procesando..." : imageUrl ? "Cambiar imagen" : "Subir imagen"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleImageUpload(f);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                {imageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl(null)}
-                    className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  >
-                    Eliminar
-                  </button>
-                )}
+        <div>
+          <p className={LABEL_CLASS}>Imagen del evento</p>
+          <div className="flex items-center gap-3">
+            {imageUrl ? (
+              <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
+                <Image src={imageUrl} alt="Vista previa" width={96} height={96} unoptimized className="w-full h-full object-cover" />
               </div>
+            ) : (
+              <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center shrink-0">
+                <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                </svg>
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <label className={buttonClass({ variant: "secondary", className: "cursor-pointer" })}>
+                {uploadingImage ? "Procesando…" : imageUrl ? "Cambiar imagen" : "Subir imagen"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImageUpload(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setImageUrl(null)}
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
+                >
+                  Eliminar
+                </button>
+              )}
             </div>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Visibilidad
-            </label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setVisibility("public")}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  visibility === "public"
-                    ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-sm"
-                    : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                }`}
-              >
-                Público
-              </button>
-              <button
-                type="button"
-                onClick={() => setVisibility("private")}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  visibility === "private"
-                    ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-sm"
-                    : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                }`}
-              >
-                Privado
-              </button>
-            </div>
-          </div>
+        <div>
+          <p className={LABEL_CLASS}>Visibilidad</p>
+          <SegmentedControl
+            label="Visibilidad"
+            value={visibility}
+            onChange={setVisibility}
+            options={[
+              { value: "public", label: "Público" },
+              { value: "private", label: "Privado" },
+            ]}
+          />
+        </div>
 
-          {error && (
-            <p className="text-red-400 text-sm">{error}</p>
-          )}
+        <FieldError>{error}</FieldError>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={saving || !name || !date}
-              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-6 py-2.5 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
-            >
-              {saving ? "Creando..." : "Crear evento"}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-2.5 rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-      <Footer />
-    </div>
+        <div className="flex gap-3 pt-2">
+          <Button type="submit" disabled={!name || !date} loading={saving}>
+            {saving ? "Creando…" : "Crear evento"}
+          </Button>
+          <Button variant="ghost" onClick={() => router.back()}>
+            Cancelar
+          </Button>
+        </div>
+      </form>
+    </PageShell>
   );
 }

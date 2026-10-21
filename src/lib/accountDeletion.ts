@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { prisma } from "./prisma";
 import { deletePhotos, pathFromPublicUrl } from "./supabaseStorage";
-import { DELETED_USER_NAME, DELETED_USER_ROLE } from "./users";
+import { DELETED_USER_NAME, DELETED_USER_ROLE, displayName } from "./users";
+import { normalizeBggUsername } from "./bgg";
 
 // Borrar la cuenta desde el perfil (lo exigen App Store y Google Play).
 //
@@ -39,7 +40,7 @@ const PERSONAL_ACTIVITY_TYPES = [
 const ROLE_ACTIVITY_TYPES = ["member_promoted", "member_demoted"];
 
 function personName(u: { displayName: string | null; name: string | null }) {
-  return u.displayName || u.name || "Alguien";
+  return displayName(u, "Alguien");
 }
 
 export interface Handover {
@@ -196,7 +197,7 @@ export async function deleteAccount(
   for (const f of feedbacks) photoUrls.push(...f.images);
 
   // Su colección de BGG solo se borra si nadie más usa ese mismo usuario.
-  const bggUsername = user.bggUsername?.trim().toLowerCase() || null;
+  const bggUsername = user.bggUsername ? normalizeBggUsername(user.bggUsername) || null : null;
   const bggShared = bggUsername
     ? (await prisma.user.count({
         where: { id: { not: userId }, bggUsername: { equals: bggUsername, mode: "insensitive" } },

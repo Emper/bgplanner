@@ -53,27 +53,38 @@ Cuando haya que migrar datos asociados a un cambio de esquema, **plantear al usu
 - OTP-only (sin contraseñas). Envío 6 dígitos por email, rate-limit **3 códigos / 5 min**, expira en **10 min**. Solo vale el **último** código pedido.
 - Emails siempre normalizados (trim + minúsculas) con `normalizedEmail()` de [validations.ts](src/lib/validations.ts) antes de guardar o buscar. Cualquier schema nuevo que reciba un email lo usa.
 - JWT HS256 en cookie httpOnly `session`, 60 días (sin refresh).
-- Helper central: `getSession(request?)` en [src/lib/auth.ts](src/lib/auth.ts). Siempre se usa al principio del handler → `401` si null.
+- Helper central: `getSession(request?)` en [src/lib/auth.ts](src/lib/auth.ts). En los handlers, `requireSession` de [api.ts](src/lib/api.ts) (401 si no hay sesión).
 - Superadmin: `role = "superadmin"` en DB o fallback `SUPERADMIN_EMAIL` env.
 
 ## Patrones que seguir
 
 ### Handlers API
+Con los helpers de [src/lib/api.ts](src/lib/api.ts): cada `require*` lanza un `ApiError` con su status y mensaje, y `apiHandler` lo convierte en `{ error }`.
+```ts
+export const POST = apiHandler(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await requireSession(request);                    // 401
+  const { id } = await params;
+  await requireGroupMember(id, session.userId, { manager: true });   // 403 (o requireEventAccess: 404/403)
+  const data = await parseBody(request, someSchema);                 // 400 (JSON roto o schema)
+  // lógica + prisma (consultas independientes en Promise.all)
+  logActivity(...);                                                  // ya va en segundo plano
+  return NextResponse.json(...);
+});
 ```
-getSession → 401
-check membership → 403
-parse body con Zod schema → 400 si falla
-lógica + prisma
-logActivity(...) fire-and-forget
-NextResponse.json(...)
-```
+- Superadmin: `requireSuperadmin` (404 para el resto). Crons: `requireCronSecret` (sin `CRON_SECRET` en producción no pasa nadie).
+- Feeds con cursor: `parsePage` + `paginate`. Tokens de enlaces: `newToken()`.
+- Trabajo después de responder (avisos, borrar fotos…): `inBackground` de [background.ts](src/lib/background.ts), nunca una promesa suelta.
+- Nunca devolver `err.message` crudo al cliente: log con `console.error` y mensaje en español.
 
 ### Envío de emails (Resend)
-- `import { resend } from "@/lib/resend"`.
-- **Fire-and-forget**: `resend.emails.send(...).catch(() => {})`. Nunca bloquear la respuesta por un email.
+- Todo pasa por [src/lib/email.ts](src/lib/email.ts): `sendAppEmailLater({ to, subject, body })` (después de responder, ni bloquea ni se pierde) o `sendAppEmail(...)` cuando el email ES la respuesta (el código de entrada: si devuelve false, 502).
+- El cuerpo se escribe con la plantilla etiquetada `html` (html + backticks), que **escapa sola** todo lo interpolado; piezas: `emailButton`, `emailNote`, `emailBox`, `emailCode`. La carcasa (tema oscuro, acento ámbar) la pone `emailLayout`.
 - From: `EMAIL_FROM` de [contact.ts](src/lib/contact.ts) (`hola@bgplanner.app`). La dirección que se enseña en la web es `CONTACT_EMAIL`, del mismo fichero.
-- Plantilla HTML inline, tema dark: `background: #0f172a`, texto `#f1f5f9`, acento `#f59e0b`, bordes `#334155`, grises `#94a3b8`. CTA = botón ámbar con texto oscuro.
-- **Siempre escapar HTML** en cualquier string que venga del usuario antes de meterlo en el template (ver `escapeHtml` en [src/app/api/groups/[id]/ping/route.ts](src/app/api/groups/[id]/ping/route.ts)).
+- Enlaces absolutos con `absoluteUrl()` de [site.ts](src/lib/site.ts) (nunca `process.env.NEXT_PUBLIC_APP_URL` a pelo).
+
+### Privacidad: el email no se enseña
+- El email de un usuario es privado: no se manda a ningún cliente que no sea el propio usuario o el superadmin (ni a amigos ni a gente de sus grupos) ni se usa como nombre. Nombre visible: `displayName(user, fallback)` de [users.ts](src/lib/users.ts); `select` público: `PUBLIC_USER_SELECT`.
+- Las invitaciones pendientes por email solo las ven dueño y admins del grupo.
 
 ### Activity log
 - `logActivity(type, userId, { groupId?, eventId?, ...metadata })` en [src/lib/activity.ts](src/lib/activity.ts).
@@ -92,12 +103,18 @@ NextResponse.json(...)
 - Restricción: **1 super voto por usuario por grupo** (no por juego). Si ya tiene, 409 con `conflictingGameId`.
 
 ### UI (client components)
-- La página de grupo [src/app/groups/[id]/page.tsx](src/app/groups/[id]/page.tsx) es el ejemplo canónico: `useState` para todo (modales, forms, loading, errores, toasts), no hay Redux ni Zustand.
-- **Modales**: inline en el mismo fichero, patrón `fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4` con `onClick` de backdrop que cierra + `stopPropagation` en el contenido.
-- **Toasts**: `useState("")` + `setTimeout(() => setState(""), 4000)`. No hay librería tipo Sonner. Posición `fixed bottom-6` (o `bottom-4`): `globals.css` los sube solos por encima de la barra de inicio y de la barra de pestañas.
-- **Estilos**: variables CSS (`var(--primary)`, `var(--surface)`, `var(--text)`, `var(--text-secondary)`, `var(--text-muted)`, `var(--border)`, `var(--input-bg)`, `var(--input-border)`, `var(--card-shadow)`). Definidas en [src/app/globals.css](src/app/globals.css). Light y dark definidos con `.dark` toggle.
-- **Páginas internas**: utilidades de [globals.css](src/app/globals.css), nada de `max-w-*` sueltos. Fondo `min-h-screen bg-[var(--bg)] page-pad` y dentro uno de los cuatro anchos: `page-wide` (6xl, Inicio y ludoteca), `page-main` (4xl, secciones de las pestañas y sus detalles), `page-text` (3xl, páginas de leer y notificaciones) o `page-form` (2xl, formularios). Titular con `page-title` y entradilla con `page-lead`; bloque de cabecera con `mb-6`.
+- Estado local con `useState`; no hay Redux ni Zustand.
+- **Kit en [src/components/ui](src/components/ui)**: usarlo siempre antes que clases a mano.
+  - `Button`/`ButtonLink`/`buttonClass` (primary, secondary, ghost, soft, danger, dangerOutline), `IconButton`, `CloseButton`.
+  - `Modal` (Escape, fondo, scroll, foco y aria ya resueltos). Confirmaciones con `useConfirm()`, nunca `confirm()`.
+  - Avisos con `useToast()` (`toast`, `toast.success`, `toast.error`, con `action` para «Deshacer»), nunca `alert()` ni un toast a mano. Los providers están en el layout raíz.
+  - Campos: `Input`, `Select`, `Textarea`, `Field`, `FieldError`, `Switch`. Avisos en página: `Alert`. Vacíos: `EmptyState`; página entera de aviso: `Notice`.
+  - Estructura: `PageShell` (cabecera + ancho + pie abajo), `PageHeader` y `BackLink`. Tarjetas: `Card`/`cardClass`, `SectionCard`, `SectionLabel`. Pestañas y fichas: `Tabs`, `SegmentedControl`, `Chip`.
+  - Cargas: `PageLoader` (página; con la cabecera pintada en los fallbacks), `Spinner`, `InlineLoading`. Portadas: `GameThumb`.
+- **Estilos**: variables CSS (`var(--primary)`, `var(--surface)`, `var(--text)`, `var(--text-secondary)`, `var(--text-muted)`, `var(--border)`, `var(--input-bg)`, `var(--input-border)`, `var(--card-shadow)`) y de estado (`var(--danger)`, `var(--success)`, `var(--warning)` y sus `-soft`). Definidas en [src/app/globals.css](src/app/globals.css) para claro y oscuro (clase `.dark`). Nada de `text-red-400` y similares sin su par `dark:`: en claro no se leen.
+- **Páginas internas**: `PageShell` con uno de los cuatro anchos: `wide` (6xl, Inicio y ludoteca), `main` (4xl, secciones de las pestañas y sus detalles), `text` (3xl, páginas de leer y notificaciones) o `form` (2xl, formularios y avisos). Titular y entradilla con `PageHeader` (`page-title`, `page-lead`, `mb-6`). Lo que no existe: `notFound()` (hay `src/app/not-found.tsx` con la cara de la app).
 - Bordes redondeados = `rounded-xl` (botones/inputs) o `rounded-2xl` (tarjetas/modales).
+- Helpers de cliente: `displayName`, `plural`/`joinNames` ([text.ts](src/lib/text.ts)), enlaces de BGG ([bggLinks.ts](src/lib/bggLinks.ts)), `loginHref`/`absoluteUrl` ([site.ts](src/lib/site.ts)), fechas en [format.ts](src/lib/format.ts) (en servidor usan la zona de Madrid), `useCopy`/`shareOrCopy`, `useDebouncedValue`, `useEscapeKey`, `lib/storage` para localStorage, `lib/gameLabels` para pesos y jugadores.
 - **Datos de un juego en un listado** (rank, jugadores, duración, peso, partidas, nota propia, alta): siempre con `GameTags` de [GameTags.tsx](src/components/GameTags.tsx), pasando solo los datos que pinten algo en ese listado. Otras etiquetas sueltas junto a ellas (interesados, «Lo quiere»…) con `GameTag`. El año va junto al nombre, entre paréntesis.
 - Fuentes: Bricolage Grotesque (display), DM Sans (body), Geist Mono (mono).
 

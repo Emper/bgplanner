@@ -1,41 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import { getEventParticipation } from "@/lib/events";
 import { deletePhotos, pathFromPublicUrl } from "@/lib/supabaseStorage";
+import { inBackground } from "@/lib/background";
+import { ApiError, apiHandler, requireEventAccess, requireSession } from "@/lib/api";
 
 // Borra una foto de la galería. Solo el autor o quien gestiona el evento.
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; photoId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+export const DELETE = apiHandler(
+  async (request: NextRequest, { params }: { params: Promise<{ id: string; photoId: string }> }) => {
+    const session = await requireSession(request);
+    const { id: eventId, photoId } = await params;
+
+    const [p, photo] = await Promise.all([
+      requireEventAccess(eventId, session.userId, "view"),
+      prisma.eventPhoto.findFirst({
+        where: { id: photoId, eventId },
+        select: { id: true, userId: true, url: true },
+      }),
+    ]);
+
+    if (!photo) throw new ApiError(404, "Foto no encontrada");
+    if (photo.userId !== session.userId && !p.isAdmin) {
+      throw new ApiError(403, "Solo quien la subió o quien gestiona el evento puede borrarla");
+    }
+
+    await prisma.eventPhoto.delete({ where: { id: photo.id } });
+
+    const path = pathFromPublicUrl(photo.url);
+    if (path) inBackground(() => deletePhotos([path]));
+
+    return NextResponse.json({ ok: true });
   }
-  const { id: eventId, photoId } = await params;
-
-  const p = await getEventParticipation(eventId, session.userId);
-  if (!p) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-
-  const photo = await prisma.eventPhoto.findFirst({
-    where: { id: photoId, eventId },
-    select: { id: true, userId: true, url: true },
-  });
-  if (!photo) {
-    return NextResponse.json({ error: "Foto no encontrada" }, { status: 404 });
-  }
-  if (photo.userId !== session.userId && !p.isAdmin) {
-    return NextResponse.json(
-      { error: "Solo quien la subió o quien gestiona el evento puede borrarla" },
-      { status: 403 }
-    );
-  }
-
-  await prisma.eventPhoto.delete({ where: { id: photo.id } });
-
-  const path = pathFromPublicUrl(photo.url);
-  if (path) deletePhotos([path]).catch(() => {});
-
-  return NextResponse.json({ ok: true });
-}
+);

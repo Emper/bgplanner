@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadminRole } from "@/lib/auth";
-import { profileSchema } from "@/lib/validations";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
+import { isSuperadminRole } from "@/lib/auth";
+import { avatarSchema, profileSchema } from "@/lib/validations";
 import { validateBggUsername } from "@/lib/bgg";
 import { slugifyUsername } from "@/lib/users";
 
@@ -11,38 +12,36 @@ import { slugifyUsername } from "@/lib/users";
 // sigue accesible por id. Así ni el registro ni vincular BGG se rompen por un
 // nombre repetido. Tampoco se libera al desvincular BGG: para entonces ya es
 // una dirección que ha podido compartir.
-async function claimSlugFromBgg(userId: string) {
-  const current = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { slug: true, bggUsername: true },
-  });
-  if (!current || current.slug) return;
+async function claimSlugFromBgg(
+  userId: string,
+  current: { slug: string | null; bggUsername: string | null }
+): Promise<string | null> {
+  if (current.slug) return current.slug;
 
   const candidate = slugifyUsername(current.bggUsername);
-  if (!candidate) return;
+  if (!candidate) return null;
 
   const taken = await prisma.user.findUnique({
     where: { slug: candidate },
     select: { id: true },
   });
-  if (taken) return;
+  if (taken) return null;
 
   try {
     await prisma.user.update({
       where: { id: userId },
       data: { slug: candidate },
     });
+    return candidate;
   } catch {
     // Carrera con otro que reclamó el mismo slug entre la consulta y el
     // update: se queda sin él y a seguir.
+    return null;
   }
 }
 
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   // ?lite=1 es lo que pide la cabecera en cada página: sin el avatar (va
   // incrustado y pesa) ni datos que no pinta.
@@ -65,57 +64,33 @@ export async function GET(request: NextRequest) {
   });
 
   // Un token válido de una cuenta que ya no existe no cuenta como sesión
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  if (!user) throw new ApiError(401, "No autorizado");
 
   // El rol ya viene en la fila: sin volver a leerla para saber si es admin
   return NextResponse.json({ ...user, isSuperadmin: isSuperadminRole(user.role, session.email) });
-}
+});
 
-export async function PUT(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const PUT = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const parsed = await parseBody(request, profileSchema);
 
-  const body = await request.json();
-  const parsed = profileSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  // Resolve displayName: use provided value, or fall back to name
-  const data: Record<string, unknown> = { ...parsed.data };
-  if (!data.displayName || (data.displayName as string).trim() === "") {
-    data.displayName = parsed.data.name;
-  }
-
-  // Validate BGG username if provided
-  if (data.bggUsername && (data.bggUsername as string).trim()) {
-    data.bggUsername = (data.bggUsername as string).trim().toLowerCase();
-    const validation = await validateBggUsername(data.bggUsername as string);
+  // Sin nombre visible, el nombre. El usuario de BGG, normalizado ("" lo
+  // desvincula) y comprobado contra BGG si viene relleno.
+  const bggUsername = parsed.bggUsername?.trim().toLowerCase();
+  if (bggUsername) {
+    const validation = await validateBggUsername(bggUsername);
     if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error },
-        { status: 400 }
-      );
+      throw new ApiError(400, validation.error ?? "No encontramos ese usuario en BGG");
     }
   }
 
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: session.userId },
-    data,
-  });
-
-  await claimSlugFromBgg(session.userId);
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
+    data: {
+      ...parsed,
+      displayName: parsed.displayName?.trim() ? parsed.displayName : parsed.name,
+      bggUsername,
+    },
     select: {
       id: true,
       email: true,
@@ -129,27 +104,14 @@ export async function PUT(request: NextRequest) {
     },
   });
 
-  return NextResponse.json(user);
-}
+  const slug = await claimSlugFromBgg(session.userId, user);
+  return NextResponse.json({ ...user, slug });
+});
 
-// PATCH — update avatar only
-export async function PATCH(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const { avatarUrl } = body;
-
-  if (typeof avatarUrl !== "string" && avatarUrl !== null) {
-    return NextResponse.json({ error: "avatarUrl inválido" }, { status: 400 });
-  }
-
-  // Limit base64 size (~150KB max for a resized avatar)
-  if (avatarUrl && avatarUrl.length > 200000) {
-    return NextResponse.json({ error: "Imagen demasiado grande" }, { status: 400 });
-  }
+// PATCH: solo el avatar (una imagen ya redimensionada, o null para quitarlo)
+export const PATCH = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { avatarUrl } = await parseBody(request, avatarSchema);
 
   const user = await prisma.user.update({
     where: { id: session.userId },
@@ -158,4 +120,4 @@ export async function PATCH(request: NextRequest) {
   });
 
   return NextResponse.json(user);
-}
+});

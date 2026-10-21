@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
 import { pushSubscriptionSchema, pushUnsubscribeSchema } from "@/lib/validations";
 import { vapidPublicKey } from "@/lib/push";
 import { logActivity } from "@/lib/activity";
+import { ApiError, apiHandler, parseBody, requireSession } from "@/lib/api";
 
 // Como mucho estos dispositivos por persona; al pasarse se olvidan los que
 // llevan más tiempo sin recibir nada.
@@ -14,11 +14,8 @@ const MAX_DEVICES = 10;
  * pública para suscribirse y si el `endpoint` de este navegador ya está
  * apuntado a tu cuenta (puede estarlo a otra si compartís dispositivo).
  */
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   const publicKey = vapidPublicKey();
   const endpoint = request.nextUrl.searchParams.get("endpoint");
@@ -28,24 +25,16 @@ export async function GET(request: NextRequest) {
     (await prisma.pushSubscription.count({ where: { endpoint, userId: session.userId } })) > 0;
 
   return NextResponse.json({ publicKey, subscribed });
-}
+});
 
 /** Apunta este dispositivo a tu cuenta (o renueva sus claves). */
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
   if (!vapidPublicKey()) {
-    return NextResponse.json({ error: "Los avisos al móvil no están disponibles ahora mismo" }, { status: 503 });
+    throw new ApiError(503, "Los avisos al móvil no están disponibles ahora mismo");
   }
 
-  const body = await request.json().catch(() => null);
-  const parsed = pushSubscriptionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-  const { endpoint, keys, source } = parsed.data;
+  const { endpoint, keys, source } = await parseBody(request, pushSubscriptionSchema);
   const userAgent = request.headers.get("user-agent")?.slice(0, 300) ?? null;
   // Solo cuenta como activación si este dispositivo no estaba ya apuntado a ti
   const known = await prisma.pushSubscription.count({ where: { endpoint, userId: session.userId } });
@@ -75,23 +64,15 @@ export async function POST(request: NextRequest) {
   if (known === 0) logActivity("push_enabled", session.userId, { source: source ?? "settings" });
 
   return NextResponse.json({ subscribed: true });
-}
+});
 
 /** Deja de avisar en este dispositivo. */
-export async function DELETE(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => null);
-  const parsed = pushUnsubscribeSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
+export const DELETE = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { endpoint } = await parseBody(request, pushUnsubscribeSchema);
 
   await prisma.pushSubscription.deleteMany({
-    where: { endpoint: parsed.data.endpoint, userId: session.userId },
+    where: { endpoint, userId: session.userId },
   });
   return NextResponse.json({ subscribed: false });
-}
+});

@@ -1,4 +1,5 @@
 import type { ProfileStats } from "@/lib/publicProfile";
+import { plural } from "@/lib/text";
 
 // Las insignias del perfil público: una por cada cosa que se puede hacer en
 // la app (tener juegos, estar en grupos, ir a eventos…), con tres niveles
@@ -37,9 +38,6 @@ interface BadgeDef {
   /** Solo tiene sentido con BGG conectado (la colección y las partidas). */
   needsBgg?: boolean;
 }
-
-const plural = (n: number, one: string, many: string) =>
-  `${n.toLocaleString("es-ES")} ${n === 1 ? one : many}`;
 
 const BADGES: BadgeDef[] = [
   {

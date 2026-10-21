@@ -5,6 +5,12 @@ import Image from "next/image";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
 import GameTags from "@/components/GameTags";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import GameThumb from "@/components/ui/GameThumb";
+import { Chip } from "@/components/ui/Tabs";
+import { FieldError } from "@/components/ui/Field";
+import { useToast } from "@/components/ui/Toast";
 import { displayName } from "@/lib/users";
 import { formatDuration } from "@/lib/format";
 import { findVoteOption } from "@/lib/groupTypes";
@@ -164,7 +170,7 @@ export default function GameNightModal({
   const [played, setPlayed] = useState<NightItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const toast = useToast();
 
   const [state, setState] = useState<{ draw: Draw; tick: number } | null>(null);
 
@@ -202,15 +208,19 @@ export default function GameNightModal({
     return () => timers.forEach(clearTimeout);
   }, [draw]);
 
+  // Con un juego en pantalla, Escape vuelve a la lista en vez de cerrar: se
+  // escucha en captura y no sigue, para que no le llegue al Modal.
+  const hasDraw = !!state;
   useEffect(() => {
+    if (!hasDraw) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (state) setState(null);
-      else onClose();
+      e.stopPropagation();
+      setState(null);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, state]);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [hasDraw]);
 
   const startDraw = () => {
     if (pool.length === 0) return;
@@ -259,8 +269,7 @@ export default function GameNightModal({
       setNightId(data.id);
       setPlayed((prev) => [...prev, shown.item]);
       setState(null);
-      setToast(`¡Apuntado! Que disfrutéis de ${shown.item.game.name} 🎉`);
-      setTimeout(() => setToast(""), 4000);
+      toast.success(`¡Apuntado! Que disfrutéis de ${shown.item.game.name} 🎉`);
       onPlayed();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo apuntar la partida");
@@ -269,13 +278,6 @@ export default function GameNightModal({
     }
   };
 
-  const pill = (active: boolean) =>
-    `px-3 py-1.5 rounded-full border text-xs sm:text-sm font-medium transition-colors ${
-      active
-        ? "bg-[var(--accent-soft)] border-[var(--primary)] text-[var(--primary)]"
-        : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-    }`;
-
   const outParts = [
     out.players > 0 && `${out.players} por jugadores`,
     out.time > 0 && `${out.time} por tiempo`,
@@ -283,10 +285,11 @@ export default function GameNightModal({
   ].filter(Boolean);
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      {/* Confeti: se monta al revelar el ganador del sorteo y no captura clicks */}
+    <Modal open onClose={onClose} busy={saving} size="lg" title="🎲 ¡A jugar!">
+      {/* Confeti: se monta al revelar el ganador del sorteo y no captura clicks.
+          Fijo a la pantalla, cae por encima del modal entero. */}
       {draw && !spinning && !draw.manual && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
           {draw.confetti.map((p, i) => (
             <span
               key={i}
@@ -307,24 +310,9 @@ export default function GameNightModal({
         </div>
       )}
 
-      <div
-        className="relative bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 pt-5 pb-1">
-          <h3 className="text-lg font-semibold text-[var(--text)]">🎲 ¡A jugar!</h3>
-          <button
-            onClick={onClose}
-            className="text-[var(--text-secondary)] hover:text-[var(--text)]"
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
-        </div>
-
         {draw && shown ? (
           // ── Ruleta / elegido ──
-          <div className="px-5 pb-5 overflow-y-auto">
+          <div>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
               {draw.manual
                 ? "Elegido a dedo"
@@ -352,7 +340,9 @@ export default function GameNightModal({
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xl">🎲</div>
+                    <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xl" aria-hidden>
+                      🎲
+                    </div>
                   )}
                 </div>
                 <p className="mt-3 font-semibold text-[var(--text)] text-base sm:text-lg leading-tight">
@@ -385,32 +375,20 @@ export default function GameNightModal({
               </div>
             </div>
 
-            {error && <p className="mt-3 text-sm text-red-400 text-center">{error}</p>}
+            <FieldError className="mt-3 text-center">{error}</FieldError>
 
             <div className="flex flex-col sm:flex-row gap-2 mt-4">
-              <button
-                onClick={playIt}
-                disabled={spinning || saving}
-                className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-              >
+              <Button size="lg" className="flex-1" onClick={playIt} disabled={spinning} loading={saving}>
                 {saving ? "Apuntando…" : "✅ ¡Lo jugamos!"}
-              </button>
+              </Button>
               {!draw.manual && pool.length > 1 && (
-                <button
-                  onClick={startDraw}
-                  disabled={spinning || saving}
-                  className="px-4 py-2.5 rounded-xl border border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--accent-soft)] disabled:opacity-50 font-semibold text-sm transition-all duration-200"
-                >
+                <Button size="lg" variant="soft" onClick={startDraw} disabled={spinning || saving}>
                   🎲 Otra vez
-                </button>
+                </Button>
               )}
-              <button
-                onClick={() => setState(null)}
-                disabled={spinning || saving}
-                className="px-4 py-2.5 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200"
-              >
+              <Button size="lg" variant="secondary" onClick={() => setState(null)} disabled={spinning || saving}>
                 ← Lista
-              </button>
+              </Button>
             </div>
             <p className="mt-3 text-[11px] text-[var(--text-muted)] text-center">
               «¡Lo jugamos!» lo marca como jugado y guarda la sesión con quién estaba.
@@ -419,7 +397,7 @@ export default function GameNightModal({
         ) : (
           // ── Presentes, tiempo, peso y lista ──
           <>
-            <div className="px-5 pb-4 overflow-y-auto flex-1 min-h-0">
+            <div className="pb-4">
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
                 Ordenamos los pendientes solo con los votos de quien está a la mesa.
               </p>
@@ -470,9 +448,9 @@ export default function GameNightModal({
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {NIGHT_TIMES.map((t) => (
-                    <button key={t ?? "free"} onClick={() => setMinutes(t)} className={pill(minutes === t)} aria-pressed={minutes === t}>
+                    <Chip key={t ?? "free"} onClick={() => setMinutes(t)} active={minutes === t}>
                       {t === null ? "♾️ Sin prisa" : timeLabel(t)}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </section>
@@ -482,13 +460,13 @@ export default function GameNightModal({
                   ¿Con cuánto peso?
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
-                  <button onClick={() => setWeight(null)} className={pill(weight === null)} aria-pressed={weight === null}>
+                  <Chip onClick={() => setWeight(null)} active={weight === null}>
                     Me da igual
-                  </button>
+                  </Chip>
                   {NIGHT_WEIGHTS.map((w) => (
-                    <button key={w.id} onClick={() => setWeight(w.id)} className={pill(weight === w.id)} aria-pressed={weight === w.id}>
+                    <Chip key={w.id} onClick={() => setWeight(w.id)} active={weight === w.id}>
                       {w.emoji} {w.label}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </section>
@@ -525,13 +503,7 @@ export default function GameNightModal({
                           <span className={`w-6 text-center text-xs font-bold shrink-0 ${pooled ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>
                             {i + 1}
                           </span>
-                          <div className="w-11 h-11 rounded-lg overflow-hidden bg-[var(--surface-hover)] shrink-0">
-                            {row.item.game.thumbnail ? (
-                              <Image src={row.item.game.thumbnail} alt="" width={44} height={44} className="w-full h-full object-contain" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-sm">🎲</div>
-                            )}
-                          </div>
+                          <GameThumb src={row.item.game.thumbnail} name="" size="sm" fit="contain" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-[var(--text)] truncate">{row.item.game.name}</p>
                             <div className="flex flex-wrap items-center gap-1 mt-0.5">
@@ -541,7 +513,7 @@ export default function GameNightModal({
                           <div className="flex flex-col items-end shrink-0 gap-0.5">
                             <span
                               className={`text-sm font-bold tabular-nums ${
-                                row.score > 0 ? "text-[var(--primary)]" : row.score < 0 ? "text-red-400" : "text-[var(--text-muted)]"
+                                row.score > 0 ? "text-[var(--primary)]" : row.score < 0 ? "text-[var(--danger)]" : "text-[var(--text-muted)]"
                               }`}
                             >
                               {row.score > 0 ? `+${row.score}` : row.score}
@@ -565,27 +537,17 @@ export default function GameNightModal({
               )}
             </div>
 
-            <div className="px-5 py-4 border-t border-[var(--border)]">
-              <button
-                onClick={startDraw}
-                disabled={pool.length === 0}
-                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-              >
+            {/* Pie pegado abajo mientras la lista se desplaza */}
+            <div className="sticky bottom-0 -mx-5 sm:-mx-6 -mb-5 sm:-mb-6 px-5 sm:px-6 py-4 border-t border-[var(--border)] bg-[var(--surface)] rounded-b-2xl">
+              <Button size="lg" block onClick={startDraw} disabled={pool.length === 0}>
                 {pool.length <= 1 ? "🎲 Sortear" : `🎲 Sortear entre los ${pool.length} mejores`}
-              </button>
+              </Button>
               <p className="mt-2 text-[11px] text-[var(--text-muted)] text-center">
                 ¿Lo tenéis claro? Toca un juego y elegidlo a dedo.
               </p>
             </div>
           </>
         )}
-
-        {toast && (
-          <div className="fx-toast-in fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-[var(--primary-text)] px-4 py-3 rounded-xl shadow-lg font-semibold text-sm">
-            {toast}
-          </div>
-        )}
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import PageLoader from "@/components/PageLoader";
 import BggGameSearch from "@/components/BggGameSearch";
 import BggRating from "@/components/BggRating";
 import GameTags, { GameTag } from "@/components/GameTags";
@@ -15,9 +15,25 @@ import EmojiField from "@/components/EmojiField";
 import dynamic from "next/dynamic";
 import RichText from "@/components/RichText";
 import { formatDateFull, toDateTimeLocalInput } from "@/lib/format";
-import { EVENT_ABOUT_MAX } from "@/lib/text";
+import { EVENT_ABOUT_MAX, joinNames, plural } from "@/lib/text";
 import { resizeImage } from "@/lib/image";
-import { profileHref } from "@/lib/users";
+import { displayName, profileHref } from "@/lib/users";
+import { bggGameUrl, bggUserUrl } from "@/lib/bggLinks";
+import { readStorage, writeStorage } from "@/lib/storage";
+import { copyText } from "@/lib/clipboard";
+import { useCopy } from "@/hooks/useCopy";
+import PageShell from "@/components/ui/PageShell";
+import { BackLink } from "@/components/ui/PageHeader";
+import Button, { ButtonLink, buttonClass } from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
+import { Field, Input, LABEL_CLASS, fieldClass } from "@/components/ui/Field";
+import { SegmentedControl, Tabs } from "@/components/ui/Tabs";
+import { EmptyState, Notice } from "@/components/ui/EmptyState";
+import { cardClass } from "@/components/ui/Card";
+import Spinner from "@/components/ui/Spinner";
+import GameThumb from "@/components/ui/GameThumb";
 import { toFriend } from "@/lib/friends";
 import FriendButton from "@/components/FriendButton";
 import { INTENSITY_LABELS, INTENSITY_COLORS, INTENSITY_LEVELS, isVeto, intensityMark, intensityText } from "@/lib/intensity";
@@ -139,6 +155,9 @@ function EventDetailPageInner() {
   const searchParams = useSearchParams();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { copied: inviteCopied, copy } = useCopy();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab") as Tab | null;
     return tab && TABS.includes(tab) ? tab : "activity";
@@ -149,16 +168,9 @@ function EventDetailPageInner() {
   const [addingGame, setAddingGame] = useState(false);
   const [joiningEvent, setJoiningEvent] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
   // La caja del enlace de invitación va plegada salvo que la hayas abierto
-  const [inviteOpen, setInviteOpen] = useState(() => {
-    try {
-      return typeof window !== "undefined" && localStorage.getItem(INVITE_OPEN_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [inviteOpen, setInviteOpen] = useState(() => readStorage(INVITE_OPEN_KEY) === "1");
 
   // Activity feed state (restore from cache if available)
   const eventFeedCacheKey = `event:${eventId}`;
@@ -221,9 +233,10 @@ function EventDetailPageInner() {
           setEvent(data);
           if (data.inviteCode) setInviteCode(data.inviteCode);
         })
-        .catch(() => router.push("/events"))
+        // Si no existe o no tienes acceso, `event` se queda vacío y se avisa
+        .catch(() => {})
         .finally(() => setLoading(false)),
-    [eventId, router]
+    [eventId]
   );
 
   useEffect(() => {
@@ -272,19 +285,33 @@ function EventDetailPageInner() {
 
   const toggleInvite = () => {
     setInviteOpen((open) => {
-      try {
-        localStorage.setItem(INVITE_OPEN_KEY, open ? "0" : "1");
-      } catch {
-        // Sin almacenamiento (modo privado) simplemente no se recuerda
-      }
+      // Sin almacenamiento (modo privado) simplemente no se recuerda
+      writeStorage(INVITE_OPEN_KEY, open ? "0" : "1");
       return !open;
     });
   };
 
-  const copyInvite = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/join-event/${inviteCode}`);
-    setInviteCopied(true);
-    setTimeout(() => setInviteCopied(false), 2000);
+  const copyInvite = async () => {
+    if (!(await copy(`${window.location.origin}/join-event/${inviteCode}`))) {
+      toast.error("No se ha podido copiar el enlace");
+    }
+  };
+
+  const generateInviteLink = async () => {
+    setGeneratingLink(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/invite-link`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setInviteCode(data.inviteCode);
+      } else {
+        toast.error("No se ha podido generar el enlace");
+      }
+    } catch {
+      toast.error("No se ha podido generar el enlace");
+    } finally {
+      setGeneratingLink(false);
+    }
   };
 
   // Con info general y sin pestaña en el enlace, se entra por la info: es lo
@@ -370,9 +397,11 @@ function EventDetailPageInner() {
         setShowEdit(false);
         fetchEvent();
       } else {
-        const data = await res.json();
-        alert(data.error || "Error al guardar");
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Error al guardar");
       }
+    } catch {
+      toast.error("Error de conexión");
     } finally {
       setSavingEdit(false);
     }
@@ -400,7 +429,8 @@ function EventDetailPageInner() {
   };
 
   const handleRemoveGame = async (gameId: string) => {
-    if (!confirm("¿Eliminar este juego del evento?")) return;
+    const ok = await confirm({ title: "¿Eliminar este juego del evento?", confirmLabel: "Eliminar", tone: "danger" });
+    if (!ok) return;
     // Optimistic: remove from UI immediately
     setEvent((prev) => prev ? {
       ...prev,
@@ -428,7 +458,8 @@ function EventDetailPageInner() {
   };
 
   const handleLeave = async () => {
-    if (!confirm("¿Desapuntarte del evento?")) return;
+    const ok = await confirm({ title: "¿Desapuntarte del evento?", confirmLabel: "Desapuntarme", tone: "danger" });
+    if (!ok) return;
     // Optimistic: remove from UI
     setEvent((prev) => prev ? {
       ...prev,
@@ -516,7 +547,7 @@ function EventDetailPageInner() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || "Error al cambiar el rol");
+      toast.error(data.error || "Error al cambiar el rol");
       return;
     }
     setEvent((prev) => prev && {
@@ -544,16 +575,21 @@ function EventDetailPageInner() {
     });
   };
 
-  if (loading) {
+  if (loading) return <EventLoading />;
+
+  if (!event) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-        <Navbar />
-        <p className="text-[var(--text-secondary)] text-center py-12 animate-pulse">Cargando evento...</p>
-      </div>
+      <PageShell nav={<Navbar />} width="form">
+        <Notice
+          icon="🔒"
+          title="Este evento no existe o es privado"
+          actions={<ButtonLink href="/events">Ir a mis eventos</ButtonLink>}
+        >
+          <p>Puede que lo hayan borrado, que el enlace esté mal copiado o que solo puedan verlo quienes están invitados.</p>
+        </Notice>
+      </PageShell>
     );
   }
-
-  if (!event) return null;
 
   const isAttending = !!event.currentAttendeeId;
   const eventIsOver = new Date(event.endDate ?? event.date).getTime() < now;
@@ -568,411 +604,390 @@ function EventDetailPageInner() {
   myInterests.sort((a, b) => b.myInterest.intensity - a.myInterest.intensity);
   const attendingCount = event.attendees.filter((a) => a.status === "attending").length;
 
+  const visibleTabs = TABS.filter((tab) => tab !== "info" || !!event.about?.trim() || event.isAdmin);
+  const tabLabel = (tab: Tab) =>
+    tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? "Juegos" : tab === "mylist" ? "Mi Lista" : tab === "attendees" ? "Asistentes" : "Galería";
+  const tabCount = (tab: Tab) =>
+    tab === "games"
+      ? listedGames(event).length
+      : tab === "mylist"
+        ? myInterests.filter((i) => !isVeto(i.myInterest.intensity)).length
+        : tab === "attendees"
+          ? event.attendees.length
+          : undefined;
+
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <Navbar />
-      <div className="page-main page-pad">
-        {/* Event image */}
-        {(event.imageUrl || event.isAdmin) && (
-          <div className="mb-4 relative group">
-            {event.imageUrl ? (
-              <div className="relative rounded-2xl overflow-hidden border border-[var(--border)]">
-                <Image
-                  src={event.imageUrl}
-                  alt={event.name}
-                  width={1200}
-                  height={400}
-                  unoptimized
-                  className="w-full h-40 sm:h-52 object-cover"
-                />
-                {event.isAdmin && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-xl">
-                      {uploadingImage ? "Subiendo..." : "Cambiar imagen"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleImageUpload(f, "direct");
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-            ) : event.isAdmin ? (
-              <label className="flex items-center justify-center h-32 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/40 bg-[var(--surface)] cursor-pointer transition-all duration-200">
-                <div className="text-center">
-                  <svg className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-                  </svg>
-                  <span className="text-xs text-[var(--text-muted)]">
-                    {uploadingImage ? "Subiendo..." : "Añadir imagen del evento"}
+    <PageShell nav={<Navbar />} width="main">
+      <BackLink href="/events" className="mb-3">Eventos</BackLink>
+
+      {/* Event image */}
+      {(event.imageUrl || event.isAdmin) && (
+        <div className="mb-4 relative group">
+          {event.imageUrl ? (
+            <div className="relative rounded-2xl overflow-hidden border border-[var(--border)]">
+              <Image
+                src={event.imageUrl}
+                alt={event.name}
+                width={1200}
+                height={400}
+                unoptimized
+                className="w-full h-40 sm:h-52 object-cover"
+              />
+              {event.isAdmin && (
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity cursor-pointer">
+                  <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-xl">
+                    {uploadingImage ? "Subiendo…" : "Cambiar imagen"}
                   </span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleImageUpload(f, "direct");
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            ) : null}
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="page-title">{event.name}</h1>
-            {event.isAdmin && (
-              <button
-                onClick={openEditModal}
-                className="shrink-0 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border)] hover:border-[var(--primary)]/30 hover:shadow-[var(--card-shadow-hover)] rounded-xl transition-all duration-200"
-              >
-                Editar
-              </button>
-            )}
-          </div>
-          {event.description && (
-            <p className="text-[var(--text-secondary)] mt-1">{event.description}</p>
-          )}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
-              {formatDate(event.date)}
-            </span>
-            {event.location && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                {event.location}
-              </span>
-            )}
-            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
-              {attendingCount} asistente{attendingCount !== 1 ? "s" : ""}
-            </span>
-          </div>
-
-          {/* Join/Leave button */}
-          <div className="mt-4">
-            {isAttending ? (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-emerald-400 font-medium">Estás apuntado</span>
-                {!event.isAdmin && (
-                  <button
-                    onClick={handleLeave}
-                    className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  >
-                    Desapuntarme
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={handleJoin}
-                disabled={joiningEvent}
-                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
-              >
-                {joiningEvent ? "Apuntándote..." : "Apuntarme"}
-              </button>
-            )}
-          </div>
-
-          {/* Invite link (creator only) */}
-          {event.isAdmin && (
-            <div className="mt-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 py-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleInvite}
-                  aria-expanded={inviteOpen}
-                  className="flex-1 flex items-center gap-1.5 text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors py-1"
-                >
-                  <span className={`inline-block text-[10px] transition-transform duration-200 ${inviteOpen ? "rotate-90" : ""}`}>▶</span>
-                  Enlace de invitación
-                </button>
-                {inviteCode && !inviteOpen && (
-                  <button
-                    onClick={copyInvite}
-                    className="shrink-0 px-3 py-1 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:text-[var(--primary)] transition-all duration-200"
-                  >
-                    {inviteCopied ? "Copiado" : "Copiar"}
-                  </button>
-                )}
-              </div>
-              {inviteOpen && (
-                <div className="mt-1.5 mb-1">
-                  {inviteCode ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={`${window.location.origin}/join-event/${inviteCode}`}
-                        onFocus={(e) => e.currentTarget.select()}
-                        className="flex-1 min-w-0 px-2 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs sm:text-sm text-[var(--text-secondary)] truncate transition-all duration-200"
-                      />
-                      <button
-                        onClick={copyInvite}
-                        className="shrink-0 px-3 py-1.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-                      >
-                        {inviteCopied ? "Copiado" : "Copiar"}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={async () => {
-                        setGeneratingLink(true);
-                        try {
-                          const res = await fetch(`/api/events/${eventId}/invite-link`, { method: "POST" });
-                          if (res.ok) {
-                            const data = await res.json();
-                            setInviteCode(data.inviteCode);
-                          }
-                        } finally {
-                          setGeneratingLink(false);
-                        }
-                      }}
-                      disabled={generatingLink}
-                      className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:text-[var(--text)] transition-all duration-200 disabled:opacity-50"
-                    >
-                      {generatingLink ? "Generando..." : "Generar enlace"}
-                    </button>
-                  )}
-                </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleImageUpload(f, "direct");
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
               )}
             </div>
-          )}
+          ) : event.isAdmin ? (
+            <label className="flex items-center justify-center h-32 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/40 bg-[var(--surface)] cursor-pointer transition-all duration-200">
+              <div className="text-center">
+                <svg className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                </svg>
+                <span className="text-xs text-[var(--text-muted)]">
+                  {uploadingImage ? "Subiendo…" : "Añadir imagen del evento"}
+                </span>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImageUpload(f, "direct");
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          ) : null}
+        </div>
+      )}
 
-          {/* Evento abierto y por venir: un atajo para buscar gente en la
-              Comunidad, con el hilo ya escrito y el enlace al evento. */}
-          {event.isAdmin && event.visibility === "public" && !eventIsOver && (
-            <Link
-              href={communityAnnounceHref(event)}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
-            >
-              📣 Anúncialo en la Comunidad para buscar más jugadores
-            </Link>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="page-title">{event.name}</h1>
+          {event.isAdmin && (
+            <Button variant="secondary" size="xs" onClick={openEditModal} className="shrink-0">
+              Editar
+            </Button>
           )}
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-6 border-b border-[var(--border)] mb-4 overflow-x-auto no-scrollbar">
-          {TABS.filter((tab) => tab !== "info" || !!event.about?.trim() || event.isAdmin).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => switchTab(tab)}
-              className={`pb-2 text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
-                activeTab === tab
-                  ? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text)]"
-              }`}
-            >
-              {tab === "info" ? "Info general" : tab === "activity" ? "Actividad" : tab === "games" ? `Juegos (${listedGames(event).length})` : tab === "mylist" ? `Mi Lista (${myInterests.filter((i) => !isVeto(i.myInterest.intensity)).length})` : tab === "attendees" ? `Asistentes (${event.attendees.length})` : "Galería"}
-            </button>
-          ))}
+        {event.description && (
+          <p className="page-lead mt-1">{event.description}</p>
+        )}
+        <div className="flex flex-wrap gap-2 mt-3">
+          <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)]">
+            {formatDate(event.date)}
+          </span>
+          {event.location && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
+              {event.location}
+            </span>
+          )}
+          <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-600 dark:text-blue-300">
+            {plural(attendingCount, "asistente", "asistentes")}
+          </span>
         </div>
 
-        {/* Tab content */}
-        {activeTab === "info" && (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 sm:p-6">
-            {event.about?.trim() ? (
-              <>
-                <RichText text={event.about} />
-                {event.isAdmin && (
-                  <button
-                    onClick={openEditModal}
-                    className="mt-5 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                  >
-                    Editar la info
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-3xl mb-2">📋</p>
-                <p className="text-sm font-medium text-[var(--text)]">Aún no hay info general</p>
-                <p className="text-sm text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
-                  Cuenta horarios, normas, qué traer o cómo llegar. Se ve aquí y en la página pública del evento.
-                </p>
+        {/* Join/Leave button */}
+        <div className="mt-4">
+          {isAttending ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[var(--success)] font-medium">Estás apuntado</span>
+              {!event.isAdmin && (
                 <button
-                  onClick={openEditModal}
-                  className="mt-4 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                  onClick={handleLeave}
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
                 >
-                  Añadir info
+                  Desapuntarme
                 </button>
+              )}
+            </div>
+          ) : (
+            <Button onClick={handleJoin} loading={joiningEvent}>
+              {joiningEvent ? "Apuntándote…" : "Apuntarme"}
+            </Button>
+          )}
+        </div>
+
+        {/* Invite link (creator only) */}
+        {event.isAdmin && (
+          <div className={cardClass({ padding: "none", className: "mt-4 px-3 py-2" })}>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleInvite}
+                aria-expanded={inviteOpen}
+                className="flex-1 flex items-center gap-1.5 text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors py-1"
+              >
+                <span aria-hidden className={`inline-block text-[10px] transition-transform duration-200 ${inviteOpen ? "rotate-90" : ""}`}>▶</span>
+                Enlace de invitación
+              </button>
+              {inviteCode && !inviteOpen && (
+                <Button variant="secondary" size="xs" onClick={copyInvite} className="shrink-0">
+                  {inviteCopied ? "Copiado" : "Copiar"}
+                </Button>
+              )}
+            </div>
+            {inviteOpen && (
+              <div className="mt-1.5 mb-1">
+                {inviteCode ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      readOnly
+                      size="sm"
+                      aria-label="Enlace de invitación"
+                      value={`${window.location.origin}/join-event/${inviteCode}`}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="flex-1 min-w-0 truncate"
+                    />
+                    <Button size="xs" onClick={copyInvite} className="shrink-0">
+                      {inviteCopied ? "Copiado" : "Copiar"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="secondary" size="xs" onClick={generateInviteLink} loading={generatingLink}>
+                    {generatingLink ? "Generando…" : "Generar enlace"}
+                  </Button>
+                )}
               </div>
             )}
           </div>
         )}
-        {activeTab === "activity" && (
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4">
-            <ActivityFeed
-              items={feedItems}
-              onLoadMore={loadMoreFeed}
-              hasMore={feedHasMore}
-              loading={feedLoading || !feedLoaded}
-            />
-          </div>
-        )}
-        {activeTab === "games" && (
-          <GamesTab
-            event={event}
-            onGeeklistChanged={fetchEvent}
-            onAddGame={handleAddGame}
-            onRemoveGame={handleRemoveGame}
-            onSetInterest={handleSetInterest}
-            onRemoveInterest={handleRemoveInterest}
-            addingGame={addingGame}
-          />
-        )}
-        {activeTab === "mylist" && (
-          <MyListTab
-            myInterests={myInterests}
-            event={event}
-            onUpdateNotes={handleUpdateNotes}
-            onTogglePlayed={handleTogglePlayed}
-            onManualChanged={handleManualChanged}
-          />
-        )}
-        {activeTab === "attendees" && (
-          <AttendeesTab
-            event={event}
-            onSetRole={handleSetAttendeeRole}
-            mesa={mesa}
-            onOpenMesa={openMesa}
-            onCloseMesa={closeMesa}
-          />
-        )}
-        {activeTab === "gallery" && (
-          <EventGallery
-            eventId={eventId}
-            currentUserId={event.currentUserId}
-            canParticipate={event.isCreator || event.currentAttendeeId != null}
-            isAdmin={event.isAdmin}
-            openReviewSignal={openReviewSignal}
-          />
+
+        {/* Evento abierto y por venir: un atajo para buscar gente en la
+            Comunidad, con el hilo ya escrito y el enlace al evento. */}
+        {event.isAdmin && event.visibility === "public" && !eventIsOver && (
+          <Link
+            href={communityAnnounceHref(event)}
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
+          >
+            📣 Anúncialo en la Comunidad para buscar más jugadores
+          </Link>
         )}
       </div>
 
-      {/* Edit event modal */}
-      {showEdit && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[var(--text)]">Editar evento</h3>
-              <button onClick={() => setShowEdit(false)} className="text-[var(--text-secondary)] hover:text-[var(--text)]">✕</button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Nombre del evento *</label>
-                <EmojiField multiline={false} value={editName} onChange={setEditName}
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={200} />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Descripción corta</label>
-                <EmojiField value={editDescription} onChange={setEditDescription} rows={2}
-                  placeholder="Una frase que resuma el evento"
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-none transition-all duration-200" maxLength={2000} />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Info general</label>
-                <EmojiField value={editAbout} onChange={setEditAbout} rows={8}
-                  placeholder={"Horarios, normas, qué traer, cómo llegar…\n\n## Horarios\n- Sábado de 10:00 a 22:00"}
-                  className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none resize-y transition-all duration-200" maxLength={EVENT_ABOUT_MAX} />
-                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                  Se ve en la pestaña Info general y en la página pública. Usa <code>## </code> para títulos, <code>- </code> para listas y <code>**texto**</code> para negrita; los enlaces se detectan solos.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha y hora *</label>
-                  <input type="datetime-local" value={editDate} onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Fecha fin (opcional)</label>
-                  <input type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Ubicación</label>
-                  <input type="text" value={editLocation} onChange={(e) => setEditLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" maxLength={300} />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-secondary)] mb-1">Máx. asistentes</label>
-                  <input type="number" value={editMaxAttendees} onChange={(e) => setEditMaxAttendees(e.target.value)} min={1}
-                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Imagen del evento</label>
-                <div className="flex items-center gap-3">
-                  {editImageUrl ? (
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
-                      <Image src={editImageUrl} alt="Preview" width={80} height={80} unoptimized className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-xs shrink-0">
-                      Sin imagen
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-xl text-xs font-medium hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition-all duration-200 cursor-pointer text-center">
-                      {uploadingImage ? "Subiendo..." : editImageUrl ? "Cambiar" : "Subir imagen"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) handleImageUpload(f, "edit");
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                    {editImageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setEditImageUrl(null)}
-                        className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-secondary)] mb-1">Visibilidad</label>
-                <div className="flex gap-2">
-                  {(["public", "private"] as const).map((v) => (
-                    <button key={v} onClick={() => setEditVisibility(v)}
-                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        editVisibility === v ? "bg-[var(--primary)] text-[var(--primary-text)]" : "bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                      }`}
-                    >
-                      {v === "public" ? "Público" : "Privado"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <button onClick={handleSaveEdit} disabled={savingEdit || !editName.trim() || !editDate}
-              className="w-full mt-5 px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              {savingEdit ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onChange={switchTab}
+        items={visibleTabs.map((tab) => ({ value: tab, label: tabLabel(tab), count: tabCount(tab) }))}
+        className="mb-4"
+      />
+
+      {/* Tab content */}
+      {activeTab === "info" && (
+        <div className={cardClass({ padding: "lg" })}>
+          {event.about?.trim() ? (
+            <>
+              <RichText text={event.about} />
+              {event.isAdmin && (
+                <Button variant="ghost" size="xs" onClick={openEditModal} className="mt-5 -ml-2.5">
+                  Editar la info
+                </Button>
+              )}
+            </>
+          ) : (
+            <EmptyState
+              icon="📋"
+              title="Aún no hay info general"
+              description="Cuenta horarios, normas, qué traer o cómo llegar. Se ve aquí y en la página pública del evento."
+              action={<Button onClick={openEditModal}>Añadir info</Button>}
+            />
+          )}
         </div>
       )}
-    </div>
+      {activeTab === "activity" && (
+        <div className={cardClass()}>
+          <ActivityFeed
+            items={feedItems}
+            onLoadMore={loadMoreFeed}
+            hasMore={feedHasMore}
+            loading={feedLoading || !feedLoaded}
+          />
+        </div>
+      )}
+      {activeTab === "games" && (
+        <GamesTab
+          event={event}
+          onGeeklistChanged={fetchEvent}
+          onAddGame={handleAddGame}
+          onRemoveGame={handleRemoveGame}
+          onSetInterest={handleSetInterest}
+          onRemoveInterest={handleRemoveInterest}
+          addingGame={addingGame}
+        />
+      )}
+      {activeTab === "mylist" && (
+        <MyListTab
+          myInterests={myInterests}
+          event={event}
+          onUpdateNotes={handleUpdateNotes}
+          onTogglePlayed={handleTogglePlayed}
+          onManualChanged={handleManualChanged}
+        />
+      )}
+      {activeTab === "attendees" && (
+        <AttendeesTab
+          event={event}
+          onSetRole={handleSetAttendeeRole}
+          mesa={mesa}
+          onOpenMesa={openMesa}
+          onCloseMesa={closeMesa}
+        />
+      )}
+      {activeTab === "gallery" && (
+        <EventGallery
+          eventId={eventId}
+          currentUserId={event.currentUserId}
+          canParticipate={event.isCreator || event.currentAttendeeId != null}
+          isAdmin={event.isAdmin}
+          openReviewSignal={openReviewSignal}
+        />
+      )}
+
+      {/* Edit event modal */}
+      <Modal
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        title="Editar evento"
+        size="lg"
+        busy={savingEdit}
+        footer={
+          <Button onClick={handleSaveEdit} disabled={!editName.trim() || !editDate} loading={savingEdit} block>
+            {savingEdit ? "Guardando…" : "Guardar cambios"}
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Nombre del evento *">
+            {(id) => (
+              <EmojiField id={id} multiline={false} value={editName} onChange={setEditName}
+                className={fieldClass()} maxLength={200} />
+            )}
+          </Field>
+          <Field label="Descripción corta">
+            {(id) => (
+              <EmojiField id={id} value={editDescription} onChange={setEditDescription} rows={2}
+                placeholder="Una frase que resuma el evento"
+                className={fieldClass({ className: "resize-none" })} maxLength={2000} />
+            )}
+          </Field>
+          <Field
+            label="Info general"
+            hint={
+              <>
+                Se ve en la pestaña Info general y en la página pública. Usa <code>## </code> para títulos, <code>- </code> para listas y <code>**texto**</code> para negrita; los enlaces se detectan solos.
+              </>
+            }
+          >
+            {(id) => (
+              <EmojiField id={id} value={editAbout} onChange={setEditAbout} rows={8}
+                placeholder={"Horarios, normas, qué traer, cómo llegar…\n\n## Horarios\n- Sábado de 10:00 a 22:00"}
+                className={fieldClass({ className: "resize-y" })} maxLength={EVENT_ABOUT_MAX} />
+            )}
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fecha y hora *">
+              {(id) => (
+                <Input id={id} type="datetime-local" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+              )}
+            </Field>
+            <Field label="Fecha fin (opcional)">
+              {(id) => (
+                <Input id={id} type="datetime-local" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
+              )}
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Ubicación">
+              {(id) => (
+                <Input id={id} type="text" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} maxLength={300} />
+              )}
+            </Field>
+            <Field label="Máx. asistentes">
+              {(id) => (
+                <Input id={id} type="number" value={editMaxAttendees} onChange={(e) => setEditMaxAttendees(e.target.value)} min={1} />
+              )}
+            </Field>
+          </div>
+          <div>
+            <p className={LABEL_CLASS}>Imagen del evento</p>
+            <div className="flex items-center gap-3">
+              {editImageUrl ? (
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
+                  <Image src={editImageUrl} alt="Vista previa" width={80} height={80} unoptimized className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-xs shrink-0">
+                  Sin imagen
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label className={buttonClass({ variant: "secondary", size: "sm", className: "cursor-pointer" })}>
+                  {uploadingImage ? "Subiendo…" : editImageUrl ? "Cambiar" : "Subir imagen"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleImageUpload(f, "edit");
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {editImageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setEditImageUrl(null)}
+                    className="text-xs text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div>
+            <p className={LABEL_CLASS}>Visibilidad</p>
+            <SegmentedControl
+              label="Visibilidad"
+              value={editVisibility}
+              onChange={setEditVisibility}
+              options={[
+                { value: "public", label: "Público" },
+                { value: "private", label: "Privado" },
+              ]}
+            />
+          </div>
+        </div>
+      </Modal>
+    </PageShell>
+  );
+}
+
+/** Mientras llega el evento: la cabecera ya pintada y el dado debajo. */
+function EventLoading() {
+  return (
+    <>
+      <Navbar />
+      <PageLoader withNavbar />
+    </>
   );
 }
 
@@ -980,7 +995,7 @@ function EventDetailPageInner() {
 // page.tsx, que a quien llega sin cuenta le enseña la versión pública.
 export default function EventClient() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)]" />}>
+    <Suspense fallback={<EventLoading />}>
       <EventDetailPageInner />
     </Suspense>
   );
@@ -1008,22 +1023,15 @@ function GamesTab({
   const isAttending = !!event.currentAttendeeId;
   const linked = !!event.bggGeeklistId;
   const [sort, setSort] = useState<GameSort>(() => {
-    try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem(GAME_SORT_KEY) : null;
-      return GAME_SORTS.some((o) => o.key === saved) ? (saved as GameSort) : "added";
-    } catch {
-      return "added";
-    }
+    const saved = readStorage(GAME_SORT_KEY);
+    return GAME_SORTS.some((o) => o.key === saved) ? (saved as GameSort) : "added";
   });
   const [openGone, setOpenGone] = useState<string | null>(null);
 
   const chooseSort = (key: GameSort) => {
     setSort(key);
-    try {
-      localStorage.setItem(GAME_SORT_KEY, key);
-    } catch {
-      // Sin almacenamiento: se queda para esta visita
-    }
+    // Sin almacenamiento: se queda para esta visita
+    writeStorage(GAME_SORT_KEY, key);
   };
 
   const myInterestIn = (eg: EventGame) => eg.interests.find((i) => i.attendeeId === event.currentAttendeeId);
@@ -1071,10 +1079,11 @@ function GamesTab({
   const removeButton = (eg: EventGame, small = false) => (
     <button
       onClick={() => onRemoveGame(eg.game.id)}
-      className={`shrink-0 ${small ? "w-7 h-7 text-xs" : "w-8 h-8 text-sm"} flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-500/50 transition-colors`}
+      className={`shrink-0 ${small ? "w-7 h-7 text-xs" : "w-8 h-8 text-sm"} flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger)]/50 transition-colors`}
       title="Eliminar del evento"
+      aria-label={`Eliminar ${eg.game.name} del evento`}
     >
-      🗑
+      <span aria-hidden>🗑</span>
     </button>
   );
 
@@ -1084,7 +1093,7 @@ function GamesTab({
         <GeeklistPanel eventId={event.id} event={event} onChanged={onGeeklistChanged}>
           <BggGameSearch
             onSelect={onAddGame}
-            placeholder="Buscar juego en BGG para añadir..."
+            placeholder="Buscar juego en BGG para añadir…"
             disabled={addingGame}
           />
         </GeeklistPanel>
@@ -1093,40 +1102,41 @@ function GamesTab({
       )}
 
       {games.length > 1 && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Ordenar juegos">
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-[var(--text-muted)] mr-1">Ordenar:</span>
-          {GAME_SORTS.filter((o) => o.key !== "unrated" || isAttending).map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              role="radio"
-              aria-checked={activeSort === o.key}
-              onClick={() => chooseSort(o.key)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                activeSort === o.key
-                  ? "border-[var(--primary)] bg-[var(--primary)]/15 text-[var(--primary)]"
-                  : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-              }`}
-            >
-              {o.label}
-              {o.key === "unrated" && unratedCount > 0 && (
-                <span className="ml-1 opacity-75">({unratedCount})</span>
-              )}
-            </button>
-          ))}
+          <SegmentedControl
+            size="sm"
+            label="Ordenar juegos"
+            value={activeSort}
+            onChange={chooseSort}
+            className="flex-wrap"
+            options={GAME_SORTS.filter((o) => o.key !== "unrated" || isAttending).map((o) => ({
+              value: o.key,
+              label: (
+                <>
+                  {o.label}
+                  {o.key === "unrated" && unratedCount > 0 && (
+                    <span className="ml-1 opacity-75">({unratedCount})</span>
+                  )}
+                </>
+              ),
+            }))}
+          />
         </div>
       )}
 
       {games.length === 0 && gone.length === 0 ? (
-        <p className="text-[var(--text-secondary)] text-center py-8">
-          {linked
-            ? event.geeklistSyncedAt
-              ? "La lista de BGG aún no tiene juegos"
-              : "Los juegos llegarán en cuanto BGG tenga lista la geeklist"
-            : event.isAdmin
-              ? "Usa el buscador para añadir juegos al evento"
-              : "Aún no se han añadido juegos"}
-        </p>
+        <EmptyState
+          title={
+            linked
+              ? event.geeklistSyncedAt
+                ? "La lista de BGG aún no tiene juegos"
+                : "Los juegos llegarán en cuanto BGG tenga lista la geeklist"
+              : event.isAdmin
+                ? "Usa el buscador para añadir juegos al evento"
+                : "Aún no se han añadido juegos"
+          }
+        />
       ) : (
         <div className="space-y-3">
           {games.map((eg) => {
@@ -1138,22 +1148,20 @@ function GamesTab({
             return (
               <div
                 key={eg.id}
-                className={`bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200 ${
-                  vetoed ? "opacity-70" : ""
-                }`}
+                className={cardClass({ padding: "sm", className: `sm:p-4 transition-all duration-200 ${vetoed ? "opacity-70" : ""}` })}
               >
                 <div className="flex items-center gap-3 sm:gap-4">
                   <div className={`w-11 h-11 sm:w-[80px] sm:h-[80px] shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${vetoed ? "grayscale" : ""}`}>
                     {eg.game.thumbnail ? (
                       <Image src={eg.game.thumbnail} alt={eg.game.name} width={80} height={80} className="w-full h-full object-contain" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
+                      <div className="w-full h-full flex items-center justify-center text-xl" aria-hidden>🎲</div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-[var(--text)] text-sm sm:text-base leading-tight">
                       <a
-                        href={`https://boardgamegeek.com/boardgame/${eg.game.bggId}`}
+                        href={bggGameUrl(eg.game.bggId)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`hover:text-[var(--primary)] transition-colors ${vetoed ? "line-through decoration-[var(--text-muted)]" : ""}`}
@@ -1178,7 +1186,7 @@ function GamesTab({
                       />
                       {totalInterested > 0 && (
                         <GameTag tone="green">
-                          🙋 {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
+                          🙋 {plural(totalInterested, "interesado", "interesados")}
                         </GameTag>
                       )}
                       {totalVetoes > 0 && (
@@ -1218,16 +1226,10 @@ function GamesTab({
                   return (
                     <li key={eg.id} className="px-3 sm:px-4 py-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 shrink-0 rounded-md overflow-hidden bg-[var(--surface-hover)] grayscale opacity-50">
-                          {eg.game.thumbnail ? (
-                            <Image src={eg.game.thumbnail} alt={eg.game.name} width={32} height={32} className="w-full h-full object-contain" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-                          )}
-                        </div>
+                        <GameThumb src={eg.game.thumbnail} name={eg.game.name} size="xs" fit="contain" className="grayscale opacity-50" />
                         <div className="flex-1 min-w-0 text-sm text-[var(--text-muted)] leading-tight">
                           <a
-                            href={`https://boardgamegeek.com/boardgame/${eg.game.bggId}`}
+                            href={bggGameUrl(eg.game.bggId)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
@@ -1235,10 +1237,7 @@ function GamesTab({
                             {eg.game.name}
                           </a>
                           <span className="text-xs ml-1.5">
-                            {(() => {
-                              const n = eg.interests.filter((i) => !isVeto(i.intensity)).length;
-                              return `${n} interesado${n !== 1 ? "s" : ""}`;
-                            })()}
+                            {plural(eg.interests.filter((i) => !isVeto(i.intensity)).length, "interesado", "interesados")}
                           </span>
                         </div>
                         {isAttending && (
@@ -1324,26 +1323,17 @@ function MyListTab({
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
-  const [toast, setToast] = useState("");
-
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(""), 4000);
-  };
 
   if (!event.currentAttendeeId) {
-    return (
-      <p className="text-[var(--text-secondary)] text-center py-8">
-        Apúntate al evento para poder crear tu lista de juegos
-      </p>
-    );
+    return <EmptyState title="Apúntate al evento para poder crear tu lista de juegos" />;
   }
 
   if (myInterests.length === 0) {
     return (
-      <p className="text-[var(--text-secondary)] text-center py-8">
-        Aún no has marcado ningún juego. Ve a la pestaña &quot;Juegos&quot; y marca tus preferencias
-      </p>
+      <EmptyState
+        title="Aún no has marcado ningún juego"
+        description="Ve a la pestaña «Juegos» y marca tus preferencias"
+      />
     );
   }
 
@@ -1385,17 +1375,17 @@ function MyListTab({
             </svg>
           </button>
         )}
-        <div className={`w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-[var(--surface-hover)] ${isPlayed ? "opacity-60" : ""} ${vetoed ? "opacity-60 grayscale" : ""}`}>
-          {game.thumbnail ? (
-            <Image src={game.thumbnail} alt={game.name} width={40} height={40} className="w-full h-full object-contain" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">?</div>
-          )}
-        </div>
+        <GameThumb
+          src={game.thumbnail}
+          name={game.name}
+          size="sm"
+          fit="contain"
+          className={`${isPlayed ? "opacity-60" : ""} ${vetoed ? "opacity-60 grayscale" : ""}`}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
             <a
-              href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+              href={bggGameUrl(game.bggId)}
               target="_blank"
               rel="noopener noreferrer"
               className={`font-semibold text-sm sm:text-base hover:text-[var(--primary)] transition-colors ${isPlayed || vetoed ? "text-[var(--text-secondary)] line-through decoration-[var(--text-muted)]" : "text-[var(--text)]"}`}
@@ -1418,19 +1408,16 @@ function MyListTab({
                 value={notesValue}
                 onChange={setNotesValue}
                 maxLength={500}
-                placeholder="Notas privadas..."
+                placeholder="Notas privadas…"
                 wrapperClassName="flex-1"
-                className="w-full px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200"
+                className={fieldClass({ size: "sm" })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveNotes(eventGameId, myInterest.intensity);
                 }}
               />
-              <button
-                onClick={() => saveNotes(eventGameId, myInterest.intensity)}
-                className="px-3 py-1 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-xs font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-              >
+              <Button size="xs" onClick={() => saveNotes(eventGameId, myInterest.intensity)}>
                 Guardar
-              </button>
+              </Button>
             </div>
           ) : (
             <button
@@ -1444,7 +1431,7 @@ function MyListTab({
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
               }`}
             >
-              {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada..."}
+              {myInterest.notes ? `📝 ${myInterest.notes}` : "Añadir nota privada…"}
             </button>
           )}
         </div>
@@ -1461,31 +1448,28 @@ function MyListTab({
     <div>
       <div className="flex items-center justify-between gap-3 mb-3">
         <p className="text-xs text-[var(--text-muted)]">Tus notas son privadas: solo las ves tú.</p>
-        <button
-          onClick={() => setShareOpen(true)}
-          title="Compartir mi lista"
-          className="shrink-0 px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition-all duration-200"
-        >
+        <Button variant="secondary" size="xs" onClick={() => setShareOpen(true)} title="Compartir mi lista" className="shrink-0">
           ↗ Compartir
-        </button>
+        </Button>
       </div>
 
       {pending.length > 0 ? (
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-1">
+        <div className={cardClass({ padding: "none", className: "px-3 sm:px-4 py-1" })}>
           <ul className="divide-y divide-[var(--border)]">
             {pending.map((item) => renderRow(item, false))}
           </ul>
         </div>
       ) : played.length > 0 ? (
-        <p className="text-[var(--text-secondary)] text-center py-6">¡Ya has jugado todo lo de tu lista! 🎉</p>
+        <EmptyState title="¡Ya has jugado todo lo de tu lista! 🎉" />
       ) : (
-        <p className="text-[var(--text-secondary)] text-center py-6">
-          De momento solo has descartado juegos. Marca en «Juegos» los que te apetecen
-        </p>
+        <EmptyState
+          title="De momento solo has descartado juegos"
+          description="Marca en «Juegos» los que te apetecen"
+        />
       )}
 
       {played.length > 0 && (
-        <div className="mt-6 bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-3 sm:px-4 py-2">
+        <div className={cardClass({ padding: "none", className: "mt-6 px-3 sm:px-4 py-2" })}>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] pt-1.5">
             Jugados ({played.length})
           </h3>
@@ -1506,15 +1490,7 @@ function MyListTab({
         </div>
       )}
 
-      {shareOpen && (
-        <ShareListModal eventId={event.id} onClose={() => setShareOpen(false)} onToast={showToast} />
-      )}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg text-sm text-[var(--text)] max-w-[90vw] text-center">
-          {toast}
-        </div>
-      )}
+      {shareOpen && <ShareListModal eventId={event.id} onClose={() => setShareOpen(false)} />}
     </div>
   );
 }
@@ -1524,12 +1500,11 @@ function MyListTab({
 function ShareListModal({
   eventId,
   onClose,
-  onToast,
 }: {
   eventId: string;
   onClose: () => void;
-  onToast: (message: string) => void;
 }) {
+  const toast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -1552,9 +1527,9 @@ function ShareListModal({
       const data = await res.json();
       setToken(data.token ?? null);
       setConfirmRevoke(false);
-      onToast(method === "DELETE" ? "Enlace desactivado: ya no se puede abrir" : "Enlace listo para compartir");
+      toast(method === "DELETE" ? "Enlace desactivado: ya no se puede abrir" : "Enlace listo para compartir");
     } catch {
-      onToast("No se ha podido cambiar el enlace");
+      toast.error("No se ha podido cambiar el enlace");
     } finally {
       setBusy(false);
     }
@@ -1563,103 +1538,70 @@ function ShareListModal({
   const url = token ? `${window.location.origin}/l/${token}` : "";
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      onToast("Enlace copiado");
-    } catch {
-      onToast("No se ha podido copiar; selecciónalo a mano");
-    }
+    if (await copyText(url)) toast("Enlace copiado");
+    else toast.error("No se ha podido copiar; selecciónalo a mano");
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-xl w-full max-w-md"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <h2 className="text-lg font-bold text-[var(--text)]">Compartir mi lista</h2>
-            <button
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              ✕
-            </button>
+    <Modal open onClose={onClose} title="Compartir mi lista" busy={busy}>
+      {loading ? (
+        <div className="h-24 flex items-center justify-center">
+          <Spinner size="md" label="Cargando…" />
+        </div>
+      ) : token ? (
+        <>
+          <p className="text-sm text-[var(--text-secondary)] mb-3">
+            <strong>Cualquiera con este enlace</strong> puede ver tu lista para este evento: tus prioridades y lo que
+            ya has jugado, siempre al día. Tus notas no salen. No hace falta cuenta y no se puede cambiar nada.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              readOnly
+              size="sm"
+              aria-label="Enlace para compartir tu lista"
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="flex-1 min-w-0 font-mono"
+            />
+            <Button onClick={copy} className="shrink-0">
+              Copiar
+            </Button>
           </div>
 
-          {loading ? (
-            <div className="h-24 flex items-center justify-center">
-              <span className="w-5 h-5 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-            </div>
-          ) : token ? (
-            <>
-              <p className="text-sm text-[var(--text-secondary)] mb-3">
-                <strong>Cualquiera con este enlace</strong> puede ver tu lista para este evento: tus prioridades y lo que
-                ya has jugado, siempre al día. Tus notas no salen. No hace falta cuenta y no se puede cambiar nada.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={url}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="flex-1 min-w-0 px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-xs text-[var(--text)] font-mono"
-                />
-                <button
-                  onClick={copy}
-                  className="shrink-0 px-4 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200"
-                >
-                  Copiar
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--border)]">
-                <button
-                  onClick={() => call("POST")}
-                  disabled={busy}
-                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-xs hover:text-[var(--text)] disabled:opacity-50 transition-colors"
-                  title="Genera un enlace nuevo; el anterior deja de funcionar"
-                >
-                  Generar uno nuevo
-                </button>
-                {confirmRevoke ? (
-                  <button
-                    onClick={() => call("DELETE")}
-                    disabled={busy}
-                    className="px-3 py-1.5 bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold disabled:opacity-50"
-                  >
-                    ¿Seguro? Dejar de compartir
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setConfirmRevoke(true)}
-                    className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
-                  >
-                    Dejar de compartir
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Genera un enlace para que quien te acompañe vea qué te apetece jugar en este evento y qué has jugado
-                ya. Solo pueden mirar, y tus notas no salen. Lo abre cualquiera que lo tenga, sin cuenta, así que
-                desactívalo cuando ya no haga falta.
-              </p>
-              <button
-                onClick={() => call("POST")}
-                disabled={busy}
-                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-all duration-200"
-              >
-                {busy ? "Creando…" : "Crear enlace para compartir"}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--border)]">
+            <Button
+              variant="secondary"
+              size="xs"
+              onClick={() => call("POST")}
+              disabled={busy}
+              title="Genera un enlace nuevo; el anterior deja de funcionar"
+            >
+              Generar uno nuevo
+            </Button>
+            {confirmRevoke ? (
+              <Button variant="danger" size="xs" onClick={() => call("DELETE")} disabled={busy}>
+                ¿Seguro? Dejar de compartir
+              </Button>
+            ) : (
+              <Button variant="ghost" size="xs" onClick={() => setConfirmRevoke(true)} className="hover:text-[var(--danger)]!">
+                Dejar de compartir
+              </Button>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
+            Genera un enlace para que quien te acompañe vea qué te apetece jugar en este evento y qué has jugado
+            ya. Solo pueden mirar, y tus notas no salen. Lo abre cualquiera que lo tenga, sin cuenta, así que
+            desactívalo cuando ya no haga falta.
+          </p>
+          <Button onClick={() => call("POST")} loading={busy} block>
+            {busy ? "Creando…" : "Crear enlace para compartir"}
+          </Button>
+        </>
+      )}
+    </Modal>
   );
 }
 
@@ -1681,6 +1623,7 @@ function AttendeesTab({
   // Con quién armar mesa (ids de asistente). Quien mira, si está apuntado,
   // va siempre incluido y no se marca.
   const [picked, setPicked] = useState<Set<string>>(() => new Set(mesa ?? []));
+  const confirm = useConfirm();
   const me = event.currentAttendeeId;
 
   const togglePicked = (attendeeId: string) => {
@@ -1698,16 +1641,13 @@ function AttendeesTab({
     .filter((a): a is Attendee => !!a);
   if (mesaMembers.length >= 2) {
     return (
-      <div>
-        <MesaView
-          members={mesaMembers}
-          games={listedGames(event)}
-          currentAttendeeId={me}
-          shareUrl={`${window.location.origin}/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`}
-          onClose={onCloseMesa}
-        />
-        <Footer />
-      </div>
+      <MesaView
+        members={mesaMembers}
+        games={listedGames(event)}
+        currentAttendeeId={me}
+        shareUrl={`${window.location.origin}/events/${event.id}?tab=attendees&mesa=${mesaMembers.map((a) => a.id).join(",")}`}
+        onClose={onCloseMesa}
+      />
     );
   }
 
@@ -1718,9 +1658,8 @@ function AttendeesTab({
   ];
   const pickedNames = event.attendees
     .filter((a) => a.id !== me && picked.has(a.id))
-    .map((a) => (a.user.displayName || a.user.name || "Jugador").split(" ")[0]);
-  const namesText =
-    pickedNames.length <= 1 ? pickedNames.join("") : `${pickedNames.slice(0, -1).join(", ")} y ${pickedNames[pickedNames.length - 1]}`;
+    .map((a) => displayName(a.user).split(" ")[0]);
+  const namesText = joinNames(pickedNames);
   const canPick = event.attendees.length >= 2;
 
   return (
@@ -1731,14 +1670,14 @@ function AttendeesTab({
         </p>
       )}
       {event.attendees.length === 0 ? (
-        <p className="text-[var(--text-secondary)] text-center py-8">Nadie se ha apuntado todavía</p>
+        <EmptyState title="Nadie se ha apuntado todavía" />
       ) : (
         <div className="space-y-3">
           {event.attendees.map((att) => {
             const isCreator = att.userId === event.createdById;
             const isAdmin = !isCreator && att.role === "admin";
             const isSelf = att.userId === event.currentUserId;
-            const displayName = att.user.displayName || att.user.name || "Jugador";
+            const name = displayName(att.user);
             // Como en grupos: los admins nombran admins; quitarlos, solo el creador
             const canPromote = event.isAdmin && !isCreator && !isAdmin && !isSelf;
             const canDemote = event.isCreator && isAdmin;
@@ -1755,9 +1694,10 @@ function AttendeesTab({
             return (
               <div
                 key={att.id}
-                className={`bg-[var(--surface)] rounded-2xl border shadow-[var(--card-shadow)] p-3 sm:p-4 transition-all duration-200 ${
-                  isPicked ? "border-[var(--primary)]" : "border-[var(--border)]"
-                }`}
+                className={cardClass({
+                  padding: "sm",
+                  className: `sm:p-4 transition-all duration-200 ${isPicked ? "border-[var(--primary)]!" : ""}`,
+                })}
               >
                 <div className="flex items-center gap-2">
                   {canPick && !isSelf && (
@@ -1765,7 +1705,7 @@ function AttendeesTab({
                       type="button"
                       role="checkbox"
                       aria-checked={isPicked}
-                      aria-label={`${isPicked ? "Quitar a" : "Añadir a"} ${displayName} de la mesa`}
+                      aria-label={`${isPicked ? "Quitar a" : "Añadir a"} ${name} de la mesa`}
                       title={isPicked ? "Quitar de la mesa" : "Añadir a la mesa"}
                       onClick={() => togglePicked(att.id)}
                       className={`w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-200 active:scale-90 ${
@@ -1781,7 +1721,7 @@ function AttendeesTab({
                   )}
                   <Link href={profileHref(att.user)} prefetch={false}>
                     <Avatar
-                      name={displayName}
+                      name={name}
                       avatarUrl={att.user.avatarUrl}
                       size="sm"
                     />
@@ -1797,7 +1737,7 @@ function AttendeesTab({
                       </Link>
                       {att.user.bggUsername && (
                         <a
-                          href={`https://boardgamegeek.com/user/${att.user.bggUsername}`}
+                          href={bggUserUrl(att.user.bggUsername)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors ml-1.5 font-normal"
@@ -1813,30 +1753,38 @@ function AttendeesTab({
                   </div>
                   <FriendButton user={toFriend(att.user)} />
                   {canPromote && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`¿Hacer admin a ${displayName}? Podrá editar el evento, gestionar los juegos y el enlace de invitación.`)) {
-                          onSetRole(att.id, "admin");
-                        }
+                    <Button
+                      variant="soft"
+                      size="xs"
+                      className="shrink-0"
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `¿Hacer admin a ${name}?`,
+                          body: "Podrá editar el evento, gestionar los juegos y el enlace de invitación.",
+                          confirmLabel: "Hacer admin",
+                        });
+                        if (ok) onSetRole(att.id, "admin");
                       }}
-                      className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-[var(--accent-soft)] text-[var(--primary)] hover:bg-[var(--primary)]/20 transition-colors"
                     >
                       Hacer admin
-                    </button>
+                    </Button>
                   )}
                   {canDemote && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`¿Quitar admin a ${displayName}?`)) onSetRole(att.id, "attendee");
+                    <Button
+                      variant="dangerOutline"
+                      size="xs"
+                      className="shrink-0"
+                      onClick={async () => {
+                        const ok = await confirm({ title: `¿Quitar admin a ${name}?`, confirmLabel: "Quitar admin", tone: "danger" });
+                        if (ok) onSetRole(att.id, "attendee");
                       }}
-                      className="shrink-0 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                     >
                       Quitar admin
-                    </button>
+                    </Button>
                   )}
                   <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                     att.status === "attending"
-                      ? "bg-emerald-500/20 text-emerald-300"
+                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
                       : att.status === "maybe"
                         ? "bg-[var(--accent-soft)] text-[var(--primary)]"
                         : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
@@ -1870,12 +1818,9 @@ function AttendeesTab({
       {selection.length >= 2 && (
         <div className="fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-2 max-w-full">
-            <button
-              onClick={() => onOpenMesa(selection)}
-              className="min-w-0 truncate px-5 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-2xl text-sm font-semibold hover:bg-[var(--primary-hover)] shadow-lg transition-all duration-200"
-            >
-              🎲 Armar mesa {me ? "con " : ""}{namesText}
-            </button>
+            <Button size="lg" onClick={() => onOpenMesa(selection)} className="min-w-0 shadow-lg">
+              <span className="truncate">🎲 Armar mesa {me ? "con " : ""}{namesText}</span>
+            </Button>
             <button
               onClick={() => setPicked(new Set())}
               aria-label="Limpiar selección"
@@ -1886,7 +1831,6 @@ function AttendeesTab({
           </div>
         </div>
       )}
-      <Footer />
     </div>
   );
 }

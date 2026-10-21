@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/Button";
+import { loginHref } from "@/lib/site";
 
 // El gancho para quien aterriza en algo público (un perfil, una colección
 // compartida, un evento abierto) sin cuenta. Va arriba del todo porque es lo
@@ -51,9 +52,7 @@ export default function SignupBanner({
   redirect?: string;
 }) {
   const copy = COPY[variant];
-  const href = redirect
-    ? `/login?redirect=${encodeURIComponent(redirect)}`
-    : "/login";
+  const href = loginHref(redirect);
 
   return (
     <div className="mb-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--accent-soft)] p-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -69,12 +68,7 @@ export default function SignupBanner({
         </div>
       </div>
       <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-1">
-        <Link
-          href={href}
-          className="inline-flex justify-center px-4 py-2 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          Crear cuenta gratis
-        </Link>
+        <ButtonLink href={href}>Crear cuenta gratis</ButtonLink>
         <span className="text-[11px] text-[var(--text-muted)] text-center sm:text-right">
           Solo tu email, sin contraseñas
         </span>

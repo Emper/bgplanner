@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { disablePush, enablePush, getPushState, type PushState } from "@/lib/pushClient";
 import { silenceNudges } from "@/lib/pushNudge";
+import { Switch } from "./ui/Field";
+import { cardClass } from "./ui/Card";
+import { useToast } from "./ui/Toast";
 
 // «Avisarme en este dispositivo»: las notificaciones de la campana también
 // como push. Cada dispositivo se activa por separado, y el permiso solo se
@@ -10,7 +13,7 @@ import { silenceNudges } from "@/lib/pushNudge";
 export default function PushToggle() {
   const [state, setState] = useState<PushState>("loading");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     getPushState()
@@ -24,7 +27,6 @@ export default function PushToggle() {
   const toggle = async () => {
     if (busy) return;
     setBusy(true);
-    setError("");
     try {
       if (on) {
         setState(await disablePush());
@@ -34,8 +36,7 @@ export default function PushToggle() {
         setState(await enablePush("settings"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se han podido cambiar los avisos");
-      setTimeout(() => setError(""), 4000);
+      toast.error(err instanceof Error ? err.message : "No se han podido cambiar los avisos");
     } finally {
       setBusy(false);
     }
@@ -63,37 +64,27 @@ export default function PushToggle() {
   const canToggle = state === "on" || state === "off";
 
   return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 shadow-[var(--card-shadow)] mb-4">
+    <div className={cardClass({ padding: "none", className: "p-4 mb-4" })}>
       <div className="flex items-start gap-3">
         <span className="text-xl leading-none mt-0.5" aria-hidden>
           📲
         </span>
         <div className="min-w-0 flex-1">
-          <p id="push-toggle-label" className="text-sm font-semibold text-[var(--text)]">
-            Avisarme en este dispositivo
-          </p>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{hint}</p>
-          {error && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
-        </div>
-        {canToggle && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={on}
-            aria-labelledby="push-toggle-label"
-            onClick={toggle}
-            disabled={busy}
-            className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-60 ${
-              on ? "bg-[var(--primary)]" : "bg-[var(--border-strong)]"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                on ? "translate-x-5" : ""
-              }`}
+          {canToggle ? (
+            <Switch
+              checked={on}
+              onChange={toggle}
+              disabled={busy}
+              label="Avisarme en este dispositivo"
+              description={hint}
             />
-          </button>
-        )}
+          ) : (
+            <>
+              <p className="text-sm font-medium text-[var(--text)]">Avisarme en este dispositivo</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{hint}</p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

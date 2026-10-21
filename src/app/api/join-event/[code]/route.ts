@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 import { notifyManagers } from "@/lib/notifications";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
 
-// GET — resolve invite code to event info (+ attendance check if logged in)
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
-) {
+type Ctx = { params: Promise<{ code: string }> };
+
+const INVALID_LINK = "Enlace de invitación no válido";
+
+// Qué evento hay detrás del enlace (sin sesión también) y, con sesión, si ya
+// estás apuntado
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
   const { code } = await params;
 
   const [session, event] = await Promise.all([
@@ -23,21 +27,14 @@ export async function GET(
       },
     }),
   ]);
+  if (!event) throw new ApiError(404, INVALID_LINK);
 
-  if (!event) {
-    return NextResponse.json(
-      { error: "Enlace de invitación no válido" },
-      { status: 404 }
-    );
-  }
-
-  let alreadyAttending = false;
-  if (session) {
-    const attendance = await prisma.eventAttendee.findUnique({
-      where: { eventId_userId: { eventId: event.id, userId: session.userId } },
-    });
-    alreadyAttending = !!attendance;
-  }
+  const attendance = session
+    ? await prisma.eventAttendee.findUnique({
+        where: { eventId_userId: { eventId: event.id, userId: session.userId } },
+        select: { id: true },
+      })
+    : null;
 
   return NextResponse.json({
     eventId: event.id,
@@ -46,67 +43,42 @@ export async function GET(
     eventLocation: event.location,
     attendeeCount: event._count.attendees,
     gameCount: event._count.games,
-    alreadyAttending,
+    alreadyAttending: !!attendance,
   });
-}
+});
 
-// POST — auth required: join the event
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// Apuntarse al evento con el enlace (la única puerta a los privados)
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { code } = await params;
 
   const event = await prisma.event.findUnique({
     where: { inviteCode: code },
     select: { id: true, name: true, maxAttendees: true, _count: { select: { attendees: true } } },
   });
+  if (!event) throw new ApiError(404, INVALID_LINK);
 
-  if (!event) {
-    return NextResponse.json(
-      { error: "Enlace de invitación no válido" },
-      { status: 404 }
-    );
-  }
-
-  // Check if already attending
   const existing = await prisma.eventAttendee.findUnique({
     where: { eventId_userId: { eventId: event.id, userId: session.userId } },
+    select: { id: true },
   });
-
   if (existing) {
-    return NextResponse.json({
-      alreadyAttending: true,
-      eventId: event.id,
-      eventName: event.name,
-    });
+    return NextResponse.json({ alreadyAttending: true, eventId: event.id, eventName: event.name });
   }
 
-  // Check max attendees
   if (event.maxAttendees && event._count.attendees >= event.maxAttendees) {
-    return NextResponse.json({ error: "El evento está completo" }, { status: 409 });
+    throw new ApiError(409, "El evento está completo");
   }
 
   await prisma.eventAttendee.create({
-    data: {
-      eventId: event.id,
-      userId: session.userId,
-      status: "attending",
-    },
+    data: { eventId: event.id, userId: session.userId, status: "attending" },
   });
+
+  logActivity("event_joined", session.userId, { eventId: event.id, eventName: event.name });
   notifyManagers(
     { eventId: event.id },
     { type: "event_attendee_joined", actorId: session.userId, metadata: { status: "attending" } }
   );
 
-  return NextResponse.json({
-    joined: true,
-    eventId: event.id,
-    eventName: event.name,
-  });
-}
+  return NextResponse.json({ joined: true, eventId: event.id, eventName: event.name });
+});

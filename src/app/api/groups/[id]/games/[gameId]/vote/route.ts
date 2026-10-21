@@ -1,97 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, parseBody, requireGroupMember, requireSession } from "@/lib/api";
 import { voteSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 import { getGroupType, isVoteValueAllowed } from "@/lib/groupTypes";
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; gameId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string; gameId: string }> };
 
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId, gameId } = await params;
 
-  const [membership, group] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: session.userId } },
-    }),
+  const [, group, groupGame] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
     prisma.group.findUnique({ where: { id: groupId }, select: { type: true } }),
+    prisma.groupGame.findUnique({
+      where: { groupId_gameId: { groupId, gameId } },
+      include: {
+        game: { select: { name: true } },
+        // El voto previo, para distinguir votar de cambiar el voto
+        votes: { where: { userId: session.userId }, select: { value: true } },
+      },
+    }),
   ]);
 
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-  if (!group) {
-    return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
-  }
+  if (!group) throw new ApiError(404, "Grupo no encontrado");
 
-  const body = await request.json();
-  const parsed = voteSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const { value } = parsed.data;
-  const groupType = getGroupType(group.type);
+  const { value } = await parseBody(request, voteSchema);
 
   if (!isVoteValueAllowed(group.type, value)) {
-    return NextResponse.json(
-      { error: "Ese voto no está disponible en este modo de grupo" },
-      { status: 400 }
-    );
+    throw new ApiError(400, "Ese voto no está disponible en este modo de grupo");
   }
+  if (!groupGame) throw new ApiError(404, "Juego no encontrado en este grupo");
 
-  const groupGame = await prisma.groupGame.findUnique({
-    where: { groupId_gameId: { groupId, gameId } },
-    include: { game: { select: { name: true } } },
-  });
+  const existingVote = groupGame.votes[0] ?? null;
 
-  if (!groupGame) {
-    return NextResponse.json(
-      { error: "Juego no encontrado en este grupo" },
-      { status: 404 }
-    );
-  }
-
-  // Check for existing vote (used to differentiate cast vs change)
-  const existingVote = await prisma.vote.findUnique({
-    where: {
-      groupGameId_userId: {
-        groupGameId: groupGame.id,
-        userId: session.userId,
-      },
-    },
-  });
-
-  // Apply vote limits configured for this group type
-  for (const limit of groupType.voteLimits) {
+  // Límites de votos del tipo de grupo (p. ej. un solo super voto por grupo)
+  for (const limit of getGroupType(group.type).voteLimits) {
     if (value !== limit.value) continue;
-    const otherVotesWithSameValue = await prisma.vote.findFirst({
+    const otherVoteWithSameValue = await prisma.vote.findFirst({
       where: {
         userId: session.userId,
         value: limit.value,
         groupGame: { groupId },
         NOT: { groupGameId: groupGame.id },
       },
+      select: { groupGameId: true },
     });
-    // max=1 means: any existing vote with this value on a different game blocks it
-    if (otherVotesWithSameValue && limit.max <= 1) {
-      return NextResponse.json(
-        {
-          error: limit.errorMessage,
-          conflictingGameId: otherVotesWithSameValue.groupGameId,
-        },
-        { status: 409 }
-      );
+    // max=1: cualquier voto igual en otro juego lo bloquea
+    if (otherVoteWithSameValue && limit.max <= 1) {
+      throw new ApiError(409, limit.errorMessage, {
+        conflictingGameId: otherVoteWithSameValue.groupGameId,
+      });
     }
   }
 
@@ -117,38 +77,21 @@ export async function POST(
   }
 
   return NextResponse.json(vote);
-}
+});
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; gameId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const DELETE = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId, gameId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
+  const [, groupGame] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
+    prisma.groupGame.findUnique({
+      where: { groupId_gameId: { groupId, gameId } },
+      include: { game: { select: { name: true } } },
+    }),
+  ]);
 
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
-  const groupGame = await prisma.groupGame.findUnique({
-    where: { groupId_gameId: { groupId, gameId } },
-    include: { game: { select: { name: true } } },
-  });
-
-  if (!groupGame) {
-    return NextResponse.json(
-      { error: "Juego no encontrado" },
-      { status: 404 }
-    );
-  }
+  if (!groupGame) throw new ApiError(404, "Juego no encontrado");
 
   await prisma.vote.deleteMany({
     where: {
@@ -160,4 +103,4 @@ export async function DELETE(
   logActivity("vote_removed", session.userId, { groupId, gameName: groupGame.game.name });
 
   return NextResponse.json({ success: true });
-}
+});

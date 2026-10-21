@@ -1,49 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireGroupMember, requireSession } from "@/lib/api";
 import { searchBggGames } from "@/lib/bgg";
 import { displayName } from "@/lib/users";
 
 // Busca juegos en todo BGG (fuera de la colección) y anota, para cada
 // resultado, qué miembros del grupo lo tienen en su colección cacheada.
 // Un resultado con `owners` vacío = "nadie del grupo lo tiene".
-export async function GET(
+export const GET = apiHandler(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
+  await requireGroupMember(groupId, session.userId);
 
   const query = request.nextUrl.searchParams.get("q") || "";
   if (query.trim().length < 2) {
     return NextResponse.json([]);
   }
 
-  const results = await searchBggGames(query);
+  // Búsqueda en BGG y miembros del grupo con cuenta BGG, a la vez.
+  const [results, members] = await Promise.all([
+    searchBggGames(query),
+    prisma.groupMember.findMany({
+      where: { groupId, user: { bggUsername: { not: null } } },
+      select: {
+        user: {
+          select: { name: true, displayName: true, bggUsername: true },
+        },
+      },
+    }),
+  ]);
   if (results.length === 0) {
     return NextResponse.json([]);
   }
 
-  // Miembros del grupo con cuenta BGG → mapa username → nombre visible.
-  const members = await prisma.groupMember.findMany({
-    where: { groupId, user: { bggUsername: { not: null } } },
-    select: {
-      user: {
-        select: { name: true, displayName: true, bggUsername: true },
-      },
-    },
-  });
+  // Mapa username de BGG → nombre visible.
 
   const usernameToName = new Map<string, string>();
   for (const m of members) {
@@ -82,4 +76,4 @@ export async function GET(
   }));
 
   return NextResponse.json(annotated);
-}
+});

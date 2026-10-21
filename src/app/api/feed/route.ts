@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, paginate, parsePage, requireSession } from "@/lib/api";
 import { withGameCovers } from "@/lib/activityCovers";
+import { PUBLIC_USER_SELECT } from "@/lib/users";
 
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+// Lo que ha pasado en mis grupos y eventos, de lo más reciente hacia atrás.
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { limit, cursor } = parsePage(request.nextUrl.searchParams, { defaultLimit: 20, max: 50 });
 
-  const url = new URL(request.url);
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
-  const cursor = url.searchParams.get("cursor"); // createdAt ISO string for pagination
-
-  // Get user's group IDs and event IDs
   const [memberships, attendances] = await Promise.all([
     prisma.groupMember.findMany({
       where: { userId: session.userId },
@@ -28,28 +23,21 @@ export async function GET(request: NextRequest) {
   const groupIds = memberships.map((m) => m.groupId);
   const eventIds = attendances.map((a) => a.eventId);
 
-  // Fetch public activity from user's groups and events
   const activities = await prisma.activityLog.findMany({
     where: {
       scope: "public",
-      OR: [
-        { groupId: { in: groupIds } },
-        { eventId: { in: eventIds } },
-      ],
-      ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+      OR: [{ groupId: { in: groupIds } }, { eventId: { in: eventIds } }],
+      ...(cursor ? { createdAt: { lt: cursor } } : {}),
     },
     orderBy: { createdAt: "desc" },
-    take: limit + 1, // +1 to know if there are more
+    take: limit + 1, // uno de más para saber si hay otra página
     include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true, slug: true } },
+      user: { select: PUBLIC_USER_SELECT },
       group: { select: { id: true, name: true } },
       event: { select: { id: true, name: true } },
     },
   });
 
-  const hasMore = activities.length > limit;
-  const items = activities.slice(0, limit);
-  const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
-
+  const { items, nextCursor } = paginate(activities, limit);
   return NextResponse.json({ items: await withGameCovers(items), nextCursor });
-}
+});

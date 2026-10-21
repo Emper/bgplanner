@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireSession } from "@/lib/api";
 
 const LIMIT = 12;
 
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
 
   // Juegos que ha añadido o votado, en todos sus grupos
   const recentGames = await prisma.groupGame.findMany({
@@ -52,4 +49,4 @@ export async function GET(request: NextRequest) {
   }));
 
   return NextResponse.json(result);
-}
+});

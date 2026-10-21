@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   REPORT_REASONS,
   REPORT_TARGET_LABELS,
@@ -9,10 +9,14 @@ import {
   type ReportTargetType,
 } from "@/lib/reports";
 import { forgetFriend } from "@/lib/friends";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import Modal from "./ui/Modal";
+import Button from "./ui/Button";
+import { FieldError, Textarea } from "./ui/Field";
 
 // Piezas de moderación que se repiten por toda la app: el menú «⋯» discreto,
-// el modal de denunciar y el de bloquear. Van a z-[70] para quedar por
-// encima de los visores de fotos (z-[60]).
+// el modal de denunciar y el de bloquear. Los modales son el `Modal` del kit,
+// que va a z-[70]: por encima de los visores de fotos (z-[60]).
 
 export interface MoreMenuItem {
   label: string;
@@ -46,16 +50,14 @@ export function MoreMenu({
     const onDown = (e: MouseEvent | TouchEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("touchstart", onDown);
-    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("touchstart", onDown);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  useEscapeKey(() => setOpen(false), open);
 
   if (items.length === 0) return null;
 
@@ -100,7 +102,7 @@ export function MoreMenu({
                 item.onClick();
               }}
               className={`w-full px-3.5 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)] ${
-                item.danger ? "text-rose-500" : "text-[var(--text)]"
+                item.danger ? "text-[var(--danger)]" : "text-[var(--text)]"
               }`}
             >
               {item.label}
@@ -111,9 +113,6 @@ export function MoreMenu({
     </div>
   );
 }
-
-const inputClass =
-  "w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200";
 
 /** Denunciar algo: motivo + texto opcional. Al terminar enseña el agradecimiento. */
 export function ReportModal({
@@ -130,6 +129,7 @@ export function ReportModal({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const formId = useId();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,91 +153,79 @@ export function ReportModal({
     }
   };
 
+  if (done) {
+    return (
+      <Modal open onClose={onClose} showClose={false}>
+        <div className="text-center py-2">
+          <p className="text-4xl mb-3" aria-hidden>🛡️</p>
+          <h2 className="text-lg font-semibold mb-2 text-[var(--text)]">Gracias por avisar</h2>
+          <p className="text-sm text-[var(--text-secondary)] mb-5">
+            Lo revisaremos lo antes posible y, si incumple las normas, lo retiraremos.
+            {targetType !== "user" && " Si no quieres saber nada más de esta persona, también puedes bloquearla."}
+          </p>
+          <Button onClick={onClose}>Cerrar</Button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
-    <div
-      className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4"
-      onClick={() => !sending && onClose()}
+    <Modal
+      open
+      onClose={onClose}
+      busy={sending}
+      title={`Denunciar ${REPORT_TARGET_LABELS[targetType].this}`}
+      description="Nadie más sabrá que has sido tú. ¿Qué pasa?"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={sending}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            variant="danger"
+            loading={sending}
+            disabled={!reason || (reason === "other" && !text.trim())}
+          >
+            {sending ? "Enviando…" : "Denunciar"}
+          </Button>
+        </>
+      }
     >
-      <div
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md shadow-xl text-[var(--text)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {done ? (
-          <div className="text-center py-2">
-            <p className="text-4xl mb-3" aria-hidden>🛡️</p>
-            <h3 className="text-lg font-semibold mb-2">Gracias por avisar</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-5">
-              Lo revisaremos lo antes posible y, si incumple las normas, lo retiraremos.
-              {targetType !== "user" && " Si no quieres saber nada más de esta persona, también puedes bloquearla."}
-            </p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2 rounded-xl text-sm transition-all duration-200"
-            >
-              Cerrar
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={submit}>
-            <h3 className="text-lg font-semibold mb-1">
-              Denunciar {REPORT_TARGET_LABELS[targetType].this}
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Nadie más sabrá que has sido tú. ¿Qué pasa?
-            </p>
-            <div className="space-y-2 mb-4" role="radiogroup" aria-label="Motivo">
-              {REPORT_REASONS.map((r) => {
-                const selected = reason === r.id;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setReason(r.id)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-sm text-left transition-all duration-200 ${
-                      selected
-                        ? "border-[var(--primary)] bg-[var(--accent-soft)] text-[var(--text)] font-medium"
-                        : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"
-                    }`}
-                  >
-                    <span aria-hidden>{r.emoji}</span>
-                    {r.label}
-                  </button>
-                );
-              })}
-            </div>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={REPORT_TEXT_MAX}
-              rows={3}
-              placeholder={reason === "other" ? "Cuéntanos qué pasa" : "Algo más que debamos saber (opcional)"}
-              className={`${inputClass} resize-y text-sm`}
-            />
-            {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-            <div className="flex justify-end gap-2 mt-4">
+      <form id={formId} onSubmit={submit}>
+        <div className="space-y-2 mb-4" role="radiogroup" aria-label="Motivo">
+          {REPORT_REASONS.map((r) => {
+            const selected = reason === r.id;
+            return (
               <button
+                key={r.id}
                 type="button"
-                onClick={onClose}
-                disabled={sending}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-colors"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setReason(r.id)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-sm text-left transition-all duration-200 ${
+                  selected
+                    ? "border-[var(--primary)] bg-[var(--accent-soft)] text-[var(--text)] font-medium"
+                    : "border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"
+                }`}
               >
-                Cancelar
+                <span aria-hidden>{r.emoji}</span>
+                {r.label}
               </button>
-              <button
-                type="submit"
-                disabled={!reason || sending || (reason === "other" && !text.trim())}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
-              >
-                {sending ? "Enviando…" : "Denunciar"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+            );
+          })}
+        </div>
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={REPORT_TEXT_MAX}
+          rows={3}
+          placeholder={reason === "other" ? "Cuéntanos qué pasa" : "Algo más que debamos saber (opcional)"}
+        />
+        <FieldError className="mt-2">{error}</FieldError>
+      </form>
+    </Modal>
   );
 }
 
@@ -286,56 +274,44 @@ export function BlockModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4"
-      onClick={() => !busy && onClose()}
-    >
-      <div
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md shadow-xl text-[var(--text)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold mb-3">¿Bloquear a {user.name}?</h3>
-        <ul className="text-sm text-[var(--text-secondary)] space-y-2 mb-5">
-          <li className="flex gap-2">
-            <span aria-hidden>🙈</span>
-            <span>Dejarás de ver sus hilos y respuestas en la Comunidad.</span>
-          </li>
-          <li className="flex gap-2">
-            <span aria-hidden>🔕</span>
-            <span>No te llegará ningún aviso suyo, tampoco al móvil.</span>
-          </li>
-          <li className="flex gap-2">
-            <span aria-hidden>🤝</span>
-            <span>No podrá añadirte a sus amigos, y si lo erais, dejaréis de serlo.</span>
-          </li>
-          <li className="flex gap-2">
-            <span aria-hidden>🎲</span>
-            <span>En los grupos y eventos que compartís todo sigue igual.</span>
-          </li>
-        </ul>
-        <p className="text-xs text-[var(--text-muted)] mb-5">
-          No se lo diremos, y puedes desbloquearle cuando quieras desde tu perfil.
-        </p>
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-colors"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      busy={busy}
+      title={`¿Bloquear a ${user.name}?`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={confirm}
-            disabled={busy}
-            className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="danger" onClick={confirm} loading={busy}>
             {busy ? "Bloqueando…" : "Bloquear"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </>
+      }
+    >
+      <ul className="text-sm text-[var(--text-secondary)] space-y-2 mb-5">
+        <li className="flex gap-2">
+          <span aria-hidden>🙈</span>
+          <span>Dejarás de ver sus hilos y respuestas en la Comunidad.</span>
+        </li>
+        <li className="flex gap-2">
+          <span aria-hidden>🔕</span>
+          <span>No te llegará ningún aviso suyo, tampoco al móvil.</span>
+        </li>
+        <li className="flex gap-2">
+          <span aria-hidden>🤝</span>
+          <span>No podrá añadirte a sus amigos, y si lo erais, dejaréis de serlo.</span>
+        </li>
+        <li className="flex gap-2">
+          <span aria-hidden>🎲</span>
+          <span>En los grupos y eventos que compartís todo sigue igual.</span>
+        </li>
+      </ul>
+      <p className="text-xs text-[var(--text-muted)]">
+        No se lo diremos, y puedes desbloquearle cuando quieras desde tu perfil.
+      </p>
+      <FieldError className="mt-3">{error}</FieldError>
+    </Modal>
   );
 }

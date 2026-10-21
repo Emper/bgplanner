@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, getSuperadminEmails } from "@/lib/auth";
+import { getSuperadminEmails } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { apiHandler, parseBody, requireSession } from "@/lib/api";
 import { EMAIL_FROM } from "@/lib/contact";
 import { resend } from "@/lib/resend";
-import { escapeHtml } from "@/lib/html";
+import { EMAIL_COLORS as C, emailBox, emailButton, emailLayout, emailNote, html } from "@/lib/email";
+import { inBackground } from "@/lib/background";
+import { absoluteUrl } from "@/lib/site";
+import { displayName } from "@/lib/users";
 import { logActivity } from "@/lib/activity";
 import { getStorageClient, uploadPhoto } from "@/lib/supabaseStorage";
 import { feedbackSchema } from "@/lib/validations";
@@ -20,24 +24,9 @@ function parseDataUrl(dataUrl: string): { buffer: Buffer; contentType: string } 
   }
 }
 
-export async function POST(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const parsed = feedbackSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  }
-
-  const { subject, message, images } = parsed.data;
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { name: true, displayName: true, email: true },
-  });
+export const POST = apiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  const { subject, message, images } = await parseBody(request, feedbackSchema);
 
   const parsedImages = (images || [])
     .map(parseDataUrl)
@@ -82,42 +71,41 @@ export async function POST(request: NextRequest) {
 
   logActivity("feedback_sent", session.userId, { featureId: feature.id, subject });
 
-  const userName = user?.displayName || user?.name || "Usuario";
-  const userEmail = user?.email || session.email;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
-
   const attachments = parsedImages.map((img, i) => ({
     filename: `imagen-${i + 1}.jpg`,
     content: img.buffer,
   }));
 
-  // Aviso a los superadmins: fire-and-forget, nunca bloquea la respuesta.
-  getSuperadminEmails()
-    .then((recipients) => {
-      if (recipients.length === 0) return;
-      return resend.emails.send({
-        from: EMAIL_FROM,
-        to: recipients,
-        subject: `[Feedback] ${subject}`,
-        html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f1f5f9; border-radius: 12px;">
-        <h2 style="color: #f59e0b; margin-bottom: 16px;">BG Planner — Feedback</h2>
-        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 4px;">De: <strong style="color: #f1f5f9;">${escapeHtml(userName)}</strong> (${escapeHtml(userEmail)})</p>
-        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">Asunto: <strong style="color: #f1f5f9;">${escapeHtml(subject)}</strong></p>
-        <div style="background: #1e293b; padding: 16px; border-radius: 8px; color: #e2e8f0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(message)}</div>
-        ${attachments.length > 0 ? `<p style="color: #94a3b8; font-size: 12px; margin-top: 12px;">${attachments.length} imagen(es) adjunta(s)</p>` : ""}
-        <p style="margin-top: 20px;">
-          <a href="${appUrl}/admin/roadmap" style="display: inline-block; background: #f59e0b; color: #0f172a; font-weight: 600; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 14px;">Revisarlo en el panel</a>
-        </p>
-      </div>
-    `,
-        ...(attachments.length > 0 ? { attachments } : {}),
-      });
-    })
-    .catch(() => {});
+  // Aviso a los superadmins, después de responder. Va con Resend a pelo y no
+  // con sendAppEmailLater porque lleva las capturas adjuntas.
+  inBackground(async () => {
+    const [recipients, user] = await Promise.all([
+      getSuperadminEmails(),
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { name: true, displayName: true, email: true },
+      }),
+    ]);
+    if (recipients.length === 0) return;
+
+    const body = html`<p style="color: ${C.muted}; font-size: 13px; margin-bottom: 4px;">De: <strong style="color: ${C.text};">${displayName(user, "Usuario")}</strong> (${user?.email || session.email})</p>
+<p style="color: ${C.muted}; font-size: 13px; margin-bottom: 16px;">Asunto: <strong style="color: ${C.text};">${subject}</strong></p>
+${emailBox(html`<div style="font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${message}</div>`)}
+${attachments.length > 0 ? emailNote(`${attachments.length} imagen(es) adjunta(s)`) : false}
+${emailButton(absoluteUrl("/admin/roadmap"), "Revisarlo en el panel")}`;
+
+    const { error } = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: recipients,
+      subject: `[Feedback] ${subject}`,
+      html: emailLayout(body, { maxWidth: 600 }),
+      ...(attachments.length > 0 ? { attachments } : {}),
+    });
+    if (error) console.error("[feedback] Resend rechazó el aviso", error);
+  });
 
   return NextResponse.json({
     success: true,
     feature: { ...feature, votes: 0, hasVoted: false },
   });
-}
+});

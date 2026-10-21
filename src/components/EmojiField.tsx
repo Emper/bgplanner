@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EMOJI_CATEGORIES, parseEntry, searchEmojis } from "@/lib/emoji";
+import { readStorageJson, writeStorageJson } from "@/lib/storage";
+import { fieldClass } from "./ui/Field";
 
 /**
  * Campo de texto (textarea o input) con botón de emojis, al estilo WhatsApp.
@@ -20,22 +22,13 @@ const RECENTS_KEY = "bgp:recent-emojis";
 const MAX_RECENTS = 24;
 
 function readRecents(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((e) => typeof e === "string") : [];
-  } catch {
-    return [];
-  }
+  const parsed = readStorageJson<unknown>(RECENTS_KEY);
+  return Array.isArray(parsed) ? parsed.filter((e): e is string => typeof e === "string") : [];
 }
 
 function saveRecents(list: string[]) {
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.slice(0, MAX_RECENTS)));
-  } catch {
-    // localStorage puede fallar (modo privado); los recientes son opcionales.
-  }
+  // Si no hay almacenamiento (modo privado) no pasa nada: son opcionales.
+  writeStorageJson(RECENTS_KEY, list.slice(0, MAX_RECENTS));
 }
 
 const PANEL_WIDTH = 328;
@@ -124,7 +117,9 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
     };
   }, [place]);
 
-  // Cerrar al pulsar fuera o con Escape.
+  // Cerrar al pulsar fuera o con Escape. El Escape se escucha en captura y no
+  // sigue: si el campo está dentro de un Modal, cierra el panel y no el modal
+  // (por eso no vale useEscapeKey).
   useEffect(() => {
     const onPointerDown = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
@@ -182,7 +177,7 @@ function EmojiPanel({ anchor, onPick, onClose }: PanelProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar emoji…"
-          className="w-full px-3 py-1.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none transition-colors"
+          className={fieldClass({ size: "sm" })}
           // El input del panel sí necesita poder recibir el foco.
           onMouseDown={(e) => e.stopPropagation()}
         />

@@ -2,7 +2,7 @@ import { inBackground } from "@/lib/background";
 
 export { inBackground };
 import { prisma } from "./prisma";
-import { profileHref } from "./users";
+import { displayName, profileHref } from "./users";
 import { deliverPush, type PushPayload } from "./push";
 import { blockersAmong } from "./moderation";
 
@@ -320,7 +320,7 @@ function gameList(games: Meta[], total?: unknown): { text: string; strong?: bool
 
 export function presentNotification(n: NotificationRow): PresentedNotification {
   const m = (n.metadata ?? {}) as Meta;
-  const actorName = n.actor ? n.actor.displayName || n.actor.name || "Alguien" : null;
+  const actorName = n.actor ? displayName(n.actor, "Alguien") : null;
   const actor = { text: actorName ?? "Alguien", strong: true };
   const groupName = { text: n.group?.name ?? "tu grupo", strong: true };
   const eventName = { text: n.event?.name ?? "el evento", strong: true };

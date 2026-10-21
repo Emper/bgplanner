@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import { getCommunityTag, isCommunityTag } from "@/lib/community";
 import { listThreads } from "@/lib/communityServer";
+import { jsonLdHtml } from "@/lib/html";
+import { APP_URL } from "@/lib/site";
 import SmartNav from "@/components/SmartNav";
-import Footer from "@/components/Footer";
 import SignupBanner from "@/components/SignupBanner";
+import PageShell from "@/components/ui/PageShell";
 import CommunityClient, { type ThreadPage } from "./CommunityClient";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
 
 // La Comunidad se lee sin cuenta y la encuentran los buscadores: el listado
 // sale pintado del servidor (hilos, etiquetas y enlace a la página siguiente).
@@ -62,21 +62,16 @@ export default async function CommunityPage({ searchParams }: { searchParams: Se
   const initial = JSON.parse(JSON.stringify(list)) as ThreadPage;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <PageShell nav={<SmartNav />} width="main">
       {initial.threads.length > 0 && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(listJsonLd(initial)).replace(/</g, "\\u003c") }}
-        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(listJsonLd(initial)) }} />
       )}
-      <SmartNav />
       <CommunityClient
         banner={!session && <SignupBanner variant="community" redirect="/community" />}
         initial={initial}
         initialLoggedIn={!!session}
         initialKey={cursor ? "__cursor__" : tag ?? ""}
       />
-      <Footer />
-    </div>
+    </PageShell>
   );
 }

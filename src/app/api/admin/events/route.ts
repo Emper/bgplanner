@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperadmin } from "@/lib/auth";
+import { apiHandler, requireSuperadmin } from "@/lib/api";
+import { displayName } from "@/lib/users";
 
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-  if (!(await isSuperadmin(session))) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  await requireSuperadmin(request);
 
   const events = await prisma.event.findMany({
     orderBy: { date: "desc" },
@@ -33,9 +28,9 @@ export async function GET(request: NextRequest) {
       createdAt: e.createdAt,
       createdBy: {
         id: e.createdBy.id,
-        name: e.createdBy.displayName || e.createdBy.name || e.createdBy.email,
+        name: displayName(e.createdBy, e.createdBy.email),
         email: e.createdBy.email,
       },
     }))
   );
-}
+});

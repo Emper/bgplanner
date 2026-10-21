@@ -1,43 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isEventAdmin } from "@/lib/events";
+import { ApiError, apiHandler, requireEventAccess, requireSession } from "@/lib/api";
 
-// Remove game from event (creator or admins)
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; gameId: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+// Quitar un juego del evento (creador o admins)
+export const DELETE = apiHandler(
+  async (request: NextRequest, { params }: { params: Promise<{ id: string; gameId: string }> }) => {
+    const session = await requireSession(request);
+    const { id: eventId, gameId } = await params;
+
+    const [, event, eventGame] = await Promise.all([
+      requireEventAccess(eventId, session.userId, "manage"),
+      prisma.event.findUnique({ where: { id: eventId }, select: { bggGeeklistId: true } }),
+      prisma.eventGame.findFirst({ where: { eventId, gameId } }),
+    ]);
+
+    if (!eventGame) throw new ApiError(404, "Juego no encontrado en el evento");
+    // Volvería en la siguiente importación: se quita de la lista, en BGG
+    if (event?.bggGeeklistId && eventGame.fromGeeklist && !eventGame.leftGeeklistAt) {
+      throw new ApiError(409, "Este juego viene de la lista de BGG vinculada: para quitarlo, quítalo de la lista");
+    }
+
+    await prisma.eventGame.delete({ where: { id: eventGame.id } });
+
+    return NextResponse.json({ deleted: true });
   }
-
-  const { id: eventId, gameId } = await params;
-
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) {
-    return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
-  }
-  if (!(await isEventAdmin(event, session.userId))) {
-    return NextResponse.json({ error: "Solo quien gestiona el evento puede eliminar juegos" }, { status: 403 });
-  }
-
-  const eventGame = await prisma.eventGame.findFirst({
-    where: { eventId, gameId },
-  });
-  if (!eventGame) {
-    return NextResponse.json({ error: "Juego no encontrado en el evento" }, { status: 404 });
-  }
-  // Volvería en la siguiente importación: se quita de la lista, en BGG
-  if (event.bggGeeklistId && eventGame.fromGeeklist && !eventGame.leftGeeklistAt) {
-    return NextResponse.json(
-      { error: "Este juego viene de la lista de BGG vinculada: para quitarlo, quítalo de la lista" },
-      { status: 409 }
-    );
-  }
-
-  await prisma.eventGame.delete({ where: { id: eventGame.id } });
-
-  return NextResponse.json({ deleted: true });
-}
+);

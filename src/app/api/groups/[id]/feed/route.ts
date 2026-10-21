@@ -1,48 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { apiHandler, paginate, parsePage, requireGroupMember, requireSession } from "@/lib/api";
 import { withGameCovers } from "@/lib/activityCovers";
+import { PUBLIC_USER_SELECT } from "@/lib/users";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+export const GET = apiHandler(
+  async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await requireSession(request);
+    const { id: groupId } = await params;
+
+    await requireGroupMember(groupId, session.userId);
+
+    const { limit, cursor } = parsePage(request.nextUrl.searchParams);
+
+    // Toda la actividad del grupo (pública e interna)
+    const activities = await prisma.activityLog.findMany({
+      where: {
+        groupId,
+        ...(cursor ? { createdAt: { lt: cursor } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      include: { user: { select: PUBLIC_USER_SELECT } },
+    });
+
+    const { items, nextCursor } = paginate(activities, limit);
+    return NextResponse.json({ items: await withGameCovers(items), nextCursor });
   }
-
-  const { id: groupId } = await params;
-
-  // Check membership
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
-  const url = new URL(request.url);
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "30"), 50);
-  const cursor = url.searchParams.get("cursor");
-
-  // All activity (public + internal) for this group
-  const activities = await prisma.activityLog.findMany({
-    where: {
-      groupId,
-      ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit + 1,
-    include: {
-      user: { select: { id: true, name: true, displayName: true, avatarUrl: true, slug: true } },
-    },
-  });
-
-  const hasMore = activities.length > limit;
-  const items = activities.slice(0, limit);
-  const nextCursor = hasMore ? items[items.length - 1].createdAt.toISOString() : null;
-
-  return NextResponse.json({ items: await withGameCovers(items), nextCursor });
-}
+);

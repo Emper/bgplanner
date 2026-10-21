@@ -1,103 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import crypto from "crypto";
+import { apiHandler, newToken, parseBody, requireGroupMember, requireSession } from "@/lib/api";
+import { inviteLinkToggleSchema } from "@/lib/validations";
 
-// GET — return current invite link info
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+const LINK_SELECT = { inviteCode: true, inviteEnabled: true } as const;
+
+// GET — el enlace de invitación actual y si está activo
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const [membership, group] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: session.userId } },
-    }),
-    prisma.group.findUnique({
-      where: { id: groupId },
-      select: { inviteCode: true, inviteEnabled: true },
-    }),
+  const [, group] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
+    prisma.group.findUnique({ where: { id: groupId }, select: LINK_SELECT }),
   ]);
-
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
 
   return NextResponse.json({
     inviteCode: group?.inviteCode,
     inviteEnabled: group?.inviteEnabled ?? true,
   });
-}
+});
 
-// POST — generate a new invite code (or regenerate)
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// POST — genera un enlace nuevo (el anterior deja de valer)
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-
-  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
-    return NextResponse.json({ error: "Solo el admin puede gestionar el enlace" }, { status: 403 });
-  }
-
-  const inviteCode = crypto.randomBytes(16).toString("base64url");
+  await requireGroupMember(groupId, session.userId, { manager: true });
 
   const group = await prisma.group.update({
     where: { id: groupId },
-    data: { inviteCode, inviteEnabled: true },
-    select: { inviteCode: true, inviteEnabled: true },
+    data: { inviteCode: newToken(), inviteEnabled: true },
+    select: LINK_SELECT,
   });
 
   return NextResponse.json(group);
-}
+});
 
-// PATCH — enable/disable invite link
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// PATCH — activa o desactiva el enlace
+export const PATCH = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-
-  if (!membership || membership.role !== "admin" && membership.role !== "owner") {
-    return NextResponse.json({ error: "Solo el admin puede gestionar el enlace" }, { status: 403 });
-  }
-
-  const body = await request.json();
-  const { enabled } = body;
-
-  if (typeof enabled !== "boolean") {
-    return NextResponse.json({ error: "Campo 'enabled' requerido" }, { status: 400 });
-  }
+  await requireGroupMember(groupId, session.userId, { manager: true });
+  const { enabled } = await parseBody(request, inviteLinkToggleSchema);
 
   const group = await prisma.group.update({
     where: { id: groupId },
     data: { inviteEnabled: enabled },
-    select: { inviteCode: true, inviteEnabled: true },
+    select: LINK_SELECT,
   });
 
   return NextResponse.json(group);
-}
+});

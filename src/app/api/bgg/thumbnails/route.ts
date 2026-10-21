@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { apiHandler, requireSession } from "@/lib/api";
 import { getBggThumbnails } from "@/lib/bgg";
 
 // Fase 2 de la búsqueda: dado un listado de IDs (los que la búsqueda devolvió
 // sin imagen), resuelve sus thumbnails desde caché/BGG. Máximo 20 IDs.
-export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export const GET = apiHandler(async (request: NextRequest) => {
+  await requireSession(request);
 
   const idsParam = request.nextUrl.searchParams.get("ids") || "";
   const ids = idsParam
@@ -25,4 +22,4 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(thumbnails, {
     headers: { "Cache-Control": "private, max-age=3600" },
   });
-}
+});

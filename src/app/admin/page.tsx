@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatActivity } from "@/lib/activity";
+import { formatActivity } from "@/lib/activityFormat";
+import { displayName } from "@/lib/users";
+import Alert from "@/components/ui/Alert";
+import { InlineLoading } from "@/components/ui/Spinner";
+import { AdminHeader } from "./AdminUI";
 
 interface Stats {
   totals: {
@@ -81,11 +85,11 @@ export default function AdminDashboardPage() {
   }, []);
 
   if (error) {
-    return <div className="text-[var(--text-secondary)]">{error}</div>;
+    return <Alert>{error}</Alert>;
   }
 
   if (!stats) {
-    return <div className="text-[var(--text-muted)] text-sm">Cargando estadísticas…</div>;
+    return <InlineLoading text="Cargando estadísticas…" />;
   }
 
   const totalSum =
@@ -96,10 +100,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-display font-semibold">Resumen de la plataforma</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">Datos agregados de toda la app.</p>
-      </header>
+      <AdminHeader title="Resumen de la plataforma" lead="Datos agregados de toda la app." />
 
       {/* Totales */}
       <section>
@@ -210,7 +211,7 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[var(--text-muted)] w-4 text-right">{i + 1}</span>
                     <div className="min-w-0">
-                      <div className="truncate font-medium">{u.name}</div>
+                      <div className="truncate font-medium">{displayName(u, u.email)}</div>
                       <div className="text-xs text-[var(--text-muted)] truncate">{u.email}</div>
                     </div>
                   </div>

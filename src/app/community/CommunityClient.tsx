@@ -17,6 +17,14 @@ import {
 } from "@/lib/community";
 import { formatRelativeTime } from "@/lib/format";
 import { nudgePush } from "@/lib/pushNudge";
+import { loginHref } from "@/lib/site";
+import { plural } from "@/lib/text";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import Alert from "@/components/ui/Alert";
+import Button, { ButtonLink, buttonClass } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FieldError, Input, LABEL_CLASS, fieldClass } from "@/components/ui/Field";
+import PageHeader from "@/components/ui/PageHeader";
 
 interface ThreadItem {
   id: string;
@@ -41,9 +49,6 @@ interface ListResponse extends ThreadPage {
   isLoggedIn: boolean;
   isAdmin: boolean;
 }
-
-const inputClass =
-  "w-full px-3 py-2.5 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] transition-all duration-200";
 
 // El listado llega ya pintado del servidor (para buscadores y para quien no
 // tiene cuenta); a partir de ahí, filtros, búsqueda y «ver más» van por la API.
@@ -76,7 +81,7 @@ export default function CommunityClient({
 
   // Búsqueda: lo que se escribe y lo que de verdad se consulta (con pausa).
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const query = useDebouncedValue(search.trim(), 300);
 
   // Formulario de hilo nuevo: cerrado hasta que se pulsa el botón.
   const [formOpen, setFormOpen] = useState(false);
@@ -85,11 +90,6 @@ export default function CommunityClient({
   const [newTag, setNewTag] = useState<CommunityTag | "">("");
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState("");
-
-  useEffect(() => {
-    const t = setTimeout(() => setQuery(search.trim()), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const buildUrl = useCallback(
     (cursor?: string | null) => {
@@ -211,36 +211,28 @@ export default function CommunityClient({
   // Sin sesión, el login vuelve aquí con lo que traía la URL (filtro o
   // borrador de hilo incluidos).
   const query_ = searchParams.toString();
-  const loginHref = `/login?redirect=${encodeURIComponent(`${pathname}${query_ ? `?${query_}` : ""}`)}`;
+  const loginUrl = loginHref(`${pathname}${query_ ? `?${query_}` : ""}`);
 
   const totalThreads = Object.values(tagCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <main className="page-main page-pad">
+    <>
       {banner}
-      <h1 className="page-title mb-2">Comunidad</h1>
-      <p className="page-lead mb-6">
-        La mesa grande de BG Planner: busca gente para jugar, cuenta qué tal fue esa partida épica o
-        pregunta la regla que nadie en tu grupo recuerda.
-      </p>
+      <PageHeader
+        title="Comunidad"
+        lead="La mesa grande de BG Planner: busca gente para jugar, cuenta qué tal fue esa partida épica o pregunta la regla que nadie en tu grupo recuerda."
+      />
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         {isLoggedIn ? (
-          <button
-            type="button"
-            onClick={openForm}
-            className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-          >
+          <Button size="lg" onClick={openForm}>
             {formOpen ? "Cerrar" : "Abrir un hilo"}
-          </button>
+          </Button>
         ) : (
           !loading && (
-            <Link
-              href={loginHref}
-              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-5 py-2.5 rounded-xl text-sm transition-all duration-200 shadow-sm hover:shadow-md"
-            >
+            <ButtonLink href={loginUrl} size="lg">
               Entra para participar
-            </Link>
+            </ButtonLink>
           )
         )}
       </div>
@@ -251,7 +243,7 @@ export default function CommunityClient({
           className="space-y-5 mb-10 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 shadow-[var(--card-shadow)]"
         >
           <div>
-            <span className="block text-sm font-medium text-[var(--text-secondary)] mb-2">¿De qué va?</span>
+            <span className={LABEL_CLASS}>¿De qué va?</span>
             <div className="flex flex-wrap gap-2">
               {COMMUNITY_TAGS.map((t) => {
                 const selected = newTag === t.id;
@@ -287,10 +279,10 @@ export default function CommunityClient({
           </div>
 
           <div>
-            <label htmlFor="thread-title" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+            <label htmlFor="thread-title" className={LABEL_CLASS}>
               Título
             </label>
-            <input
+            <Input
               id="thread-title"
               type="text"
               value={title}
@@ -298,20 +290,19 @@ export default function CommunityClient({
               required
               minLength={3}
               maxLength={THREAD_TITLE_MAX}
-              className={inputClass}
               placeholder="Buscamos cuarto jugador para Brass en Madrid"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Mensaje</label>
+            <label className={LABEL_CLASS}>Mensaje</label>
             <EmojiField
               value={body}
               onChange={setBody}
               required
               maxLength={THREAD_BODY_MAX}
               rows={6}
-              className={`${inputClass} resize-y`}
+              className={fieldClass({ className: "resize-y" })}
               placeholder="Cuéntalo con todo el detalle que quieras"
             />
             <p className="text-xs text-[var(--text-muted)] mt-1.5">
@@ -319,16 +310,12 @@ export default function CommunityClient({
             </p>
           </div>
 
-          {formError && <p className="text-red-400 text-sm">{formError}</p>}
+          <FieldError>{formError}</FieldError>
 
           <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={sending}
-              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-text)] font-semibold px-6 py-2.5 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
-            >
-              {sending ? "Publicando..." : "Publicar hilo"}
-            </button>
+            <Button type="submit" size="lg" loading={sending}>
+              {sending ? "Publicando…" : "Publicar hilo"}
+            </Button>
           </div>
         </form>
       )}
@@ -361,31 +348,32 @@ export default function CommunityClient({
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth={2}
+          aria-hidden
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
         </svg>
-        <input
+        <Input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar en las conversaciones"
-          className={`${inputClass} pl-9`}
+          aria-label="Buscar en las conversaciones"
+          className="pl-9"
         />
       </div>
 
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {error && <Alert className="mb-4">{error}</Alert>}
 
       {loading ? (
         <PageLoader withNavbar />
       ) : error && threads.length === 0 ? null : threads.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[var(--border)] p-10 text-center">
-          <p className="text-[var(--text-secondary)] mb-1">
-            {query ? "No hay conversaciones que encajen con esa búsqueda." : "Por aquí todavía no ha hablado nadie."}
-          </p>
-          <p className="text-sm text-[var(--text-muted)]">
-            {query ? "Prueba con otras palabras." : isLoggedIn ? "Rompe el hielo y abre el primer hilo." : "Entra y rompe el hielo."}
-          </p>
-        </div>
+        <EmptyState
+          variant="dashed"
+          title={query ? "No hay conversaciones que encajen con esa búsqueda." : "Por aquí todavía no ha hablado nadie."}
+          description={
+            query ? "Prueba con otras palabras." : isLoggedIn ? "Rompe el hielo y abre el primer hilo." : "Entra y rompe el hielo."
+          }
+        />
       ) : (
         <ul className="space-y-3 fx-stagger">
           {threads.map((t) => (
@@ -405,7 +393,7 @@ export default function CommunityClient({
               if (!loadingMore) loadMore();
             }}
             aria-disabled={loadingMore}
-            className={`px-5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition-all duration-200 ${loadingMore ? "opacity-50" : ""}`}
+            className={buttonClass({ variant: "secondary", size: "lg", className: loadingMore ? "opacity-50" : "" })}
           >
             {loadingMore ? "Cargando…" : "Ver más conversaciones"}
           </a>
@@ -413,7 +401,7 @@ export default function CommunityClient({
       )}
 
       <ModerationNote />
-    </main>
+    </>
   );
 }
 
@@ -505,9 +493,9 @@ function ThreadCard({ thread: t }: { thread: ThreadItem }) {
               ? "border-[var(--primary)]/30 bg-[var(--accent-soft)] text-[var(--primary)]"
               : "border-[var(--border)] text-[var(--text-muted)]"
           }`}
-          title={`${t.replyCount} respuesta${t.replyCount === 1 ? "" : "s"}`}
+          title={plural(t.replyCount, "respuesta", "respuestas")}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <svg className="w-4 h-4" aria-hidden fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75h6.75m-6.75 3h4.5M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
           </svg>
           <span className="text-sm font-semibold tabular-nums">{t.replyCount}</span>

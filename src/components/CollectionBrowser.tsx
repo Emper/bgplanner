@@ -15,6 +15,8 @@ import {
   type CollectionSort,
 } from "@/lib/collection";
 import { formatRelativeShort } from "@/lib/format";
+import { readStorage, writeStorage } from "@/lib/storage";
+import { plural } from "@/lib/text";
 import {
   CollectionSkeleton,
   DetailModal,
@@ -23,6 +25,12 @@ import {
   type CollectionView,
 } from "@/components/CollectionViews";
 import GameShelf from "@/components/GameShelf";
+import Button from "@/components/ui/Button";
+import { cardClass } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Field, Input, Select } from "@/components/ui/Field";
+import Spinner from "@/components/ui/Spinner";
+import { Chip, SegmentedControl } from "@/components/ui/Tabs";
 
 type Tab = "own" | "unrated" | "wishlist" | "all";
 
@@ -63,21 +71,12 @@ function subscribeStoredView(callback: () => void) {
 }
 
 function readStoredView(): CollectionView | null {
-  try {
-    const value = localStorage.getItem(VIEW_KEY);
-    return value === "list" || value === "grid" || value === "shelf" ? value : null;
-  } catch {
-    // Navegador con el almacenamiento capado: nos quedamos sin preferencia.
-    return null;
-  }
+  const value = readStorage(VIEW_KEY);
+  return value === "list" || value === "grid" || value === "shelf" ? value : null;
 }
 
 function writeStoredView(value: CollectionView) {
-  try {
-    localStorage.setItem(VIEW_KEY, value);
-  } catch {
-    // Igual que arriba: no poder recordarla no es motivo para romper nada.
-  }
+  writeStorage(VIEW_KEY, value);
   for (const listener of viewListeners) listener();
 }
 
@@ -335,12 +334,14 @@ export default function CollectionBrowser({
     <>
       {/* Resumen por puntuación, que además filtra al pulsarlo */}
       {stats && (
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 mb-4">
+        <div className={cardClass({ className: "mb-4" })}>
           {!hideScores && (
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {KEEP_SCORES.map((value) => (
                 <button
                   key={value}
+                  type="button"
+                  aria-pressed={keep === String(value)}
                   onClick={() => {
                     // Estando en "Sin valorar" la pestaña manda sobre este
                     // filtro, así que al pulsar una puntuación salimos de ella.
@@ -353,7 +354,7 @@ export default function CollectionBrowser({
                       : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
                   }`}
                 >
-                  <span>{KEEP_EMOJI[value]}</span>
+                  <span aria-hidden>{KEEP_EMOJI[value]}</span>
                   <span>{KEEP_LABELS[value]}</span>
                   <span className="opacity-60 tabular-nums">{stats.byScore[value]}</span>
                 </button>
@@ -361,60 +362,56 @@ export default function CollectionBrowser({
             </div>
           )}
           <p className="text-xs text-[var(--text-muted)]">
-            {stats.owned} juegos · {stats.expansions} expansiones
+            {plural(stats.owned, "juego", "juegos")} · {plural(stats.expansions, "expansión", "expansiones")}
             {fetchedAt && ` · al día de ${formatRelativeShort(fetchedAt)}`}
           </p>
         </div>
       )}
 
       {/* Barra de herramientas */}
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] p-4 mb-4">
+      <div className={cardClass({ className: "mb-4" })}>
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex gap-1 overflow-x-auto no-scrollbar">
             {TABS.map((t) => (
-              <button
+              <Chip
                 key={t.value}
+                size="sm"
+                active={tab === t.value}
+                count={t.count}
                 onClick={() => setTab(t.value)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-medium transition-colors whitespace-nowrap ${
-                  tab === t.value
-                    ? "bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/30"
-                    : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-strong)] hover:text-[var(--text)]"
-                }`}
+                className="sm:px-3 sm:py-1.5"
               >
                 {t.label}
-                {t.count !== undefined && (
-                  <span className="ml-1 opacity-60">{t.count}</span>
-                )}
-              </button>
+              </Chip>
             ))}
           </div>
-          <div className="flex gap-1 shrink-0">
-            {VIEWS.map((v) => (
-              <button
-                key={v.value}
-                onClick={() => changeView(v.value)}
-                title={v.label}
-                aria-label={v.label}
-                aria-pressed={view === v.value}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
-                  view === v.value
-                    ? "bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/30"
-                    : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border-strong)] hover:text-[var(--text)]"
-                }`}
-              >
-                {v.icon}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            size="sm"
+            label="Vista"
+            value={view}
+            onChange={changeView}
+            className="shrink-0"
+            options={VIEWS.map((v) => ({
+              value: v.value,
+              title: v.label,
+              label: (
+                <>
+                  <span aria-hidden>{v.icon}</span>
+                  <span className="sr-only">{v.label}</span>
+                </>
+              ),
+            }))}
+          />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden
             >
               <path
                 strokeLinecap="round"
@@ -423,41 +420,46 @@ export default function CollectionBrowser({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <input
+            <Input
               type="text"
-              placeholder="Buscar juegos..."
+              placeholder="Buscar juegos…"
+              aria-label="Buscar juegos"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
+              className="pl-10"
             />
           </div>
           <div className="flex gap-2">
-            <select
+            <Select
               value={sort}
+              aria-label="Ordenar por"
               onChange={(e) => {
                 setSort(e.target.value as CollectionSort);
                 setOrder("");
               }}
-              className="flex-1 sm:flex-none px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none transition-all duration-200"
+              className="flex-1 sm:flex-none sm:w-auto"
             >
               {sortOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-            </select>
-            <button
+            </Select>
+            <Button
+              variant="secondary"
               onClick={() => setOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
               title="Invertir el orden"
-              className="px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
+              aria-label="Invertir el orden"
             >
               {order === "asc" ? "↑" : order === "desc" ? "↓" : "↕"}
-            </button>
+            </Button>
           </div>
         </div>
 
         <button
+          type="button"
           onClick={() => setShowFilters(!showFilters)}
+          aria-expanded={showFilters}
           className="mt-3 flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
         >
           <svg
@@ -465,6 +467,7 @@ export default function CollectionBrowser({
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
@@ -480,96 +483,79 @@ export default function CollectionBrowser({
           <div className="mt-3 pt-3 border-t border-[var(--border)]">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {!hideScores && (
-                <Field label="Puntuación">
-                  <Select
-                    value={tab === "unrated" ? "unrated" : keep}
-                    onChange={setKeep}
-                    disabled={tab === "unrated"}
-                  >
-                    <option value="">Todas</option>
-                    <option value="unrated">Sin valorar</option>
-                    <option value="rated">Ya valoradas</option>
-                    {KEEP_SCORES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}. {KEEP_LABELS[s]}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              )}
-              <Field label="Jugadores">
-                <Select value={players} onChange={setPlayers}>
-                  <option value="">Cualquiera</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                    <option key={n} value={n}>
-                      Se puede jugar a {n}
+                <FilterSelect
+                  label="Puntuación"
+                  value={tab === "unrated" ? "unrated" : keep}
+                  onChange={setKeep}
+                  disabled={tab === "unrated"}
+                >
+                  <option value="">Todas</option>
+                  <option value="unrated">Sin valorar</option>
+                  <option value="rated">Ya valoradas</option>
+                  {KEEP_SCORES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}. {KEEP_LABELS[s]}
                     </option>
                   ))}
-                </Select>
-              </Field>
-              <Field label="Partidas">
-                <Select value={plays} onChange={setPlays}>
-                  <option value="">Cualquiera</option>
-                  <option value="0">Sin estrenar</option>
-                  <option value="1">1 o más</option>
-                  <option value="5">5 o más</option>
-                  <option value="10">10 o más</option>
-                  <option value="25">25 o más</option>
-                </Select>
-              </Field>
-              <Field label={readOnly ? "Nota de BGG propia" : "Mi nota de BGG"}>
-                <Select value={myRating} onChange={setMyRating}>
-                  <option value="">Indiferente</option>
-                  <option value="yes">Con nota</option>
-                  <option value="no">Sin nota</option>
-                </Select>
-              </Field>
-              <Field label="Rank de BGG">
-                <Select value={maxRank} onChange={setMaxRank}>
-                  <option value="">Cualquiera</option>
-                  <option value="100">Top 100</option>
-                  <option value="250">Top 250</option>
-                  <option value="500">Top 500</option>
-                  <option value="1000">Top 1000</option>
-                </Select>
-              </Field>
+                </FilterSelect>
+              )}
+              <FilterSelect label="Jugadores" value={players} onChange={setPlayers}>
+                <option value="">Cualquiera</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <option key={n} value={n}>
+                    Se puede jugar a {n}
+                  </option>
+                ))}
+              </FilterSelect>
+              <FilterSelect label="Partidas" value={plays} onChange={setPlays}>
+                <option value="">Cualquiera</option>
+                <option value="0">Sin estrenar</option>
+                <option value="1">1 o más</option>
+                <option value="5">5 o más</option>
+                <option value="10">10 o más</option>
+                <option value="25">25 o más</option>
+              </FilterSelect>
+              <FilterSelect label={readOnly ? "Nota de BGG propia" : "Mi nota de BGG"} value={myRating} onChange={setMyRating}>
+                <option value="">Indiferente</option>
+                <option value="yes">Con nota</option>
+                <option value="no">Sin nota</option>
+              </FilterSelect>
+              <FilterSelect label="Rank de BGG" value={maxRank} onChange={setMaxRank}>
+                <option value="">Cualquiera</option>
+                <option value="100">Top 100</option>
+                <option value="250">Top 250</option>
+                <option value="500">Top 500</option>
+                <option value="1000">Top 1000</option>
+              </FilterSelect>
               <Field label="Peso">
-                <div className="flex gap-1">
-                  <Select value={minWeight} onChange={setMinWeight}>
-                    <option value="">Desde</option>
-                    <option value="1">1+</option>
-                    <option value="2">2+</option>
-                    <option value="3">3+</option>
-                    <option value="4">4+</option>
-                  </Select>
-                  <Select value={maxWeight} onChange={setMaxWeight}>
-                    <option value="">Hasta</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                  </Select>
-                </div>
+                {(id) => (
+                  <div className="flex gap-1">
+                    <Select id={id} size="sm" aria-label="Peso mínimo" value={minWeight} onChange={(e) => setMinWeight(e.target.value)}>
+                      <option value="">Desde</option>
+                      <option value="1">1+</option>
+                      <option value="2">2+</option>
+                      <option value="3">3+</option>
+                      <option value="4">4+</option>
+                    </Select>
+                    <Select size="sm" aria-label="Peso máximo" value={maxWeight} onChange={(e) => setMaxWeight(e.target.value)}>
+                      <option value="">Hasta</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                    </Select>
+                  </div>
+                )}
               </Field>
             </div>
             <div className="flex flex-wrap gap-2 mt-3">
-              <button
-                onClick={() => setOnlyShowcased(!onlyShowcased)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  onlyShowcased
-                    ? "bg-[var(--accent-soft)] text-[var(--primary)] border-[var(--primary)]/40"
-                    : "bg-[var(--surface-hover)] text-[var(--text-secondary)] border-[var(--border-strong)] hover:text-[var(--text)]"
-                }`}
-              >
+              <Chip size="sm" active={onlyShowcased} onClick={() => setOnlyShowcased(!onlyShowcased)} className="sm:px-3 sm:py-1.5">
                 ⭐ Solo los de la vitrina
-              </button>
+              </Chip>
               {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="px-3 py-1.5 bg-[var(--surface-hover)] text-[var(--text-secondary)] rounded-lg text-xs hover:text-[var(--text)] transition-colors"
-                >
+                <Button variant="ghost" size="xs" onClick={clearFilters}>
                   Limpiar filtros
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -580,7 +566,7 @@ export default function CollectionBrowser({
       {!showSkeleton && (
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm text-[var(--text-secondary)]">
-            {visible.length} juego{visible.length !== 1 ? "s" : ""}
+            {plural(visible.length, "juego", "juegos")}
             {search && ` para “${search}”`}
           </p>
           {hasMore && (
@@ -593,21 +579,21 @@ export default function CollectionBrowser({
       {showSkeleton ? (
         <CollectionSkeleton view={view} />
       ) : shown.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-[var(--text-muted)]">
-            {tab === "unrated" && !readOnly
+        <EmptyState
+          className="py-16"
+          title={
+            tab === "unrated" && !readOnly
               ? "¡No te queda ninguno por valorar! 🎉"
-              : "No hay juegos que encajen"}
-          </p>
-          {(hasActiveFilters || search) && (
-            <button
-              onClick={clearFilters}
-              className="mt-2 text-sm text-[var(--primary)] hover:underline"
-            >
-              Quitar los filtros
-            </button>
-          )}
-        </div>
+              : "No hay juegos que encajen"
+          }
+          action={
+            (hasActiveFilters || search) && (
+              <Button variant="secondary" size="sm" onClick={clearFilters}>
+                Quitar los filtros
+              </Button>
+            )
+          }
+        />
       ) : view === "shelf" ? (
         <GameShelf games={shown} onSelect={(game) => setDetailId(game.bggId)} />
       ) : view === "grid" ? (
@@ -648,21 +634,18 @@ export default function CollectionBrowser({
       {hasMore && (
         <div ref={sentinelRef} className="flex flex-col items-center gap-3 mt-6">
           <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-            <span className="w-3.5 h-3.5 rounded-full border-2 border-[var(--text-muted)] border-t-transparent animate-spin" />
+            <Spinner size="xs" tone="muted" />
             Cargando más juegos…
           </div>
-          <button
-            onClick={() => setLimit((l) => l + BATCH[view])}
-            className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
-          >
+          <Button variant="secondary" onClick={() => setLimit((l) => l + BATCH[view])}>
             Cargar más
-          </button>
+          </Button>
         </div>
       )}
 
       {!showSkeleton && !hasMore && visible.length > BATCH[view] && (
         <p className="text-center text-xs text-[var(--text-muted)] mt-6">
-          Has llegado al final · {visible.length} juegos
+          Has llegado al final · {plural(visible.length, "juego", "juegos")}
         </p>
       )}
 
@@ -692,36 +675,26 @@ export default function CollectionBrowser({
 
 // ── Campos del panel de filtros ─────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs text-[var(--text-secondary)] mb-1.5 font-medium">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function Select({
+function FilterSelect({
+  label,
   value,
   onChange,
   disabled = false,
   children,
 }: {
+  label: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <select
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-sm text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-[var(--primary)] focus:outline-none disabled:opacity-60 transition-all duration-200"
-    >
-      {children}
-    </select>
+    <Field label={label}>
+      {(id) => (
+        <Select id={id} size="sm" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+          {children}
+        </Select>
+      )}
+    </Field>
   );
 }

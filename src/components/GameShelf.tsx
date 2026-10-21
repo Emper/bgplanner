@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { KEEP_HEX, KEEP_LABELS } from "@/lib/collection";
+import { bggGameUrl } from "@/lib/bggLinks";
 
 export interface ShelfGame {
   bggId: number;
@@ -87,7 +88,7 @@ export default function GameShelf({
                 </button>
               ) : (
                 <a
-                  href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+                  href={bggGameUrl(game.bggId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={className}

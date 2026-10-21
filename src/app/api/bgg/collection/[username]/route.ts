@@ -1,195 +1,213 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import { ensureBggCollection } from "@/lib/bgg";
 import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { ApiError, apiHandler, requireSession } from "@/lib/api";
+import { ensureBggCollection, normalizeBggUsername } from "@/lib/bgg";
+import { DEFAULT_SORT_DIR } from "@/lib/collection";
+import { matchByName } from "@/lib/collectionData";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ username: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Params = { params: Promise<{ username: string }> };
+
+// Los órdenes que entiende esta ruta; cualquier otro cae al ranking de BGG.
+const SORTS = ["added", "rank", "rating", "weight", "name", "plays", "year"] as const;
+type Sort = (typeof SORTS)[number];
+
+// Un número de la URL, o undefined si no viene o no es un número (antes un
+// `?minPlayers=abc` llegaba a Prisma como NaN y daba un 500).
+function numberParam(sp: URLSearchParams, key: string, parse: (v: string) => number) {
+  const raw = sp.get(key);
+  if (!raw) return undefined;
+  const n = parse(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// La colección de un miembro del grupo, paginada y filtrada en el servidor,
+// para elegir juegos que añadir. Solo juegos base que tiene (no la wishlist:
+// no puedes llevar a la mesa un juego que no tienes), cada uno con sus
+// expansiones.
+export const GET = apiHandler(async (request: NextRequest, { params }: Params) => {
+  await requireSession(request);
 
   const { username } = await params;
   const sp = request.nextUrl.searchParams;
   const forceRefresh = sp.get("refresh") === "true";
-  const page = Math.max(1, parseInt(sp.get("page") || "1"));
-  const pageSize = Math.min(100, Math.max(1, parseInt(sp.get("pageSize") || "24")));
-  const sort = sp.get("sort") || "added";
+  const page = Math.max(1, numberParam(sp, "page", (v) => parseInt(v, 10)) ?? 1);
+  const pageSize = Math.min(100, Math.max(1, numberParam(sp, "pageSize", (v) => parseInt(v, 10)) ?? 24));
+  const rawSort = sp.get("sort") || "added";
+  const sort: Sort = (SORTS as readonly string[]).includes(rawSort) ? (rawSort as Sort) : "rank";
   const order = sp.get("order") || "";
   const search = sp.get("search") || "";
 
-  // Filters
-  const minPlayers = sp.get("minPlayers") ? parseInt(sp.get("minPlayers")!) : undefined;
-  const maxPlayers = sp.get("maxPlayers") ? parseInt(sp.get("maxPlayers")!) : undefined;
-  const minWeight = sp.get("minWeight") ? parseFloat(sp.get("minWeight")!) : undefined;
-  const maxWeight = sp.get("maxWeight") ? parseFloat(sp.get("maxWeight")!) : undefined;
-  const maxRank = sp.get("maxRank") ? parseInt(sp.get("maxRank")!) : undefined;
-  const minPlays = sp.get("minPlays") ? parseInt(sp.get("minPlays")!) : undefined;
+  // Filtros
+  const int = (v: string) => parseInt(v, 10);
+  const minPlayers = numberParam(sp, "minPlayers", int);
+  const maxPlayers = numberParam(sp, "maxPlayers", int);
+  const minWeight = numberParam(sp, "minWeight", parseFloat);
+  const maxWeight = numberParam(sp, "maxWeight", parseFloat);
+  const maxRank = numberParam(sp, "maxRank", int);
+  const minPlays = numberParam(sp, "minPlays", int);
   const unplayed = sp.get("unplayed") === "true";
 
-  const normalizedUsername = username.toLowerCase().trim();
+  const bggUsername = normalizeBggUsername(username);
 
   try {
-    // Ensure collection is cached (fetches both boardgames + expansions)
-    await ensureBggCollection(normalizedUsername, forceRefresh);
+    // Que la colección esté en caché (juegos base y expansiones)
+    await ensureBggCollection(bggUsername, forceRefresh);
+  } catch (error) {
+    console.error("[Colección de BGG] No se pudo traer:", error);
+    throw new ApiError(502, "BGG no ha respondido. Prueba de nuevo en un rato");
+  }
 
-    // Build where clause — only base games (exclude expansions) that the
-    // member actually owns: la caché guarda también su wishlist y aquí no
-    // pinta nada (no puedes llevar a la mesa un juego que no tienes).
-    const where: Prisma.CollectionGameWhereInput = {
-      bggUsername: normalizedUsername,
-      subtype: "boardgame",
-      status: "own",
+  const where: Prisma.CollectionGameWhereInput = {
+    bggUsername,
+    subtype: "boardgame",
+    status: "own",
+  };
+
+  if (search) {
+    where.name = { contains: search, mode: "insensitive" };
+  }
+  if (minPlayers !== undefined) {
+    where.maxPlayers = { gte: minPlayers };
+  }
+  if (maxPlayers !== undefined) {
+    where.minPlayers = { lte: maxPlayers };
+  }
+  if (minWeight !== undefined || maxWeight !== undefined) {
+    where.weight = {
+      ...(minWeight !== undefined ? { gte: minWeight } : {}),
+      ...(maxWeight !== undefined ? { lte: maxWeight } : {}),
     };
+  }
+  if (maxRank !== undefined) {
+    where.bggRank = { lte: maxRank };
+  }
+  if (unplayed) {
+    where.numPlays = 0;
+  } else if (minPlays !== undefined) {
+    where.numPlays = { gte: minPlays };
+  }
 
-    if (search) {
-      where.name = { contains: search, mode: "insensitive" };
-    }
-    if (minPlayers !== undefined) {
-      where.maxPlayers = { gte: minPlayers };
-    }
-    if (maxPlayers !== undefined) {
-      where.minPlayers = { lte: maxPlayers };
-    }
-    if (minWeight !== undefined) {
-      where.weight = { ...(where.weight as object || {}), gte: minWeight };
-    }
-    if (maxWeight !== undefined) {
-      where.weight = { ...(where.weight as object || {}), lte: maxWeight };
-    }
-    if (maxRank !== undefined) {
-      where.bggRank = { lte: maxRank };
-    }
-    if (unplayed) {
-      where.numPlays = 0;
-    } else if (minPlays !== undefined) {
-      where.numPlays = { gte: minPlays };
-    }
+  // Cada orden tiene su sentido natural; `order` lo cambia
+  const dir: "asc" | "desc" = order === "asc" || order === "desc" ? order : DEFAULT_SORT_DIR[sort];
+  const nullsPos = dir === "asc" ? "last" : "first";
+  let orderBy: Prisma.CollectionGameOrderByWithRelationInput;
 
-    // Each sort has a natural default direction; explicit order overrides it
-    const sortDefaults: Record<string, "asc" | "desc"> = {
-      added: "desc",   // newest first
-      rank: "asc",     // #1 first
-      rating: "desc",  // highest first
-      weight: "asc",   // lightest first
-      name: "asc",     // A-Z
-      plays: "desc",   // most played first
-      year: "desc",    // newest first
-    };
+  switch (sort) {
+    case "added":
+      orderBy = { dateAdded: { sort: dir, nulls: "last" } };
+      break;
+    case "rating":
+      orderBy = { bggRating: { sort: dir, nulls: "last" } };
+      break;
+    case "weight":
+      orderBy = { weight: { sort: dir, nulls: nullsPos } };
+      break;
+    case "name":
+      orderBy = { name: dir };
+      break;
+    case "plays":
+      orderBy = { numPlays: dir };
+      break;
+    case "year":
+      orderBy = { yearPublished: { sort: dir, nulls: "last" } };
+      break;
+    case "rank":
+      orderBy = { bggRank: { sort: dir, nulls: "last" } };
+      break;
+  }
 
-    const dir: "asc" | "desc" = order === "asc" || order === "desc" ? order : (sortDefaults[sort] ?? "asc");
-    const nullsPos = dir === "asc" ? "last" : "first";
-    let orderBy: Prisma.CollectionGameOrderByWithRelationInput;
+  const [items, total] = await Promise.all([
+    prisma.collectionGame.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.collectionGame.count({ where }),
+  ]);
 
-    switch (sort) {
-      case "added":
-        orderBy = { dateAdded: { sort: dir, nulls: "last" } };
-        break;
-      case "rating":
-        orderBy = { bggRating: { sort: dir, nulls: "last" } };
-        break;
-      case "weight":
-        orderBy = { weight: { sort: dir, nulls: nullsPos } };
-        break;
-      case "name":
-        orderBy = { name: dir };
-        break;
-      case "plays":
-        orderBy = { numPlays: dir };
-        break;
-      case "year":
-        orderBy = { yearPublished: { sort: dir, nulls: "last" } };
-        break;
-      case "rank":
-      default:
-        orderBy = { bggRank: { sort: dir, nulls: "last" } };
-        break;
-    }
+  const expansionsByBaseGame = await expansionsForPage(bggUsername, items);
 
-    // First fetch items and total count
-    const [items, total] = await Promise.all([
-      prisma.collectionGame.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      prisma.collectionGame.count({ where }),
-    ]);
-
-    // Then fetch only expansions that could match current page items (by name prefix)
-    // This is much faster than fetching ALL expansions for the user
-    const nameFilters = items.map((item) => ({
-      name: { startsWith: item.name, mode: "insensitive" as const },
-    }));
-
-    const expansions = nameFilters.length > 0
-      ? await prisma.collectionGame.findMany({
-          where: {
-            bggUsername: normalizedUsername,
-            subtype: "boardgameexpansion",
-            status: "own",
-            OR: nameFilters,
-          },
-          select: { bggId: true, name: true, thumbnail: true },
-        })
-      : [];
-
-    // Match expansions to base games by name prefix
-    const expansionsByBaseGame = new Map<number, { bggId: number; name: string; thumbnail: string | null }[]>();
-
-    for (const exp of expansions) {
-      let bestMatch: number | null = null;
-      let bestMatchLen = 0;
-
-      for (const item of items) {
-        const baseName = item.name.toLowerCase();
-        const expName = exp.name.toLowerCase();
-
-        if (
-          (expName.startsWith(baseName + ":") ||
-            expName.startsWith(baseName + " –") ||
-            expName.startsWith(baseName + " -") ||
-            (expName.startsWith(baseName) && expName.length > baseName.length)) &&
-          baseName.length > bestMatchLen
-        ) {
-          bestMatch = item.bggId;
-          bestMatchLen = baseName.length;
-        }
-      }
-
-      if (bestMatch !== null) {
-        if (!expansionsByBaseGame.has(bestMatch)) {
-          expansionsByBaseGame.set(bestMatch, []);
-        }
-        expansionsByBaseGame.get(bestMatch)!.push({
-          bggId: exp.bggId,
-          name: exp.name,
-          thumbnail: exp.thumbnail,
-        });
-      }
-    }
-
-    // Add expansion info to items
-    const itemsWithExpansions = items.map((item) => ({
+  return NextResponse.json({
+    items: items.map((item) => ({
       ...item,
       expansions: expansionsByBaseGame.get(item.bggId) || [],
-    }));
+    })),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  });
+});
 
-    return NextResponse.json({
-      items: itemsWithExpansions,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Error al obtener colección";
-    return NextResponse.json({ error: message }, { status: 500 });
+type ExpansionView = { bggId: number; name: string; thumbnail: string | null };
+
+/**
+ * Las expansiones que tiene de los juegos de esta página, emparejadas como en
+ * "Mi colección" (loadCollection): primero el enlace real de BGG y, si no lo
+ * hay, la heurística del nombre. Solo se piden las que pueden caer aquí, no
+ * todas las de la colección.
+ */
+async function expansionsForPage(
+  bggUsername: string,
+  items: { bggId: number; name: string }[]
+): Promise<Map<number, ExpansionView[]>> {
+  const byBase = new Map<number, ExpansionView[]>();
+  if (items.length === 0) return byBase;
+
+  const pageIds = new Set(items.map((i) => i.bggId));
+  const expansions = await prisma.collectionGame.findMany({
+    where: {
+      bggUsername,
+      subtype: "boardgameexpansion",
+      status: "own",
+      OR: [
+        { baseBggId: { in: [...pageIds] } },
+        ...items.map((item) => ({
+          name: { startsWith: item.name, mode: "insensitive" as const },
+        })),
+      ],
+    },
+    select: { bggId: true, name: true, thumbnail: true, baseBggId: true },
+  });
+
+  // Las que BGG enlaza con un juego de la colección que no está en esta
+  // página se quedan con el suyo: la heurística podría colgarlas de otro.
+  const linkedElsewhere = [
+    ...new Set(
+      expansions
+        .map((e) => e.baseBggId)
+        .filter((id): id is number => !!id && !pageIds.has(id))
+    ),
+  ];
+  const basesElsewhere = new Set(
+    linkedElsewhere.length > 0
+      ? (
+          await prisma.collectionGame.findMany({
+            where: {
+              bggUsername,
+              subtype: { not: "boardgameexpansion" },
+              bggId: { in: linkedElsewhere },
+            },
+            select: { bggId: true },
+          })
+        ).map((r) => r.bggId)
+      : []
+  );
+
+  const baseNames = items.map((i) => ({ bggId: i.bggId, name: i.name }));
+  for (const exp of expansions) {
+    let baseId = exp.baseBggId && pageIds.has(exp.baseBggId) ? exp.baseBggId : null;
+    if (baseId === null) {
+      if (exp.baseBggId && basesElsewhere.has(exp.baseBggId)) continue;
+      baseId = matchByName(exp.name, baseNames);
+    }
+    if (baseId === null) continue;
+    const view = { bggId: exp.bggId, name: exp.name, thumbnail: exp.thumbnail };
+    const list = byBase.get(baseId);
+    if (list) list.push(view);
+    else byBase.set(baseId, [view]);
   }
+  return byBase;
 }

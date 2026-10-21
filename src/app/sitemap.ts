@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://bgplanner.app";
+import { APP_URL } from "@/lib/site";
 
 // Se genera en cada petición (la consulta es ligera) para que un evento o un
 // hilo de la Comunidad nuevos salgan en cuanto se crean. Los perfiles no van

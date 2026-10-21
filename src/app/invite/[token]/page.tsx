@@ -5,7 +5,24 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
+import Button, { ButtonLink } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/EmptyState";
+import { FieldError } from "@/components/ui/Field";
 import { nudgePush } from "@/lib/pushNudge";
+import { loginHref } from "@/lib/site";
+import { plural } from "@/lib/text";
+
+/** Pantalla completa sin cabecera: el logo y el aviso centrados. */
+function InviteScreen({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
+      <div className="w-full max-w-md text-center">
+        <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
+        {children}
+      </div>
+    </main>
+  );
+}
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -102,69 +119,49 @@ export default function InvitePage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>;
+    return <PageLoader fullScreen />;
   }
 
   if (error && !groupName) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-        <div className="w-full max-w-md text-center">
-          <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
-          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-            <p className="text-red-400 mb-4">{error}</p>
-            <button
-              onClick={() => router.push("/")}
-              className="px-4 py-2.5 bg-[var(--surface-hover)] text-[var(--text)] rounded-xl text-sm transition-all duration-200"
-            >
-              Ir al inicio
-            </button>
-          </div>
-        </div>
-      </div>
+      <InviteScreen>
+        <Notice
+          icon="🔗"
+          title={error}
+          actions={<ButtonLink href="/" variant="secondary">Ir al inicio</ButtonLink>}
+        />
+      </InviteScreen>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
-      <div className="w-full max-w-md text-center">
-        <Link href="/" className="inline-block mb-4"><AnimatedLogo /></Link>
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 shadow-[var(--card-shadow)]">
-          <div className="text-4xl mb-3">🎲</div>
-          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">
+    <InviteScreen>
+      <Notice
+        icon="🎲"
+        title={
+          <>
             Te han invitado a unirte a
-          </h2>
-          <p className="text-2xl font-bold text-[var(--primary)] mb-1">
-            &ldquo;{groupName}&rdquo;
-          </p>
-          <p className="text-sm text-[var(--text-muted)] mb-6">
-            {memberCount} {memberCount === 1 ? "miembro" : "miembros"}
-          </p>
-
-          {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
-
-          {isLoggedIn ? (
-            <button
-              onClick={handleJoin}
-              disabled={joining}
-              className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              {joining ? "Uniéndote..." : "Unirme al grupo"}
-            </button>
+            <span className="block mt-2 text-2xl font-bold text-[var(--primary)]">
+              &ldquo;{groupName}&rdquo;
+            </span>
+          </>
+        }
+        actions={
+          isLoggedIn ? (
+            <Button onClick={handleJoin} loading={joining} block>
+              {joining ? "Uniéndote…" : "Unirme al grupo"}
+            </Button>
           ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-[var(--text-secondary)]">
-                Necesitas iniciar sesión para unirte al grupo.
-              </p>
-              <button
-                onClick={() => router.push(`/login?redirect=/invite/${token}`)}
-                className="w-full px-4 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Iniciar sesión / Crear cuenta
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            <ButtonLink href={loginHref(`/invite/${token}`)} block>
+              Iniciar sesión / Crear cuenta
+            </ButtonLink>
+          )
+        }
+      >
+        <p className="text-[var(--text-muted)]">{plural(memberCount, "miembro", "miembros")}</p>
+        <FieldError>{error}</FieldError>
+        {!isLoggedIn && <p>Necesitas iniciar sesión para unirte al grupo.</p>}
+      </Notice>
+    </InviteScreen>
   );
 }

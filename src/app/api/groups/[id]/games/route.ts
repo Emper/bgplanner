@@ -1,27 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { ApiError, apiHandler, parseBody, readJson, requireGroupMember, requireSession } from "@/lib/api";
 import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
 import { logActivity } from "@/lib/activity";
 import { compareRanking, voteScore } from "@/lib/rankingOrder";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  // Run membership check and data fetch in parallel
-  const [membership, groupGames] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: session.userId } },
-    }),
+  // Membresía y juegos a la vez
+  const [, groupGames] = await Promise.all([
+    requireGroupMember(groupId, session.userId),
     prisma.groupGame.findMany({
       where: { groupId },
       include: {
@@ -33,21 +27,14 @@ export async function GET(
     }),
   ]);
 
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
-
   const gamesWithScores = groupGames.map((gg) => {
-    const score = voteScore(gg.votes);
-
     const userVote = gg.votes.find((v) => v.userId === session.userId);
-
     return {
       id: gg.id,
       game: gg.game,
       addedBy: gg.addedBy,
       addedAt: gg.addedAt,
-      score,
+      score: voteScore(gg.votes),
       voteCount: gg._count.votes,
       userVoteValue: userVote?.value ?? null,
       votes: gg.votes,
@@ -57,126 +44,76 @@ export async function GET(
   gamesWithScores.sort(compareRanking);
 
   return NextResponse.json(gamesWithScores);
-}
+});
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
+  await requireGroupMember(groupId, session.userId);
+  const { bggId, name } = await parseBody(request, addGameSchema);
 
-  if (!membership) {
-    return NextResponse.json({ error: "No eres miembro" }, { status: 403 });
-  }
+  const game = await findOrCreateGame(bggId, name);
+  if (!game) throw new ApiError(502, "No se pudo obtener datos del juego");
 
-  const body = await request.json();
-  const parsed = addGameSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const { bggId } = parsed.data;
-
-  const game = await findOrCreateGame(bggId);
-  if (!game) {
-    return NextResponse.json({ error: "No se pudo obtener datos del juego" }, { status: 502 });
-  }
-
-  // Check duplicate — if archived, unarchive instead of error
+  // Si ya estaba pero archivado, se recupera en vez de dar error
   const existing = await prisma.groupGame.findUnique({
     where: { groupId_gameId: { groupId, gameId: game.id } },
   });
 
   if (existing) {
-    if (existing.archivedAt) {
-      // Unarchive: reset to fresh state
-      const restored = await prisma.groupGame.update({
-        where: { id: existing.id },
-        data: { archivedAt: null, playedAt: null },
-        include: { game: true },
-      });
-      logActivity("game_added", session.userId, { groupId, gameName: restored.game.name });
-      return NextResponse.json(restored, { status: 200 });
-    }
-    return NextResponse.json(
-      { error: "Este juego ya está en el grupo" },
-      { status: 409 }
-    );
+    if (!existing.archivedAt) throw new ApiError(409, "Este juego ya está en el grupo");
+    // Desarchivar: vuelve como nuevo
+    const restored = await prisma.groupGame.update({
+      where: { id: existing.id },
+      data: { archivedAt: null, playedAt: null },
+      include: { game: true },
+    });
+    logActivity("game_added", session.userId, { groupId, gameName: restored.game.name });
+    return NextResponse.json(restored, { status: 200 });
   }
 
-  // Create the group game and an automatic upvote from the user who added it
-  const groupGame = await prisma.groupGame.create({
-    data: {
-      groupId,
-      gameId: game!.id,
-      addedById: session.userId,
-    },
-    include: { game: true },
-  });
-
-  await prisma.vote.create({
-    data: {
-      groupGameId: groupGame.id,
-      userId: session.userId,
-      value: 1,
-    },
-  });
+  // El juego entra con el voto a favor de quien lo añade
+  let groupGame;
+  try {
+    groupGame = await prisma.groupGame.create({
+      data: {
+        groupId,
+        gameId: game.id,
+        addedById: session.userId,
+        votes: { create: { userId: session.userId, value: 1 } },
+      },
+      include: { game: true },
+    });
+  } catch (err) {
+    // Dos personas añadiéndolo a la vez: la segunda choca con la primera.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new ApiError(409, "Este juego ya está en el grupo");
+    }
+    throw err;
+  }
 
   logActivity("game_added", session.userId, { groupId, gameName: game.name });
 
   return NextResponse.json(groupGame, { status: 201 });
-}
+});
 
-// Archive all played games in the group
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
+// Archiva de golpe todo lo jugado del grupo.
+// Ningún cliente lo llama ya (se borrará); se mantiene mientras tanto.
+export const PATCH = apiHandler(async (request: NextRequest, { params }: Ctx) => {
+  const session = await requireSession(request);
   const { id: groupId } = await params;
-  const body = await request.json();
 
-  if (body.action !== "archivePlayed") {
-    return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
-  }
+  const body = (await readJson(request)) as { action?: unknown } | null;
+  if (body?.action !== "archivePlayed") throw new ApiError(400, "Acción no válida");
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: session.userId } },
-  });
-
-  if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
-    return NextResponse.json({ error: "Solo admins pueden archivar" }, { status: 403 });
-  }
+  await requireGroupMember(groupId, session.userId, { manager: true });
 
   // Lo jugado (a mano o en una noche de juego) lleva playedAt
-  const toArchive = await prisma.groupGame.findMany({
+  const { count } = await prisma.groupGame.updateMany({
     where: { groupId, archivedAt: null, playedAt: { not: null } },
-    select: { id: true },
+    data: { archivedAt: new Date() },
   });
 
-  if (toArchive.length > 0) {
-    await prisma.groupGame.updateMany({
-      where: { id: { in: toArchive.map((gg) => gg.id) } },
-      data: { archivedAt: new Date() },
-    });
-  }
-
-  return NextResponse.json({ archived: toArchive.length });
-}
+  return NextResponse.json({ archived: count });
+});

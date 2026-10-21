@@ -7,6 +7,8 @@ import AnimatedLogo from "@/components/AnimatedLogo";
 import PageLoader from "@/components/PageLoader";
 import { safeRedirect } from "@/lib/safeRedirect";
 import { nudgePush } from "@/lib/pushNudge";
+import Button from "@/components/ui/Button";
+import { FieldError } from "@/components/ui/Field";
 
 function VerifyForm() {
   const router = useRouter();
@@ -135,9 +137,9 @@ function VerifyForm() {
         </div>
 
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-7 shadow-[var(--card-shadow)] animate-fade-up delay-100">
-          <h2 className="text-xl font-bold text-[var(--text)] mb-2">
+          <h1 className="text-xl font-bold text-[var(--text)] mb-2">
             Verificar código
-          </h2>
+          </h1>
           <p className="text-sm text-[var(--text-secondary)] mb-6">
             Ingresa el código de 6 dígitos enviado a{" "}
             <span className="font-medium text-[var(--text)]">{email}</span>
@@ -151,6 +153,8 @@ function VerifyForm() {
                   ref={(el) => { inputRefs.current[i] = el; }}
                   type="text"
                   inputMode="numeric"
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
+                  aria-label={`Dígito ${i + 1} de 6`}
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleChange(i, e.target.value)}
@@ -160,19 +164,23 @@ function VerifyForm() {
               ))}
             </div>
 
-            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+            <FieldError className="text-center">{error}</FieldError>
 
-            <button
+            <Button
               type="submit"
-              disabled={loading || code.join("").length !== 6}
-              className="w-full px-4 py-3 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl hover:bg-[var(--primary-hover)] disabled:opacity-50 font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+              size="lg"
+              block
+              loading={loading}
+              disabled={code.join("").length !== 6}
+              className="py-3"
             >
-              {loading ? "Verificando..." : "Verificar"}
-            </button>
+              {loading ? "Verificando…" : "Verificar"}
+            </Button>
           </form>
 
           <div className="mt-4 text-center">
             <button
+              type="button"
               onClick={handleResend}
               disabled={resendCooldown > 0}
               className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)] disabled:text-[var(--text-muted)] transition-colors"
@@ -191,7 +199,7 @@ function VerifyForm() {
 export default function VerifyPage() {
   return (
     <Suspense
-      fallback={<div className="min-h-screen bg-[var(--bg)]"><PageLoader /></div>}
+      fallback={<PageLoader fullScreen />}
     >
       <VerifyForm />
     </Suspense>

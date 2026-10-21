@@ -1,7 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
 import SmartNav from "@/components/SmartNav";
-import Footer from "@/components/Footer";
+import PageShell from "@/components/ui/PageShell";
+import { ButtonLink } from "@/components/ui/Button";
+import { cardClass } from "@/components/ui/Card";
+import { Notice } from "@/components/ui/EmptyState";
 
 /**
  * Lo que ve quien llega con un enlace de un grupo o un evento y no tiene la
@@ -36,71 +38,77 @@ export default function PublicPeek({
   /** Lo que va debajo de la ficha (la info general de un evento). */
   children?: React.ReactNode;
 }) {
+  const ctaButton = (
+    <ButtonLink href={cta.href} size="lg">
+      {cta.label}
+    </ButtonLink>
+  );
+
+  // Sin datos que enseñar (un evento privado): un aviso de página entera.
+  if (!imageUrl && !lead && !(facts && facts.length > 0)) {
+    return (
+      <PageShell nav={<SmartNav />} width="form">
+        {banner}
+        <Notice
+          icon={emoji}
+          title={title}
+          actions={ctaButton}
+        >
+          {eyebrow ? <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">{eyebrow}</p> : null}
+          {note ? <p className="leading-relaxed">{note}</p> : null}
+          {cta.hint ? <p className="text-xs text-[var(--text-muted)]">{cta.hint}</p> : null}
+        </Notice>
+        {children ? <div className="mt-5">{children}</div> : null}
+      </PageShell>
+    );
+  }
+
   return (
-    <>
-      <SmartNav />
-      <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
-        {banner ? <div className="max-w-xl mx-auto">{banner}</div> : null}
-        <div className="max-w-xl mx-auto bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
-          {imageUrl ? (
-            <div className="h-40 sm:h-52 overflow-hidden">
-              <Image
-                src={imageUrl}
-                alt={title}
-                width={800}
-                height={300}
-                unoptimized
-                className="w-full h-full object-cover"
-              />
+    <PageShell nav={<SmartNav />} width="form">
+      {banner}
+      <div className={cardClass({ padding: "none", className: "overflow-hidden" })}>
+        {imageUrl ? (
+          <div className="h-40 sm:h-52 overflow-hidden">
+            <Image
+              src={imageUrl}
+              alt={title}
+              width={800}
+              height={300}
+              unoptimized
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : null}
+
+        <div className="p-7 text-center">
+          {!imageUrl && emoji ? (
+            <div className="text-5xl mb-3" aria-hidden>
+              {emoji}
+            </div>
+          ) : null}
+          {eyebrow ? (
+            <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] mb-1.5">{eyebrow}</p>
+          ) : null}
+          <h1 className="page-title break-words">{title}</h1>
+          {lead ? <p className="page-lead mt-2 break-words">{lead}</p> : null}
+
+          {facts && facts.length > 0 ? (
+            <div className="mt-3 space-y-1">
+              {facts.map((fact) => (
+                <p key={fact} className="text-sm text-[var(--text-secondary)]">
+                  {fact}
+                </p>
+              ))}
             </div>
           ) : null}
 
-          <div className="p-7 text-center">
-            {!imageUrl && emoji ? (
-              <div className="text-5xl mb-3">{emoji}</div>
-            ) : null}
-            {eyebrow ? (
-              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] mb-1.5">
-                {eyebrow}
-              </p>
-            ) : null}
-            <h1 className="text-2xl font-bold text-[var(--text)] break-words">
-              {title}
-            </h1>
-            {lead ? (
-              <p className="mt-2 text-[var(--text-secondary)] break-words">{lead}</p>
-            ) : null}
+          {note ? <p className="mt-4 text-sm text-[var(--text-muted)] leading-relaxed">{note}</p> : null}
 
-            {facts && facts.length > 0 ? (
-              <div className="mt-3 space-y-1">
-                {facts.map((fact) => (
-                  <p key={fact} className="text-sm text-[var(--text-secondary)]">
-                    {fact}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-
-            {note ? (
-              <p className="mt-4 text-sm text-[var(--text-muted)] leading-relaxed">
-                {note}
-              </p>
-            ) : null}
-
-            <Link
-              href={cta.href}
-              className="inline-flex mt-6 px-5 py-2.5 bg-[var(--primary)] text-[var(--primary-text)] rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              {cta.label}
-            </Link>
-            {cta.hint ? (
-              <p className="mt-3 text-xs text-[var(--text-muted)]">{cta.hint}</p>
-            ) : null}
-          </div>
+          <div className="mt-6">{ctaButton}</div>
+          {cta.hint ? <p className="mt-3 text-xs text-[var(--text-muted)]">{cta.hint}</p> : null}
         </div>
-        {children ? <div className="max-w-xl mx-auto mt-5">{children}</div> : null}
       </div>
-      <Footer />
-    </>
+      {children ? <div className="mt-5">{children}</div> : null}
+    </PageShell>
   );
 }
