@@ -13,16 +13,19 @@ export function cardClass({
   padding = "md",
   shadow = true,
   interactive = false,
+  tone = "default",
   className = "",
 }: {
   padding?: keyof typeof PADDING;
   shadow?: boolean;
   /** Para tarjetas que son enlaces: se ilumina el borde al pasar. */
   interactive?: boolean;
+  /** `danger` para la zona de peligro (borrar, salir). */
+  tone?: "default" | "danger";
   className?: string;
 } = {}): string {
   return [
-    "bg-[var(--surface)] rounded-2xl border border-[var(--border)]",
+    `bg-[var(--surface)] rounded-2xl border ${tone === "danger" ? "border-[var(--danger)]/30" : "border-[var(--border)]"}`,
     shadow ? "shadow-[var(--card-shadow)]" : "",
     interactive ? "hover:border-[var(--primary)]/40 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200" : "",
     PADDING[padding],
@@ -37,6 +40,7 @@ export default function Card({
   padding,
   shadow,
   interactive,
+  tone,
   className,
   children,
   ...rest
@@ -45,9 +49,10 @@ export default function Card({
   padding?: keyof typeof PADDING;
   shadow?: boolean;
   interactive?: boolean;
+  tone?: "default" | "danger";
 } & React.HTMLAttributes<HTMLElement>) {
   return (
-    <Tag className={cardClass({ padding, shadow, interactive, className })} {...rest}>
+    <Tag className={cardClass({ padding, shadow, interactive, tone, className })} {...rest}>
       {children}
     </Tag>
   );

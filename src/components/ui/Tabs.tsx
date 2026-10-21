@@ -54,12 +54,14 @@ export function SegmentedControl<V extends string>({
   options,
   size = "md",
   label,
+  disabled = false,
   className = "",
 }: {
   value: V;
   onChange: (value: V) => void;
   options: { value: V; label: React.ReactNode; title?: string }[];
   size?: "sm" | "md";
+  disabled?: boolean;
   /** Para lectores de pantalla: qué se está eligiendo. */
   label?: string;
   className?: string;
@@ -68,7 +70,8 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={`inline-flex p-1 gap-1 rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] ${className}`}
+      aria-disabled={disabled || undefined}
+      className={`inline-flex p-1 gap-1 rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] ${disabled ? "opacity-50" : ""} ${className}`}
     >
       {options.map((opt) => {
         const active = opt.value === value;
@@ -79,6 +82,7 @@ export function SegmentedControl<V extends string>({
             role="radio"
             aria-checked={active}
             title={opt.title}
+            disabled={disabled}
             onClick={() => onChange(opt.value)}
             className={`rounded-lg font-medium whitespace-nowrap transition-colors ${
               size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm"

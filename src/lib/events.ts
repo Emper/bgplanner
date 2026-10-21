@@ -46,15 +46,3 @@ export async function getEventParticipation(
   };
 }
 
-/** ¿Puede este usuario gestionar el evento? Creador o asistente admin. */
-export async function isEventAdmin(
-  event: { id: string; createdById: string },
-  userId: string
-): Promise<boolean> {
-  if (event.createdById === userId) return true;
-  const attendee = await prisma.eventAttendee.findUnique({
-    where: { eventId_userId: { eventId: event.id, userId } },
-    select: { role: true },
-  });
-  return attendee?.role === "admin";
-}

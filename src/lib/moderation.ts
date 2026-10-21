@@ -151,7 +151,7 @@ export async function describeReportTarget(
     case "group_photo": {
       const p = await prisma.groupPhoto.findUnique({
         where: { id },
-        select: { url: true, caption: true, userId: true, groupId: true, group: { select: { name: true } } },
+        select: { url: true, userId: true, groupId: true, group: { select: { name: true } } },
       });
       if (!p) return null;
       if (viewerId) {
@@ -163,7 +163,7 @@ export async function describeReportTarget(
       }
       return {
         authorId: p.userId,
-        preview: p.caption,
+        preview: null,
         imageUrl: p.url,
         href: `/admin/groups/${p.groupId}`,
         context: `Grupo «${p.group.name}»`,
@@ -173,7 +173,7 @@ export async function describeReportTarget(
     case "event_photo": {
       const p = await prisma.eventPhoto.findUnique({
         where: { id },
-        select: { url: true, caption: true, userId: true, eventId: true, event: { select: { name: true } } },
+        select: { url: true, userId: true, eventId: true, event: { select: { name: true } } },
       });
       if (!p) return null;
       if (viewerId) {
@@ -182,7 +182,7 @@ export async function describeReportTarget(
       }
       return {
         authorId: p.userId,
-        preview: p.caption,
+        preview: null,
         imageUrl: p.url,
         href: `/admin/events/${p.eventId}`,
         context: `Evento «${p.event.name}»`,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { uploadPhoto, getStorageClient, deletePhotos } from "@/lib/supabaseStorage";
+import { ALLOWED_TYPES, uploadPhoto, getStorageClient, deletePhotos } from "@/lib/supabaseStorage";
 import { logActivity } from "@/lib/activity";
 import { inBackground } from "@/lib/background";
 import { ApiError, apiHandler, requireEventAccess, requireSession } from "@/lib/api";
@@ -8,7 +8,6 @@ import { ApiError, apiHandler, requireEventAccess, requireSession } from "@/lib/
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_PER_REQUEST = 10;
 // Lo mismo que acepta uploadPhoto: así el error se explica antes de subir
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -52,7 +51,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => 
       lastError = "Alguna imagen supera los 5 MB";
       continue;
     }
-    if (!IMAGE_TYPES.has(file.type)) {
+    if (!(file.type in ALLOWED_TYPES)) {
       lastError = "Formato de imagen no soportado: usa JPG, PNG o WebP";
       continue;
     }

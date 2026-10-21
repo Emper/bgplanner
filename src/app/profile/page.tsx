@@ -21,7 +21,6 @@ import { useToast } from "@/components/ui/Toast";
 import { resizeImage } from "@/lib/image";
 import { safeRedirect } from "@/lib/safeRedirect";
 import { bggUserUrl } from "@/lib/bggLinks";
-import { APP_URL } from "@/lib/site";
 import { plural } from "@/lib/text";
 import { profileHref } from "@/lib/users";
 
@@ -38,7 +37,6 @@ interface DeletionPlan {
 }
 
 // «bgplanner.app» (o el dominio en el que estemos), para enseñar direcciones.
-const APP_HOST = APP_URL.replace(/^https?:\/\//, "");
 
 interface Profile {
   name: string;
@@ -560,7 +558,7 @@ function ProfileForm() {
               <p className="text-xs text-[var(--text-muted)] mt-1">
                 La dirección de tu perfil público es{" "}
                 <span className="font-mono text-[var(--text-secondary)] break-all">
-                  {APP_HOST}/users/{profileSlug}
+                  bgplanner.app/users/{profileSlug}
                 </span>
               </p>
             )}

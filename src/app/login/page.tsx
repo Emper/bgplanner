@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import AnimatedLogo from "@/components/AnimatedLogo";
-import { useTheme } from "@/lib/theme";
+import ThemeToggleButton from "@/components/ThemeToggleButton";
 import PageLoader from "@/components/PageLoader";
 import { safeRedirect } from "@/lib/safeRedirect";
 import Button from "@/components/ui/Button";
@@ -14,7 +14,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = safeRedirect(searchParams.get("redirect"));
-  const { resolvedTheme, toggleTheme, mounted } = useTheme();
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -75,25 +74,7 @@ function LoginForm() {
       {/* Background glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-[var(--glow)] rounded-full blur-[120px] pointer-events-none" />
 
-      <button
-        type="button"
-        onClick={toggleTheme}
-        aria-label={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
-        className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200 z-10"
-        title={!mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro"}
-      >
-        {!mounted ? (
-          <span className="w-[18px] h-[18px]" />
-        ) : resolvedTheme === "dark" ? (
-          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        ) : (
-          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        )}
-      </button>
+      <ThemeToggleButton className="absolute top-4 right-4 z-10" />
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8 animate-fade-up">

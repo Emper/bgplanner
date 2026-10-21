@@ -289,7 +289,6 @@ export async function deleteAccount(
       await tx.communityThread.updateMany({ where: { authorId: userId }, data: { authorId: ghost.id } });
       await tx.communityReply.updateMany({ where: { authorId: userId }, data: { authorId: ghost.id } });
       await tx.feature.updateMany({ where: { createdById: userId }, data: { createdById: null } });
-      await tx.feedback.updateMany({ where: { reviewedById: userId }, data: { reviewedById: null } });
 
       // 4. Activity log: lo suyo, fuera o al fantasma; lo de otros, sin su nombre
       await tx.activityLog.deleteMany({ where: { userId, type: { in: PERSONAL_ACTIVITY_TYPES } } });

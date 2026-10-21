@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ApiError, apiHandler, parseBody, readJson, requireGroupMember, requireSession } from "@/lib/api";
+import { ApiError, apiHandler, parseBody, requireGroupMember, requireSession } from "@/lib/api";
 import { addGameSchema } from "@/lib/validations";
 import { findOrCreateGame } from "@/lib/games";
 import { logActivity } from "@/lib/activity";
@@ -96,24 +96,4 @@ export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => 
   logActivity("game_added", session.userId, { groupId, gameName: game.name });
 
   return NextResponse.json(groupGame, { status: 201 });
-});
-
-// Archiva de golpe todo lo jugado del grupo.
-// Ningún cliente lo llama ya (se borrará); se mantiene mientras tanto.
-export const PATCH = apiHandler(async (request: NextRequest, { params }: Ctx) => {
-  const session = await requireSession(request);
-  const { id: groupId } = await params;
-
-  const body = (await readJson(request)) as { action?: unknown } | null;
-  if (body?.action !== "archivePlayed") throw new ApiError(400, "Acción no válida");
-
-  await requireGroupMember(groupId, session.userId, { manager: true });
-
-  // Lo jugado (a mano o en una noche de juego) lleva playedAt
-  const { count } = await prisma.groupGame.updateMany({
-    where: { groupId, archivedAt: null, playedAt: { not: null } },
-    data: { archivedAt: new Date() },
-  });
-
-  return NextResponse.json({ archived: count });
 });

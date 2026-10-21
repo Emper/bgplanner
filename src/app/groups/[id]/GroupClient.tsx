@@ -36,7 +36,7 @@ import { displayName, profileHref } from "@/lib/users";
 import { toFriend } from "@/lib/friends";
 import { plural } from "@/lib/text";
 import { bggGameUrl, bggUserUrl } from "@/lib/bggLinks";
-import { absoluteUrl } from "@/lib/site";
+import { shareUrl } from "@/lib/site";
 
 // Modales y galería que solo se abren a petición: su código se descarga
 // entonces, no con la ficha del grupo.
@@ -1095,7 +1095,7 @@ function GroupDashboardPage() {
   // tenga BGG ya cargada.
   const firstBgg = group.members.find((m) => m.user.bggUsername)?.user.bggUsername;
   const addGamesHref = `/groups/${groupId}/add-games${firstBgg ? `?user=${encodeURIComponent(firstBgg)}` : ""}`;
-  const inviteLinkUrl = inviteLinkCode ? absoluteUrl(`/join/${inviteLinkCode}`) : "";
+  const inviteLinkUrl = inviteLinkCode ? shareUrl(`/join/${inviteLinkCode}`) : "";
 
   return (
     <PageShell nav={<Navbar />} width="main">

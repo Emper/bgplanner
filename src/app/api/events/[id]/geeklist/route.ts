@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { geeklistLinkSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 import { fetchBggGeeklist, GeeklistPendingError, parseGeeklistId } from "@/lib/bgg";
-import { applyGeeklist } from "@/lib/geeklist";
+import { applyGeeklist, GeeklistUserError } from "@/lib/geeklist";
 import { ApiError, apiHandler, parseBody, requireEventAccess, requireSession } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -48,6 +48,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => 
       await prisma.event.update({ where: { id: eventId }, data: { ...link, geeklistError: err.message } });
       return NextResponse.json({ pending: true, message: err.message }, { status: 202 });
     }
+    if (err instanceof GeeklistUserError) throw new ApiError(409, err.message);
     console.error("[geeklist] fallo al vincular la lista", geeklistId, err);
     throw new ApiError(502, "No hemos podido leer la lista de BGG. Comprueba el enlace o vuelve a probar en un rato.");
   }

@@ -16,3 +16,13 @@ export function loginHref(redirectTo?: string | null): string {
     ? `/login?redirect=${encodeURIComponent(redirectTo)}`
     : "/login";
 }
+
+/**
+ * Un enlace para copiar o compartir desde el navegador: con el dominio en el
+ * que estás (producción, una preview, localhost), que es el que funciona
+ * seguro. En el servidor, el de la app.
+ */
+export function shareUrl(path: string): string {
+  if (typeof window === "undefined") return absoluteUrl(path);
+  return `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`;
+}

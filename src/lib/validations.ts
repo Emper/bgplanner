@@ -116,7 +116,11 @@ export const geeklistLinkSchema = z.object({
 });
 
 export const voteSchema = z.object({
-  value: z.number().int().min(-10).max(10),
+  value: z
+    .number("Voto no válido")
+    .int("Voto no válido")
+    .min(-10, "Voto no válido")
+    .max(10, "Voto no válido"),
 });
 
 export const gameCommentSchema = z.object({

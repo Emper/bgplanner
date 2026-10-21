@@ -11,6 +11,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "21 octubre 2026",
+    version: "1.59",
+    title: "Limpieza a fondo",
+    changes: [
+      { type: "improved", text: "Tu email es solo tuyo: ya no lo ve nadie más, ni la gente de tus grupos" },
+      { type: "improved", text: "Ventanas, avisos y botones iguales en toda la web; las ventanas se cierran con Escape" },
+      { type: "improved", text: "En modo claro se leen bien los avisos y errores, y desde un grupo o evento siempre hay un «volver»" },
+      { type: "fixed", text: "Las páginas que no existen enseñan un aviso con la cara de BG Planner en vez de una pantalla en blanco" },
+    ],
+  },
+  {
+    date: "21 octubre 2026",
     version: "1.58",
     title: "A cotillear estanterías",
     changes: [

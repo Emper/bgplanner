@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { GeeklistPendingError } from "@/lib/bgg";
-import { syncEventGeeklist } from "@/lib/geeklist";
+import { GeeklistUserError, syncEventGeeklist } from "@/lib/geeklist";
 import { ApiError, apiHandler, requireEventAccess, requireSession } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -28,6 +28,7 @@ export const POST = apiHandler(
       if (err instanceof GeeklistPendingError) {
         return NextResponse.json({ pending: true, message: err.message }, { status: 202 });
       }
+      if (err instanceof GeeklistUserError) throw new ApiError(409, err.message);
       console.error("[geeklist] fallo al reimportar la lista del evento", eventId, err);
       throw new ApiError(502, "No hemos podido leer la lista de BGG. Vuelve a probar en un rato.");
     }

@@ -10,6 +10,7 @@ export function EmptyState({
   description,
   action,
   variant = "plain",
+  size = "md",
   className = "",
 }: {
   icon?: React.ReactNode;
@@ -18,17 +19,20 @@ export function EmptyState({
   action?: React.ReactNode;
   /** `card` la mete en una tarjeta; `dashed`, con borde discontinuo. */
   variant?: "plain" | "card" | "dashed";
+  /** `sm` para huecos pequeños (una pestaña, un panel lateral). */
+  size?: "sm" | "md";
   className?: string;
 }) {
+  const pad = size === "sm" ? "py-6" : variant === "plain" ? "py-12" : "py-10";
   const box =
     variant === "card"
-      ? "bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-6 py-10"
+      ? "bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-[var(--card-shadow)] px-6"
       : variant === "dashed"
-        ? "rounded-2xl border border-dashed border-[var(--border-strong)] px-6 py-10"
-        : "py-12";
+        ? "rounded-2xl border border-dashed border-[var(--border-strong)] px-6"
+        : "";
   return (
-    <div className={`text-center ${box} ${className}`}>
-      {icon && <div className="text-4xl mb-3" aria-hidden>{icon}</div>}
+    <div className={`text-center ${box} ${pad} ${className}`}>
+      {icon && <div className={`${size === "sm" ? "text-3xl mb-2" : "text-4xl mb-3"}`} aria-hidden>{icon}</div>}
       <p className="font-semibold text-[var(--text)]">{title}</p>
       {description && <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-sm mx-auto">{description}</p>}
       {action && <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div>}

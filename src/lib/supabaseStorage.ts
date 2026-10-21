@@ -33,7 +33,8 @@ export function getStorageClient(): SupabaseClient | null {
   return cached;
 }
 
-const ALLOWED_TYPES: Record<string, string> = {
+/** Formatos de imagen que se aceptan al subir (y su extensión). */
+export const ALLOWED_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",

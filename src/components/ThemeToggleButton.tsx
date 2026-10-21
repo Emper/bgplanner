@@ -2,11 +2,18 @@
 
 import { useTheme } from "@/lib/theme";
 
-// El botón sol/luna de cambiar de tema (cabecera pública, login). Enseña lo
+// El botón sol/luna de cambiar de tema (cabecera pública, login, admin). Enseña lo
 // que pasará al pulsarlo: el sol en oscuro, la luna en claro. Hasta saber el
 // tema (tras montar) guarda el hueco para que no salte nada.
 
-export default function ThemeToggleButton({ className = "" }: { className?: string }) {
+export default function ThemeToggleButton({
+  className = "",
+  accent = "primary",
+}: {
+  className?: string;
+  /** `admin` para el morado del panel de administración. */
+  accent?: "primary" | "admin";
+}) {
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
   const label = !mounted ? "Cambiar de tema" : resolvedTheme === "dark" ? "Modo claro" : "Modo oscuro";
 
@@ -16,7 +23,11 @@ export default function ThemeToggleButton({ className = "" }: { className?: stri
       onClick={toggleTheme}
       aria-label={label}
       title={label}
-      className={`w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all duration-200 ${className}`}
+      className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-[var(--text-muted)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 ${
+        accent === "admin"
+          ? "hover:text-purple-600 dark:hover:text-purple-300 hover:bg-purple-500/10 focus-visible:ring-purple-500/40"
+          : "hover:text-[var(--primary)] hover:bg-[var(--accent-soft)] focus-visible:ring-[var(--primary)]/40"
+      } ${className}`}
     >
       {!mounted ? (
         <span className="w-[18px] h-[18px]" />

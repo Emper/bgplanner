@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSuperadminEmails } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiHandler, parseBody, requireSession } from "@/lib/api";
-import { EMAIL_FROM } from "@/lib/contact";
-import { resend } from "@/lib/resend";
-import { EMAIL_COLORS as C, emailBox, emailButton, emailLayout, emailNote, html } from "@/lib/email";
+import { EMAIL_COLORS as C, emailBox, emailButton, emailNote, html, sendAppEmail } from "@/lib/email";
 import { inBackground } from "@/lib/background";
 import { absoluteUrl } from "@/lib/site";
 import { displayName } from "@/lib/users";
@@ -76,8 +74,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     content: img.buffer,
   }));
 
-  // Aviso a los superadmins, después de responder. Va con Resend a pelo y no
-  // con sendAppEmailLater porque lleva las capturas adjuntas.
+  // Aviso a los superadmins, después de responder, con las capturas adjuntas.
   inBackground(async () => {
     const [recipients, user] = await Promise.all([
       getSuperadminEmails(),
@@ -94,14 +91,13 @@ ${emailBox(html`<div style="font-size: 14px; line-height: 1.6; white-space: pre-
 ${attachments.length > 0 ? emailNote(`${attachments.length} imagen(es) adjunta(s)`) : false}
 ${emailButton(absoluteUrl("/admin/roadmap"), "Revisarlo en el panel")}`;
 
-    const { error } = await resend.emails.send({
-      from: EMAIL_FROM,
+    await sendAppEmail({
       to: recipients,
       subject: `[Feedback] ${subject}`,
-      html: emailLayout(body, { maxWidth: 600 }),
-      ...(attachments.length > 0 ? { attachments } : {}),
+      body,
+      maxWidth: 600,
+      attachments,
     });
-    if (error) console.error("[feedback] Resend rechazó el aviso", error);
   });
 
   return NextResponse.json({

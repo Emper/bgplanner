@@ -57,6 +57,8 @@ export interface ModalProps {
   closeOnBackdrop?: boolean;
   /** Qué enfocar al abrir; por defecto, el primer campo o botón. */
   initialFocusRef?: React.RefObject<HTMLElement | null>;
+  /** Nombre del diálogo cuando no hay `title` (cabeceras propias). */
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -76,6 +78,7 @@ export default function Modal({
   showClose = true,
   closeOnBackdrop = true,
   initialFocusRef,
+  ariaLabel,
   className = "",
 }: ModalProps) {
   const isClient = useIsClient();
@@ -146,12 +149,17 @@ export default function Modal({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && closeOnBackdrop && !busy) onClose();
       }}
+      // El portal saca el modal del DOM de la tarjeta que lo abre, pero en
+      // React los eventos siguen subiendo por el árbol: que un clic aquí no
+      // dispare el onClick de la tarjeta (o el enlace) de debajo.
+      onClick={(e) => e.stopPropagation()}
     >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : ariaLabel}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={`w-full ${SIZES[size]} max-h-[90vh] overflow-y-auto bg-[var(--surface)] rounded-2xl border ${

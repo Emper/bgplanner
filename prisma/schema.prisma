@@ -47,7 +47,6 @@ model User {
   activityLogs     ActivityLog[]
   emailChangeRequests EmailChangeRequest[]
   feedbacks         Feedback[]    @relation("FeedbackAuthor")
-  reviewedFeedbacks Feedback[]    @relation("FeedbackReviewer")
   createdFeatures   Feature[]     @relation("FeatureCreator")
   featureVotes      FeatureVote[]
   collectionEntries CollectionEntry[]
@@ -432,7 +431,6 @@ model GroupPhoto {
   groupId   String
   userId    String
   url       String   @db.Text // URL pública en Supabase Storage
-  caption   String?
   createdAt DateTime @default(now())
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -582,7 +580,6 @@ model EventPhoto {
   eventId   String
   userId    String
   url       String   @db.Text // URL pública en Supabase Storage
-  caption   String?
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -630,15 +627,11 @@ model Feedback {
   message      String    @db.Text
   images       String[]  @default([]) // URLs públicas en Supabase Storage
   status       String    @default("published") // published | hidden
-  adminNote    String?   @db.Text
   featureId    String?
-  reviewedById String?
-  reviewedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   user       User     @relation("FeedbackAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy User?    @relation("FeedbackReviewer", fields: [reviewedById], references: [id])
   feature    Feature? @relation(fields: [featureId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])

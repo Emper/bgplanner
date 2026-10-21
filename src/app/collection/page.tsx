@@ -12,7 +12,7 @@ import PageShell from "@/components/ui/PageShell";
 import Spinner from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { shareOrCopy } from "@/lib/clipboard";
-import { absoluteUrl } from "@/lib/site";
+import { shareUrl } from "@/lib/site";
 import type { CollectionItemView } from "@/lib/collection";
 
 interface ApiResponse {
@@ -207,7 +207,7 @@ function CollectionPageInner() {
     if (!meta?.profileSlug) return;
     const result = await shareOrCopy({
       title: "Mi colección en BG Planner",
-      url: absoluteUrl(`/users/${encodeURIComponent(meta.profileSlug)}/collection`),
+      url: shareUrl(`/users/${encodeURIComponent(meta.profileSlug)}/collection`),
     });
     if (result === "copied") toast("Enlace copiado. La permanencia solo la ven tus amigos");
     else if (result === "failed") toast.error("No se ha podido copiar el enlace");

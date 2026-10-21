@@ -1,9 +1,17 @@
 import { prisma } from "./prisma";
-import { fetchBggGeeklist, type BggGeeklist } from "./bgg";
+import { fetchBggGeeklist, GeeklistPendingError, type BggGeeklist } from "./bgg";
 import { ensureGames } from "./games";
 import { logActivity } from "./activity";
 import { inBackground, notify } from "./notifications";
 import { VETO } from "./intensity";
+
+/**
+ * Un problema con la lista que se puede contar tal cual a quien organiza
+ * (en español y sin detalles internos), a diferencia de un fallo de BGG.
+ */
+export class GeeklistUserError extends Error {}
+
+const GEEKLIST_GENERIC_ERROR = "No hemos podido leer la lista de BGG. Vuelve a probar en un rato.";
 
 // Un evento puede tomar sus juegos de una geeklist de BGG en vez de elegirlos
 // a mano. La lista manda: lo que entra en ella aparece en el evento y lo que
@@ -27,10 +35,6 @@ export interface GeeklistSyncResult {
   removed: number;
   /** Han salido de la lista pero tenían intereses: se quedan, señalados. */
   flagged: number;
-}
-
-export function geeklistUrl(id: number) {
-  return `https://boardgamegeek.com/geeklist/${id}`;
 }
 
 export function isEventOver(event: { date: Date; endDate: Date | null }) {
@@ -60,7 +64,7 @@ export async function applyGeeklist(
   // Una lista que se queda vacía de golpe huele a fallo de BGG: mejor no
   // vaciar la ludoteca por ello
   if (listGames.length === 0 && current.some((c) => c.fromGeeklist && !c.leftGeeklistAt)) {
-    throw new Error("BGG ha devuelto la lista vacía. No hemos tocado los juegos; vuelve a probar más tarde.");
+    throw new GeeklistUserError("BGG ha devuelto la lista vacía. No hemos tocado los juegos; vuelve a probar más tarde.");
   }
   const currentGameIds = new Set(current.map((c) => c.gameId));
 
@@ -176,7 +180,11 @@ export async function syncEventGeeklist(
     const list = await fetchBggGeeklist(event.bggGeeklistId);
     return await applyGeeklist(eventId, list, actorId);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "No se pudo leer la lista de BGG.";
+    // Lo que se guarda se enseña en el evento: solo mensajes pensados para ello.
+    const message =
+      err instanceof GeeklistUserError || err instanceof GeeklistPendingError
+        ? err.message
+        : GEEKLIST_GENERIC_ERROR;
     await prisma.event.update({ where: { id: eventId }, data: { geeklistError: message } }).catch(() => {});
     throw err;
   }

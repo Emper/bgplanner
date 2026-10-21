@@ -763,15 +763,6 @@ export async function fetchBggHotIds(): Promise<number[]> {
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export function getRecommendationForPlayerCount(
-  recommendations: PlayerCountRec[],
-  numPlayers: number
-): PlayerCountRec | null {
-  return (
-    recommendations.find((r) => r.numPlayers === String(numPlayers)) ?? null
-  );
-}
-
 // ── BGG Search ──────────────────────────────────────────────────────────
 // Usamos solo endpoints licenciados. Los términos de uso de BGG prohíben las
 // APIs privadas (p.ej. api.geekdo.com), así que la búsqueda va contra la

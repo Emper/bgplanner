@@ -19,6 +19,8 @@ export default function ContactPage() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  // Campo trampa: invisible para personas, los bots lo rellenan.
+  const [website, setWebsite] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +31,7 @@ export default function ContactPage() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, subject, message, honeypot: "" }),
+        body: JSON.stringify({ name, email, subject, message, honeypot: website }),
       });
 
       if (!res.ok) {
@@ -68,7 +70,8 @@ export default function ContactPage() {
             autoComplete="off"
             aria-hidden
             className="absolute opacity-0 h-0 w-0 pointer-events-none"
-            onChange={() => {}}
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
           />
 
           <Field label="Nombre">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiHandler, requireGroupMember, requireSession } from "@/lib/api";
-import { searchBggGames } from "@/lib/bgg";
+import { normalizeBggUsername, searchBggGames } from "@/lib/bgg";
 import { displayName } from "@/lib/users";
 
 // Busca juegos en todo BGG (fuera de la colección) y anota, para cada
@@ -44,7 +44,7 @@ export const GET = apiHandler(async (
     const u = m.user;
     if (!u.bggUsername) continue;
     usernameToName.set(
-      u.bggUsername.toLowerCase().trim(),
+      normalizeBggUsername(u.bggUsername),
       displayName(u)
     );
   }
@@ -64,7 +64,7 @@ export const GET = apiHandler(async (
 
   const ownersByGame = new Map<number, Set<string>>();
   for (const row of ownedByUsername) {
-    const name = usernameToName.get(row.bggUsername.toLowerCase().trim());
+    const name = usernameToName.get(normalizeBggUsername(row.bggUsername));
     if (!name) continue;
     if (!ownersByGame.has(row.bggId)) ownersByGame.set(row.bggId, new Set());
     ownersByGame.get(row.bggId)!.add(name);

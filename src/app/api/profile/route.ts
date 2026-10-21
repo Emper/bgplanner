@@ -89,7 +89,8 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     data: {
       ...parsed,
       displayName: parsed.displayName?.trim() ? parsed.displayName : parsed.name,
-      bggUsername,
+      // Vacío = desvincular: null, no "" (que contaría como usuario).
+      bggUsername: bggUsername === undefined ? undefined : bggUsername || null,
     },
     select: {
       id: true,

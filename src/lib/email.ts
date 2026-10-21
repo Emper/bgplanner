@@ -84,6 +84,8 @@ interface AppEmail {
   body: SafeHtml;
   replyTo?: string;
   maxWidth?: number;
+  /** Ficheros adjuntos (p. ej. las capturas de una sugerencia). */
+  attachments?: { filename: string; content: Buffer | string; contentType?: string }[];
 }
 
 /**
@@ -91,7 +93,7 @@ interface AppEmail {
  * rechaza o falla, con traza en los logs. Para cuando el email ES la
  * respuesta (el código de entrada): si no sale, hay que decirlo.
  */
-export async function sendAppEmail({ to, subject, body, replyTo, maxWidth }: AppEmail): Promise<boolean> {
+export async function sendAppEmail({ to, subject, body, replyTo, maxWidth, attachments }: AppEmail): Promise<boolean> {
   try {
     const { error } = await resend.emails.send({
       from: EMAIL_FROM,
@@ -99,6 +101,7 @@ export async function sendAppEmail({ to, subject, body, replyTo, maxWidth }: App
       subject,
       html: emailLayout(body, { maxWidth }),
       ...(replyTo ? { replyTo } : {}),
+      ...(attachments?.length ? { attachments } : {}),
     });
     if (error) {
       console.error(`[email] Resend rechazó "${subject}"`, error);

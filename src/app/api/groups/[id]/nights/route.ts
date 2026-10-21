@@ -11,22 +11,6 @@ const NIGHT_OPEN_MS = 12 * 60 * 60 * 1000;
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export const GET = apiHandler(async (request: NextRequest, { params }: Ctx) => {
-  const session = await requireSession(request);
-  const { id: groupId } = await params;
-
-  const [, nights] = await Promise.all([
-    requireGroupMember(groupId, session.userId),
-    prisma.gameNight.findMany({
-      where: { groupId },
-      orderBy: { date: "desc" },
-      include: GAME_NIGHT_INCLUDE,
-    }),
-  ]);
-
-  return NextResponse.json(nights);
-});
-
 // "¡Lo jugamos!": apunta un juego en la noche (y la abre si es la primera
 // partida) y lo marca como jugado en el grupo.
 export const POST = apiHandler(async (request: NextRequest, { params }: Ctx) => {

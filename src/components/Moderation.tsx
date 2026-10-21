@@ -22,6 +22,8 @@ export interface MoreMenuItem {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  /** Visible pero sin efecto (p. ej. mientras se hace). */
+  disabled?: boolean;
 }
 
 /**
@@ -96,12 +98,13 @@ export function MoreMenu({
               key={item.label}
               type="button"
               role="menuitem"
+              disabled={item.disabled}
               onClick={(e) => {
                 e.preventDefault();
                 setOpen(false);
                 item.onClick();
               }}
-              className={`w-full px-3.5 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)] ${
+              className={`w-full px-3.5 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:pointer-events-none ${
                 item.danger ? "text-[var(--danger)]" : "text-[var(--text)]"
               }`}
             >
