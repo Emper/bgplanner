@@ -8,12 +8,13 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggGameSearch from "@/components/BggGameSearch";
 import BggRating from "@/components/BggRating";
+import GameTags, { GameTag } from "@/components/GameTags";
 import Avatar from "@/components/Avatar";
 import ActivityFeed, { getCachedFeed, setCachedFeed } from "@/components/ActivityFeed";
 import EmojiField from "@/components/EmojiField";
 import dynamic from "next/dynamic";
 import RichText from "@/components/RichText";
-import { formatDateFull, formatDuration, toDateTimeLocalInput } from "@/lib/format";
+import { formatDateFull, toDateTimeLocalInput } from "@/lib/format";
 import { EVENT_ABOUT_MAX } from "@/lib/text";
 import { resizeImage } from "@/lib/image";
 import { profileHref } from "@/lib/users";
@@ -1167,35 +1168,25 @@ function GamesTab({
                       {eg.game.bggRating && (
                         <BggRating rating={eg.game.bggRating} size={30} />
                       )}
-                      {eg.game.bggRank && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300" title="Puesto en el ranking global de BGG">
-                          🏆 BGG #{eg.game.bggRank.toLocaleString("es-ES")}
-                        </span>
-                      )}
-                      {eg.game.playingTime && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
-                          {formatDuration(eg.game.playingTime)}
-                        </span>
-                      )}
-                      {(eg.game.minPlayers || eg.game.maxPlayers) && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                          {eg.game.minPlayers === eg.game.maxPlayers
-                            ? `${eg.game.minPlayers}p`
-                            : `${eg.game.minPlayers || "?"}-${eg.game.maxPlayers || "?"}p`}
-                        </span>
-                      )}
+                      <GameTags
+                        game={{
+                          bggRank: eg.game.bggRank,
+                          minPlayers: eg.game.minPlayers,
+                          maxPlayers: eg.game.maxPlayers,
+                          playingTime: eg.game.playingTime,
+                        }}
+                      />
                       {totalInterested > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
-                          {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
-                        </span>
+                        <GameTag tone="green">
+                          🙋 {totalInterested} interesado{totalInterested !== 1 ? "s" : ""}
+                        </GameTag>
                       )}
                       {totalVetoes > 0 && (
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-muted)]"
+                        <GameTag
                           title={`${totalVetoes} ${totalVetoes === 1 ? "persona no quiere" : "personas no quieren"} jugarlo`}
                         >
-                          🚫 {totalVetoes}
-                        </span>
+                          🚫 {totalVetoes} en contra
+                        </GameTag>
                       )}
                     </div>
                   </div>

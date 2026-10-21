@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggRating from "@/components/BggRating";
-import { formatDuration } from "@/lib/format";
+import GameTags from "@/components/GameTags";
 import type {
   RecommendationsResponse,
   RecommendationsStatus,
@@ -48,20 +48,6 @@ function matches(game: RecommendedGame, players: Players, weight: Weight): boole
     if (weight === "heavy" && game.weight < 3.4) return false;
   }
   return true;
-}
-
-function playersLabel(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max && min !== max) return `${min}-${max} jug.`;
-  return `${min || max} jug.`;
-}
-
-function weightLabel(w: number): string {
-  if (w < 1.5) return "Ligero";
-  if (w < 2.5) return "Medio-ligero";
-  if (w < 3.5) return "Medio";
-  if (w < 4.5) return "Pesado";
-  return "Muy pesado";
 }
 
 interface Toast {
@@ -465,7 +451,6 @@ function RecCard({
   onDismiss: () => void;
 }) {
   const img = game.image || game.thumbnail;
-  const players = playersLabel(game.minPlayers, game.maxPlayers);
 
   return (
     // En móvil la tarjeta de "Para ti" va en horizontal (portada a la
@@ -516,15 +501,22 @@ function RecCard({
             className="font-semibold text-sm text-[var(--text)] hover:text-[var(--primary)] transition-colors line-clamp-2"
           >
             {game.name}
+            {game.yearPublished && (
+              <span className="font-normal text-[var(--text-muted)] ml-1">
+                ({game.yearPublished})
+              </span>
+            )}
           </a>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            {game.yearPublished && <Meta>{game.yearPublished}</Meta>}
-            {players && <Meta>{players}</Meta>}
-            {game.playingTime ? <Meta>{formatDuration(game.playingTime)}</Meta> : null}
-            {game.weight ? (
-              <Meta title={`Peso ${game.weight.toFixed(1)}/5`}>{weightLabel(game.weight)}</Meta>
-            ) : null}
-            {game.bggRank && <Meta title="Puesto en el ranking de BGG">#{game.bggRank}</Meta>}
+            <GameTags
+              game={{
+                bggRank: game.bggRank,
+                minPlayers: game.minPlayers,
+                maxPlayers: game.maxPlayers,
+                playingTime: game.playingTime,
+                weight: game.weight,
+              }}
+            />
           </div>
         </div>
 
@@ -572,17 +564,6 @@ function RecCard({
         </div>
       </div>
     </article>
-  );
-}
-
-function Meta({ children, title }: { children: React.ReactNode; title?: string }) {
-  return (
-    <span
-      title={title}
-      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] whitespace-nowrap"
-    >
-      {children}
-    </span>
   );
 }
 

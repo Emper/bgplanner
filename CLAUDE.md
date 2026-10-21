@@ -98,6 +98,7 @@ NextResponse.json(...)
 - **Estilos**: variables CSS (`var(--primary)`, `var(--surface)`, `var(--text)`, `var(--text-secondary)`, `var(--text-muted)`, `var(--border)`, `var(--input-bg)`, `var(--input-border)`, `var(--card-shadow)`). Definidas en [src/app/globals.css](src/app/globals.css). Light y dark definidos con `.dark` toggle.
 - **Páginas internas**: utilidades de [globals.css](src/app/globals.css), nada de `max-w-*` sueltos. Fondo `min-h-screen bg-[var(--bg)] page-pad` y dentro uno de los cuatro anchos: `page-wide` (6xl, Inicio y ludoteca), `page-main` (4xl, secciones de las pestañas y sus detalles), `page-text` (3xl, páginas de leer y notificaciones) o `page-form` (2xl, formularios). Titular con `page-title` y entradilla con `page-lead`; bloque de cabecera con `mb-6`.
 - Bordes redondeados = `rounded-xl` (botones/inputs) o `rounded-2xl` (tarjetas/modales).
+- **Datos de un juego en un listado** (rank, jugadores, duración, peso, partidas, nota propia, alta): siempre con `GameTags` de [GameTags.tsx](src/components/GameTags.tsx), pasando solo los datos que pinten algo en ese listado. Otras etiquetas sueltas junto a ellas (interesados, «Lo quiere»…) con `GameTag`. El año va junto al nombre, entre paréntesis.
 - Fuentes: Bricolage Grotesque (display), DM Sans (body), Geist Mono (mono).
 
 ### Feed

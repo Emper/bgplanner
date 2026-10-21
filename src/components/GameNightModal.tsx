@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
+import GameTags from "@/components/GameTags";
 import { formatDuration } from "@/lib/format";
 import { findVoteOption } from "@/lib/groupTypes";
 import {
@@ -121,23 +122,17 @@ function timeLabel(minutes: number | null) {
   return minutes === null ? "Sin prisa" : formatDuration(minutes);
 }
 
-function playersLabel(game: NightGame) {
-  if (!game.minPlayers && !game.maxPlayers) return null;
-  return game.minPlayers === game.maxPlayers
-    ? `${game.minPlayers}p`
-    : `${game.minPlayers || "?"}-${game.maxPlayers || "?"}p`;
-}
-
 function Chips({ game }: { game: NightGame }) {
-  const players = playersLabel(game);
-  const chip =
-    "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] whitespace-nowrap";
   return (
-    <>
-      {game.playingTime ? <span className={chip}>⏱ {formatDuration(game.playingTime)}</span> : null}
-      {players && <span className={chip}>👥 {players}</span>}
-      {game.weight ? <span className={chip}>⚖️ {game.weight.toFixed(1)}</span> : null}
-    </>
+    <GameTags
+      size="sm"
+      game={{
+        minPlayers: game.minPlayers,
+        maxPlayers: game.maxPlayers,
+        playingTime: game.playingTime,
+        weight: game.weight,
+      }}
+    />
   );
 }
 

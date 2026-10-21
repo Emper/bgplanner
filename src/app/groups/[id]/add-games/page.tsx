@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BggRating from "@/components/BggRating";
+import GameTags, { GameTag } from "@/components/GameTags";
 
 interface ExpansionItem {
   bggId: number;
@@ -359,16 +360,14 @@ export default function AddGamesPage() {
   const membersWithBgg =
     group?.members.filter((m) => m.user.bggUsername) || [];
 
+  // De quién es la colección que se está mirando, para los tooltips.
+  const selectedMember = membersWithBgg.find((m) => m.user.bggUsername === selectedUsername);
+  const selectedName = selectedMember
+    ? selectedMember.user.displayName || selectedMember.user.name || selectedUsername
+    : selectedUsername;
+
   // Cuántos de los juegos visibles ya están en el ranking (para el contador).
   const addedCount = items.filter((g) => addedGameIds.has(g.bggId)).length;
-
-  const weightLabel = (w: number) => {
-    if (w < 1.5) return "Ligero";
-    if (w < 2.5) return "Medio-ligero";
-    if (w < 3.5) return "Medio";
-    if (w < 4.5) return "Pesado";
-    return "Muy pesado";
-  };
 
   return (
     <>
@@ -803,35 +802,17 @@ export default function AddGamesPage() {
                                 {game.bggRating && (
                                   <BggRating rating={game.bggRating} size={28} />
                                 )}
-                                {game.bggRank && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full" title="Puesto en el ranking global de BGG">
-                                    🏆 BGG #{game.bggRank.toLocaleString("es-ES")}
-                                  </span>
-                                )}
-                                {(game.minPlayers || game.maxPlayers) && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-[var(--surface-hover)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full">
-                                    👥 {game.minPlayers}-{game.maxPlayers}
-                                  </span>
-                                )}
-                                {game.weight && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded-full" title={weightLabel(game.weight)}>
-                                    ⚖️ {game.weight.toFixed(1)}
-                                  </span>
-                                )}
-                                {game.numPlays > 0 ? (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-300 px-2 py-0.5 rounded-full">
-                                    🎲 {game.numPlays} partida{game.numPlays !== 1 && "s"}
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-red-500/15 text-red-300 px-2 py-0.5 rounded-full">
-                                    📦 Sin estrenar
-                                  </span>
-                                )}
-                                {game.userRating && (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-pink-500/15 text-pink-300 px-2 py-0.5 rounded-full">
-                                    ♥ {game.userRating.toFixed(1)}
-                                  </span>
-                                )}
+                                <GameTags
+                                  game={{
+                                    bggRank: game.bggRank,
+                                    minPlayers: game.minPlayers,
+                                    maxPlayers: game.maxPlayers,
+                                    weight: game.weight,
+                                    numPlays: game.numPlays,
+                                    userRating: game.userRating,
+                                  }}
+                                  owner={selectedName}
+                                />
                               </div>
                             </div>
 
@@ -1079,19 +1060,14 @@ export default function AddGamesPage() {
                                     </div>
                                     <div className="mt-1.5">
                                       {nobodyHasIt ? (
-                                        <span className="inline-flex items-center gap-1 text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full">
-                                          ⚠️ Nadie del grupo lo tiene
-                                        </span>
+                                        <GameTag tone="amber">⚠️ Nadie del grupo lo tiene</GameTag>
                                       ) : (
-                                        <span
-                                          className="inline-flex items-center gap-1 text-xs bg-green-500/15 text-green-300 px-2 py-0.5 rounded-full"
-                                          title={game.owners.join(", ")}
-                                        >
+                                        <GameTag tone="green" title={game.owners.join(", ")}>
                                           ✓{" "}
                                           {game.owners.length === 1
                                             ? `En la colección de ${game.owners[0]}`
                                             : `Lo tienen ${game.owners.length} miembros`}
-                                        </span>
+                                        </GameTag>
                                       )}
                                     </div>
                                   </div>

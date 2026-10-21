@@ -11,6 +11,7 @@ import ActivityFeed, { getCachedFeed, setCachedFeed, clearCachedFeed } from "@/c
 import PageLoader from "@/components/PageLoader";
 import Avatar from "@/components/Avatar";
 import BggRating from "@/components/BggRating";
+import GameTags from "@/components/GameTags";
 import dynamic from "next/dynamic";
 import GroupPlayedGames from "@/components/GroupPlayedGames";
 import EmojiField from "@/components/EmojiField";
@@ -1291,28 +1292,16 @@ function GroupDashboardPage() {
                                   {item.game.bggRating && (
                                     <BggRating rating={item.game.bggRating} size={30} />
                                   )}
-                                  {item.game.bggRank && (
-                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-amber-500/20 text-amber-300" title="Puesto en el ranking global de BGG">
-                                      🏆 BGG #{item.game.bggRank.toLocaleString("es-ES")}
-                                    </span>
-                                  )}
-                                  {item.game.playingTime && (
-                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-emerald-500/20 text-emerald-300">
-                                      ⏱ {formatDuration(item.game.playingTime)}
-                                    </span>
-                                  )}
-                                  {item.game.weight && (
-                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-purple-500/20 text-purple-300">
-                                      ⚖️ {item.game.weight.toFixed(1)}
-                                    </span>
-                                  )}
-                                  {(item.game.minPlayers || item.game.maxPlayers) && (
-                                    <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                                      {item.game.minPlayers === item.game.maxPlayers
-                                        ? `${item.game.minPlayers}p`
-                                        : `${item.game.minPlayers || "?"}-${item.game.maxPlayers || "?"}p`}
-                                    </span>
-                                  )}
+                                  <GameTags
+                                    size="sm"
+                                    game={{
+                                      bggRank: item.game.bggRank,
+                                      minPlayers: item.game.minPlayers,
+                                      maxPlayers: item.game.maxPlayers,
+                                      playingTime: item.game.playingTime,
+                                      weight: item.game.weight,
+                                    }}
+                                  />
                                 </div>
                               </div>
                               {/* Desktop: Vote buttons + Score, vertically centered */}

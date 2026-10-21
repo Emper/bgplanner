@@ -11,7 +11,7 @@ import {
   KEEP_LABELS,
   type CollectionItemView,
 } from "@/lib/collection";
-import { formatDateShort, formatDuration } from "@/lib/format";
+import GameTags, { GameTag } from "@/components/GameTags";
 
 // Las tarjetas de la colección (lista y cuadrícula) y la ficha de un juego.
 // La tercera vista, la estantería, es GameShelf, que se comparte con las
@@ -22,49 +22,10 @@ import { formatDateShort, formatDuration } from "@/lib/format";
 
 export type CollectionView = "list" | "grid" | "shelf";
 
-function playersLabel(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max && min !== max) return `${min}-${max} jugadores`;
-  const n = min || max;
-  return `${n} jugador${n === 1 ? "" : "es"}`;
-}
-
-function weightLabel(w: number): string {
-  if (w < 1.5) return "Ligero";
-  if (w < 2.5) return "Medio-ligero";
-  if (w < 3.5) return "Medio";
-  if (w < 4.5) return "Pesado";
-  return "Muy pesado";
-}
-
 // La portada grande solo llega tras resincronizar con BGG; hasta entonces
 // tiramos del thumbnail de siempre.
 function cover(item: { image: string | null; thumbnail: string | null }) {
   return item.image || item.thumbnail;
-}
-
-function Meta({ children, title }: { children: React.ReactNode; title?: string }) {
-  return (
-    <span
-      title={title}
-      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--surface-hover)] text-[var(--text-secondary)] whitespace-nowrap"
-    >
-      {children}
-    </span>
-  );
-}
-
-// Mi nota personal de BGG, marcada como propia para no confundirla con la
-// media de la comunidad.
-function MyRatingBadge({ rating, owner }: { rating: number; owner?: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-[var(--accent-soft)] text-[var(--primary)] border border-[var(--primary)]/30"
-      title={owner ? `Nota de ${owner} en BGG: ${rating}` : `Tu nota en BGG: ${rating}`}
-    >
-      ★ {rating % 1 === 0 ? rating : rating.toFixed(1)}
-    </span>
-  );
 }
 
 // La puntuación de permanencia escrita, para cuando no se puede tocar.
@@ -152,30 +113,10 @@ function ShowcaseStar({
   );
 }
 
-function GameMeta({ item }: { item: CollectionItemView }) {
-  const players = playersLabel(item.minPlayers, item.maxPlayers);
+function GameMeta({ item, owner }: { item: CollectionItemView; owner?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {item.yearPublished && <Meta>{item.yearPublished}</Meta>}
-      {players && (
-        <Meta title={item.bestWith ? `Mejor con ${item.bestWith}` : undefined}>
-          {players}
-        </Meta>
-      )}
-      {item.playingTime ? <Meta>{formatDuration(item.playingTime)}</Meta> : null}
-      {item.weight ? (
-        <Meta title={`Peso ${item.weight.toFixed(1)}/5`}>{weightLabel(item.weight)}</Meta>
-      ) : null}
-      {item.bggRank && <Meta title="Puesto en el ranking de BGG">#{item.bggRank}</Meta>}
-      <Meta title="Partidas registradas en BGG">
-        🎲 {item.numPlays}
-        {item.expansionPlays > 0 && ` (+${item.expansionPlays})`}
-      </Meta>
-      {item.dateAdded && (
-        <Meta title="Fecha de alta en la colección de BGG">
-          {formatDateShort(item.dateAdded)}
-        </Meta>
-      )}
+      <GameTags game={item} owner={owner} />
     </div>
   );
 }
@@ -235,6 +176,11 @@ export function ListRow({
             <button onClick={onOpen} className="text-left min-w-0 flex-1">
               <h3 className="font-semibold text-sm text-[var(--text)] truncate hover:text-[var(--primary)] transition-colors">
                 {item.name}
+                {item.yearPublished && (
+                  <span className="font-normal text-[var(--text-muted)] ml-1">
+                    ({item.yearPublished})
+                  </span>
+                )}
               </h3>
             </button>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -244,7 +190,7 @@ export function ListRow({
                 onToggle={onToggleShowcase}
               />
               {item.status === "wishlist" && (
-                <Meta
+                <GameTag
                   title={
                     item.savedHere
                       ? "Guardado en la wishlist de BG Planner"
@@ -252,17 +198,14 @@ export function ListRow({
                   }
                 >
                   Lo quiere
-                </Meta>
-              )}
-              {item.userRating !== null && (
-                <MyRatingBadge rating={item.userRating} owner={owner} />
+                </GameTag>
               )}
               {item.bggRating !== null && <BggRating rating={item.bggRating} size={28} />}
             </div>
           </div>
 
           <div className="mt-1.5">
-            <GameMeta item={item} />
+            <GameMeta item={item} owner={owner} />
           </div>
 
           {item.expansions.length > 0 && (
@@ -396,7 +339,7 @@ export function GridCard({
         <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
           <span>🎲 {item.numPlays}</span>
           {item.userRating !== null && (
-            <span className="text-[var(--primary)]">★ {item.userRating}</span>
+            <span className="text-pink-700 dark:text-pink-300">♥ {item.userRating}</span>
           )}
           {item.expansions.length > 0 && <span>+{item.expansions.length} exp.</span>}
         </div>
@@ -473,15 +416,19 @@ export function DetailModal({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-[var(--text)] leading-snug">{item.name}</h2>
+              <h2 className="text-lg font-bold text-[var(--text)] leading-snug">
+                {item.name}
+                {item.yearPublished && (
+                  <span className="font-normal text-base text-[var(--text-muted)] ml-1.5">
+                    ({item.yearPublished})
+                  </span>
+                )}
+              </h2>
               <div className="mt-2">
-                <GameMeta item={item} />
+                <GameMeta item={item} owner={owner} />
               </div>
               <div className="flex items-center gap-2 mt-2">
                 {item.bggRating !== null && <BggRating rating={item.bggRating} size={30} />}
-                {item.userRating !== null && (
-                  <MyRatingBadge rating={item.userRating} owner={owner} />
-                )}
                 <a
                   href={`https://boardgamegeek.com/boardgame/${item.bggId}`}
                   target="_blank"
